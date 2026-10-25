@@ -7,8 +7,8 @@ import discord
 from discord.utils import escape_markdown
 
 from shopbot.features import core_keys as core
+from shopbot.features.tickets import MODULE, service
 from shopbot.features.tickets import content_keys as k
-from shopbot.features.tickets import service
 from shopbot.ui.custom_ids import cid
 from tests.fakes import click, http_error, modal_input_ids, modal_of, submit_modal
 from tests.helpers import TestEnv
@@ -313,3 +313,65 @@ async def test_unknown_category_and_foreign_guild(tk: TestEnv) -> None:
     assert unknown.last_sent is not None
     assert unknown.last_sent.embeds[0].description == tk.text(core.ERROR_NOT_FOUND)
     assert await tickets(tk) == []
+
+
+async def test_select_panel_is_reset_after_every_pick(tmp_path: Path) -> None:
+    """A Discord select keeps showing the picked option; the panel's menu is re-rendered after each pick
+    so the same category can be picked again."""
+    tenv = await make_env(tmp_path, form_overrides({"tickets": {"panel_style": "select"}}))
+    try:
+        assert MODULE.publish is not None
+        await MODULE.publish(tenv.app)
+        panel = channel(tenv, "ticket_panel").messages[0]
+        embeds = list(panel.embeds)
+        customer = tenv.member()
+        pick = cid("tk", "pick")
+
+        # No form: the pick is acknowledged by re-rendering the menu; the answer follows privately.
+        picked = await click(tenv.app, user=customer, custom_id=pick, values=["general"], message=panel)
+        assert picked.response_kinds() == ["edit_message"]
+        assert set(picked.response.calls[0][1]) == {"view"}  # only the components; the embed is untouched
+        assert panel.embeds == embeds and panel.custom_ids() == [pick]
+        assert not any(option.default for option in panel.components()[0].item.options)
+        [ticket] = await tickets(tenv)
+        reply = picked.last_sent
+        assert reply is not None and reply.ephemeral  # type: ignore[attr-defined]
+        assert reply.embeds[0].description == render(
+            tenv, k.CREATED, channel_mention=f"<#{ticket.channel_id}>", number=number(tenv, 1)
+        )
+
+        # Form: the form opens, then the menu is reset.
+        advance_past_cooldown(tenv)
+        edits = len(panel.edits)
+        form = await click(tenv.app, user=customer, custom_id=pick, values=["billing"], message=panel)
+        assert form.response_kinds() == ["send_modal"] and modal_of(form) is not None
+        assert len(panel.edits) == edits + 1 and set(panel.edits[-1]) == {"view"}
+
+        # Refused pick (limit reached): the configured error is shown and the menu is reset as well.
+        edits = len(panel.edits)
+        refused = await click(tenv.app, user=customer, custom_id=pick, values=["general"], message=panel)
+        assert refused.last_sent is not None
+        assert refused.last_sent.embeds[0].description == render(tenv, k.LIMIT_REACHED, limit=1)
+        assert len(panel.edits) == edits + 1 and panel.custom_ids() == [pick]
+        assert len(await tickets(tenv)) == 1
+    finally:
+        await tenv.close()
+
+
+async def test_select_pick_still_answers_when_the_panel_cannot_be_rendered(tmp_path: Path) -> None:
+    tenv = await make_env(tmp_path, {"tickets": {"panel_style": "select"}})
+    try:
+        assert MODULE.publish is not None
+        await MODULE.publish(tenv.app)
+        panel = channel(tenv, "ticket_panel").messages[0]
+        values = dict(tenv.content)
+        del values[k.PANEL_DESCRIPTION]  # removed at runtime: the panel cannot be rebuilt right now
+        tenv.app.content.replace(file_values=values)
+        picked = await click(
+            tenv.app, user=tenv.member(), custom_id=cid("tk", "pick"), values=["general"], message=panel
+        )
+        assert picked.response_kinds() == ["defer"] and panel.edits == []
+        assert picked.last_sent is not None and picked.last_sent.ephemeral  # type: ignore[attr-defined]
+        assert [t.status for t in await tickets(tenv)] == ["open"]
+    finally:
+        await tenv.close()

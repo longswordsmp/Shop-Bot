@@ -1,9 +1,10 @@
 """Ticket transcripts: a self-contained HTML file that contains only data.
 
-The file holds the ticket number, category id, created/closed timestamps (UTC, ISO 8601), the
-participants, and for every message its timestamp, author display name and id, content, attachment
-URLs, and embed titles/descriptions/fields. It contains no invented wording: no headings, labels, or
-explanations - structure is conveyed by markup and CSS only. Every value is escaped with
+The file holds the ticket number, created/closed timestamps (UTC, ISO 8601), the participants, and for
+every message its timestamp, author display name and id, content, attachment URLs, and embed
+titles/descriptions/fields. It contains no invented wording (no headings, labels, or explanations -
+structure is conveyed by markup and CSS only) and no internal identifiers such as the category id: the
+same file may be sent to the customer. Every value is escaped with
 ``html.escape``; links are only emitted for http(s) URLs.
 """
 
@@ -103,7 +104,7 @@ _CSS = (
     "body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;margin:24px;color:#1f2328;background:#fff}"
     "header{border-bottom:1px solid #d0d7de;margin-bottom:16px;padding-bottom:8px}"
     ".ticket .number{font-size:1.4em;font-weight:600;margin-right:12px}"
-    ".ticket .category,.id,.author-id{color:#57606a;font-family:ui-monospace,monospace}"
+    ".id,.author-id{color:#57606a;font-family:ui-monospace,monospace}"
     "time{color:#57606a;margin-right:12px}"
     "ul{margin:4px 0;padding-left:20px}"
     ".message{border-left:3px solid #d0d7de;margin:10px 0;padding:4px 10px}"
@@ -114,14 +115,13 @@ _CSS = (
     ".embed-description,.embed-fields dd{white-space:pre-wrap;margin:0 0 4px 0}"
     ".embed-fields dt{font-weight:600}"
     "@media (prefers-color-scheme:dark){body{color:#e6edf3;background:#0d1117}"
-    ".embed{background:#161b22}time,.id,.author-id,.ticket .category{color:#8b949e}}"
+    ".embed{background:#161b22}time,.id,.author-id{color:#8b949e}}"
 )
 
 
 def build_html(
     *,
     number: str,
-    category_id: str,
     created_at: int,
     closed_at: int | None,
     participants: Sequence[TranscriptParticipant],
@@ -132,9 +132,8 @@ def build_html(
         '<html><head><meta charset="utf-8">',
         '<meta name="viewport" content="width=device-width, initial-scale=1">',
         f"<title>{_e(number)}</title><style>{_CSS}</style></head><body>",
-        f'<header data-number="{_e(number)}" data-category="{_e(category_id)}">',
-        f'<p class="ticket"><span class="number">{_e(number)}</span>'
-        f'<span class="category">{_e(category_id)}</span></p>',
+        f'<header data-number="{_e(number)}">',
+        f'<p class="ticket"><span class="number">{_e(number)}</span></p>',
         f'<p class="times">{_time("created", created_at)}{_time("closed", closed_at)}</p>',
         '<ul class="participants">',
     ]

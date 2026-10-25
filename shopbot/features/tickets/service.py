@@ -15,11 +15,15 @@ Reads
 Private channels (any kind)
     ``await create_private_channel(app, *, member, kind, category_id, discord_category_key,
     channel_prefix_key, extra_staff_role_keys, topic, limit, form_answers=None) -> CreatedChannel``
-        One transaction checks ``limit`` (active = 'creating'/'open' tickets of this user+kind+category)
-        and inserts a numbered 'creating' row; then the private channel is created (``@everyone`` denied;
-        owner, staff roles = permissions.staff_roles + permissions.admin_roles + ``extra_staff_role_keys``,
-        and the bot allowed). No message is sent. Raises ``TicketLimitReached`` / ``TicketCreateFailed``
-        (the row is then 'failed' and audited) or ``MissingContent`` (prefix not configured).
+        One transaction checks ``limit`` (active = 'creating'/'open' tickets of this user+kind+category),
+        inserts a numbered 'creating' row, and schedules its durable recovery task
+        (``tickets.recover_creating``, due ``CREATING_STALE_SECONDS`` later: an interrupted creation is
+        finished or failed even if the process stops). Then the private channel is created (``@everyone``
+        denied; owner, staff roles = permissions.staff_roles + permissions.admin_roles +
+        ``extra_staff_role_keys``, and the bot allowed). No message is sent. Raises ``TicketLimitReached`` /
+        ``TicketCreateFailed`` (the row is then 'failed' and audited; e.g. ``channel_name_too_long`` when
+        the rendered name exceeds Discord's 100 characters - names are never cut) or ``MissingContent``
+        (prefix not configured).
     ``await activate_ticket(app, ticket_id, *, control_message_id) -> Ticket``  'creating' -> 'open'.
     ``await abort_ticket(app, ticket_id, *, reason, channel=None)``  deletes the channel, 'creating' -> 'failed'.
     ``await staff_role_ids(app, extra_keys) -> list[discord.Role]`` (resolved Role objects).
@@ -30,20 +34,34 @@ Lifecycle (any kind; support-ticket UI messages are only posted for ``kind='supp
         Conditional open -> closed (None if it was not open). Defaults per kind: support uses the
         ``tickets.*`` settings; order uses ``checkout.transcript_on_close`` (with the tickets transcript
         channel), ``checkout.delete_channel_after_close_minutes``, lock=True, no category move.
-    ``await reopen_ticket(app, ticket_id, *, actor_id) -> Ticket | None``
+    ``await reopen_ticket(app, ticket_id, *, actor_id, limit=None) -> Ticket | None``
     ``await schedule_channel_deletion(app, ticket_id, minutes) -> None`` (task ``tickets.delete``)
     ``await delete_ticket(app, ticket_id, *, actor_id) -> bool`` (closed only; transcript first)
     ``await generate_transcript(app, ticket_id, *, force=False, requested_by=None) -> bool``
     ``await add_participant(app, ticket, member, *, actor_id) -> bool``
     ``await remove_participant(app, ticket, member, *, actor_id) -> bool``
+
+Limits of support tickets (each enforced in the same database transaction as the change it guards, and
+answered with the configured ``tickets.limit_reached`` text, ``{limit}`` being the limit that refused)
+    - open tickets per user and category: ``max_open_per_user`` of the category, else of ``[tickets]``.
+      Checked when a ticket is created and when its *owner* reopens it (staff reopen without limit).
+    - tickets created per user per 24 hours, all categories and states together except failed attempts:
+      ``tickets.max_created_per_user_per_day`` (default 10, 0 = unlimited). Closed channels stay until they
+      are deleted, so this keeps one member from filling the ticket category (Discord allows 50 channels per
+      category) by opening and closing tickets in a loop.
+
+Lifecycle concurrency: state changes are conditional UPDATEs. A deletion claims the row (closed -> deleted)
+after the transcript step and before the channel is deleted, so a reopen can no longer match it; the claim
+is undone if Discord refuses the deletion. In this process close, reopen, and delete of one ticket are also
+serialized (``TicketRuntime.lifecycle_lock``) so their Discord side effects never interleave.
 """
 
 from __future__ import annotations
 
-import contextlib
 import io
 import logging
 import re
+import sqlite3
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -56,16 +74,19 @@ from shopbot.core.channels import CREATE_PRIVATE_REQUIRED, OWNER_ALLOW, private_
 from shopbot.core.permissions import missing_permissions
 from shopbot.db.repos import notifications as notif_repo
 from shopbot.db.repos import state
+from shopbot.db.repos import tasks as task_repo
 from shopbot.features.tickets import content_keys as k
 from shopbot.features.tickets import repo, transcript, views
 from shopbot.features.tickets.models import (
     CLOSED,
     DELETED,
+    FAILED,
     KIND_ORDER,
     KIND_SUPPORT,
     OPEN,
     TRANSCRIPT_DONE,
     TRANSCRIPT_FAILED,
+    TRANSCRIPT_OUTSTANDING,
     TRANSCRIPT_PENDING,
     TRANSCRIPT_SKIPPED,
     Ticket,
@@ -85,6 +106,19 @@ TASK_TRANSCRIPT = "tickets.transcript"
 TASK_DELETE = "tickets.delete"
 TASK_AUTO_CLOSE = "tickets.auto_close"
 TASK_AUTO_CLOSE_WARN = "tickets.auto_close_warn"
+TASK_RECOVER_CREATING = "tickets.recover_creating"
+
+# A ticket still 'creating' this long after its row was reserved was interrupted: it is finished (its
+# channel exists) or failed by the recovery (restart recovery, and the durable tickets.recover_creating task).
+CREATING_STALE_SECONDS = 300
+# How often a deletion claim is retried when the ticket was closed again with a new transcript pending.
+_DELETE_CLAIM_ATTEMPTS = 3
+
+# Overwrite parts of the ticket owner and added participants. Threads are never created by them: thread
+# messages are not part of the transcript and do not count as ticket activity. A locked ticket (closed with
+# lock_on_close) stays readable, but nothing can be posted, in threads either.
+THREAD_CREATION_DENY: dict[str, bool] = {"create_public_threads": False, "create_private_threads": False}
+LOCKED_DENY: dict[str, bool] = {"send_messages": False, "attach_files": False, "send_messages_in_threads": False}
 
 
 def dedupe_transcript(ticket_id: int) -> str:
@@ -101,6 +135,10 @@ def dedupe_auto_close(ticket_id: int) -> str:
 
 def dedupe_auto_warn(ticket_id: int) -> str:
     return f"tickets.autowarn:{ticket_id}"
+
+
+def dedupe_recover_creating(ticket_id: int) -> str:
+    return f"tickets.recover_creating:{ticket_id}"
 
 
 def closed_message_key(ticket_id: int) -> str:
@@ -181,6 +219,13 @@ def is_ticket_staff(app: App, member: discord.Member | None, user_id: int, ticke
     return app.perms.is_staff(member, user_id, staff_keys_for(app, ticket))
 
 
+def open_limit(app: App, category_id: str) -> int:
+    """Open support tickets one user may have in ``category_id`` (category override, else the default)."""
+    t = app.settings.tickets
+    category = t.category(category_id)
+    return (category.max_open_per_user if category is not None else 0) or t.max_open_per_user
+
+
 async def staff_role_ids(app: App, extra_keys: tuple[str, ...] | list[str]) -> list[discord.Role]:
     """Resolved staff roles with access to private channels: permissions.staff_roles + admin_roles +
     ``extra_keys`` (unknown or deleted roles are skipped and logged)."""
@@ -202,6 +247,38 @@ async def staff_role_ids(app: App, extra_keys: tuple[str, ...] | list[str]) -> l
 def _ping_role_ids(app: App, category: TicketCategory) -> tuple[int, ...]:
     keys = (*app.settings.permissions.staff_roles, *support_staff_keys(app, category.id))
     return tuple(sorted(app.resources.role_ids(keys)))
+
+
+def unmentionable_ping_roles(
+    app: App, category: TicketCategory, where: discord.abc.GuildChannel | None
+) -> list[discord.Role]:
+    """Roles a ``ping_staff`` category pings that Discord will not notify: the role is not mentionable and
+    the bot lacks "Mention @everyone, @here and All Roles" (in ``where``, else server-wide)."""
+    guild = app.guild
+    if guild is None or not category.ping_staff:
+        return []
+    me = guild.me
+    perms = where.permissions_for(me) if where is not None else me.guild_permissions
+    if perms.mention_everyone:
+        return []
+    roles = (guild.get_role(role_id) for role_id in _ping_role_ids(app, category))
+    return [role for role in roles if role is not None and not role.mentionable]
+
+
+def _log_unmentionable(
+    app: App, category: TicketCategory, where: discord.abc.GuildChannel | None, *, path: str
+) -> None:
+    roles = unmentionable_ping_roles(app, category, where)
+    if roles:
+        log_event(
+            log,
+            logging.WARNING,
+            "tickets_ping_role_not_mentionable",
+            category=category.id,
+            path=path,
+            role_ids=[role.id for role in roles],
+            hint="make the role mentionable or give the bot 'Mention @everyone, @here and All Roles'",
+        )
 
 
 async def ticket_channel(app: App, ticket: Ticket) -> discord.TextChannel | None:
@@ -242,30 +319,120 @@ _USER_SLUG = re.compile(r"[^a-z0-9_-]+")
 
 def channel_user_slug(member: discord.abc.User) -> str:
     """Username for {user} in channel names: lower-case letters, digits, '-' and '_' only."""
-    slug = _USER_SLUG.sub("-", member.name.lower()).strip("-")[:32]
+    slug = _USER_SLUG.sub("-", member.name.lower()).strip("-")[: k.USER_SLUG_MAX]
     return slug or str(member.id)
+
+
+def member_overwrite(*, locked: bool) -> discord.PermissionOverwrite:
+    """Overwrite of the ticket owner and added participants (see ``THREAD_CREATION_DENY``/``LOCKED_DENY``)."""
+    perms: dict[str, bool] = {**OWNER_ALLOW, **THREAD_CREATION_DENY}
+    if locked:
+        perms.update(LOCKED_DENY)
+    return discord.PermissionOverwrite(**perms)
+
+
+def ticket_channel_name(app: App, *, prefix: str, number: int, user: str) -> str:
+    """The channel name of a new ticket. Never cut: raises ``TicketCreateFailed('channel_name_too_long')``
+    when it would exceed Discord's limit (settings readiness reports configurations that can get there)."""
+    t = app.settings.tickets
+    name = render_channel_name(
+        t.channel_name_pattern, prefix=prefix, number=number, padding=t.number_padding, user=user
+    )
+    full_length = k.channel_name_length(
+        t.channel_name_pattern, prefix=len(prefix), number=len(format_number(app, number)), user=len(user)
+    )
+    if max(len(name), full_length) > k.CHANNEL_NAME_MAX:
+        log_event(log, logging.ERROR, "tickets_channel_name_too_long", length=full_length, number=number)
+        raise TicketCreateFailed("channel_name_too_long")
+    return name
+
+
+# -- transaction bodies (run with app.db.transaction) -------------------------------------------------------
+
+
+def reserve_txn(
+    conn: sqlite3.Connection,
+    *,
+    guild_id: int,
+    kind: str,
+    category_id: str,
+    user_id: int,
+    form_answers: dict[str, str],
+    limit: int,
+    daily_limit: int,
+    now: int,
+    recovery_max_attempts: int,
+) -> Ticket:
+    """Reserve the numbered 'creating' row and schedule its recovery task in the same transaction."""
+    ticket = repo.reserve(
+        conn,
+        guild_id=guild_id,
+        kind=kind,
+        category_id=category_id,
+        user_id=user_id,
+        form_answers=form_answers,
+        limit=limit,
+        now=now,
+        daily_limit=daily_limit,
+    )
+    task_repo.schedule(
+        conn,
+        kind=TASK_RECOVER_CREATING,
+        run_at=ticket.created_at + CREATING_STALE_SECONDS,
+        payload={"ticket_id": ticket.id},
+        max_attempts=recovery_max_attempts,
+        dedupe_key=dedupe_recover_creating(ticket.id),
+        replace=False,
+        now=now,
+    )
+    return ticket
+
+
+def activate_txn(conn: sqlite3.Connection, ticket_id: int, control_message_id: int | None, now: int) -> Ticket | None:
+    """'creating' -> 'open'; the creation no longer needs its recovery task."""
+    opened = repo.activate(conn, ticket_id, control_message_id, now)
+    if opened is not None:
+        task_repo.cancel(conn, dedupe_key=dedupe_recover_creating(ticket_id), now=now)
+    return opened
+
+
+def fail_txn(conn: sqlite3.Connection, ticket_id: int, now: int) -> Ticket | None:
+    """'creating' -> 'failed'; the creation no longer needs its recovery task."""
+    failed = repo.mark_failed(conn, ticket_id, now)
+    if failed is not None:
+        task_repo.cancel(conn, dedupe_key=dedupe_recover_creating(ticket_id), now=now)
+    return failed
 
 
 # -- creation ---------------------------------------------------------------------------------------------
 
 
 async def reserve_ticket(
-    app: App, *, user_id: int, kind: str, category_id: str, limit: int, form_answers: dict[str, str] | None = None
+    app: App,
+    *,
+    user_id: int,
+    kind: str,
+    category_id: str,
+    limit: int,
+    form_answers: dict[str, str] | None = None,
+    daily_limit: int = 0,
 ) -> Ticket:
-    """Limit check + numbered 'creating' row, atomically. Raises ``TicketLimitReached``."""
-    ticket = await app.db.transaction(
-        repo.reserve,
-        guild_id=app.env.guild_id,
-        kind=kind,
-        category_id=category_id,
-        user_id=user_id,
-        form_answers=dict(form_answers or {}),
-        limit=limit,
-        now=app.clock.now(),
-    )
-    if ticket is None:
-        raise TicketLimitReached(limit)
-    return ticket
+    """Limit checks + numbered 'creating' row + recovery task, atomically. Raises ``TicketLimitReached``."""
+    try:
+        return await app.db.transaction(
+            reserve_txn,
+            guild_id=app.env.guild_id,
+            kind=kind,
+            category_id=category_id,
+            user_id=user_id,
+            form_answers=dict(form_answers or {}),
+            limit=limit,
+            daily_limit=daily_limit,
+            now=app.clock.now(),
+            recovery_max_attempts=app.scheduler.max_attempts,
+        )
+    except repo.LimitReached as exc:
+        raise TicketLimitReached(exc.limit) from None
 
 
 async def abort_ticket(
@@ -283,7 +450,7 @@ async def abort_ticket(
             log_event(log, logging.ERROR, "tickets_abort_channel_delete_failed", ticket_id=ticket_id, status=exc.status)
         finally:
             rt.deleting.discard(ticket_id)
-    failed = await app.db.transaction(repo.mark_failed, ticket_id, app.clock.now())
+    failed = await app.db.transaction(fail_txn, ticket_id, app.clock.now())
     if failed is not None:
         log_event(log, logging.ERROR, "tickets_create_failed", ticket_id=ticket_id, reason=reason)
         await app.audit.record(
@@ -293,6 +460,16 @@ async def abort_ticket(
             target_id=ticket_id,
             details={"number": failed.number, "kind": failed.kind, "category": failed.category_id, "reason": reason},
         )
+
+
+def _private_overwrites(
+    guild: discord.Guild, *, owner_id: int, staff_roles: list[discord.Role], bot_member: discord.Member
+) -> dict[discord.Role | discord.Member | discord.Object, discord.PermissionOverwrite]:
+    overwrites = private_overwrites(guild, owner_id=owner_id, staff_roles=staff_roles, bot_member=bot_member)
+    for target in list(overwrites):
+        if target.id == owner_id:
+            overwrites[target] = member_overwrite(locked=False)
+    return overwrites
 
 
 async def create_ticket_channel(
@@ -305,13 +482,16 @@ async def create_ticket_channel(
     extra_staff_role_keys: tuple[str, ...],
     topic: str | None,
 ) -> discord.TextChannel:
-    """Create the private channel of a reserved ticket and record its id. On failure the ticket is
-    aborted ('failed', audited) and ``TicketCreateFailed`` (or ``MissingContent``) is raised."""
+    """Create the private channel of a reserved ticket and record its id. On any failure the ticket is
+    aborted ('failed', audited, a channel already created is deleted) and ``TicketCreateFailed`` (or
+    ``MissingContent``) is raised."""
     guild = member.guild
+    channel: discord.TextChannel | None = None
     try:
         prefix = app.content.get(channel_prefix_key)
         if prefix is None:
             raise MissingContent(channel_prefix_key)
+        name = ticket_channel_name(app, prefix=prefix, number=ticket.number, user=channel_user_slug(member))
         category: discord.CategoryChannel | None = None
         if discord_category_key:
             category = app.resources.category(guild, discord_category_key)
@@ -322,15 +502,7 @@ async def create_ticket_channel(
         if missing:
             raise TicketCreateFailed("missing_permissions:" + ",".join(missing))
         roles = await staff_role_ids(app, extra_staff_role_keys)
-        overwrites = private_overwrites(guild, owner_id=member.id, staff_roles=roles, bot_member=bot_member)
-        t = app.settings.tickets
-        name = render_channel_name(
-            t.channel_name_pattern,
-            prefix=prefix,
-            number=ticket.number,
-            padding=t.number_padding,
-            user=channel_user_slug(member),
-        )
+        overwrites = _private_overwrites(guild, owner_id=member.id, staff_roles=roles, bot_member=bot_member)
         if topic is not None and len(topic) > 1024:
             log_event(log, logging.WARNING, "tickets_topic_too_long", ticket_id=ticket.id, length=len(topic))
             topic = None
@@ -340,16 +512,23 @@ async def create_ticket_channel(
             overwrites=overwrites,
             topic=topic if topic is not None else discord.utils.MISSING,
         )
+        if not await app.db.transaction(repo.set_channel, ticket.id, channel.id, app.clock.now()):
+            raise TicketCreateFailed("superseded")  # the row left 'creating' meanwhile (recovered as failed)
     except discord.HTTPException as exc:
-        await abort_ticket(app, ticket.id, reason=f"discord_{exc.status}_{exc.code}")
+        await abort_ticket(app, ticket.id, reason=f"discord_{exc.status}_{exc.code}", channel=channel)
         raise TicketCreateFailed(f"discord_{exc.status}") from exc
     except TicketCreateFailed as exc:
-        await abort_ticket(app, ticket.id, reason=exc.reason)
+        await abort_ticket(app, ticket.id, reason=exc.reason, channel=channel)
         raise
     except MissingContent as exc:
         await abort_ticket(app, ticket.id, reason=f"missing_content:{exc.key}")
         raise
-    await app.db.transaction(repo.set_channel, ticket.id, channel.id, app.clock.now())
+    except Exception as exc:
+        # e.g. a network error discord.py does not wrap, or the HTTP session closing during a restart.
+        reason = f"unexpected:{type(exc).__name__}"
+        log.exception("ticket %s: channel creation failed unexpectedly", ticket.id)
+        await abort_ticket(app, ticket.id, reason=reason, channel=channel)
+        raise TicketCreateFailed(reason) from exc
     return channel
 
 
@@ -386,7 +565,7 @@ async def create_private_channel(
 
 
 async def activate_ticket(app: App, ticket_id: int, *, control_message_id: int | None) -> Ticket:
-    opened = await app.db.transaction(repo.activate, ticket_id, control_message_id, app.clock.now())
+    opened = await app.db.transaction(activate_txn, ticket_id, control_message_id, app.clock.now())
     if opened is None:
         current = await get_ticket(app, ticket_id)
         raise TicketStateError(current.status if current is not None else "missing")
@@ -396,12 +575,17 @@ async def activate_ticket(app: App, ticket_id: int, *, control_message_id: int |
 async def open_support_ticket(
     app: App, *, member: discord.Member, category: TicketCategory, answers: dict[str, str]
 ) -> CreatedChannel:
-    """Full support-ticket creation: limit + row, every message prepared before any channel exists,
+    """Full support-ticket creation: limits + row, every message prepared before any channel exists,
     private channel, welcome + controls, 'open', staff alert, audit, inactivity tasks."""
     t = app.settings.tickets
-    limit = category.max_open_per_user or t.max_open_per_user
     ticket = await reserve_ticket(
-        app, user_id=member.id, kind=KIND_SUPPORT, category_id=category.id, limit=limit, form_answers=answers
+        app,
+        user_id=member.id,
+        kind=KIND_SUPPORT,
+        category_id=category.id,
+        limit=open_limit(app, category.id),
+        form_answers=answers,
+        daily_limit=k.daily_creation_cap(app.settings),
     )
     try:
         ping = _ping_role_ids(app, category) if category.ping_staff and not t.staff_alert_channel else ()
@@ -425,6 +609,10 @@ async def open_support_ticket(
     except RenderError as exc:
         await abort_ticket(app, ticket.id, reason="limits")
         raise TicketCreateFailed("limits") from exc
+    except Exception as exc:
+        log.exception("ticket %s: preparing the welcome failed unexpectedly", ticket.id)
+        await abort_ticket(app, ticket.id, reason=f"unexpected:{type(exc).__name__}")
+        raise TicketCreateFailed("unexpected") from exc
     channel = await create_ticket_channel(
         app,
         ticket,
@@ -434,6 +622,8 @@ async def open_support_ticket(
         extra_staff_role_keys=support_staff_keys(app, category.id),
         topic=topic,
     )
+    if ping:
+        _log_unmentionable(app, category, channel, path="welcome")
     try:
         control = await send_spec(channel, welcome[0])
         for spec in welcome[1:]:
@@ -441,7 +631,20 @@ async def open_support_ticket(
     except (discord.HTTPException, RenderError) as exc:
         await abort_ticket(app, ticket.id, reason=f"welcome_failed:{type(exc).__name__}", channel=channel)
         raise TicketCreateFailed("welcome_failed") from exc
-    opened = await activate_ticket(app, ticket.id, control_message_id=control.id)
+    except Exception as exc:
+        log.exception("ticket %s: sending the welcome failed unexpectedly", ticket.id)
+        await abort_ticket(app, ticket.id, reason=f"unexpected:{type(exc).__name__}", channel=channel)
+        raise TicketCreateFailed("welcome_failed") from exc
+    opened = await app.db.transaction(activate_txn, ticket.id, control.id, app.clock.now())
+    if opened is None:
+        # The row left 'creating' while this creation was slow: the recovery either failed it (then the
+        # channel must not stay behind) or adopted it (then it is a normal open ticket).
+        current = await get_ticket(app, ticket.id)
+        if current is None or not current.is_open:
+            gone = current is None or current.status == FAILED
+            await abort_ticket(app, ticket.id, reason="superseded", channel=channel if gone else None)
+            raise TicketCreateFailed("superseded")
+        opened = current
     await _send_staff_alert(app, opened, category, channel.id)
     await app.audit.record(
         "tickets.created",
@@ -462,6 +665,10 @@ async def _send_staff_alert(app: App, ticket: Ticket, category: TicketCategory, 
     if not alert_channel_id:
         log_event(log, logging.WARNING, "tickets_staff_alert_channel_missing", key=key)
         return
+    if category.ping_staff:
+        guild = app.guild
+        where = app.resources.text_channel(guild, key) if guild is not None else None
+        _log_unmentionable(app, category, where, path="staff_alert")
     try:
         spec = views.staff_alert(
             app.ui,
@@ -534,17 +741,15 @@ async def record_activity(app: App, channel_id: int, *, min_interval: int) -> Ti
 
 
 async def _set_access(app: App, channel: discord.TextChannel, ticket: Ticket, *, can_send: bool) -> None:
-    """Owner (and added participants) keep read access; ``can_send`` controls posting."""
-    perms = dict(OWNER_ALLOW)
-    if not can_send:
-        perms.update(send_messages=False, attach_files=False)
+    """Owner (and added participants) keep read access; ``can_send`` controls posting (threads included)."""
+    overwrite = member_overwrite(locked=not can_send)
     user_ids = [ticket.user_id, *await participants(app, ticket.id)]
     for user_id in dict.fromkeys(user_ids):
         member = await _member(channel.guild, user_id)
         if member is None:
             continue
         try:
-            await channel.set_permissions(member, overwrite=discord.PermissionOverwrite(**perms))
+            await channel.set_permissions(member, overwrite=overwrite)
         except discord.HTTPException as exc:
             log_event(log, logging.WARNING, "tickets_permission_update_failed", ticket_id=ticket.id, status=exc.status)
 
@@ -601,6 +806,11 @@ def _open_controls(app: App, ticket: Ticket) -> Rows | None:
         return None
 
 
+async def _is_status(app: App, ticket_id: int, status: str) -> bool:
+    current = await get_ticket(app, ticket_id)
+    return current is not None and current.status == status
+
+
 # -- close / reopen ---------------------------------------------------------------------------------------
 
 
@@ -616,6 +826,30 @@ async def close_ticket(
     closed_category_key: str | None = None,
 ) -> Ticket | None:
     """Close an open ticket (``actor_id=None``: automatic). Returns None when it was not open."""
+    async with runtime(app).lifecycle_lock(ticket_id):
+        return await _close(
+            app,
+            ticket_id,
+            actor_id=actor_id,
+            reason=reason,
+            transcript=transcript,
+            delete_after_minutes=delete_after_minutes,
+            lock=lock,
+            closed_category_key=closed_category_key,
+        )
+
+
+async def _close(
+    app: App,
+    ticket_id: int,
+    *,
+    actor_id: int | None,
+    reason: str | None,
+    transcript: bool | None,
+    delete_after_minutes: int | None,
+    lock: bool | None,
+    closed_category_key: str | None,
+) -> Ticket | None:
     current = await get_ticket(app, ticket_id)
     if current is None:
         return None
@@ -649,7 +883,9 @@ async def close_ticket(
             await _set_access(app, channel, closed, can_send=False)
         if closed_category_key:
             await _move(app, channel, closed_category_key, ticket_id)
-        if support:
+        # Re-checked before each customer-visible step: a ticket reopened (or deleted) meanwhile must not
+        # get the closed message or a deletion notice.
+        if support and await _is_status(app, ticket_id, CLOSED):
             await _post_closed_ui(app, channel, closed)
     if transcript:
         await app.scheduler.schedule(
@@ -659,7 +895,7 @@ async def close_ticket(
             dedupe_key=dedupe_transcript(ticket_id),
             replace=True,
         )
-    if delete_after_minutes > 0:
+    if delete_after_minutes > 0 and await _is_status(app, ticket_id, CLOSED):
         await schedule_channel_deletion(app, ticket_id, delete_after_minutes)
         if support and channel is not None:
             minutes = delete_after_minutes
@@ -677,9 +913,12 @@ async def close_ticket(
 
 
 async def _post_closed_ui(app: App, channel: discord.TextChannel, ticket: Ticket) -> None:
+    """Post the closed message (reopen/transcript/delete buttons) and remove the welcome's close/claim
+    buttons. If the closed message cannot be posted, the welcome keeps its buttons: staff are never left
+    without any control on the ticket."""
     t = app.settings.tickets
     try:
-        spec: MessageSpec | None = views.closed_message(
+        spec = views.closed_message(
             app.ui,
             t,
             ticket_id=ticket.id,
@@ -690,11 +929,12 @@ async def _post_closed_ui(app: App, channel: discord.TextChannel, ticket: Ticket
         )
     except MissingContent as exc:
         log_event(log, logging.ERROR, "content_missing_at_runtime", key=exc.key, where="tickets.closed")
-        spec = None
-    if spec is not None:
-        message = await _post(app, channel, spec, ticket_id=ticket.id)
-        if message is not None:
-            await app.db.transaction(state.kv_set, closed_message_key(ticket.id), str(message.id), app.clock.now())
+        return
+    message = await _post(app, channel, spec, ticket_id=ticket.id)
+    if message is None:
+        log_event(log, logging.ERROR, "tickets_closed_message_failed", ticket_id=ticket.id)
+        return
+    await app.db.transaction(state.kv_set, closed_message_key(ticket.id), str(message.id), app.clock.now())
     await _set_controls(app, channel, ticket, ())
 
 
@@ -708,34 +948,43 @@ async def schedule_channel_deletion(app: App, ticket_id: int, minutes: int) -> N
     )
 
 
-async def reopen_ticket(app: App, ticket_id: int, *, actor_id: int) -> Ticket | None:
-    """closed -> open: restore access, move back, cancel deletion, restore controls. None if not closed."""
-    reopened = await app.db.transaction(repo.reopen, ticket_id, app.clock.now())
-    if reopened is None:
-        return None
-    await app.scheduler.cancel(dedupe_delete(ticket_id))
-    await app.scheduler.cancel(dedupe_transcript(ticket_id))
-    channel = await ticket_channel(app, reopened)
-    if channel is not None:
-        await _set_access(app, channel, reopened, can_send=True)
-        if reopened.is_support:
-            category = app.settings.tickets.category(reopened.category_id)
-            if category is not None and category.discord_category:
-                await _move(app, channel, category.discord_category, ticket_id)
-            await _disable_closed_message(app, channel, ticket_id)
-            await _post_built(app, channel, reopened, lambda: views.reopened(app.ui, actor_id), "tickets.reopened")
-            rows = _open_controls(app, reopened)
-            if rows is not None:
-                await _set_controls(app, channel, reopened, rows)
-    await schedule_inactivity(app, reopened)
-    await app.audit.record(
-        "tickets.reopened",
-        actor_id=actor_id,
-        target_type="ticket",
-        target_id=ticket_id,
-        details={"number": reopened.number},
-    )
-    return reopened
+async def reopen_ticket(app: App, ticket_id: int, *, actor_id: int, limit: int | None = None) -> Ticket | None:
+    """closed -> open: restore access, move back, cancel deletion, restore controls. None if not closed.
+
+    ``limit`` (the owner reopens their own ticket): refused with ``TicketLimitReached`` when the owner
+    already has that many active tickets in the ticket's category; checked atomically with the reopen.
+    Staff reopen without a limit.
+    """
+    async with runtime(app).lifecycle_lock(ticket_id):
+        try:
+            reopened = await app.db.transaction(repo.reopen, ticket_id, app.clock.now(), limit=limit or 0)
+        except repo.LimitReached as exc:
+            raise TicketLimitReached(exc.limit) from None
+        if reopened is None:
+            return None
+        await app.scheduler.cancel(dedupe_delete(ticket_id))
+        await app.scheduler.cancel(dedupe_transcript(ticket_id))
+        channel = await ticket_channel(app, reopened)
+        if channel is not None:
+            await _set_access(app, channel, reopened, can_send=True)
+            if reopened.is_support:
+                category = app.settings.tickets.category(reopened.category_id)
+                if category is not None and category.discord_category:
+                    await _move(app, channel, category.discord_category, ticket_id)
+                await _disable_closed_message(app, channel, ticket_id)
+                await _post_built(app, channel, reopened, lambda: views.reopened(app.ui, actor_id), "tickets.reopened")
+                rows = _open_controls(app, reopened)
+                if rows is not None:
+                    await _set_controls(app, channel, reopened, rows)
+        await schedule_inactivity(app, reopened)
+        await app.audit.record(
+            "tickets.reopened",
+            actor_id=actor_id,
+            target_type="ticket",
+            target_id=ticket_id,
+            details={"number": reopened.number},
+        )
+        return reopened
 
 
 async def _disable_closed_message(app: App, channel: discord.TextChannel, ticket_id: int) -> None:
@@ -804,10 +1053,8 @@ async def add_participant(app: App, ticket: Ticket, member: discord.Member, *, a
     channel = await ticket_channel(app, ticket)
     if channel is None:
         raise TicketStateError("channel_missing")
-    perms = dict(OWNER_ALLOW)
-    if ticket.status == CLOSED and app.settings.tickets.lock_on_close:
-        perms.update(send_messages=False, attach_files=False)
-    await channel.set_permissions(member, overwrite=discord.PermissionOverwrite(**perms))
+    locked = ticket.status == CLOSED and app.settings.tickets.lock_on_close
+    await channel.set_permissions(member, overwrite=member_overwrite(locked=locked))
     added = await app.db.transaction(repo.add_participant, ticket.id, member.id, actor_id, app.clock.now())
     if not added:
         return False
@@ -849,6 +1096,11 @@ async def remove_participant(app: App, ticket: Ticket, member: discord.Member, *
 # -- transcripts ---------------------------------------------------------------------------------------------
 
 
+def transcript_filename(app: App, number: int) -> str:
+    """The transcript file name: the ticket number as shown everywhere, no invented wording."""
+    return f"{format_number(app, number)}.html"
+
+
 async def render_transcript(app: App, ticket: Ticket) -> tuple[bytes, str] | None:
     """Build the transcript file (bytes, filename) from the channel history; None if unreadable."""
     channel = await ticket_channel(app, ticket)
@@ -874,16 +1126,14 @@ async def render_transcript(app: App, ticket: Ticket) -> tuple[bytes, str] | Non
         member = channel.guild.get_member(user_id)
         if member is not None:
             names[user_id] = member.display_name
-    number = format_number(app, ticket.number)
     document = transcript.build_html(
-        number=number,
-        category_id=ticket.category_id,
+        number=format_number(app, ticket.number),
         created_at=ticket.created_at,
         closed_at=ticket.closed_at,
         participants=transcript.participants_of(ticket.user_id, added, messages, names),
         messages=messages,
     )
-    return document.encode("utf-8"), f"transcript-{number}.html"
+    return document.encode("utf-8"), transcript_filename(app, ticket.number)
 
 
 async def generate_transcript(
@@ -899,7 +1149,7 @@ async def generate_transcript(
         ticket = await get_ticket(app, ticket_id)
         if ticket is None:
             return False
-        outstanding = ticket.transcript_status in (TRANSCRIPT_PENDING, TRANSCRIPT_FAILED)
+        outstanding = ticket.transcript_status in TRANSCRIPT_OUTSTANDING
         if not force and not outstanding:
             return True
         t = app.settings.tickets
@@ -992,32 +1242,82 @@ async def _dm_transcript(app: App, ticket: Ticket, data: bytes, filename: str) -
 # -- deletion -----------------------------------------------------------------------------------------------
 
 
+async def _channel_for_deletion(app: App, ticket: Ticket) -> discord.abc.GuildChannel | None:
+    """The ticket's channel, or None when it no longer exists. Raises ``discord.HTTPException`` when Discord
+    cannot tell (the deletion is then not attempted)."""
+    if ticket.channel_id is None or app.bot is None:
+        return None
+    channel = app.bot.get_channel(ticket.channel_id)
+    if channel is None:
+        try:
+            channel = await app.bot.fetch_channel(ticket.channel_id)
+        except discord.NotFound:
+            return None
+    return channel if isinstance(channel, discord.abc.GuildChannel) else None
+
+
 async def delete_ticket(app: App, ticket_id: int, *, actor_id: int | None) -> bool:
     """Delete a closed ticket's channel. An outstanding transcript is generated first; if that fails,
     ``TranscriptUnavailable`` is raised and nothing is deleted. Raises ``TicketStateError`` when the
-    ticket is not closed and ``discord.HTTPException`` when Discord refuses the deletion. Returns False
-    if another path already deleted it."""
+    ticket is not closed (also when it was reopened while the transcript was produced) and
+    ``discord.HTTPException`` when Discord refuses the deletion (the ticket then stays closed). Returns
+    False if another path already deleted it."""
+    async with runtime(app).lifecycle_lock(ticket_id):
+        return await _delete(app, ticket_id, actor_id=actor_id)
+
+
+async def _delete(app: App, ticket_id: int, *, actor_id: int | None) -> bool:
     ticket = await get_ticket(app, ticket_id)
     if ticket is None:
         raise TicketStateError("missing")
     if ticket.status != CLOSED:
         raise TicketStateError(ticket.status)
-    outstanding = ticket.transcript_status in (TRANSCRIPT_PENDING, TRANSCRIPT_FAILED)
-    if outstanding and not await generate_transcript(app, ticket_id):
-        log_event(log, logging.ERROR, "tickets_delete_refused_transcript", ticket_id=ticket_id)
+    claim: tuple[Ticket, Ticket] | None = None
+    channel: discord.abc.GuildChannel | None = None
+    for _ in range(_DELETE_CLAIM_ATTEMPTS):
+        if ticket.transcript_status in TRANSCRIPT_OUTSTANDING and not await generate_transcript(app, ticket_id):
+            log_event(log, logging.ERROR, "tickets_delete_refused_transcript", ticket_id=ticket_id)
+            raise TranscriptUnavailable(str(ticket_id))
+        channel = await _channel_for_deletion(app, ticket)
+        # The claim: closed (no transcript outstanding) -> deleted. A reopen no longer matches from here on.
+        claim = await app.db.transaction(repo.mark_deleted, ticket_id, app.clock.now(), external=False)
+        if claim is not None:
+            break
+        current = await get_ticket(app, ticket_id)
+        if current is None:
+            raise TicketStateError("missing")
+        if current.status == DELETED:
+            return False
+        if current.status != CLOSED:
+            log_event(log, logging.INFO, "tickets_delete_lost_race", ticket_id=ticket_id, status=current.status)
+            raise TicketStateError(current.status)
+        ticket = current  # reopened and closed again meanwhile: its new transcript comes first
+    if claim is None:
         raise TranscriptUnavailable(str(ticket_id))
+    claimed = claim[1]
     rt = runtime(app)
     rt.deleting.add(ticket_id)
     try:
-        channel = await ticket_channel(app, ticket)
         if channel is not None:
-            with contextlib.suppress(discord.NotFound):
+            try:
                 await channel.delete()
-        result = await app.db.transaction(repo.mark_deleted, ticket_id, app.clock.now(), external=False)
+            except discord.NotFound:
+                pass
+            except Exception as exc:
+                restored = await app.db.transaction(
+                    repo.restore_deleted, ticket_id, claimed.deleted_at or 0, app.clock.now()
+                )
+                log_event(
+                    log,
+                    logging.ERROR,
+                    "tickets_delete_failed_kept_closed",
+                    ticket_id=ticket_id,
+                    error=type(exc).__name__,
+                    restored=restored is not None,
+                )
+                raise
     finally:
         rt.deleting.discard(ticket_id)
-    if result is None:
-        return False
     await cancel_all_tasks(app, ticket_id)
     await app.audit.record(
         "tickets.deleted",
@@ -1036,7 +1336,7 @@ async def channel_deleted(app: App, channel_id: int) -> Ticket | None:
         return None
     now = app.clock.now()
     if ticket.status == "creating":
-        failed = await app.db.transaction(repo.mark_failed, ticket.id, now)
+        failed = await app.db.transaction(fail_txn, ticket.id, now)
         if failed is not None:
             await app.audit.record(
                 "tickets.create_failed",

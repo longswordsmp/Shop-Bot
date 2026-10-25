@@ -1,6 +1,7 @@
 """Synchronous data access for tickets. Every function takes the connection first and runs on the database
 thread (``app.db.run`` for reads, ``app.db.transaction`` for writes). State changes are conditional
-UPDATEs (``WHERE status = ...``) so concurrent or repeated requests can never apply twice."""
+UPDATEs (``WHERE status = ...``) so concurrent or repeated requests can never apply twice. Per-user limits
+are checked in the same transaction as the change they guard and refuse it with ``LimitReached``."""
 
 from __future__ import annotations
 
@@ -20,11 +21,21 @@ from shopbot.features.tickets.models import (
     TRANSCRIPT_DONE,
     TRANSCRIPT_FAILED,
     TRANSCRIPT_NONE,
+    TRANSCRIPT_OUTSTANDING,
     TRANSCRIPT_PENDING,
     Ticket,
 )
 
 COUNTER_NAME = "ticket"
+DAY_SECONDS = 86_400
+
+
+class LimitReached(Exception):
+    """A per-user limit refused the change. Raised inside the transaction, so nothing was written."""
+
+    def __init__(self, limit: int) -> None:
+        super().__init__(f"limit {limit} reached")
+        self.limit = limit
 
 
 def _opt_int(value: Any) -> int | None:
@@ -85,6 +96,16 @@ def count_active(conn: sqlite3.Connection, guild_id: int, user_id: int, kind: st
         "SELECT COUNT(*) AS n FROM tickets WHERE guild_id = ? AND user_id = ? AND kind = ? AND category_id = ? "
         "AND status IN (?, ?)",
         (guild_id, user_id, kind, category_id, *ACTIVE_STATUSES),
+    ).fetchone()
+    return int(row["n"])
+
+
+def count_created_since(conn: sqlite3.Connection, guild_id: int, user_id: int, kind: str, since: int) -> int:
+    """Tickets of this user and kind created at or after ``since`` (failed creation attempts excluded)."""
+    row = conn.execute(
+        "SELECT COUNT(*) AS n FROM tickets WHERE guild_id = ? AND user_id = ? AND kind = ? AND created_at >= ? "
+        "AND status != ?",
+        (guild_id, user_id, kind, since, FAILED),
     ).fetchone()
     return int(row["n"])
 
@@ -150,10 +171,18 @@ def reserve(
     form_answers: dict[str, str],
     limit: int,
     now: int,
-) -> Ticket | None:
-    """Limit check + numbered 'creating' row in one transaction. Returns None when the limit is reached."""
+    daily_limit: int = 0,
+) -> Ticket:
+    """Limit checks + numbered 'creating' row in one transaction. Raises ``LimitReached``.
+
+    ``limit``: active ('creating'/'open') tickets of this user, kind and category (0 = unlimited).
+    ``daily_limit``: tickets of this kind the user created during the last 24 hours, in any category and
+    whatever their state, failed attempts excluded (0 = unlimited).
+    """
     if limit > 0 and count_active(conn, guild_id, user_id, kind, category_id) >= limit:
-        return None
+        raise LimitReached(limit)
+    if daily_limit > 0 and count_created_since(conn, guild_id, user_id, kind, now - DAY_SECONDS) >= daily_limit:
+        raise LimitReached(daily_limit)
     number = state.next_counter(conn, guild_id, COUNTER_NAME)
     state.touch_user(conn, user_id, now)
     cursor = conn.execute(
@@ -172,7 +201,9 @@ def reserve(
             now,
         ),
     )
-    return get(conn, int(cursor.lastrowid or 0))
+    ticket = get(conn, int(cursor.lastrowid or 0))
+    assert ticket is not None
+    return ticket
 
 
 def set_channel(conn: sqlite3.Connection, ticket_id: int, channel_id: int, now: int) -> bool:
@@ -227,8 +258,18 @@ def close(
     return get(conn, ticket_id) if cur.rowcount else None
 
 
-def reopen(conn: sqlite3.Connection, ticket_id: int, now: int) -> Ticket | None:
-    """closed -> open. A transcript that was still pending is dropped (the next close makes a new one)."""
+def reopen(conn: sqlite3.Connection, ticket_id: int, now: int, *, limit: int = 0) -> Ticket | None:
+    """closed -> open. A transcript that was still pending is dropped (the next close makes a new one).
+
+    ``limit`` > 0 (the owner reopens): raises ``LimitReached`` when the owner already has that many active
+    tickets of the ticket's kind and category. Returns None when the ticket was not closed.
+    """
+    if limit > 0:
+        current = get(conn, ticket_id)
+        if current is None or current.status != CLOSED:
+            return None
+        if count_active(conn, current.guild_id, current.user_id, current.kind, current.category_id) >= limit:
+            raise LimitReached(limit)
     cur = conn.execute(
         "UPDATE tickets SET status = ?, closed_at = NULL, closed_by = NULL, close_reason = NULL, "
         "last_activity_at = ?, transcript_status = CASE WHEN transcript_status = ? THEN ? ELSE ? END, "
@@ -259,19 +300,26 @@ def unclaim(conn: sqlite3.Connection, ticket_id: int, expected_staff_id: int, no
 def mark_deleted(
     conn: sqlite3.Connection, ticket_id: int, now: int, *, external: bool, reason: str | None = None
 ) -> tuple[Ticket, Ticket] | None:
-    """open/closed -> deleted. Returns (before, after) or None if the ticket was not open or closed.
+    """-> deleted. Returns (before, after), or None when the ticket is not in a state this path may delete.
 
-    ``external``: the channel disappeared without us (its messages are gone), so a pending transcript can
-    no longer be produced and is marked failed.
+    ``external=True``: the channel disappeared without us (its messages are gone): an open or closed ticket
+    is marked deleted, and a pending transcript, which can no longer be produced, is marked failed.
+    ``external=False``: the bot claims the deletion of a channel it is about to delete. Only a *closed*
+    ticket without an outstanding transcript matches, so a ticket reopened (or closed again with a new
+    transcript pending) meanwhile is never deleted; a reopen no longer matches once this has committed.
+    ``restore_deleted`` undoes the claim when Discord refuses to delete the channel.
     """
     before = get(conn, ticket_id)
-    if before is None or before.status not in (OPEN, CLOSED):
+    allowed = (OPEN, CLOSED) if external else (CLOSED,)
+    if before is None or before.status not in allowed:
+        return None
+    if not external and before.transcript_status in TRANSCRIPT_OUTSTANDING:
         return None
     cur = conn.execute(
         "UPDATE tickets SET status = ?, deleted_at = ?, closed_at = COALESCE(closed_at, ?), "
         "close_reason = CASE WHEN status = ? THEN COALESCE(?, close_reason) ELSE close_reason END, "
         "transcript_status = CASE WHEN ? AND transcript_status = ? THEN ? ELSE transcript_status END, "
-        "updated_at = ?, version = version + 1 WHERE id = ? AND status IN (?, ?)",
+        "updated_at = ?, version = version + 1 WHERE id = ? AND status = ? AND version = ?",
         (
             DELETED,
             now,
@@ -283,8 +331,8 @@ def mark_deleted(
             TRANSCRIPT_FAILED,
             now,
             ticket_id,
-            OPEN,
-            CLOSED,
+            before.status,
+            before.version,
         ),
     )
     if not cur.rowcount:
@@ -292,6 +340,17 @@ def mark_deleted(
     after = get(conn, ticket_id)
     assert after is not None
     return before, after
+
+
+def restore_deleted(conn: sqlite3.Connection, ticket_id: int, deleted_at: int, now: int) -> Ticket | None:
+    """Undo a deletion claim (``mark_deleted(external=False)``) whose channel could not be deleted:
+    deleted -> closed. Only the claim made at ``deleted_at`` is undone."""
+    cur = conn.execute(
+        "UPDATE tickets SET status = ?, deleted_at = NULL, updated_at = ?, version = version + 1 "
+        "WHERE id = ? AND status = ? AND deleted_at = ?",
+        (CLOSED, now, ticket_id, DELETED, deleted_at),
+    )
+    return get(conn, ticket_id) if cur.rowcount else None
 
 
 def set_transcript(

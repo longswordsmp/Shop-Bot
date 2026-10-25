@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
+import discord
 import pytest
 
 from shopbot.config.settings import parse_settings
@@ -12,6 +14,7 @@ from shopbot.features.tickets.panel import PANEL_KEY
 from shopbot.ui.custom_ids import cid
 from shopbot.ui.limits import validate_message, validate_modal
 from shopbot.ui.spec import MessageSpec, ModalSpec
+from tests.fakes import submit_modal
 from tests.helpers import TestEnv, deep_merge, make_settings, shipped_settings_dict
 from tests.tickets.util import channel, form_overrides, make_env
 
@@ -216,3 +219,51 @@ async def test_publish_reports_missing_ticket_category(tk: TestEnv) -> None:
     expected = tk.app.op("tickets.publish.category_missing", category="general", discord_category="tickets")
     assert expected in lines
     assert PANEL_KEY == "tickets:panel"
+
+
+def _ping_lines(tenv: TestEnv, lines: list[str]) -> list[str]:
+    prefix = tenv.app.op("tickets.publish.ping_not_mentionable", category="billing", roles="").split("billing")[0]
+    return [line for line in lines if line.startswith(prefix)]
+
+
+async def test_publish_reports_ping_roles_staff_would_not_be_notified_by(tkf: TestEnv) -> None:
+    assert MODULE.publish is not None
+    billing_role = tkf.guild.get_role(tkf.app.resources.role_id("billing_staff") or 0)
+    assert billing_role is not None
+    roles = sorted((tkf.staff_role, billing_role), key=lambda r: r.id)
+    lines = await MODULE.publish(tkf.app)
+    expected = tkf.app.op(
+        "tickets.publish.ping_not_mentionable", category="billing", roles=", ".join(r.mention for r in roles)
+    )
+    assert _ping_lines(tkf, lines) == [expected]  # only 'billing' pings staff
+
+    tkf.staff_role.mentionable = True
+    lines = await MODULE.publish(tkf.app)
+    assert _ping_lines(tkf, lines) == [
+        tkf.app.op("tickets.publish.ping_not_mentionable", category="billing", roles=billing_role.mention)
+    ]
+    # With "Mention @everyone, @here and All Roles" the bot can ping any role.
+    tkf.guild.bot_role._permissions |= discord.Permissions(mention_everyone=True).value
+    assert _ping_lines(tkf, await MODULE.publish(tkf.app)) == []
+
+
+async def test_unnotified_ping_roles_are_logged_when_tickets_ping(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    for alert_channel in ("staff_alerts", ""):  # pings with the staff alert, else with the welcome message
+        tenv = await make_env(tmp_path / (alert_channel or "welcome"), form_overrides())
+        try:
+            tenv.app.settings = replace(
+                tenv.app.settings, tickets=replace(tenv.app.settings.tickets, staff_alert_channel=alert_channel)
+            )
+            caplog.clear()
+            await submit_modal(
+                tenv.app, user=tenv.member(), custom_id=cid("tk", "form", "billing"), fields={"details": "help me"}
+            )
+            records = [r for r in caplog.records if r.getMessage() == "tickets_ping_role_not_mentionable"]
+            assert [getattr(r, "path", None) for r in records] == ["staff_alert" if alert_channel else "welcome"]
+            assert sorted(getattr(records[0], "role_ids", [])) == sorted(
+                [tenv.staff_role.id, tenv.app.resources.role_id("billing_staff")]
+            )
+        finally:
+            await tenv.close()

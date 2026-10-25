@@ -1,4 +1,4 @@
-"""Content keys, shared keys, and settings checks of the ticket system.
+"""Content keys, shared keys, settings checks, and cross-key content checks of the ticket system.
 
 Every customer-facing string the ticket system can show is declared here. Keys that are only needed
 when a setting is on (select-style panel, close confirmation, reopening, transcripts, staff alerts,
@@ -7,10 +7,15 @@ automatic deletion/closing) are required only under that condition.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from shopbot.config.content_keys import ContentKey, Kind, ck
 from shopbot.config.settings import Settings, TicketCategory
 from shopbot.features import core_keys as core
 from shopbot.features.server_keys import reference_problems
+
+if TYPE_CHECKING:
+    from shopbot.config.content import ContentStore
 
 FEATURE = "tickets"
 ROUTE = "tk"
@@ -78,6 +83,32 @@ def category_key(category_id: str, name: str) -> str:
 def form_field_key(category_id: str, field_id: str, name: str) -> str:
     """Per-form-field key, e.g. ``tickets.category.general.form.details.label``."""
     return f"tickets.category.{category_id}.form.{field_id}.{name}"
+
+
+# Discord's limit for channel names. Ticket channel names are never cut: a longer name aborts the creation.
+CHANNEL_NAME_MAX = 100
+# Worst-case lengths used to check tickets.channel_name_pattern: {number} (ticket numbers stay below 10
+# million) and {user} (usernames are cut to 32 characters, see service.channel_user_slug).
+NUMBER_DIGITS_WORST_CASE = 7
+USER_SLUG_MAX = 32
+DEFAULT_MAX_CREATED_PER_DAY = 10
+
+
+def daily_creation_cap(settings: Settings) -> int:
+    """tickets.max_created_per_user_per_day: support tickets one user may create per 24 hours (0 = unlimited)."""
+    return int(getattr(settings.tickets, "max_created_per_user_per_day", DEFAULT_MAX_CREATED_PER_DAY))
+
+
+def channel_name_length(pattern: str, *, prefix: int, number: int, user: int) -> int:
+    """Length of tickets.channel_name_pattern once {prefix}, {number} and {user} are replaced by values of
+    these lengths."""
+    literal = pattern.replace("{prefix}", "").replace("{number}", "").replace("{user}", "")
+    return (
+        len(literal)
+        + pattern.count("{prefix}") * prefix
+        + pattern.count("{number}") * number
+        + pattern.count("{user}") * user
+    )
 
 
 def auto_close_enabled(settings: Settings) -> bool:
@@ -398,8 +429,9 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             Kind.DESCRIPTION,
             FEATURE,
             g_private,
-            "Private error when the customer already has the maximum number of open tickets in that "
-            "category. {limit} is that maximum.",
+            "Private error when the customer reached a ticket limit: the maximum number of open tickets in "
+            "that category (also checked when they reopen their own closed ticket), or the maximum number of "
+            "tickets created in 24 hours (tickets.max_created_per_user_per_day). {limit} is that maximum.",
             placeholders=("limit",),
         ),
         ck(
@@ -514,3 +546,24 @@ def settings_problems(settings: Settings) -> list[str]:
             "(the warning is sent that many minutes before the automatic close)"
         )
     return problems
+
+
+def content_problems(settings: Settings, content: ContentStore) -> list[str]:
+    """Cross-key rules: the longest possible ticket channel name must fit Discord's limit."""
+    t = settings.tickets
+    prefixes = [(len(content.get(category_key(c.id, "channel_prefix")) or ""), c.id) for c in t.categories]
+    longest, category_id = max(prefixes, default=(0, ""))
+    worst = channel_name_length(
+        t.channel_name_pattern,
+        prefix=longest,
+        number=max(t.number_padding, NUMBER_DIGITS_WORST_CASE),
+        user=USER_SLUG_MAX if "{user}" in t.channel_name_pattern else 0,
+    )
+    if worst <= CHANNEL_NAME_MAX:
+        return []
+    where = f" with {category_key(category_id, 'channel_prefix')}" if category_id and longest else ""
+    return [
+        f"tickets.channel_name_pattern: ticket channel names can reach {worst} characters{where} "
+        f"(Discord allows {CHANNEL_NAME_MAX}; names are never cut). Shorten the pattern, the channel prefix, "
+        "or tickets.number_padding."
+    ]
