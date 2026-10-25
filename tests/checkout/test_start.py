@@ -83,10 +83,13 @@ async def test_session_whose_channel_vanished_is_replaced(co: TestEnv) -> None:
 async def test_open_order_limit(co: TestEnv) -> None:
     customer = co.member()
     product = await add_product(co, "[p1]")
-    await place_order(co, customer, [(product.id, 1)])
+    placed, ch, _ = await place_order(co, customer, [(product.id, 1)])
     co.clock.advance(60)
     blocked = await click(co.app, user=customer, custom_id=views.start_id())
-    assert error_text(blocked) == render(co, k.LIMIT_REACHED, limit=1)
+    # The open order's ticket is linked privately instead of creating a second one.
+    assert error_text(blocked) == render(
+        co, k.ORDER_EXISTS, channel_mention=f"<#{ch.id}>", order_number=str(placed.number), limit=1
+    )
 
 
 async def test_limit_counts_only_open_orders(tmp_path: Path) -> None:
@@ -96,10 +99,12 @@ async def test_limit_counts_only_open_orders(tmp_path: Path) -> None:
         product = await add_product(tenv, "[p1]")
         await place_order(tenv, customer, [(product.id, 1)])
         tenv.clock.advance(60)
-        await place_order(tenv, customer, [(product.id, 1)])
+        newest, ch, _ = await place_order(tenv, customer, [(product.id, 1)])
         tenv.clock.advance(60)
         blocked = await click(tenv.app, user=customer, custom_id=views.start_id())
-        assert error_text(blocked) == render(tenv, k.LIMIT_REACHED, limit=2)
+        assert error_text(blocked) == render(
+            tenv, k.ORDER_EXISTS, channel_mention=f"<#{ch.id}>", order_number=str(newest.number), limit=2
+        )
     finally:
         await tenv.close()
 

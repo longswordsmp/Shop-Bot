@@ -33,6 +33,35 @@ SAMPLE_ORDER_ID = 1
 SAMPLE_ORDER_NUMBER = 1001
 SAMPLE_TIME = 1_700_000_000
 SAMPLE_CREDITS_MINOR = 1_500
+SAMPLE_TICKET_NUMBER = 42
+# The stages a sample order in each status went through (its timeline).
+SAMPLE_PATHS: dict[str, tuple[str, ...]] = {
+    m.PENDING: (m.PENDING,),
+    m.PAID: (m.PENDING, m.PAID),
+    m.PROCESSING: (m.PENDING, m.PAID, m.PROCESSING),
+    m.FULFILLED: (m.PENDING, m.PAID, m.PROCESSING, m.FULFILLED),
+    m.CANCELLED: (m.PENDING, m.PAID, m.CANCELLED),
+    m.REJECTED: (m.PENDING, m.REJECTED),
+    m.EXPIRED: (m.PENDING, m.EXPIRED),
+    m.REFUNDED: (m.PENDING, m.PAID, m.PROCESSING, m.FULFILLED, m.REFUNDED),
+}
+
+
+def sample_timeline(status: str, order_id: int = SAMPLE_ORDER_ID) -> tuple[m.OrderEvent, ...]:
+    """Synthetic status changes leading to ``status`` (an hour apart)."""
+    path = SAMPLE_PATHS.get(status, (status,))
+    return tuple(
+        m.OrderEvent(
+            id=index + 1,
+            order_id=order_id,
+            from_status=path[index - 1] if index else None,
+            to_status=stage,
+            actor_id=None,
+            note=None,
+            created_at=SAMPLE_TIME + index * 3600,
+        )
+        for index, stage in enumerate(path)
+    )
 
 
 def _product(
@@ -118,6 +147,7 @@ def _data(
         totals=totals,
         credits_enabled=credits_enabled,
         credits_available_minor=min(available, totals.gross_minor),
+        ticket_number=SAMPLE_TICKET_NUMBER,
     )
 
 
@@ -158,7 +188,8 @@ def _order(
         apply_credits=credits > 0,
     )
     details = {}
-    for index, item in enumerate(flow.form_inputs(c, option.id if option is not None else None), start=1):
+    inputs = flow.form_inputs(c, option.id if option is not None else None) + flow.submission_inputs(c)
+    for index, item in enumerate(inputs, start=1):
         details[item.answer_key] = f"[sample answer {index}]"
     paid = status not in (m.PENDING, m.REJECTED, m.EXPIRED)
     order = m.Order(
@@ -200,7 +231,14 @@ def _order(
         for line in lines
     )
     fees = tuple(m.OrderFee(fee_id=f.fee_id, amount_minor=f.amount_minor) for f in totals.fees)
-    return m.OrderView(order=order, items=items, fees=fees, channel_id=SAMPLE_CHANNEL_ID)
+    return m.OrderView(
+        order=order,
+        items=items,
+        fees=fees,
+        channel_id=SAMPLE_CHANNEL_ID,
+        ticket_number=SAMPLE_TICKET_NUMBER,
+        timeline=sample_timeline(status),
+    )
 
 
 def _same(spec: MessageSpec) -> MessageSpec:
@@ -251,8 +289,27 @@ def preview(app: App) -> list[PreviewState]:
     )
     add(
         "reply_limit_reached",
-        "Private reply when the customer has the maximum number of open orders.",
+        "Private reply when the customer has the maximum number of open orders and none of their tickets is open.",
         lambda: views.limit_reply(ui, c.max_open_orders_per_user),
+    )
+    sample_url = f"https://discord.com/channels/0/{SAMPLE_CHANNEL_ID}"
+    add(
+        "reply_order_exists",
+        "Private reply when the customer has the maximum number of open orders: a link to the open order's ticket "
+        "(with the optional open-ticket link button).",
+        lambda: views.order_exists_reply(
+            ui, SAMPLE_CHANNEL_ID, SAMPLE_ORDER_NUMBER, c.max_open_orders_per_user, sample_url
+        ),
+    )
+    add(
+        "reply_started_with_link",
+        "Private reply after the order ticket was created, with the optional open-ticket link button.",
+        lambda: views.started_reply(ui, SAMPLE_CHANNEL_ID, sample_url),
+    )
+    add(
+        "ticket_intro",
+        "First message of every order ticket: which ticket this is and who can see it (then the live panel).",
+        lambda: views.ticket_intro(ui, settings, SAMPLE_TICKET_NUMBER, SAMPLE_USER_ID),
     )
 
     # -- workflow --------------------------------------------------------------------------------------------------
@@ -365,16 +422,45 @@ def preview(app: App) -> list[PreviewState]:
         "Workflow message: confirm cancelling the unfinished order.",
         lambda: views.cancel_confirm(ui, SAMPLE_SESSION_ID),
     )
+    reference = views.ticket_reference(settings, SAMPLE_TICKET_NUMBER)
     add(
         "workflow_cancelled",
         "Workflow message after the customer cancelled.",
-        lambda: views.session_ended(ui, m.SESSION_CANCELLED),
+        lambda: views.session_ended(ui, m.SESSION_CANCELLED, reference=reference),
     )
     add(
         "workflow_expired",
         "Workflow message after the unfinished order expired.",
-        lambda: views.session_ended(ui, m.SESSION_EXPIRED),
+        lambda: views.session_ended(ui, m.SESSION_EXPIRED, reference=reference),
     )
+    if option is not None:
+        add(
+            "workflow_fulfillment_largest",
+            "Workflow message: fulfillment step after the largest possible cart (the lines give way to the subtotal "
+            "when they do not fit next to the other data).",
+            workflow(_session(m.FULFILLMENT, option=option_id), largest),
+        )
+    if inputs:
+        add(
+            "workflow_details_largest",
+            "Workflow message: details step with answers after the largest possible cart.",
+            workflow(_session(m.DETAILS, option=option_id, details=answers), largest),
+        )
+    submission = flow.submission_inputs(c)
+    if submission:
+        submitted_answers = {item.answer_key: f"[sample submission answer {i}]" for i, item in enumerate(submission, 1)}
+        add(
+            "submission_form",
+            "Submission form (checkout.submission_form) that opens when the customer presses Submit.",
+            lambda: views.submission_modal(ui, settings, review, 1000, 1000),
+        )
+        add(
+            "submission_form_prefilled",
+            "Submission form opened again after a refused attempt (the earlier answers are filled in).",
+            lambda: views.submission_modal(
+                ui, settings, replace(review, details={**review.details, **submitted_answers}), 1000, 1000
+            ),
+        )
     add(
         "quantity_form_new",
         "Quantity form for a product not in the cart yet.",
@@ -490,6 +576,23 @@ def preview(app: App) -> list[PreviewState]:
             f"Customer notification: the order is '{status}'.",
             partial(views.status_notification, ui, settings, view, status),
         )
+    add(
+        "notify_submitted",
+        "Customer notification: submission received (the order waits for payment).",
+        lambda: views.status_notification(ui, settings, pending, k.NOTIFY_SUBMITTED),
+    )
+    warning_minutes = c.session_expiry_warning_minutes or 10
+    add(
+        "notify_session_expiry_warning",
+        "Posted in the order ticket (mentioning the customer) before an unfinished order expires "
+        "(checkout.session_expiry_warning_minutes).",
+        lambda: replace(
+            views.session_warning_notification(
+                ui, minutes=warning_minutes, expires_at=SAMPLE_TIME + warning_minutes * 60
+            ),
+            mention_user_ids=(SAMPLE_USER_ID,),
+        ),
+    )
     add(
         "notify_payment_reminder",
         "Customer notification: payment reminder (with the payment instructions).",

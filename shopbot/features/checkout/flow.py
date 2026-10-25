@@ -3,9 +3,11 @@
 Steps: browse -> cart -> fulfillment (only when ``checkout.fulfillment_options`` exist) -> details (only when
 ``checkout.details_form`` or the chosen option's form has fields) -> review.
 
-Form answers are stored under stable keys: ``d.<field>`` for ``checkout.details_form`` fields and
-``o.<option>.<field>`` for a fulfillment option's form fields. A Discord form holds at most 5 inputs, so the
-fields are split into parts of 5 (at most two parts, since each configured form has at most 5 fields).
+Form answers are stored under stable keys: ``d.<field>`` for ``checkout.details_form`` fields,
+``o.<option>.<field>`` for a fulfillment option's form fields and ``s.<field>`` for ``checkout.submission_form``
+fields (asked in a form when the customer presses Submit; stored with the order like the others). A Discord form
+holds at most 5 inputs, so the details fields are split into parts of 5 (at most two parts, since each configured
+form has at most 5 fields); the submission form has at most 5 fields and is always one form.
 """
 
 from __future__ import annotations
@@ -56,6 +58,23 @@ def form_inputs(settings: CheckoutSettings, option_id: str | None) -> list[FormI
     return inputs
 
 
+SUBMISSION_PREFIX = "s."
+
+
+def submission_inputs(settings: CheckoutSettings) -> list[FormInput]:
+    """The fields of ``checkout.submission_form`` (asked when the customer presses Submit)."""
+    return [
+        FormInput(
+            answer_key=f"{SUBMISSION_PREFIX}{f.id}",
+            field=f,
+            label_key=k.submission_field_key(f.id, "label"),
+            description_key=k.submission_field_key(f.id, "description"),
+            placeholder_key=k.submission_field_key(f.id, "placeholder"),
+        )
+        for f in settings.submission_form
+    ]
+
+
 def form_parts(inputs: Sequence[FormInput]) -> list[list[FormInput]]:
     return [list(inputs[i : i + INPUTS_PER_FORM]) for i in range(0, len(inputs), INPUTS_PER_FORM)]
 
@@ -65,6 +84,8 @@ def label_key_for_answer(answer_key: str) -> str | None:
     parts = answer_key.split(".")
     if len(parts) == 2 and parts[0] == "d":
         return k.form_field_key(parts[1], "label")
+    if len(parts) == 2 and parts[0] == "s":
+        return k.submission_field_key(parts[1], "label")
     if len(parts) == 3 and parts[0] == "o":
         return k.option_form_key(parts[1], parts[2], "label")
     return None

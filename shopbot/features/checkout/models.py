@@ -174,6 +174,12 @@ class Order:
         return self.status in OPEN_STATUSES
 
     @property
+    def submission_answers(self) -> dict[str, str]:
+        """The answers to ``checkout.submission_form`` (asked when the customer pressed Submit), by answer key
+        (``s.<field>``); also part of ``details``, which staff views show with their configured labels."""
+        return {key: value for key, value in self.details.items() if key.startswith("s.")}
+
+    @property
     def refunds_allowed(self) -> bool:
         """Paid at some point and in a state that allows refunds (money or the applied credit)."""
         return self.paid_at is not None and self.status in TRANSITIONS[REFUNDED]
@@ -247,12 +253,17 @@ class OrderEvent:
 
 @dataclass(frozen=True)
 class OrderView:
-    """Everything the customer and staff views of an order need (one consistent database snapshot)."""
+    """Everything the customer and staff views of an order need (one consistent database snapshot).
+
+    ``ticket_number``: the order ticket's number (its unique reference); ``timeline``: the order's status changes
+    in order (the submission first). Staff notes (events without a status change) are never part of it."""
 
     order: Order
     items: tuple[OrderItem, ...]
     fees: tuple[OrderFee, ...]
     channel_id: int | None = None
+    ticket_number: int | None = None
+    timeline: tuple[OrderEvent, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -270,7 +281,8 @@ class WorkflowData:
     """Everything the workflow message of an active session needs (one consistent database snapshot).
 
     ``credits_enabled``: checkout may offer credits right now; ``credits_available_minor``: how much credit could
-    be applied to this order (``min(balance, gross total)``).
+    be applied to this order (``min(balance, gross total)``); ``ticket_number``: the order ticket's number (the
+    reference the live panel shows).
     """
 
     session: Session
@@ -279,3 +291,4 @@ class WorkflowData:
     totals: Totals
     credits_enabled: bool
     credits_available_minor: int
+    ticket_number: int | None = None

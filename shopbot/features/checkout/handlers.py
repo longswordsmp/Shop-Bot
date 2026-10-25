@@ -26,8 +26,8 @@ from shopbot.config.content import MissingContent
 from shopbot.features import core_keys as core
 from shopbot.features.catalog import repo as catalog_repo
 from shopbot.features.checkout import content_keys as k
+from shopbot.features.checkout import flow, repo, service, staff, views
 from shopbot.features.checkout import models as m
-from shopbot.features.checkout import repo, service, staff, views
 from shopbot.logging_setup import log_event
 from shopbot.ui.discord_render import RenderError, edit_kwargs
 from shopbot.ui.routing import Ctx, HandlerError
@@ -232,28 +232,69 @@ def _shown_amount(ctx: Ctx, index: int) -> int | None:
     return int(raw) if _AMOUNT.match(raw) else None
 
 
-async def on_submit(ctx: Ctx) -> None:
-    app = ctx.app
-    session = await service.get_session(app, ctx.arg_int(0))
-    expected = ctx.arg_int(1)
-    # The gross amount the review showed; a button rendered before it was recorded counts as a price change.
-    expected_gross = _shown_amount(ctx, 2)
+async def _submission_session(ctx: Ctx) -> m.Session | None:
+    """The clicking member's session for a submit button/form. A session that was already submitted shows its order
+    again (a repeated click creates nothing) and returns None."""
+    session = await service.get_session(ctx.app, ctx.arg_int(0))
     if session is None:
         raise HandlerError(core.ERROR_NOT_FOUND)
     if session.user_id != ctx.user_id:
         raise HandlerError(core.ERROR_PERMISSION)
     if session.status == m.SUBMITTED and session.order_id is not None:
-        # A repeated click on an already submitted order: show the order again, create nothing.
         await _show_order(ctx, session.order_id)
-        return
+        return None
     if not session.active:
         raise HandlerError(k.ERROR_SESSION_CLOSED)
+    return session
+
+
+async def _show_price_changed(ctx: Ctx, session_id: int, total_minor: int) -> None:
+    notice = views.price_changed_notice(ctx.app.ui, total_minor)
+    await ctx.update(await service.workflow_spec(ctx.app, session_id, notice=notice))
+
+
+async def on_submit(ctx: Ctx) -> None:
+    app = ctx.app
+    session = await _submission_session(ctx)
+    if session is None:
+        return
+    expected = ctx.arg_int(1)
+    # The gross amount the review showed; a button rendered before it was recorded counts as a price change.
+    expected_gross = _shown_amount(ctx, 2)
+    if flow.submission_inputs(app.settings.checkout):
+        # A submission form is configured: it opens first (unless the totals changed since the review was shown).
+        data = await service.workflow_data(app, session.id)
+        if data is None:
+            raise HandlerError(core.ERROR_NOT_FOUND)
+        if data.session.step != m.REVIEW:
+            raise HandlerError(core.ERROR_INVALID_INPUT)
+        if data.totals.total_minor != expected or data.totals.gross_minor != expected_gross:
+            await _show_price_changed(ctx, session.id, data.totals.total_minor)
+            return
+        await ctx.send_modal(views.submission_modal(app.ui, app.settings, data.session, expected, expected_gross))
+        return
+    await _submit(ctx, session, expected, expected_gross)
+
+
+async def on_submission_form(ctx: Ctx) -> None:
+    """The submission form was sent: store the answers (checked server-side), then submit with the totals the
+    customer was shown. A changed total shows the notice instead (the answers are kept and filled in again)."""
+    session = await _submission_session(ctx)
+    if session is None:
+        return
+    expected = ctx.arg_int(1)
+    expected_gross = _shown_amount(ctx, 2)
+    session = await service.save_submission(ctx.app, session, ctx.fields)
+    await _submit(ctx, session, expected, expected_gross)
+
+
+async def _submit(ctx: Ctx, session: m.Session, expected: int, expected_gross: int | None) -> None:
+    app = ctx.app
     await ctx.defer_update()
     try:
         order = await service.submit(app, session, expected, expected_gross)
     except repo.PriceChanged as exc:
-        notice = views.price_changed_notice(app.ui, exc.totals.total_minor)
-        await ctx.update(await service.workflow_spec(app, session.id, notice=notice))
+        await _show_price_changed(ctx, session.id, exc.totals.total_minor)
         return
     except repo.CheckoutError as exc:
         raise service.customer_error(app, exc) from None
@@ -272,7 +313,10 @@ async def on_cancel_no(ctx: Ctx) -> None:
 
 async def on_cancel_yes(ctx: Ctx) -> None:
     session = await _session(ctx)
-    spec = views.session_ended(ctx.app.ui, m.SESSION_CANCELLED)  # built first: nothing changes if text is missing
+    # Built first: nothing changes if text is missing.
+    spec = views.session_ended(
+        ctx.app.ui, m.SESSION_CANCELLED, reference=await service.ticket_reference(ctx.app, session)
+    )
     ended = await service.cancel_session(ctx.app, session)
     if ended is None:
         raise HandlerError(k.ERROR_SESSION_CLOSED)
@@ -477,6 +521,7 @@ def register(app: App) -> None:
         router.component(route, action, feature=feature)(handler)
     router.modal(route, "qty", feature=feature)(on_quantity)
     router.modal(route, "dform", feature=feature)(on_details_form)
+    router.modal(route, "sform", feature=feature)(on_submission_form)
     for action in views.STAFF_ACTION_TARGETS:
         router.component(staff_route, action, feature=feature, access="staff", staff_roles=staff_role_keys)(
             on_staff_action

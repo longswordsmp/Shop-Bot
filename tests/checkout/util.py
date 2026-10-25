@@ -140,10 +140,18 @@ async def orders(tenv: TestEnv) -> list[m.Order]:
     return await tenv.app.db.run(repo.list_orders, GUILD_ID, limit=100, offset=0)
 
 
-def workflow_message(ch: FakeTextChannel) -> FakeMessage:
+def ticket_intro_message(ch: FakeTextChannel) -> FakeMessage:
+    """The order ticket's introduction: the first message the bot posts in an order channel."""
     bot_messages = [msg for msg in ch.messages if msg.author is ch.guild.me]
-    assert bot_messages, "no workflow message"
+    assert bot_messages, "no ticket introduction"
     return bot_messages[0]
+
+
+def workflow_message(ch: FakeTextChannel) -> FakeMessage:
+    """The live panel: the bot's message right after the ticket introduction."""
+    bot_messages = [msg for msg in ch.messages if msg.author is ch.guild.me]
+    assert len(bot_messages) > 1, "no workflow message"
+    return bot_messages[1]
 
 
 def custom_ids(message: FakeMessage) -> list[str]:

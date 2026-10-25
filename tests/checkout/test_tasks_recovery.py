@@ -104,8 +104,8 @@ async def test_payment_reminder_once_then_expiry(tmp_path: Path) -> None:
         tenv.clock.advance(30 * 60)
         await tenv.app.scheduler.run_due()
         values = {"order_number": "1", "total": money(tenv, 1900), "channel_mention": f"<#{ch.id}>"}
-        assert len(customer.dms) == 1
-        dm = customer.dms[0]
+        assert len(customer.dms) == 2  # submission received, then the reminder
+        dm = customer.dms[1]
         assert dm.embeds[0].description == render(tenv, k.notify_description_key(k.NOTIFY_PAYMENT_REMINDER), **values)
         assert dm.embeds[1].description == render(
             tenv, "checkout.payment.manual.instructions", order_number="1", total=money(tenv, 1900)
@@ -122,7 +122,7 @@ async def test_payment_reminder_once_then_expiry(tmp_path: Path) -> None:
             now=tenv.clock.now(),
         )
         await tenv.app.scheduler.run_due()
-        assert len(customer.dms) == 1
+        assert len(customer.dms) == 2
 
         tenv.clock.advance(30 * 60)
         await tenv.app.scheduler.run_due()

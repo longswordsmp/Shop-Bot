@@ -712,6 +712,10 @@ checkout.fulfillment_step.title = ""
 # description · max 4096 characters · required · placeholders: {limit}
 checkout.limit_reached.description = ""
 
+# Private reply when the customer clicks start while they already have the maximum number of open orders (checkout.max_open_orders_per_user) and one of them still has its order ticket open: no new ticket is created, the reply links the existing one. {channel_mention} links that ticket, {order_number} is its order number, {limit} the maximum (checkout.limit_reached.description is used when no open ticket can be linked).
+# description · max 4096 characters · required · placeholders: {channel_mention}, {order_number}, {limit}
+checkout.order_exists.description = ""
+
 # Private reply when the customer clicks start while they already have an unfinished order channel; no second channel is created. {channel_mention} links the existing channel.
 # description · max 4096 characters · required · placeholders: {channel_mention}
 checkout.session_exists.description = ""
@@ -719,6 +723,10 @@ checkout.session_exists.description = ""
 # Private reply after the start button created the customer's order channel. {channel_mention} links the channel.
 # description · max 4096 characters · required · placeholders: {channel_mention}
 checkout.started.description = ""
+
+# Optional link button under the private replies to the start button (new ticket, unfinished ticket, existing open order) that opens the customer's order ticket. Omitted when empty.
+# button_label · max 80 characters · optional
+checkout.ticket_link.button = ""
 
 # --- Checkout: customer notifications (direct message, or the order channel) ---
 
@@ -762,6 +770,14 @@ checkout.notify.payment_reminder.description = ""
 # title · max 256 characters · optional · placeholders: {order_number}, {total}, {channel_mention}
 checkout.notify.payment_reminder.title = ""
 
+# 'Submission received' notification, sent once when the customer submitted the order (it now waits for payment). {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention.
+# description · max 4096 characters · required · placeholders: {order_number}, {total}, {channel_mention}
+checkout.notify.pending_payment.description = ""
+
+# Optional title of the 'submission received' notification. {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention.
+# title · max 256 characters · optional · placeholders: {order_number}, {total}, {channel_mention}
+checkout.notify.pending_payment.title = ""
+
 # Notification sent to the customer when their order becomes 'processing' (staff are preparing the order). {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention.
 # description · max 4096 characters · required · placeholders: {order_number}, {total}, {channel_mention}
 checkout.notify.processing.description = ""
@@ -793,6 +809,14 @@ checkout.notify.rejected.description = ""
 # Optional title of the notification sent when an order becomes 'rejected'. {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention.
 # title · max 256 characters · optional · placeholders: {order_number}, {total}, {channel_mention}
 checkout.notify.rejected.title = ""
+
+# Warning posted in the order ticket (mentioning the customer) checkout.session_expiry_warning_minutes before an unfinished order expires for inactivity (any change to the order resets the timer; after a later idle period the warning is sent again). {minutes} is that number of minutes, {expires} when the order expires (relative time shown by Discord, e.g. 'in 10 minutes'). Needed when checkout.session_expiry_warning_minutes is above 0.
+# description · max 4096 characters · optional · placeholders: {minutes}, {expires}
+checkout.notify.session_expiry_warning.description = ""
+
+# Optional title of the warning posted in the order ticket before an unfinished order expires. {minutes} and {expires} as in the text.
+# title · max 256 characters · optional · placeholders: {minutes}, {expires}
+checkout.notify.session_expiry_warning.title = ""
 
 # --- Checkout: payment instructions (manual payment) ---
 
@@ -978,6 +1002,74 @@ checkout.submitted.description = ""
 # title · max 256 characters · required · placeholders: {order_number}, {total}
 checkout.submitted.title = ""
 
+# --- Checkout: order ticket (introduction, reference, status and timeline on the live panel) ---
+
+# First message in every order ticket, posted before the live panel: identifies the ticket and explains that only the customer and authorized staff can see it. {ticket_number} is the ticket number (it is also shown in the reference field under the text), {user_mention} mentions the customer (no ping).
+# description · max 4096 characters · required · placeholders: {ticket_number}, {user_mention}
+checkout.ticket.intro_description = ""
+
+# Optional title of the first message in every order ticket. {ticket_number} is the ticket number.
+# title · max 256 characters · optional · placeholders: {ticket_number}
+checkout.ticket.intro_title = ""
+
+# Name of the field showing the order number on the live panel once the order was submitted.
+# field_name · max 256 characters · required
+checkout.ticket.order_number_field = ""
+
+# Name of the field showing the ticket's unique reference (the ticket number, as in the channel name) on the ticket introduction and on every state of the live panel.
+# field_name · max 256 characters · required
+checkout.ticket.reference_field = ""
+
+# Name of the field showing the current status on every state of the live panel (the value is checkout.ticket.status_in_progress before submission, then the order's stage name).
+# field_name · max 256 characters · required
+checkout.ticket.status_field = ""
+
+# Status shown on the live panel while the customer is still putting the order together (not submitted yet).
+# field_value · max 1024 characters · required
+checkout.ticket.status_in_progress = ""
+
+# How one stage of the timeline is written, e.g. '{time} {stage}'. {stage} is the stage name (checkout.ticket.stage.*), {time} the date and time it was reached and {relative} the same as a relative time (both shown by Discord in each reader's own time zone and language).
+# format · max 100 characters · required · placeholders: {stage}, {time}, {relative}
+checkout.ticket.timeline_entry = ""
+
+# Name of the field listing the order's stages so far (the timeline) on the live panel after submission (also in /myorders). Each stage is written with checkout.ticket.timeline_entry.
+# field_name · max 256 characters · required
+checkout.ticket.timeline_field = ""
+
+# --- Checkout: order stage names (live panel, timeline, /myorders) ---
+
+# Name of the stage 'cancelled' (the order was cancelled (by the customer before paying, or by staff)) shown to the customer: the status field of the live panel, the order timeline and /myorders.
+# format · max 100 characters · required
+checkout.ticket.stage.cancelled = ""
+
+# Name of the stage 'expired' (the order was not paid within checkout.payment_expiry_minutes) shown to the customer: the status field of the live panel, the order timeline and /myorders.
+# format · max 100 characters · required
+checkout.ticket.stage.expired = ""
+
+# Name of the stage 'fulfilled' (the order was delivered/completed) shown to the customer: the status field of the live panel, the order timeline and /myorders.
+# format · max 100 characters · required
+checkout.ticket.stage.fulfilled = ""
+
+# Name of the stage 'paid' (staff confirmed the payment) shown to the customer: the status field of the live panel, the order timeline and /myorders.
+# format · max 100 characters · required
+checkout.ticket.stage.paid = ""
+
+# Name of the stage 'pending_payment' (waiting for payment) shown to the customer: the status field of the live panel, the order timeline and /myorders.
+# format · max 100 characters · required
+checkout.ticket.stage.pending_payment = ""
+
+# Name of the stage 'processing' (staff are preparing the order) shown to the customer: the status field of the live panel, the order timeline and /myorders.
+# format · max 100 characters · required
+checkout.ticket.stage.processing = ""
+
+# Name of the stage 'refunded' (the order was fully refunded) shown to the customer: the status field of the live panel, the order timeline and /myorders.
+# format · max 100 characters · required
+checkout.ticket.stage.refunded = ""
+
+# Name of the stage 'rejected' (staff rejected the order before payment) shown to the customer: the status field of the live panel, the order timeline and /myorders.
+# format · max 100 characters · required
+checkout.ticket.stage.rejected = ""
+
 # ==================================================================================================
 # Feature: credits
 # ==================================================================================================
@@ -1155,3 +1247,53 @@ reviews.rating.5.emoji = ""
 # Option label for rating 5 of 5 in the rating selection menu of the review request (options are listed from the highest rating to the lowest). Also shown on the published review when reviews.rating.5.display is empty.
 # option_label · max 100 characters · required
 reviews.rating.5.label = ""
+
+# ==================================================================================================
+# Feature: my_orders
+# ==================================================================================================
+
+# --- My orders (/myorders, private) ---
+
+# Description of the /myorders command shown in Discord's command list (at most 100 characters). The command is registered only when features.my_orders is on and this text is set; Discord receives it when the bot starts (a change needs a restart: /reload does not update it).
+# command_description · max 100 characters · required
+my_orders.command.description = ""
+
+# Text of the /myorders reply when the member has no order yet.
+# description · max 4096 characters · required
+my_orders.empty.description = ""
+
+# Optional text under the /myorders title when the member has orders. {count} is their number. One card per order follows (newest first), with previous/next buttons when there is more than one page.
+# description · max 4096 characters · optional · placeholders: {count}
+my_orders.list.description = ""
+
+# Title of the private /myorders reply (also when the member has no order yet). {count} is the number of the member's orders.
+# title · max 256 characters · required · placeholders: {count}
+my_orders.list.title = ""
+
+# Name of the field showing the order number (the order's reference) on each order card.
+# field_name · max 256 characters · required
+my_orders.order.number_field = ""
+
+# Name of the field showing the order's current stage (checkout.ticket.stage.*) on each order card.
+# field_name · max 256 characters · required
+my_orders.order.status_field = ""
+
+# Optional name of a field linking the order's ticket while it is still open (omitted when empty).
+# field_name · max 256 characters · optional
+my_orders.order.ticket_field = ""
+
+# Name of the field listing the order's stages so far on each order card (each written with checkout.ticket.timeline_entry).
+# field_name · max 256 characters · required
+my_orders.order.timeline_field = ""
+
+# Title of each order's card in /myorders. {order_number} is the order number, {status} its current stage name (checkout.ticket.stage.*), {total} the total (common.money_format), {date} the date it was submitted (shown by Discord in the reader's time zone).
+# title · max 256 characters · required · placeholders: {order_number}, {status}, {total}, {date}
+my_orders.order.title = ""
+
+# Name of the field showing the order total (common.money_format) on each order card.
+# field_name · max 256 characters · required
+my_orders.order.total_field = ""
+
+# Optional name of the field showing the tracking details staff recorded for the order (shown only when there are tracking details; omitted when empty).
+# field_name · max 256 characters · optional
+my_orders.order.tracking_field = ""
