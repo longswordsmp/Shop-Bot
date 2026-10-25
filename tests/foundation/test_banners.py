@@ -221,3 +221,43 @@ async def test_transcripts_leave_out_the_bots_banners_but_keep_customer_files() 
     )
     assert collected[0].attachments == ("https://cdn.example/receipt.txt",)
     assert collected[1].attachments == ("https://cdn.example/banner-mine.png",)
+
+
+# -- interaction replies that upload ------------------------------------------------------------------------------
+
+
+async def test_replies_that_upload_a_banner_are_acknowledged_first(tmp_path: Path) -> None:
+    from shopbot.ui.routing import Ctx
+    from tests.fakes import FakeInteraction
+
+    tenv = await make_banner_env(tmp_path)
+    try:
+        app = tenv.app
+        welcome, faq = app.ui.banner("welcome"), app.ui.banner("faq")
+        user = tenv.member()
+
+        def ctx(message: Any = None) -> tuple[Ctx, FakeInteraction]:
+            interaction = FakeInteraction(client=app.bot, user=user, guild=tenv.guild, message=message)
+            return Ctx(app, interaction, None, ()), interaction  # type: ignore[arg-type]
+
+        # A new private reply with a banner: acknowledged ("thinking"), then sent as a follow-up.
+        c, interaction = ctx()
+        await c.respond(spec("hello", banner=welcome))
+        assert interaction.response_kinds() == ["defer"] and banner_names(interaction.sent[-1]) == [welcome.filename]
+        # Without files it is answered directly.
+        c, interaction = ctx()
+        await c.respond(spec("hello"))
+        assert interaction.response_kinds() == ["send_message"]
+
+        channel = tenv.guild.add_text_channel(name="panel")
+        message = await channel.send(**send_kwargs(spec("a", banner=welcome)))
+        # The clicked message keeps its banner: edited in the same response, nothing uploaded.
+        c, interaction = ctx(message)
+        await c.update(spec("b", banner=welcome))
+        assert interaction.response_kinds() == ["edit_message"] and "attachments" not in message.edits[-1]
+        # A new banner must be uploaded: the click is acknowledged first, then the message is edited.
+        c, interaction = ctx(message)
+        await c.update(spec("c", banner=faq))
+        assert interaction.response_kinds() == ["defer"] and banner_names(message) == [faq.filename]
+    finally:
+        await tenv.close()

@@ -9,7 +9,7 @@ from typing import Any
 import pytest
 
 from shopbot.config.loader import load_config
-from tests.helpers import ROOT, TestEnv, make_test_env
+from tests.helpers import ROOT, TestEnv, banner_names, make_test_env
 from tests.setup.util import setup
 
 PANEL_CHANNELS = {  # channel name -> banner id its first bot message shows
@@ -46,14 +46,18 @@ async def test_every_enabled_feature_is_ready_with_the_shipped_files(shipped: Te
     assert shipped.app.banners.problems == () and len(shipped.app.banners.files) == 31
 
 
-async def test_setup_posts_every_panel(shipped: TestEnv) -> None:
+async def test_setup_posts_every_panel_with_its_banner(shipped: TestEnv) -> None:
     report = await setup(shipped)
     assert report.counts.get("failed", 0) == 0, report.lines
-    for name in PANEL_CHANNELS:
+    for name, banner_id in PANEL_CHANNELS.items():
         messages = bot_messages(shipped, name)
         assert messages, f"#{name} has no panel"
         first = messages[0]
         assert first.embeds and first.embeds[0].title, f"#{name} panel has no text"
+        names = banner_names(first)
+        assert len(names) == 1 and names[0].startswith(f"banner-{banner_id}-"), (name, names)
+        for later in messages[1:]:
+            assert banner_names(later) == [], f"#{name}: only the first message shows the banner"
     # Running it again changes nothing and posts nothing twice.
     counts = {name: len(bot_messages(shipped, name)) for name in PANEL_CHANNELS}
     await setup(shipped)

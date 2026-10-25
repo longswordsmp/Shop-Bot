@@ -367,10 +367,10 @@ def _content_embed(
 
 def error_message(ui: Ui, key: str, /, **values: str | int) -> MessageSpec:
     """A configured error message as a full message (what the router sends; used by the preview)."""
-    embed = ui.error_embed(key, **values)
-    if embed is None:
+    message = ui.error_message(key, **values)
+    if message is None:
         raise MissingContent(key)
-    return MessageSpec(embeds=(embed,), banner=ui.banner("error"))
+    return message
 
 
 def _fit_fields(base: Sequence[EmbedSpec], fields: Sequence[EmbedField], *, current: int) -> list[EmbedField]:

@@ -80,6 +80,9 @@ async def reply(
     kwargs = send_kwargs(spec)
     if files:
         kwargs["files"] = [*kwargs.get("files", ()), *files]
+    if not interaction.response.is_done() and kwargs.get("files"):
+        # Uploads (a banner, an export) must not be what misses Discord's 3-second answer deadline.
+        await interaction.response.defer(ephemeral=ephemeral, thinking=True)
     if interaction.response.is_done():
         await interaction.followup.send(ephemeral=ephemeral, **kwargs)
     else:

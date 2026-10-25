@@ -461,14 +461,17 @@ def _notification(
 
 
 def correction_notification(ui: Ui, settings: Settings, view: m.OrderView, message: str) -> MessageSpec:
-    """Private notification asking the customer to correct information, with the staff member's message."""
+    """Private notification asking the customer to correct information, with the staff member's message (banner:
+    the customer is asked to fix their order details)."""
     spec = _notification(ui, settings, view, sk.CORRECTION_TITLE, sk.CORRECTION_DESCRIPTION, "warning")
+    spec = replace(spec, banner=ui.banner("details-and-options"))
     return with_fields(spec, text_fields(_text(ui, sk.CORRECTION_MESSAGE_FIELD), message))
 
 
 def tracking_notification(ui: Ui, settings: Settings, view: m.OrderView, tracking: str) -> MessageSpec:
-    """Private notification with new or changed tracking details of a completed order."""
+    """Private notification with new or changed tracking details of a completed order (banner: order status)."""
     spec = _notification(ui, settings, view, sk.TRACKING_TITLE, sk.TRACKING_DESCRIPTION, "info")
+    spec = replace(spec, banner=ui.banner("order-status"))
     return with_fields(spec, text_fields(_text(ui, sk.TRACKING_DETAILS_FIELD), tracking))
 
 

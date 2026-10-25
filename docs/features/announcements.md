@@ -36,7 +36,7 @@ mentioned), **nothing is posted** and the staff member gets a private operator e
 | `channel` | `"announcements"` (shipped) | Channel key (from `[[server.channels]]`) the announcements are posted in. Required. |
 | `roles` | `[]` | Extra role keys allowed to use `/announce`. `permissions.staff_roles` and admins (Owner, `permissions.admin_roles`, Discord Administrators) can always announce. |
 | `mention_roles` | `[]` | Role keys staff may choose to mention. Empty: announcements never mention anyone. At most 25. The role must be mentionable (`mentionable = true` in `[[server.roles]]`, applied by `/setup`) unless the bot has the Mention @everyone permission in the channel. |
-| `allow_image` | `true` | Whether staff may attach one image (png, jpg, gif or webp, up to 10 MB: the per-message file limit every bot message is checked against, also on boosted servers). The option stays visible when off but is refused. |
+| `allow_image` | `true` | Whether staff may attach one image (png, jpg, gif or webp, up to 10 MB minus the announcements banner picture, about 9.4 MB with the shipped banner: the per-message file limit every bot message is checked against, also on boosted servers). The option stays visible when off but is refused. |
 | `[[announcements.fields]]` | none | Up to 3 extra form inputs, each posted as an embed field: `id` (internal key), `style` (`short` or `paragraph`), `required` (default `false`), `max_length` (1-1024, default 1024). |
 
 Example:
@@ -123,7 +123,9 @@ re-checks staff access every time; a form can only be submitted by the staff mem
 
 - The announcements are posted, not edited or deleted by the bot afterwards (delete a post with Discord's own
   message menu; the audit log keeps the record).
-- One image per announcement. Discord limits the file to the server's bot upload limit (10 MB without boosts).
+- One image per announcement, shown in the embed under the announcements banner (the banner is the message's first
+  attachment, above the embed). The image and the banner together stay within 10 MB, and posting needs the bot's
+  Attach Files permission in the channel whenever banners are on.
 - An announcement's embed text is limited by Discord to 6000 characters in total (title, message, fields, footer and
   author line); a longer announcement is refused with a clear error, never shortened.
 - The slash command's options are registered when the bot starts: the `image` option is always shown (refused when

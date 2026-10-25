@@ -13,7 +13,7 @@ import pytest
 from shopbot.config.banner_ids import BannerId
 from shopbot.features.checkout import content_keys as k
 from shopbot.features.checkout import models as m
-from shopbot.features.checkout import panel, service, staff, views
+from shopbot.features.checkout import panel, service, staff, staff_views, views
 from shopbot.features.checkout import preview as checkout_preview
 from shopbot.features.tickets import service as tickets_service
 from shopbot.ui.spec import MessageSpec
@@ -444,7 +444,7 @@ async def test_every_customer_preview_state_shows_its_banner(bcof: TestEnv) -> N
 
 
 async def test_the_staff_activity_notifications_match_their_preview(bco: TestEnv) -> None:
-    """The correction and tracking notifications get their banner where they are sent; the preview shows the same."""
+    """The correction and tracking notifications carry their banner from their builders; the preview shows the same."""
     customer = bco.member()
     p1 = await add_product(bco, "[p1]")
     placed, _, _ = await place_order(bco, customer, [(p1.id, 1)])
@@ -452,8 +452,10 @@ async def test_the_staff_activity_notifications_match_their_preview(bco: TestEnv
     assert view is not None
     states = {s.name: s.spec for s in checkout_preview.preview(bco.app)}
     sent = {
-        "notify_correction": service.correction_notification(bco.app, view, "[sample message]"),
-        "notify_tracking": service.tracking_notification(bco.app, view, "[sample tracking]"),
+        "notify_correction": staff_views.correction_notification(
+            bco.app.ui, bco.app.settings, view, "[sample message]"
+        ),
+        "notify_tracking": staff_views.tracking_notification(bco.app.ui, bco.app.settings, view, "[sample tracking]"),
     }
     for name, spec in sent.items():
         shown = states[name]

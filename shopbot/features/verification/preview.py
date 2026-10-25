@@ -99,8 +99,7 @@ def preview(app: App) -> list[PreviewState]:
     )
 
     def error_state() -> MessageSpec | None:
-        embed = ui.error_embed(ck.ERROR_GENERIC, error_id=SAMPLE_ERROR_ID)
-        return MessageSpec(embeds=(embed,)) if embed is not None else None
+        return ui.error_message(ck.ERROR_GENERIC, error_id=SAMPLE_ERROR_ID)  # exactly what the router sends
 
     add(
         "error_cannot_grant",

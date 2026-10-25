@@ -175,21 +175,31 @@ class Ctx:
         return self.interaction.response.is_done()
 
     async def respond(self, spec: MessageSpec, *, ephemeral: bool = True) -> discord.Message | None:
-        """Send a new message in reply to the interaction (private by default)."""
+        """Send a new message in reply to the interaction (private by default).
+
+        A reply that uploads files (a banner) is acknowledged first and sent as a follow-up: Discord expects the first
+        answer within 3 seconds, and the upload must not be what makes a click fail."""
         kwargs = send_kwargs(spec)
         if not self.interaction.response.is_done():
-            await self.interaction.response.send_message(ephemeral=ephemeral, **kwargs)
-            return None
+            if not kwargs.get("files"):
+                await self.interaction.response.send_message(ephemeral=ephemeral, **kwargs)
+                return None
+            await self.interaction.response.defer(ephemeral=ephemeral, thinking=True)
         return await self.interaction.followup.send(ephemeral=ephemeral, wait=True, **kwargs)
 
     async def update(self, spec: MessageSpec) -> None:
-        """Replace the message that holds the clicked component (single editable workflow message)."""
+        """Replace the message that holds the clicked component (single editable workflow message).
+
+        An edit that uploads files (a new banner) acknowledges the click first and then edits (see ``respond``)."""
         # The clicked message's attachments are known (its banner can be kept) while the edit targets that message:
         # before any response, or after ``defer_update``. After another response the target is that response.
         message = self.interaction.message
         targets_message = not self.interaction.response.is_done() or self._deferred_update
         current = message.attachments if message is not None and targets_message else None
         kwargs = edit_kwargs(spec, current)
+        uploads = any(isinstance(item, discord.File) for item in kwargs.get("attachments", ()))
+        if not self.interaction.response.is_done() and uploads and message is not None:
+            await self.defer_update()
         if not self.interaction.response.is_done():
             await self.interaction.response.edit_message(**kwargs)
         else:
