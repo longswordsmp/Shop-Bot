@@ -50,11 +50,13 @@ PREVIEW_ASSUMPTIONS: dict[str, Any] = {
 
 
 class MarkerContentStore(ContentStore):
-    """Content store that shows ``⟦key⟧`` for anything not configured (preview only)."""
+    """Content store that shows ``⟦key⟧`` for required text that is not configured (preview only). Optional text
+    left empty is left out, exactly as the bot leaves it out."""
 
     def raw(self, key: str) -> str | None:
         value = super().raw(key)
-        if value is None and self.get_definition(key).fallback is None:
+        definition = self.get_definition(key)
+        if value is None and definition.fallback is None and definition.required:
             return f"⟦{key}⟧"
         return value
 
