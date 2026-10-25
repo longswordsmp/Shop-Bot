@@ -109,6 +109,44 @@ Feature `server` — enabled.
 | ✅ | `server.role.restock_alerts.name` | Name of the 'restock_alerts' role. | role_name (100) | required |  |
 | ✅ | `server.role.staff.name` | Name of the 'staff' role. | role_name (100) | required |  |
 
+## verification
+
+Feature `verification` — enabled.
+
+### Verification: private replies after the 'I agree' button
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ❌ | `verification.already_verified.description` | Private reply to a member who clicks the 'I agree' button although they already have the Member role (nothing changes). {user_name} is the member's display name, {user_mention} mentions them (mentions do not ping in embeds). You may write {channel_<key>} (for example {channel_catalog}) for a clickable link to a channel from server.channels. | description (4096) | required | `{user_name}`, `{user_mention}`, `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
+| ▫️ | `verification.already_verified.title` | Optional title of the private reply to a member who clicks the 'I agree' button although they already have the Member role. {user_name} is the member's display name. | title (256) | optional | `{user_name}` |
+| ❌ | `verification.confirmed.description` | Private confirmation (only the member sees it) after they accepted the rules and received the Member role; the member-only channels are visible from now on. {user_name} is the member's display name, {user_mention} mentions them (mentions do not ping in embeds). You may write {channel_<key>} (for example {channel_catalog}) for a clickable link to a channel from server.channels. | description (4096) | required | `{user_name}`, `{user_mention}`, `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
+| ▫️ | `verification.confirmed.title` | Optional title of the private confirmation shown after the member accepted the rules and received the Member role. {user_name} is the member's display name. | title (256) | optional | `{user_name}` |
+
+### Verification: welcome panel
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ▫️ | `verification.button.emoji` | Optional emoji shown on the 'I agree' button. | emoji (100) | optional |  |
+| ❌ | `verification.button.label` | Label of the button under the welcome panel that /setup posts in the 'welcome' channel; it accepts the rules and grants the Member role (the specification calls it "I agree, enter the server"). | button_label (80) | required |  |
+| ❌ | `verification.welcome.description` | Short introduction to the server on the first card of the welcome panel that /setup posts in the 'welcome' channel. You may write {channel_<key>} (for example {channel_catalog}) for a clickable link to a channel from server.channels. | description (4096) | required | `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
+| ▫️ | `verification.welcome.image_url` | Optional large image (https:// URL) at the bottom of the first card of the welcome panel that /setup posts in the 'welcome' channel. If empty, the branding banner is used when branding.panel_banner is on. | url (2048) | optional |  |
+| ▫️ | `verification.welcome.thumbnail_url` | Optional small image (https:// URL) in the top-right corner of the first card of the welcome panel that /setup posts in the 'welcome' channel. If empty, the branding logo is used when branding.panel_thumbnail is on. | url (2048) | optional |  |
+| ❌ | `verification.welcome.title` | Title of the first card of the welcome panel that /setup posts in the 'welcome' channel, for example a welcome line. | title (256) | required |  |
+
+### Verification: direct message (verification.dm_confirmation)
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ▫️ | `verification.dm.description` | Direct message confirming a successful verification, sent in addition to the private confirmation when verification.dm_confirmation and features.dm_notifications are on (required then). {user_name} is the member's display name, {user_mention} mentions them (mentions do not ping in embeds). You may write {channel_<key>} (for example {channel_catalog}) for a clickable link to a channel from server.channels. | description (4096) | optional | `{user_name}`, `{user_mention}`, `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
+| ▫️ | `verification.dm.title` | Optional title of the direct message confirming a successful verification. {user_name} is the member's display name. | title (256) | optional | `{user_name}` |
+
+### Verification: server rules (on the welcome panel)
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ▫️ | `verification.rules.description` | Optional text above the list of rules on the rules card. You may write {channel_<key>} (for example {channel_catalog}) for a clickable link to a channel from server.channels. | description (4096) | optional | `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
+| ▫️ | `verification.rules.title` | Optional heading of the rules card (the second card of the welcome panel that /setup posts in the 'welcome' channel). | title (256) | optional |  |
+
 ## Tickets
 
 Feature `tickets` — enabled.
@@ -221,6 +259,38 @@ Feature `catalog` — enabled.
 | ❌ | `catalog.listing.description` | Text of the header card at the top of the product listing channel. | description (4096) | required |  |
 | ❌ | `catalog.listing.empty` | Shown below the listing header, and in private browsing, when no product is currently offered. | description (4096) | required |  |
 | ❌ | `catalog.listing.title` | Title of the header card at the top of the product listing channel. | title (256) | required |  |
+
+## new_arrivals
+
+Feature `new_arrivals` — enabled.
+
+### New arrivals: notification panel (posted by /setup in the new-arrivals channel)
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ❌ | `new_arrivals.button.toggle` | Label of the panel's single button. A click gives the member the notification role, or removes it when they already have it (so the label should describe both, e.g. turning notifications on or off). | button_label (80) | required |  |
+| ▫️ | `new_arrivals.button.toggle_emoji` | Optional emoji shown on the panel's button. | emoji (100) | optional |  |
+| ❌ | `new_arrivals.panel.description` | Text of the notification panel: what members receive when they turn notifications on, and that the same button turns them off again. {role} shows the notification role as a mention (it displays the role's name and pings nobody). Channel links such as {channel_catalog} become clickable #channel links once /setup created the channel. | description (4096) | required | `{role}`, `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
+| ❌ | `new_arrivals.panel.title` | Title of the persistent panel in the new-arrivals channel that lets members turn product notifications on or off. | title (256) | required |  |
+
+### New arrivals: automatic product updates (posted in the new-arrivals channel)
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ▫️ | `new_arrivals.button.view_catalog` | Optional label of a link button under each product update that opens the catalog listing channel (catalog.listing_channel). If empty, the updates have no button. | button_label (80) | optional |  |
+| ▫️ | `new_arrivals.new_product.footer` | Optional small text at the bottom of a new-product update. | footer (2048) | optional |  |
+| ❌ | `new_arrivals.new_product.title` | Title of the update posted automatically when a product is added to the catalog or switched back on (new_arrivals.announce_new_products). {name} is the product name. Below it the update shows the product's description, image, price and availability exactly like its catalog card. | title (256) | required | `{name}` |
+| ▫️ | `new_arrivals.restock.footer` | Optional small text at the bottom of a restock update. | footer (2048) | optional |  |
+| ❌ | `new_arrivals.restock.title` | Title of the update posted automatically when a sold-out product can be ordered again (new_arrivals.announce_restocks). {name} is the product name. Below it the update shows the product's description, image, price and availability exactly like its catalog card. | title (256) | required | `{name}` |
+
+### New arrivals: private confirmations (shown only to the member who clicked)
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ❌ | `new_arrivals.subscribed.description` | Private confirmation shown after a member turned notifications on (they now have the notification role and are mentioned in product updates). {role} shows the notification role as a mention (it displays the role's name and pings nobody). Channel links such as {channel_catalog} become clickable #channel links once /setup created the channel. | description (4096) | required | `{role}`, `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
+| ▫️ | `new_arrivals.subscribed.title` | Optional title of the private confirmation shown after a member turned notifications on. | title (256) | optional |  |
+| ❌ | `new_arrivals.unsubscribed.description` | Private confirmation shown after a member turned notifications off (the notification role was removed; clicking the button again turns them back on). {role} shows the notification role as a mention (it displays the role's name and pings nobody). Channel links such as {channel_catalog} become clickable #channel links once /setup created the channel. | description (4096) | required | `{role}`, `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
+| ▫️ | `new_arrivals.unsubscribed.title` | Optional title of the private confirmation shown after a member turned notifications off. | title (256) | optional |  |
 
 ## Checkout, orders and payment
 
@@ -509,52 +579,14 @@ Feature `reviews` — enabled.
 | ▫️ | `reviews.rating.5.emoji` | Optional emoji shown next to the option for rating 5 of 5 in the rating selection menu. | emoji (100) | optional |  |
 | ❌ | `reviews.rating.5.label` | Option label for rating 5 of 5 in the rating selection menu of the review request (options are listed from the highest rating to the lowest). Also shown on the published review when reviews.rating.5.display is empty. | option_label (100) | required |  |
 
-## verification
-
-Feature `verification` — enabled.
-
-### Verification: private replies after the 'I agree' button
-
-| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
-|---|---|---|---|---|---|
-| ❌ | `verification.already_verified.description` | Private reply to a member who clicks the 'I agree' button although they already have the Member role (nothing changes). {user_name} is the member's display name, {user_mention} mentions them (mentions do not ping in embeds). You may write {channel_<key>} (for example {channel_catalog}) for a clickable link to a channel from server.channels. | description (4096) | required | `{user_name}`, `{user_mention}`, `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
-| ▫️ | `verification.already_verified.title` | Optional title of the private reply to a member who clicks the 'I agree' button although they already have the Member role. {user_name} is the member's display name. | title (256) | optional | `{user_name}` |
-| ❌ | `verification.confirmed.description` | Private confirmation (only the member sees it) after they accepted the rules and received the Member role; the member-only channels are visible from now on. {user_name} is the member's display name, {user_mention} mentions them (mentions do not ping in embeds). You may write {channel_<key>} (for example {channel_catalog}) for a clickable link to a channel from server.channels. | description (4096) | required | `{user_name}`, `{user_mention}`, `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
-| ▫️ | `verification.confirmed.title` | Optional title of the private confirmation shown after the member accepted the rules and received the Member role. {user_name} is the member's display name. | title (256) | optional | `{user_name}` |
-
-### Verification: welcome panel
-
-| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
-|---|---|---|---|---|---|
-| ▫️ | `verification.button.emoji` | Optional emoji shown on the 'I agree' button. | emoji (100) | optional |  |
-| ❌ | `verification.button.label` | Label of the button under the welcome panel that /setup posts in the 'welcome' channel; it accepts the rules and grants the Member role (the specification calls it "I agree, enter the server"). | button_label (80) | required |  |
-| ❌ | `verification.welcome.description` | Short introduction to the server on the first card of the welcome panel that /setup posts in the 'welcome' channel. You may write {channel_<key>} (for example {channel_catalog}) for a clickable link to a channel from server.channels. | description (4096) | required | `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
-| ▫️ | `verification.welcome.image_url` | Optional large image (https:// URL) at the bottom of the first card of the welcome panel that /setup posts in the 'welcome' channel. If empty, the branding banner is used when branding.panel_banner is on. | url (2048) | optional |  |
-| ▫️ | `verification.welcome.thumbnail_url` | Optional small image (https:// URL) in the top-right corner of the first card of the welcome panel that /setup posts in the 'welcome' channel. If empty, the branding logo is used when branding.panel_thumbnail is on. | url (2048) | optional |  |
-| ❌ | `verification.welcome.title` | Title of the first card of the welcome panel that /setup posts in the 'welcome' channel, for example a welcome line. | title (256) | required |  |
-
-### Verification: direct message (verification.dm_confirmation)
-
-| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
-|---|---|---|---|---|---|
-| ▫️ | `verification.dm.description` | Direct message confirming a successful verification, sent in addition to the private confirmation when verification.dm_confirmation and features.dm_notifications are on (required then). {user_name} is the member's display name, {user_mention} mentions them (mentions do not ping in embeds). You may write {channel_<key>} (for example {channel_catalog}) for a clickable link to a channel from server.channels. | description (4096) | optional | `{user_name}`, `{user_mention}`, `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
-| ▫️ | `verification.dm.title` | Optional title of the direct message confirming a successful verification. {user_name} is the member's display name. | title (256) | optional | `{user_name}` |
-
-### Verification: server rules (on the welcome panel)
-
-| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
-|---|---|---|---|---|---|
-| ▫️ | `verification.rules.description` | Optional text above the list of rules on the rules card. You may write {channel_<key>} (for example {channel_catalog}) for a clickable link to a channel from server.channels. | description (4096) | optional | `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
-| ▫️ | `verification.rules.title` | Optional heading of the rules card (the second card of the welcome panel that /setup posts in the 'welcome' channel). | title (256) | optional |  |
-
 ## Business decisions and settings still open
 
-- **tickets**: tickets.panel_channel: required (the channel that shows the ticket panel)
 - **verification**: verification.rules is not set (the number of server rules shown on the welcome panel, 1-25; each rule then needs verification.rule.<n>.name and .value)
+- **tickets**: tickets.panel_channel: required (the channel that shows the ticket panel)
 
 ## Summary
 
-- Required keys (for the listed features): 163
-- Required keys still missing: 141
+- Required keys (for the listed features): 170
+- Required keys still missing: 148
 
 Legend: ✅ configured · ❌ required and missing · ▫️ optional and empty

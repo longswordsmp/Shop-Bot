@@ -12,9 +12,22 @@ def all_modules() -> list[FeatureModule]:
     from shopbot.features.checkout import MODULE as checkout
     from shopbot.features.credits import MODULE as credits
     from shopbot.features.info_panels import MODULE as info_panels
+    from shopbot.features.new_arrivals import MODULE as new_arrivals
     from shopbot.features.reviews import MODULE as reviews
     from shopbot.features.setup import MODULE as setup
     from shopbot.features.tickets import MODULE as tickets
     from shopbot.features.verification import MODULE as verification
 
-    return [core_keys.MODULE, setup, admin, info_panels, tickets, catalog, checkout, credits, reviews, verification]
+    return [
+        core_keys.MODULE,
+        setup,
+        admin,
+        info_panels,
+        verification,
+        tickets,
+        catalog,
+        new_arrivals,
+        checkout,
+        credits,
+        reviews,
+    ]

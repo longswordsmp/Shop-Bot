@@ -247,6 +247,74 @@ server.role.restock_alerts.name = "Restock Alerts"
 server.role.staff.name = "Staff"
 
 # ==================================================================================================
+# Feature: verification
+# ==================================================================================================
+
+# --- Verification: private replies after the 'I agree' button ---
+
+# Private reply to a member who clicks the 'I agree' button although they already have the Member role (nothing changes). {user_name} is the member's display name, {user_mention} mentions them (mentions do not ping in embeds). You may write {channel_<key>} (for example {channel_catalog}) for a clickable link to a channel from server.channels.
+# description · max 4096 characters · required · placeholders: {user_name}, {user_mention}, {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+verification.already_verified.description = ""
+
+# Optional title of the private reply to a member who clicks the 'I agree' button although they already have the Member role. {user_name} is the member's display name.
+# title · max 256 characters · optional · placeholders: {user_name}
+verification.already_verified.title = ""
+
+# Private confirmation (only the member sees it) after they accepted the rules and received the Member role; the member-only channels are visible from now on. {user_name} is the member's display name, {user_mention} mentions them (mentions do not ping in embeds). You may write {channel_<key>} (for example {channel_catalog}) for a clickable link to a channel from server.channels.
+# description · max 4096 characters · required · placeholders: {user_name}, {user_mention}, {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+verification.confirmed.description = ""
+
+# Optional title of the private confirmation shown after the member accepted the rules and received the Member role. {user_name} is the member's display name.
+# title · max 256 characters · optional · placeholders: {user_name}
+verification.confirmed.title = ""
+
+# --- Verification: welcome panel ---
+
+# Optional emoji shown on the 'I agree' button.
+# emoji · max 100 characters · optional
+verification.button.emoji = ""
+
+# Label of the button under the welcome panel that /setup posts in the 'welcome' channel; it accepts the rules and grants the Member role (the specification calls it "I agree, enter the server").
+# button_label · max 80 characters · required
+verification.button.label = ""
+
+# Short introduction to the server on the first card of the welcome panel that /setup posts in the 'welcome' channel. You may write {channel_<key>} (for example {channel_catalog}) for a clickable link to a channel from server.channels.
+# description · max 4096 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+verification.welcome.description = ""
+
+# Optional large image (https:// URL) at the bottom of the first card of the welcome panel that /setup posts in the 'welcome' channel. If empty, the branding banner is used when branding.panel_banner is on.
+# url · max 2048 characters · optional
+verification.welcome.image_url = ""
+
+# Optional small image (https:// URL) in the top-right corner of the first card of the welcome panel that /setup posts in the 'welcome' channel. If empty, the branding logo is used when branding.panel_thumbnail is on.
+# url · max 2048 characters · optional
+verification.welcome.thumbnail_url = ""
+
+# Title of the first card of the welcome panel that /setup posts in the 'welcome' channel, for example a welcome line.
+# title · max 256 characters · required
+verification.welcome.title = ""
+
+# --- Verification: direct message (verification.dm_confirmation) ---
+
+# Direct message confirming a successful verification, sent in addition to the private confirmation when verification.dm_confirmation and features.dm_notifications are on (required then). {user_name} is the member's display name, {user_mention} mentions them (mentions do not ping in embeds). You may write {channel_<key>} (for example {channel_catalog}) for a clickable link to a channel from server.channels.
+# description · max 4096 characters · optional · placeholders: {user_name}, {user_mention}, {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+verification.dm.description = ""
+
+# Optional title of the direct message confirming a successful verification. {user_name} is the member's display name.
+# title · max 256 characters · optional · placeholders: {user_name}
+verification.dm.title = ""
+
+# --- Verification: server rules (on the welcome panel) ---
+
+# Optional text above the list of rules on the rules card. You may write {channel_<key>} (for example {channel_catalog}) for a clickable link to a channel from server.channels.
+# description · max 4096 characters · optional · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+verification.rules.description = ""
+
+# Optional heading of the rules card (the second card of the welcome panel that /setup posts in the 'welcome' channel).
+# title · max 256 characters · optional
+verification.rules.title = ""
+
+# ==================================================================================================
 # Feature: tickets
 # ==================================================================================================
 
@@ -475,6 +543,68 @@ catalog.listing.empty = ""
 # Title of the header card at the top of the product listing channel.
 # title · max 256 characters · required
 catalog.listing.title = ""
+
+# ==================================================================================================
+# Feature: new_arrivals
+# ==================================================================================================
+
+# --- New arrivals: notification panel (posted by /setup in the new-arrivals channel) ---
+
+# Label of the panel's single button. A click gives the member the notification role, or removes it when they already have it (so the label should describe both, e.g. turning notifications on or off).
+# button_label · max 80 characters · required
+new_arrivals.button.toggle = ""
+
+# Optional emoji shown on the panel's button.
+# emoji · max 100 characters · optional
+new_arrivals.button.toggle_emoji = ""
+
+# Text of the notification panel: what members receive when they turn notifications on, and that the same button turns them off again. {role} shows the notification role as a mention (it displays the role's name and pings nobody). Channel links such as {channel_catalog} become clickable #channel links once /setup created the channel.
+# description · max 4096 characters · required · placeholders: {role}, {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+new_arrivals.panel.description = ""
+
+# Title of the persistent panel in the new-arrivals channel that lets members turn product notifications on or off.
+# title · max 256 characters · required
+new_arrivals.panel.title = ""
+
+# --- New arrivals: automatic product updates (posted in the new-arrivals channel) ---
+
+# Optional label of a link button under each product update that opens the catalog listing channel (catalog.listing_channel). If empty, the updates have no button.
+# button_label · max 80 characters · optional
+new_arrivals.button.view_catalog = ""
+
+# Optional small text at the bottom of a new-product update.
+# footer · max 2048 characters · optional
+new_arrivals.new_product.footer = ""
+
+# Title of the update posted automatically when a product is added to the catalog or switched back on (new_arrivals.announce_new_products). {name} is the product name. Below it the update shows the product's description, image, price and availability exactly like its catalog card.
+# title · max 256 characters · required · placeholders: {name}
+new_arrivals.new_product.title = ""
+
+# Optional small text at the bottom of a restock update.
+# footer · max 2048 characters · optional
+new_arrivals.restock.footer = ""
+
+# Title of the update posted automatically when a sold-out product can be ordered again (new_arrivals.announce_restocks). {name} is the product name. Below it the update shows the product's description, image, price and availability exactly like its catalog card.
+# title · max 256 characters · required · placeholders: {name}
+new_arrivals.restock.title = ""
+
+# --- New arrivals: private confirmations (shown only to the member who clicked) ---
+
+# Private confirmation shown after a member turned notifications on (they now have the notification role and are mentioned in product updates). {role} shows the notification role as a mention (it displays the role's name and pings nobody). Channel links such as {channel_catalog} become clickable #channel links once /setup created the channel.
+# description · max 4096 characters · required · placeholders: {role}, {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+new_arrivals.subscribed.description = ""
+
+# Optional title of the private confirmation shown after a member turned notifications on.
+# title · max 256 characters · optional
+new_arrivals.subscribed.title = ""
+
+# Private confirmation shown after a member turned notifications off (the notification role was removed; clicking the button again turns them back on). {role} shows the notification role as a mention (it displays the role's name and pings nobody). Channel links such as {channel_catalog} become clickable #channel links once /setup created the channel.
+# description · max 4096 characters · required · placeholders: {role}, {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+new_arrivals.unsubscribed.description = ""
+
+# Optional title of the private confirmation shown after a member turned notifications off.
+# title · max 256 characters · optional
+new_arrivals.unsubscribed.title = ""
 
 # ==================================================================================================
 # Feature: checkout
@@ -1155,71 +1285,3 @@ reviews.rating.5.emoji = ""
 # Option label for rating 5 of 5 in the rating selection menu of the review request (options are listed from the highest rating to the lowest). Also shown on the published review when reviews.rating.5.display is empty.
 # option_label · max 100 characters · required
 reviews.rating.5.label = ""
-
-# ==================================================================================================
-# Feature: verification
-# ==================================================================================================
-
-# --- Verification: private replies after the 'I agree' button ---
-
-# Private reply to a member who clicks the 'I agree' button although they already have the Member role (nothing changes). {user_name} is the member's display name, {user_mention} mentions them (mentions do not ping in embeds). You may write {channel_<key>} (for example {channel_catalog}) for a clickable link to a channel from server.channels.
-# description · max 4096 characters · required · placeholders: {user_name}, {user_mention}, {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-verification.already_verified.description = ""
-
-# Optional title of the private reply to a member who clicks the 'I agree' button although they already have the Member role. {user_name} is the member's display name.
-# title · max 256 characters · optional · placeholders: {user_name}
-verification.already_verified.title = ""
-
-# Private confirmation (only the member sees it) after they accepted the rules and received the Member role; the member-only channels are visible from now on. {user_name} is the member's display name, {user_mention} mentions them (mentions do not ping in embeds). You may write {channel_<key>} (for example {channel_catalog}) for a clickable link to a channel from server.channels.
-# description · max 4096 characters · required · placeholders: {user_name}, {user_mention}, {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-verification.confirmed.description = ""
-
-# Optional title of the private confirmation shown after the member accepted the rules and received the Member role. {user_name} is the member's display name.
-# title · max 256 characters · optional · placeholders: {user_name}
-verification.confirmed.title = ""
-
-# --- Verification: welcome panel ---
-
-# Optional emoji shown on the 'I agree' button.
-# emoji · max 100 characters · optional
-verification.button.emoji = ""
-
-# Label of the button under the welcome panel that /setup posts in the 'welcome' channel; it accepts the rules and grants the Member role (the specification calls it "I agree, enter the server").
-# button_label · max 80 characters · required
-verification.button.label = ""
-
-# Short introduction to the server on the first card of the welcome panel that /setup posts in the 'welcome' channel. You may write {channel_<key>} (for example {channel_catalog}) for a clickable link to a channel from server.channels.
-# description · max 4096 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-verification.welcome.description = ""
-
-# Optional large image (https:// URL) at the bottom of the first card of the welcome panel that /setup posts in the 'welcome' channel. If empty, the branding banner is used when branding.panel_banner is on.
-# url · max 2048 characters · optional
-verification.welcome.image_url = ""
-
-# Optional small image (https:// URL) in the top-right corner of the first card of the welcome panel that /setup posts in the 'welcome' channel. If empty, the branding logo is used when branding.panel_thumbnail is on.
-# url · max 2048 characters · optional
-verification.welcome.thumbnail_url = ""
-
-# Title of the first card of the welcome panel that /setup posts in the 'welcome' channel, for example a welcome line.
-# title · max 256 characters · required
-verification.welcome.title = ""
-
-# --- Verification: direct message (verification.dm_confirmation) ---
-
-# Direct message confirming a successful verification, sent in addition to the private confirmation when verification.dm_confirmation and features.dm_notifications are on (required then). {user_name} is the member's display name, {user_mention} mentions them (mentions do not ping in embeds). You may write {channel_<key>} (for example {channel_catalog}) for a clickable link to a channel from server.channels.
-# description · max 4096 characters · optional · placeholders: {user_name}, {user_mention}, {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-verification.dm.description = ""
-
-# Optional title of the direct message confirming a successful verification. {user_name} is the member's display name.
-# title · max 256 characters · optional · placeholders: {user_name}
-verification.dm.title = ""
-
-# --- Verification: server rules (on the welcome panel) ---
-
-# Optional text above the list of rules on the rules card. You may write {channel_<key>} (for example {channel_catalog}) for a clickable link to a channel from server.channels.
-# description · max 4096 characters · optional · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-verification.rules.description = ""
-
-# Optional heading of the rules card (the second card of the welcome panel that /setup posts in the 'welcome' channel).
-# title · max 256 characters · optional
-verification.rules.title = ""

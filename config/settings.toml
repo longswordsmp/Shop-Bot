@@ -227,7 +227,11 @@ channel = "shipping"
 channel = "announcements"
 
 [new_arrivals]
-channel = "new_arrivals"
+channel = "new_arrivals"             # channel of the opt-in panel and the automatic product updates
+role = "restock_alerts"              # role key the panel button turns on/off (must grant no permissions)
+announce_new_products = true         # post an update when a product is added or switched back on
+announce_restocks = true             # post an update when a sold-out product can be ordered again
+mention_role = true                  # mention the role in those updates (the role must be mentionable)
 
 [problems]
 

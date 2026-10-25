@@ -45,6 +45,7 @@ perform staff actions check staff status inside the handler, e.g. per-ticket-cat
 | component | `ct` | `apage` | catalog | staff | no | `shopbot.features.catalog.handlers.on_admin_page` |
 | component | `ct` | `browse` | catalog | any | no | `shopbot.features.catalog.handlers.on_browse` |
 | modal | `ct` | `editform` | catalog | staff | no | `shopbot.features.catalog.handlers.on_edit_form` |
+| component | `na` | `toggle` | new_arrivals | any | no | `shopbot.features.new_arrivals.handlers.on_toggle` |
 | modal | `rv` | `comment` | reviews | any | yes | `shopbot.features.reviews.handlers.on_comment` |
 | component | `rv` | `decline` | reviews | any | yes | `shopbot.features.reviews.handlers.on_decline` |
 | component | `rv` | `rate` | reviews | any | yes | `shopbot.features.reviews.handlers.on_rate` |
@@ -73,6 +74,7 @@ perform staff actions check staff status inside the handler, e.g. per-ticket-cat
 - `checkout.payment_reminder`
 - `checkout.session_expire`
 - `checkout.ticket_check`
+- `new_arrivals.announce`
 - `reviews.prompt`
 - `reviews.publish`
 - `tickets.auto_close`
