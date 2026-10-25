@@ -447,3 +447,40 @@ Constraints:
 | `created_at` | INTEGER | yes |  |  |
 
 Indexes: `idx_audit_target`, `idx_audit_guild_time`
+
+## `announcements`
+
+| Column | Type | Not null | Default | Key |
+|---|---|---|---|---|
+| `id` | INTEGER |  |  | PK |
+| `guild_id` | INTEGER | yes |  |  |
+| `token` | TEXT | yes |  |  |
+| `actor_id` | INTEGER | yes |  |  |
+| `mention_role` | TEXT |  |  |  |
+| `image_url` | TEXT |  |  |  |
+| `image_filename` | TEXT |  |  |  |
+| `image_content_type` | TEXT |  |  |  |
+| `image_size` | INTEGER |  |  |  |
+| `status` | TEXT | yes | 'draft' |  |
+| `claimed_by` | TEXT |  |  |  |
+| `title` | TEXT |  |  |  |
+| `message` | TEXT |  |  |  |
+| `field_values` | TEXT |  |  |  |
+| `channel_id` | INTEGER |  |  |  |
+| `message_id` | INTEGER |  |  |  |
+| `created_at` | INTEGER | yes |  |  |
+| `expires_at` | INTEGER | yes |  |  |
+| `updated_at` | INTEGER | yes |  |  |
+| `published_at` | INTEGER |  |  |  |
+
+Indexes: `idx_announcements_expiry`
+
+Constraints:
+
+- `token TEXT NOT NULL UNIQUE CHECK (length(token) BETWEEN 16 AND 64)`
+- `image_size INTEGER CHECK (image_size IS NULL OR image_size >= 0)`
+- `status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'posting', 'published', 'interrupted'))`
+- `CHECK (expires_at > created_at)`
+- `CHECK ((image_url IS NULL) = (image_filename IS NULL))`
+- `CHECK (status != 'posting' OR claimed_by IS NOT NULL)`
+- `CHECK (status != 'published' OR (channel_id IS NOT NULL AND message_id IS NOT NULL AND published_at IS NOT NULL))`

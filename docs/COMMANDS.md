@@ -6,6 +6,16 @@ Administrator, or a role in `permissions.admin_roles`; "staff" = admins plus sta
 permissions only control who sees the command in Discord's picker and can be adjusted in
 Server Settings → Integrations.
 
+## /announce
+
+Publish an announcement in the announcements channel.
+
+Default visibility: manage_messages
+
+| Command | Access | Description | Options |
+|---|---|---|---|
+| `/announce` | staff | Publish an announcement in the announcements channel. | `image` (optional): Optional picture shown in the announcement (png, jpg, gif or webp).; `mention` (optional): Optional role to mention with the announcement (from announcements.mention_roles). |
+
 ## /audit
 
 Show recent audit log events.
