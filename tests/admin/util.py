@@ -90,8 +90,10 @@ def all_text(interaction: FakeInteraction) -> str:
 
 
 def attachment_text(message: FakeMessage) -> str:
-    assert message.files, "no attachment"
-    fp = message.files[0].fp
+    """The text file attached to an admin reply (the banner picture, uploaded first, is skipped)."""
+    files = [f for f in message.files if not (f.filename or "").startswith("banner-")]
+    assert files, "no attachment"
+    fp = files[0].fp
     assert isinstance(fp, io.BytesIO)
     return fp.getvalue().decode("utf-8")
 

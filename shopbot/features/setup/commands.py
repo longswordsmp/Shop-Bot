@@ -8,8 +8,8 @@ from typing import Any
 import discord
 from discord import app_commands
 
-from shopbot.commands import app_of, reply, reply_operator, require_admin
-from shopbot.features.setup.report import report_messages
+from shopbot.commands import app_of, reply, require_admin
+from shopbot.features.setup.report import notice_message, report_messages
 from shopbot.features.setup.service import run_setup, setup_lock
 from shopbot.logging_setup import log_event
 from shopbot.ui.discord_render import RenderError
@@ -22,11 +22,12 @@ async def handle_setup(interaction: discord.Interaction[Any], *, dry_run: bool, 
     await interaction.response.defer(ephemeral=True, thinking=True)
     guild = app.guild
     if guild is None or guild.me is None:
-        await reply_operator(interaction, app.op("server.setup.no_guild"), tone="danger")
+        await reply(interaction, notice_message(app.ui, app.op("server.setup.no_guild"), tone="danger", banner="error"))
         return
     lock = setup_lock(app)
     if lock.locked():
-        await reply_operator(interaction, app.op("server.setup.busy"), tone="warning")
+        busy = notice_message(app.ui, app.op("server.setup.busy"), tone="warning", banner="submission-and-processing")
+        await reply(interaction, busy)
         return
     async with lock:
         report = await run_setup(app, guild, actor_id=interaction.user.id, dry_run=dry_run, publish=publish)

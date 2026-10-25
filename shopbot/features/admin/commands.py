@@ -16,7 +16,8 @@ from typing import TYPE_CHECKING, Any, Literal
 import discord
 from discord import app_commands
 
-from shopbot.commands import app_of, reply, reply_operator, require_admin
+from shopbot.commands import app_of, reply, require_admin
+from shopbot.config.banner_ids import BannerId
 from shopbot.db.repos import audit as audit_repo
 from shopbot.db.repos import state as state_repo
 from shopbot.db.repos import tasks as task_repo
@@ -94,6 +95,19 @@ async def clear_key_autocomplete(interaction: discord.Interaction[Any], current:
     return _choices([*stale, *service.suggest_keys(app, current, limit=AUTOCOMPLETE_LIMIT * 2)])
 
 
+async def _notice(
+    interaction: discord.Interaction[Any],
+    title: str,
+    description: str | None = None,
+    *,
+    tone: str,
+    banner: BannerId,
+) -> None:
+    """A one-embed operator reply (refusals, failures, work in progress) under ``banner``."""
+    app = app_of(interaction)
+    await reply(interaction, views.simple(app.ui, app.op, title, description, tone=tone, banner=banner))
+
+
 async def _send_all(interaction: discord.Interaction[Any], specs: Sequence[MessageSpec]) -> None:
     for spec in specs:
         await reply(interaction, spec, ephemeral=True)
@@ -155,13 +169,13 @@ async def handle_edit_text(interaction: discord.Interaction[Any], message: disco
     app = app_of(interaction)
     me = interaction.client.user
     if me is None or message.author.id != me.id:
-        await reply(interaction, views.simple(app.ui, app.op, app.op("admin.edit.not_bot"), tone="warning"))
+        await _notice(interaction, app.op("admin.edit.not_bot"), tone="warning", banner="general-response")
         return
     values = app.content.effective_values()
     keys = edit_text.find_keys(edit_text.message_texts(message), values, app.content.registry.all())
     if not keys:
         title, text = app.op("admin.edit.none_title"), app.op("admin.edit.none")
-        await reply(interaction, views.simple(app.ui, app.op, title, text, tone="warning"))
+        await _notice(interaction, title, text, tone="warning", banner="general-response")
         return
     await reply(interaction, views.edit_text_choices(app.ui, app.op, [(k, values[k]) for k in keys]))
 
@@ -225,7 +239,9 @@ async def handle_content_export(interaction: discord.Interaction[Any]) -> None:
     try:
         text = render_content_toml(app.content.registry, values, feature_order=service.feature_names(app))
     except (UnrepresentableValue, ValueError) as exc:
-        await reply_operator(interaction, app.op("admin.content.export_failed"), str(exc)[:1000], tone="danger")
+        await _notice(
+            interaction, app.op("admin.content.export_failed"), str(exc)[:1000], tone="danger", banner="error"
+        )
         return
     configured = sum(1 for v in values.values() if v)
     overrides = sum(1 for k in values if app.content.source(k) == "override")
@@ -246,19 +262,19 @@ async def handle_backup(interaction: discord.Interaction[Any]) -> None:
     app = app_of(interaction)
     lock = state_for(app).backup_lock
     if lock.locked():
-        await reply_operator(interaction, app.op("admin.backup.busy"), tone="warning")
+        await _notice(interaction, app.op("admin.backup.busy"), tone="warning", banner="submission-and-processing")
         return
     await _defer(interaction)
     async with lock:
         try:
             report = await service.create_backup(app, actor_id=interaction.user.id)
         except service.BackupUnavailable:
-            await reply_operator(interaction, app.op("admin.backup.unavailable"), tone="danger")
+            await _notice(interaction, app.op("admin.backup.unavailable"), tone="danger", banner="error")
             return
         except (sqlite3.Error, OSError) as exc:
             log_event(log, logging.ERROR, "db_backup_failed", error=type(exc).__name__)
             error = f"{type(exc).__name__}: {exc}"[:1000]
-            await reply_operator(interaction, app.op("admin.backup.failed"), error, tone="danger")
+            await _notice(interaction, app.op("admin.backup.failed"), error, tone="danger", banner="error")
             return
     spec = views.backup_report(
         app.ui, app.op, path=str(report.path), size=report.size, kept=report.kept, removed=len(report.removed)

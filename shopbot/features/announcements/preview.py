@@ -67,8 +67,8 @@ def preview(app: App) -> list[PreviewState]:
     def reply(reply_value: views.Reply) -> MessageSpec:
         return views.reply_spec(ui, op, reply_value)
 
-    def notice(text: str, tone: str) -> Callable[[], MessageSpec]:
-        return lambda: reply(views.notice_reply(op, text, tone=tone))
+    def notice(build_notice: Callable[[], views.Reply]) -> Callable[[], MessageSpec]:
+        return lambda: reply(build_notice())
 
     # -- the staff form ---------------------------------------------------------------------------------------
     inputs = service.form_inputs(app)
@@ -233,24 +233,32 @@ def preview(app: App) -> list[PreviewState]:
                 op,
                 [
                     op("announcements.error.image_type", filename="[sample file].pdf"),
-                    op("announcements.error.image_too_large", size="25.0", limit="10.0"),
+                    op(
+                        "announcements.error.image_too_large",
+                        size="25.0",
+                        limit=service.megabytes(service.upload_limit(app)),
+                    ),
                     op("announcements.error.mention_not_allowed", role="[sample role]"),
                     op("announcements.error.image_disabled"),
                 ],
             )
         ),
     )
-    for name, note, line, tone in (
-        ("notice_busy", "A second submission while the first is being posted.", "announcements.error.busy", "info"),
-        ("notice_expired", "A form used after it expired.", "announcements.error.expired", "warning"),
+    notices: tuple[tuple[str, str, Callable[[], views.Reply]], ...] = (
+        ("notice_busy", "A second submission while the first is being posted.", lambda: views.busy_reply(op)),
+        (
+            "notice_expired",
+            "A form used after it expired.",
+            lambda: views.expired_reply(op, hours=service.DRAFT_TTL_SECONDS // 3600),
+        ),
         (
             "notice_interrupted",
             "A form whose posting was interrupted by a restart.",
-            "announcements.error.interrupted",
-            "warning",
+            lambda: views.interrupted_reply(op, channel=channel),
         ),
-        ("notice_unknown", "An unknown or deleted form.", "announcements.error.form_unknown", "warning"),
-        ("notice_not_owner", "A form opened by another staff member.", "announcements.error.not_owner", "danger"),
-    ):
-        add(name, note, notice(op(line, hours=service.DRAFT_TTL_SECONDS // 3600, channel=channel), tone))
+        ("notice_unknown", "An unknown or deleted form.", lambda: views.unknown_form_reply(op)),
+        ("notice_not_owner", "A form opened by another staff member.", lambda: views.not_owner_reply(op)),
+    )
+    for name, note, build_notice in notices:
+        add(name, note, notice(build_notice))
     return states

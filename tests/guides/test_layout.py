@@ -58,14 +58,14 @@ def test_a_block_over_6000_characters_continues_in_more_embeds_and_messages(tenv
     assert len(embeds) > 1
     assert all(e.text_length() <= limits.EMBED_TOTAL_CHARS for e in embeds)
     assert all_fields(embeds) == list(fields)  # every field present, in order, unchanged
-    specs = guide_messages(tenv.app.ui, [Block(tone="info", title="[section]", fields=fields)])
+    specs = guide_messages(tenv.app.ui, [Block(tone="info", title="[section]", fields=fields)], banner="faq")
     assert len(specs) > 1
     assert_valid(specs)
 
 
 def test_more_than_10_embeds_continue_in_the_next_message(tenv: TestEnv) -> None:
     blocks = [Block(tone="info", title=f"[section {n}]", fields=(field(n),)) for n in range(1, 13)]
-    specs = guide_messages(tenv.app.ui, blocks)
+    specs = guide_messages(tenv.app.ui, blocks, banner="faq")
     assert [len(s.embeds) for s in specs] == [10, 2]
     assert [e.title for s in specs for e in s.embeds] == [f"[section {n}]" for n in range(1, 13)]
     assert_valid(specs)
@@ -81,7 +81,7 @@ def test_lines_are_split_between_lines_and_never_cut(tenv: TestEnv) -> None:
     rebuilt = "\n".join(e.description or "" for e in embeds).removeprefix("[explanation]\n\n")
     assert rebuilt.split("\n") == list(lines)
     assert all(e.color == tenv.app.ui.color("success") for e in embeds)
-    assert_valid(guide_messages(tenv.app.ui, [block]))
+    assert_valid(guide_messages(tenv.app.ui, [block], banner="shipping"))
 
 
 def test_message_packing_keeps_order_and_limits() -> None:
@@ -94,13 +94,13 @@ def test_message_packing_keeps_order_and_limits() -> None:
 def test_link_buttons_are_attached_to_the_last_message(tenv: TestEnv) -> None:
     blocks = [Block(tone="info", title=f"[section {n}]", fields=(field(n),)) for n in range(1, 13)]
     rows = rows_of(*(ButtonSpec(label=f"[link {n}]", style="link", url="https://example.com") for n in range(7)))
-    specs = guide_messages(tenv.app.ui, blocks, rows)
+    specs = guide_messages(tenv.app.ui, blocks, rows, banner="how-it-works")
     assert specs[0].rows == () and specs[-1].rows == rows
     assert [len(row) for row in specs[-1].rows] == [5, 2]
 
 
 def test_empty_blocks_are_skipped(tenv: TestEnv) -> None:
-    assert guide_messages(tenv.app.ui, [Block(tone="primary")]) == []
+    assert guide_messages(tenv.app.ui, [Block(tone="primary")], banner="faq") == []
     embeds = build_embeds(tenv.app.ui, [Block(tone="primary"), Block(tone="info", title="[only]")])
     assert [e.title for e in embeds] == ["[only]"]
     assert embeds[0].footer_text  # the first shown embed gets the branding

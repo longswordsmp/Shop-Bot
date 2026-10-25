@@ -132,7 +132,7 @@ def faq_messages(ui: Ui, s: FaqSettings, texts: common.Texts) -> list[MessageSpe
     is missing (nothing incomplete is posted)."""
     blocks = [common.Block(tone="primary", title=texts.optional(TITLE), description=texts.optional(INTRODUCTION))]
     blocks += [_section_block(texts, section) for section in s.sections]
-    return common.guide_messages(ui, blocks)
+    return common.guide_messages(ui, blocks, banner="faq")
 
 
 # -- runtime ---------------------------------------------------------------------------------------------------

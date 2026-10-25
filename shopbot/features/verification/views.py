@@ -15,6 +15,7 @@ from dataclasses import dataclass, replace
 
 from discord.utils import escape_markdown
 
+from shopbot.config.banner_ids import BannerId
 from shopbot.config.content import MissingContent
 from shopbot.config.settings import VerificationSettings
 from shopbot.features.verification import content_keys as k
@@ -94,7 +95,7 @@ def resolve_panel_text(render: Render, rule_count: int, *, preview: bool = False
 
 
 def panel_message(ui: Ui, text: PanelText, *, button_style: str) -> MessageSpec:
-    """Two cards (welcome + rules) and the 'I agree' button.
+    """Two cards (welcome + rules) and the 'I agree' button, under the welcome banner picture.
 
     The welcome card carries the branding (author line, logo thumbnail, banner); the configured footer is moved to
     the rules card so it closes the message instead of sitting between the two cards.
@@ -123,7 +124,7 @@ def panel_message(ui: Ui, text: PanelText, *, button_style: str) -> MessageSpec:
         emoji=text.button_emoji,
     )
     embeds = (welcome, rules) if not rules.is_empty() else (welcome,)
-    return MessageSpec(embeds=embeds, rows=rows_of(button))
+    return MessageSpec(embeds=embeds, rows=rows_of(button), banner=ui.banner("welcome"))
 
 
 def build_panel(ui: Ui, settings: VerificationSettings, links: Values) -> MessageSpec:
@@ -143,24 +144,28 @@ def reply_values(links: Values, *, user_name: str, user_id: int) -> dict[str, st
     return {**links, "user_name": escape_markdown(user_name), "user_mention": f"<@{user_id}>"}
 
 
-def _reply(ui: Ui, title_key: str, description_key: str, values: Values, *, tone: str) -> MessageSpec:
+def _reply(ui: Ui, title_key: str, description_key: str, values: Values, *, tone: str, banner: BannerId) -> MessageSpec:
     description = ui.text(description_key, **values)
     if description is None:
         raise MissingContent(description_key)
     title = ui.text(title_key, **values)
-    return MessageSpec(embeds=(ui.embed(title=title, description=description, tone=tone, timestamp=True),))
+    return MessageSpec(
+        embeds=(ui.embed(title=title, description=description, tone=tone, timestamp=True),), banner=ui.banner(banner)
+    )
 
 
 def confirmation_view(ui: Ui, values: Values) -> MessageSpec:
     """Private reply after the Member role was granted."""
-    return _reply(ui, k.CONFIRMED_TITLE, k.CONFIRMED_DESCRIPTION, values, tone="success")
+    return _reply(
+        ui, k.CONFIRMED_TITLE, k.CONFIRMED_DESCRIPTION, values, tone="success", banner="successful-confirmation"
+    )
 
 
 def already_verified_view(ui: Ui, values: Values) -> MessageSpec:
     """Private reply when the member already has the Member role (nothing changed)."""
-    return _reply(ui, k.ALREADY_TITLE, k.ALREADY_DESCRIPTION, values, tone="info")
+    return _reply(ui, k.ALREADY_TITLE, k.ALREADY_DESCRIPTION, values, tone="info", banner="general-response")
 
 
 def dm_view(ui: Ui, values: Values) -> MessageSpec:
     """Direct message confirming the verification (verification.dm_confirmation)."""
-    return _reply(ui, k.DM_TITLE, k.DM_DESCRIPTION, values, tone="success")
+    return _reply(ui, k.DM_TITLE, k.DM_DESCRIPTION, values, tone="success", banner="successful-confirmation")

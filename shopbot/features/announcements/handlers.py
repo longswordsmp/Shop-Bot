@@ -28,9 +28,7 @@ def _token(ctx: Ctx) -> str | None:
 
 
 async def _unknown(ctx: Ctx) -> None:
-    op = ctx.app.op
-    reply = views.notice_reply(op, op("announcements.error.form_unknown"))
-    await ctx.respond(views.reply_spec(ctx.app.ui, op, reply), ephemeral=True)
+    await ctx.respond(views.reply_spec(ctx.app.ui, ctx.app.op, views.unknown_form_reply(ctx.app.op)), ephemeral=True)
 
 
 async def on_submit(ctx: Ctx) -> None:

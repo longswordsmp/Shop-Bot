@@ -27,6 +27,7 @@ from tests.helpers import (
     GUILD_ID,
     TestEnv,
     deep_merge,
+    make_banner_env,
     make_settings,
     make_test_env,
     provision_channels,
@@ -128,9 +129,14 @@ async def announce_env(
     *,
     content: dict[str, str] | None = None,
     fill_content: bool = True,
+    banners: bool = False,
 ) -> AnnounceEnv:
-    settings = make_settings(deep_merge(BASE_OVERRIDES, overrides or {}))
-    tenv = await make_test_env(tmp_path, settings=settings, content=content, fill_content=fill_content)
+    """``banners`` switches banners on with a tiny picture per banner id (``make_banner_env``)."""
+    merged = deep_merge(BASE_OVERRIDES, overrides or {})
+    if banners:
+        tenv = await make_banner_env(tmp_path, merged, content=content, fill_content=fill_content)
+    else:
+        tenv = await make_test_env(tmp_path, settings=make_settings(merged), content=content, fill_content=fill_content)
     await provision_channels(tenv)
     roles: dict[str, FakeRole] = {}
     for key in ("announcer", "alerts", "quiet"):

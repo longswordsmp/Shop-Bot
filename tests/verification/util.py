@@ -11,7 +11,15 @@ from shopbot.db.repos import audit as audit_repo
 from shopbot.features.verification import repo
 from shopbot.features.verification import service as verification_service
 from tests.fakes import FakeMessage, FakeRole, FakeTextChannel, click
-from tests.helpers import TestEnv, deep_merge, make_settings, make_test_env, provision_channels, server_extension
+from tests.helpers import (
+    TestEnv,
+    deep_merge,
+    make_banner_env,
+    make_settings,
+    make_test_env,
+    provision_channels,
+    server_extension,
+)
 
 RULES = 3
 AGREE_ID = "sb:verify:agree"
@@ -51,9 +59,14 @@ async def verification_env(
     content: dict[str, str] | None = None,
     provision: bool = True,
     role: bool = True,
+    banners: bool = False,
 ) -> TestEnv:
-    """Channels created and the Member role recorded as /setup would have done (unless switched off)."""
-    tenv = await make_test_env(tmp_path, settings=verification_settings(extra, rules=rules), content=content)
+    """Channels created and the Member role recorded as /setup would have done (unless switched off). ``banners``
+    switches banners on with a tiny picture per banner id (``make_banner_env``)."""
+    if banners:
+        tenv = await make_banner_env(tmp_path, verification_overrides(extra, rules=rules), content=content)
+    else:
+        tenv = await make_test_env(tmp_path, settings=verification_settings(extra, rules=rules), content=content)
     if provision:
         await provision_channels(tenv)
     if role:
