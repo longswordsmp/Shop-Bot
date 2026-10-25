@@ -90,7 +90,7 @@ class Notifier:
                 user = bot.get_user(user_id) or await bot.fetch_user(user_id)
                 kwargs = send_kwargs(spec)
                 if attachments:
-                    kwargs["files"] = _files(attachments)
+                    kwargs["files"] = [*kwargs.get("files", ()), *_files(attachments)]
                 await user.send(**kwargs)
                 await self._record(
                     dedupe_key, user_id=user_id, channel_id=None, kind=kind, delivery="dm", status="sent", error=None
@@ -109,7 +109,7 @@ class Notifier:
                 try:
                     kwargs = send_kwargs(replace(spec, mention_user_ids=(user_id,)))
                     if attachments:
-                        kwargs["files"] = _files(attachments)
+                        kwargs["files"] = [*kwargs.get("files", ()), *_files(attachments)]
                     await channel.send(**kwargs)
                     await self._record(
                         dedupe_key,
@@ -167,7 +167,7 @@ class Notifier:
         try:
             kwargs = send_kwargs(spec)
             if attachments:
-                kwargs["files"] = _files(attachments)
+                kwargs["files"] = [*kwargs.get("files", ()), *_files(attachments)]
             message = await channel.send(**kwargs)
         except (discord.HTTPException, RenderError) as exc:
             log_event(

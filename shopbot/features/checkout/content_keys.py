@@ -36,6 +36,7 @@ CHANNEL_TOPIC = "checkout.channel_topic"
 STARTED = "checkout.started.description"
 SESSION_EXISTS = "checkout.session_exists.description"
 LIMIT_REACHED = "checkout.limit_reached.description"
+BUY_ADDED = "checkout.buy_added.description"
 
 # -- workflow: browse ---------------------------------------------------------------------------------
 BROWSE_TITLE = "checkout.browse.title"
@@ -312,6 +313,19 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             "Private reply when the customer already has the maximum number of open orders (waiting for "
             "payment, paid, or in progress). {limit} is checkout.max_open_orders_per_user.",
             placeholders=("limit",),
+        ),
+        ck(
+            BUY_ADDED,
+            Kind.DESCRIPTION,
+            FEATURE,
+            g_replies,
+            "Optional: private reply when the customer clicks a product's buy button (catalog.button.buy) while "
+            "they already have an unfinished order channel; the product is now in its cart (one unit, or the "
+            "quantity already chosen). {name} is the product name, {channel_mention} links the channel. If empty, "
+            "checkout.session_exists.description is shown. A buy button that opens a new order channel answers "
+            "with checkout.started.description.",
+            placeholders=("name", "channel_mention"),
+            fallback=SESSION_EXISTS,
         ),
         ck(
             BROWSE_TITLE,

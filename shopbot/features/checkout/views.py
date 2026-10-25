@@ -437,6 +437,18 @@ def session_exists_reply(ui: Ui, channel_id: int) -> MessageSpec:
     return _description_message(ui, k.SESSION_EXISTS, channel_mention=channel_mention(channel_id))
 
 
+def buy_added_reply(ui: Ui, name: str, channel_id: int) -> MessageSpec:
+    """Reply to a catalog buy button that continued the customer's existing order channel."""
+    return _description_message(ui, k.BUY_ADDED, name=escape(name), channel_mention=channel_mention(channel_id))
+
+
+def buy_started_reply(ui: Ui, channel_id: int, notice: EmbedSpec | None = None) -> MessageSpec:
+    """Reply to a catalog buy button that opened a new order channel; ``notice`` explains a product that could not be
+    put in the cart after all (e.g. sold out a moment earlier)."""
+    started = started_reply(ui, channel_id)
+    return MessageSpec(embeds=started.embeds + ((notice,) if notice is not None else ()))
+
+
 def limit_reply(ui: Ui, limit: int) -> MessageSpec:
     return _description_message(ui, k.LIMIT_REACHED, tone="warning", limit=limit)
 

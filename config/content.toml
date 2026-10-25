@@ -432,15 +432,15 @@ tickets.transcript_dm.title = ""
 
 # --- Catalog: product cards (listing and private browsing) ---
 
-# Availability of a product with limited stock that can still be ordered. {count} is the number of units that can still be ordered (stock minus units held by pending orders).
+# Availability of a product with limited stock that can still be ordered (its card uses the success color). {count} is the number of units that can still be ordered (stock minus units held by pending orders).
 # field_value · max 1024 characters · required · placeholders: {count}
 catalog.availability.in_stock = ""
 
-# Availability of a product whose stock is used up (still listed, cannot be ordered).
+# Availability of a product whose stock is used up (still listed, cannot be ordered; its buy button is disabled and its card uses the danger color).
 # field_value · max 1024 characters · required
 catalog.availability.out_of_stock = ""
 
-# Availability of a product without a stock limit.
+# Availability of a product without a stock limit (its card uses the success color).
 # field_value · max 1024 characters · required
 catalog.availability.unlimited = ""
 
@@ -458,9 +458,23 @@ catalog.field.price = ""
 
 # --- Catalog: private browsing ---
 
-# Button under the last listing message that opens a private, page-by-page view of the products (only when catalog.browse_enabled is true).
+# Button under the listing's header card that opens a private, page-by-page view of the products (only when catalog.browse_enabled is true).
 # button_label · max 80 characters · optional
 catalog.button.browse = ""
+
+# --- Catalog: buy button on product cards ---
+
+# Button under each product card (listing and private browsing) that opens the customer's private order channel, or continues the one they already have, with this product in the cart. {name} is the product name (use it when catalog.products_per_listing_message is more than 1, so each button names its product). Disabled while the product is out of stock.
+# button_label · max 80 characters · required · placeholders: {name}
+catalog.button.buy = ""
+
+# Optional emoji shown on the buy button.
+# emoji · max 100 characters · optional
+catalog.button.buy_emoji = ""
+
+# Optional: label used instead of catalog.button.buy for a product whose name makes that label longer than Discord's 80 characters. Required only when such a product exists (the listing reports it).
+# button_label · max 80 characters · optional
+catalog.button.buy_short = ""
 
 # --- Catalog: live product listing ---
 
@@ -472,7 +486,7 @@ catalog.listing.description = ""
 # description · max 4096 characters · required
 catalog.listing.empty = ""
 
-# Title of the header card at the top of the product listing channel.
+# Title of the header card: the first message of the product listing channel (each product follows in its own message).
 # title · max 256 characters · required
 catalog.listing.title = ""
 
@@ -610,6 +624,24 @@ checkout.panel.description = ""
 # title · max 256 characters · required
 checkout.panel.title = ""
 
+# --- Checkout: private replies to the start button ---
+
+# Optional: private reply when the customer clicks a product's buy button (catalog.button.buy) while they already have an unfinished order channel; the product is now in its cart (one unit, or the quantity already chosen). {name} is the product name, {channel_mention} links the channel. If empty, checkout.session_exists.description is shown. A buy button that opens a new order channel answers with checkout.started.description.
+# description · max 4096 characters · optional; falls back to checkout.session_exists.description · placeholders: {name}, {channel_mention}
+checkout.buy_added.description = ""
+
+# Private reply when the customer already has the maximum number of open orders (waiting for payment, paid, or in progress). {limit} is checkout.max_open_orders_per_user.
+# description · max 4096 characters · required · placeholders: {limit}
+checkout.limit_reached.description = ""
+
+# Private reply when the customer clicks start while they already have an unfinished order channel; no second channel is created. {channel_mention} links the existing channel.
+# description · max 4096 characters · required · placeholders: {channel_mention}
+checkout.session_exists.description = ""
+
+# Private reply after the start button created the customer's order channel. {channel_mention} links the channel.
+# description · max 4096 characters · required · placeholders: {channel_mention}
+checkout.started.description = ""
+
 # --- Checkout: order workflow - cart ---
 
 # Optional text of the cart step.
@@ -705,20 +737,6 @@ checkout.fulfillment_step.select_placeholder = ""
 # Title of the step where the customer chooses a fulfillment option (delivery, pickup, ...). Needed when checkout.fulfillment_options are defined.
 # title · max 256 characters · optional
 checkout.fulfillment_step.title = ""
-
-# --- Checkout: private replies to the start button ---
-
-# Private reply when the customer already has the maximum number of open orders (waiting for payment, paid, or in progress). {limit} is checkout.max_open_orders_per_user.
-# description · max 4096 characters · required · placeholders: {limit}
-checkout.limit_reached.description = ""
-
-# Private reply when the customer clicks start while they already have an unfinished order channel; no second channel is created. {channel_mention} links the existing channel.
-# description · max 4096 characters · required · placeholders: {channel_mention}
-checkout.session_exists.description = ""
-
-# Private reply after the start button created the customer's order channel. {channel_mention} links the channel.
-# description · max 4096 characters · required · placeholders: {channel_mention}
-checkout.started.description = ""
 
 # --- Checkout: customer notifications (direct message, or the order channel) ---
 

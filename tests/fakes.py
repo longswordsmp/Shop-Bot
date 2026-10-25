@@ -251,6 +251,8 @@ class FakeMessage:
             self.view = kwargs["view"]
         if "content" in kwargs:
             self.content = kwargs["content"] or ""
+        if "attachments" in kwargs:  # Discord replaces the message's attachments with exactly these
+            self.files = list(kwargs["attachments"] or [])
         return self
 
     async def delete(self, *, delay: float | None = None) -> None:

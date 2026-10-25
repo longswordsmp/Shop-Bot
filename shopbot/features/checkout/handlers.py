@@ -142,6 +142,19 @@ async def on_start(ctx: Ctx) -> None:
     await ctx.respond(spec, ephemeral=True)
 
 
+async def on_buy(ctx: Ctx) -> None:
+    """A catalog product's buy button (``sb:co:buy:<product_id>``, in the listing or private browsing): open or
+    continue the member's order channel with the product in the cart. The custom_id carries only the product id;
+    the product, the member's session and every limit are re-checked here."""
+    member = ctx.member
+    if member is None or member.bot:
+        raise HandlerError(core.ERROR_PERMISSION)
+    product_id = ctx.arg_int(0)
+    await ctx.defer_reply(ephemeral=True)
+    spec = await service.buy(ctx.app, member, product_id)
+    await ctx.respond(spec, ephemeral=True)
+
+
 # -- customer: workflow -----------------------------------------------------------------------------------------
 
 
@@ -458,6 +471,7 @@ def register(app: App) -> None:
     route, staff_route = k.ROUTE, k.STAFF_ROUTE
     customer = {
         "start": on_start,
+        "buy": on_buy,
         "pick": on_pick,
         "edit": on_edit,
         "page": on_page,

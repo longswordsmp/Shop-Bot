@@ -7,7 +7,9 @@ enabled only for the user/role IDs a spec explicitly lists.
 
 from __future__ import annotations
 
+import io
 import logging
+from collections.abc import Sequence
 from typing import Any
 
 import discord
@@ -15,7 +17,7 @@ import discord
 from shopbot.core.clock import to_datetime
 from shopbot.logging_setup import log_event
 from shopbot.ui.limits import Violation, validate_message, validate_modal
-from shopbot.ui.spec import ButtonSpec, EmbedSpec, MessageSpec, ModalSpec, SelectSpec
+from shopbot.ui.spec import ButtonSpec, EmbedSpec, FileSpec, MessageSpec, ModalSpec, SelectSpec
 
 log = logging.getLogger(__name__)
 
@@ -155,6 +157,16 @@ def allowed_mentions(spec: MessageSpec) -> discord.AllowedMentions:
     )
 
 
+def to_files(files: Sequence[FileSpec]) -> list[discord.File]:
+    """Fresh ``discord.File`` objects (a File's stream cannot be reused after a send, e.g. a retried one).
+
+    A file reference whose bytes were never loaded is refused (nothing is sent)."""
+    missing = [Violation(f"files[{i}]", "file data is not loaded") for i, f in enumerate(files) if f.data is None]
+    if missing:
+        raise RenderError(missing)
+    return [discord.File(io.BytesIO(f.data or b""), filename=f.filename) for f in files]
+
+
 def send_kwargs(spec: MessageSpec) -> dict[str, Any]:
     """Keyword arguments for ``Messageable.send`` / ``InteractionResponse.send_message``."""
     check_message(spec)
@@ -167,18 +179,27 @@ def send_kwargs(spec: MessageSpec) -> dict[str, Any]:
         kwargs["view"] = view
     if spec.mention_text:
         kwargs["content"] = spec.mention_text
+    if spec.files:
+        kwargs["files"] = to_files(spec.files)
     return kwargs
 
 
 def edit_kwargs(spec: MessageSpec) -> dict[str, Any]:
-    """Keyword arguments for message edits; components are replaced (or removed) to match the spec."""
+    """Keyword arguments for message edits; components are replaced (or removed) to match the spec.
+
+    When the spec manages files (``files`` is not None) the message's attachments are replaced by exactly those
+    files, uploaded again, so ``attachment://`` images stay attached after every edit; otherwise they are left alone.
+    """
     check_message(spec)
-    return {
+    kwargs: dict[str, Any] = {
         "embeds": [to_embed(e) for e in spec.embeds],
         "view": to_view(spec),
         "content": spec.mention_text,
         "allowed_mentions": allowed_mentions(spec),
     }
+    if spec.files is not None:
+        kwargs["attachments"] = to_files(spec.files)
+    return kwargs
 
 
 async def send_spec(channel: discord.abc.Messageable, spec: MessageSpec) -> discord.Message:

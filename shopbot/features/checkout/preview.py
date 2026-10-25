@@ -254,6 +254,22 @@ def preview(app: App) -> list[PreviewState]:
         "Private reply when the customer has the maximum number of open orders.",
         lambda: views.limit_reply(ui, c.max_open_orders_per_user),
     )
+    add(
+        "reply_buy_added",
+        "Private reply to a catalog buy button when the customer already has an unfinished order channel: the "
+        "product is now in its cart (falls back to the 'session exists' text when not configured).",
+        lambda: views.buy_added_reply(ui, products[0].name, SAMPLE_CHANNEL_ID),
+    )
+    add(
+        "reply_buy_started_sold_out",
+        "Private reply to a catalog buy button that opened a new order channel, when the product sold out a moment "
+        "earlier and could not be put in the cart (the configured out-of-stock error follows the link).",
+        lambda: views.buy_started_reply(
+            ui,
+            SAMPLE_CHANNEL_ID,
+            ui.error_embed(k.ERROR_OUT_OF_STOCK, name=views.escape(products[0].name), available=0),
+        ),
+    )
 
     # -- workflow --------------------------------------------------------------------------------------------------
     def workflow(

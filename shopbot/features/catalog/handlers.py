@@ -65,6 +65,22 @@ async def on_edit_form(ctx: Ctx) -> None:
     await ctx.respond(service.reply_spec(ctx.app, reply), ephemeral=True)
 
 
+async def on_remove(ctx: Ctx) -> None:
+    """Staff: the confirmed /product remove (archive rules: refused while pending orders hold units; idempotent)."""
+    _require_manager(ctx)
+    product_id = ctx.arg_int(0)
+    await ctx.defer_update()
+    reply = await service.archive(ctx.app, actor_id=ctx.user_id, product_id=product_id, confirm=True, via="remove")
+    await ctx.update(service.reply_spec(ctx.app, reply))
+
+
+async def on_remove_cancel(ctx: Ctx) -> None:
+    _require_manager(ctx)
+    product_id = ctx.arg_int(0)
+    reply = service.OpReply(ctx.app.op("catalog.cmd.remove_kept", product_id=product_id))
+    await ctx.update(service.reply_spec(ctx.app, reply))
+
+
 def register_handlers(app: App) -> None:
     router = app.router
     router.component(ROUTE, "browse", feature=CATALOG)(on_browse)
@@ -74,4 +90,8 @@ def register_handlers(app: App) -> None:
     router.modal(ROUTE, "addform", feature=CATALOG, access="staff", staff_roles=service.manager_role_keys)(on_add_form)
     router.modal(ROUTE, "editform", feature=CATALOG, access="staff", staff_roles=service.manager_role_keys)(
         on_edit_form
+    )
+    router.component(ROUTE, "remove", feature=CATALOG, access="staff", staff_roles=service.manager_role_keys)(on_remove)
+    router.component(ROUTE, "remove_no", feature=CATALOG, access="staff", staff_roles=service.manager_role_keys)(
+        on_remove_cancel
     )

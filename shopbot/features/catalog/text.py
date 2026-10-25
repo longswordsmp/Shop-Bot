@@ -43,9 +43,16 @@ OPERATOR_TEXT: dict[str, str] = {
     "catalog.cmd.stock_too_large": "The stock must be at most {max}.",
     "catalog.cmd.image_set": "Image of product #{product_id} updated",
     "catalog.cmd.image_cleared": "Image of product #{product_id} removed",
-    "catalog.cmd.image_invalid": "The image must be a public https:// link to an image (at most 2048 characters, "
-    "no spaces). Uploaded Discord attachment links expire, so use a permanent image host.",
+    "catalog.cmd.image_invalid": "The image link must be a public https:// link to an image (at most 2048 "
+    "characters, no spaces). To use a file from your computer, upload it with the file option instead (links to "
+    "Discord attachments expire).",
     "catalog.cmd.image_host_not_allowed": "Images must be hosted on one of: {hosts}",
+    "catalog.cmd.image_both": "Give either an image link (url) or an uploaded file (file), not both.",
+    "catalog.cmd.image_type": "The uploaded file must be a PNG, JPEG, GIF or WebP image.",
+    "catalog.cmd.image_size": "The uploaded image must be at most {max_mb} MB.",
+    "catalog.cmd.image_empty": "The uploaded file is empty.",
+    "catalog.cmd.image_download": "The uploaded file could not be downloaded from Discord. Nothing was changed; "
+    "please try again.",
     "catalog.cmd.activated": "Product #{product_id} is now active (listed)",
     "catalog.cmd.deactivated": "Product #{product_id} is now inactive (hidden, cannot be ordered)",
     "catalog.cmd.archive_confirm": "Archiving hides product #{product_id} for good and it cannot be ordered again. "
@@ -53,6 +60,16 @@ OPERATOR_TEXT: dict[str, str] = {
     "catalog.cmd.archive_reserved": "Product #{product_id} has {reserved} units held by pending orders. Archive it "
     "after those orders are completed or cancelled (you can deactivate it now with /product toggle).",
     "catalog.cmd.archived": "Product #{product_id} archived",
+    # /product remove (confirmation buttons)
+    "catalog.remove.title": "Remove product #{product_id}?",
+    "catalog.remove.confirm": "{name} is removed from the listing for good and can no longer be ordered. Its order "
+    "history is kept. This cannot be undone.",
+    "catalog.remove.button_remove": "Remove",
+    "catalog.remove.button_keep": "Keep",
+    "catalog.cmd.removed": "Product #{product_id} removed",
+    "catalog.cmd.remove_kept": "Product #{product_id} was kept",
+    "catalog.cmd.remove_reserved": "Product #{product_id} has {reserved} units held by pending orders. Remove it "
+    "after those orders are completed or cancelled (you can deactivate it now with /product toggle).",
     "catalog.cmd.sorted": "Product #{product_id} moved to position {position}",
     # validation reasons
     "catalog.invalid.name": "Name: must be 1-100 characters.",
@@ -82,6 +99,7 @@ OPERATOR_TEXT: dict[str, str] = {
     "catalog.view.archived": "archived",
     "catalog.view.amount": "{amount} {currency}",
     "catalog.view.image_long": "set (too long to show here; see the thumbnail)",
+    "catalog.view.image_uploaded": "uploaded file {filename} ({kilobytes} KB, {type})",
     "catalog.view.customer_preview_missing": "The customer card cannot be shown yet: some catalog text is not "
     "configured (run /status).",
     # staff product list (/product list)
@@ -110,5 +128,7 @@ OPERATOR_TEXT: dict[str, str] = {
     "catalog.refresh.forbidden": "Listing not refreshed: Discord denied access to {channel} (missing permissions).",
     "catalog.refresh.not_found": "Listing not refreshed: {channel} no longer exists. Run /setup.",
     "catalog.refresh.http_error": "Listing refresh failed (Discord error {status}); it will be retried.",
+    "catalog.refresh.image_changed": "Listing refresh stopped: a product image changed while it ran; it will be "
+    "retried.",
     "catalog.refresh.error": "Listing refresh failed unexpectedly. Reference: {error_id}.",
 }

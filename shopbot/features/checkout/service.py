@@ -53,6 +53,7 @@ import discord
 from shopbot.config.content import MissingContent
 from shopbot.core.ratelimit import Cooldowns
 from shopbot.features import core_keys as core
+from shopbot.features.catalog import repo as catalog_repo
 from shopbot.features.catalog import service as catalog_service
 from shopbot.features.checkout import content_keys as k
 from shopbot.features.checkout import flow, repo, views
@@ -122,6 +123,16 @@ class CheckoutRuntime:
     cooldowns: Cooldowns
     refund_locks: dict[int, asyncio.Lock] = field(default_factory=dict)
     followup_locks: dict[int, asyncio.Lock] = field(default_factory=dict)
+    start_locks: dict[int, asyncio.Lock] = field(default_factory=dict)
+
+    def start_lock(self, user_id: int) -> asyncio.Lock:
+        """Serializes one member's start and buy clicks (different buttons are not caught by the router's duplicate
+        guard), so concurrent clicks open at most one order channel and every product lands in it."""
+        lock = self.start_locks.get(user_id)
+        if lock is None:
+            lock = asyncio.Lock()
+            self.start_locks[user_id] = lock
+        return lock
 
     def refund_lock(self, order_id: int) -> asyncio.Lock:
         lock = self.refund_locks.get(order_id)
@@ -361,15 +372,68 @@ async def resend_workflow(app: App, session: m.Session, channel: discord.TextCha
 async def start(app: App, member: discord.Member) -> MessageSpec:
     """The start button: reuse the member's unfinished session, refuse over the open-order limit, or create the
     private order channel with its workflow message. Returns the private reply."""
+    async with runtime(app).start_lock(member.id):
+        return await _start(app, member, None)
+
+
+async def buy(app: App, member: discord.Member, product_id: int) -> MessageSpec:
+    """A catalog buy button (``sb:co:buy:<product_id>``): like the start button, but the product is put in the cart
+    (one unit; every cart rule applies) and the workflow shows the cart. An existing unfinished order channel is
+    continued (its live workflow message is updated) instead of opening a second one. Returns the private reply
+    with a link to the channel. Nothing is created for a product that cannot be bought."""
+    async with runtime(app).start_lock(member.id):
+        return await _start(app, member, product_id)
+
+
+def _buyable(product: catalog_repo.Product | None) -> catalog_repo.Product:
+    """The product a buy button names, if it can be bought right now (else the configured customer error)."""
+    if product is None:
+        raise HandlerError(core.ERROR_NOT_FOUND)
+    if not product.listed:
+        raise HandlerError(k.ERROR_PRODUCT_UNAVAILABLE, name=views.escape(product.name))
+    if product.available is not None and product.available <= 0:
+        raise HandlerError(k.ERROR_OUT_OF_STOCK, name=views.escape(product.name), available=0)
+    return product
+
+
+async def _add_bought(app: App, session: m.Session, product_id: int) -> m.Session:
+    try:
+        updated, _ = await app.db.transaction(
+            repo.add_to_cart,
+            guild_id=app.env.guild_id,
+            session_id=session.id,
+            user_id=session.user_id,
+            product_id=product_id,
+            settings=app.settings.checkout,
+            now=app.clock.now(),
+        )
+    except repo.CheckoutError as exc:
+        raise customer_error(app, exc) from None
+    return updated
+
+
+async def _start(app: App, member: discord.Member, product_id: int | None) -> MessageSpec:
     guild_id = app.env.guild_id
     c = app.settings.checkout
+    product = None
+    if product_id is not None:
+        product = _buyable(await app.db.run(catalog_repo.get_product, guild_id, product_id))
     existing = await app.db.run(repo.active_session_for_user, guild_id, member.id)
     if existing is not None:
         channel = await session_channel(app, existing)
         if channel is not None:
             if existing.message_id is None and not await resend_workflow(app, existing, channel):
                 raise HandlerError(core.ERROR_GENERIC)
-            return views.session_exists_reply(app.ui, channel.id)
+            if product is None:
+                return views.session_exists_reply(app.ui, channel.id)
+            reply = views.buy_added_reply(app.ui, product.name, channel.id)  # built first: text may be missing
+            updated = await _add_bought(app, existing, product.id)
+
+            async def show_cart() -> None:
+                await _edit_session_message(app, updated, await workflow_spec(app, updated.id))
+
+            await _attempt("render_workflow", show_cart, session_id=updated.id)
+            return reply
         if not await retire_vanished_session(app, existing):
             raise HandlerError(core.ERROR_GENERIC)  # the channel may still exist: keep the session
     open_orders = await app.db.run(repo.count_open_orders, guild_id, member.id)
@@ -418,6 +482,13 @@ async def start(app: App, member: discord.Member) -> MessageSpec:
             lambda: tickets_service.abort_ticket(app, created.ticket.id, reason=reason, channel=created.channel),
         )
         raise HandlerError(core.ERROR_GENERIC) from None
+    notice: EmbedSpec | None = None
+    if product is not None:
+        try:
+            session = await _add_bought(app, session, product.id)
+        except HandlerError as exc:  # e.g. sold out a moment ago: the channel opens with an empty cart
+            log_event(log, logging.INFO, "checkout_buy_not_added", session_id=session.id, reason=exc.key)
+            notice = app.ui.error_embed(exc.key, **exc.values)
     try:
         spec = await workflow_spec(app, session.id)
         message = await send_spec(created.channel, spec)
@@ -446,9 +517,11 @@ async def start(app: App, member: discord.Member) -> MessageSpec:
             actor_id=member.id,
             target_type="checkout_session",
             target_id=session.id,
-            details={"ticket_id": created.ticket.id, "channel_id": created.channel.id},
+            details={"ticket_id": created.ticket.id, "channel_id": created.channel.id, "product_id": product_id},
         ),
     )
+    if product is not None:
+        return views.buy_started_reply(app.ui, created.channel.id, notice)
     return views.started_reply(app.ui, created.channel.id)
 
 

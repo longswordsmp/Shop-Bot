@@ -447,3 +447,27 @@ Constraints:
 | `created_at` | INTEGER | yes |  |  |
 
 Indexes: `idx_audit_target`, `idx_audit_guild_time`
+
+## `product_images`
+
+| Column | Type | Not null | Default | Key |
+|---|---|---|---|---|
+| `product_id` | INTEGER |  |  | PK |
+| `guild_id` | INTEGER | yes |  |  |
+| `filename` | TEXT | yes |  |  |
+| `content_type` | TEXT | yes |  |  |
+| `size` | INTEGER | yes |  |  |
+| `sha256` | TEXT | yes |  |  |
+| `data` | BLOB | yes |  |  |
+| `uploaded_by` | INTEGER |  |  |  |
+| `created_at` | INTEGER | yes |  |  |
+
+Indexes: `idx_product_images_guild`
+
+Constraints:
+
+- `filename TEXT NOT NULL CHECK (length(filename) BETWEEN 1 AND 255)`
+- `content_type TEXT NOT NULL CHECK (content_type IN ('image/png', 'image/jpeg', 'image/gif', 'image/webp'))`
+- `size INTEGER NOT NULL CHECK (size BETWEEN 1 AND 8388608)`
+- `sha256 TEXT NOT NULL CHECK (length(sha256) = 64 AND sha256 NOT GLOB '*[^0-9a-f]*')`
+- `data BLOB NOT NULL CHECK (typeof(data) = 'blob' AND length(data) = size)`

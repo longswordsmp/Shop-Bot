@@ -201,9 +201,9 @@ Feature `catalog` — enabled.
 
 | | Key | Where it appears | Kind (max chars) | Required | Placeholders |
 |---|---|---|---|---|---|
-| ❌ | `catalog.availability.in_stock` | Availability of a product with limited stock that can still be ordered. {count} is the number of units that can still be ordered (stock minus units held by pending orders). | field_value (1024) | required | `{count}` |
-| ❌ | `catalog.availability.out_of_stock` | Availability of a product whose stock is used up (still listed, cannot be ordered). | field_value (1024) | required |  |
-| ❌ | `catalog.availability.unlimited` | Availability of a product without a stock limit. | field_value (1024) | required |  |
+| ❌ | `catalog.availability.in_stock` | Availability of a product with limited stock that can still be ordered (its card uses the success color). {count} is the number of units that can still be ordered (stock minus units held by pending orders). | field_value (1024) | required | `{count}` |
+| ❌ | `catalog.availability.out_of_stock` | Availability of a product whose stock is used up (still listed, cannot be ordered; its buy button is disabled and its card uses the danger color). | field_value (1024) | required |  |
+| ❌ | `catalog.availability.unlimited` | Availability of a product without a stock limit (its card uses the success color). | field_value (1024) | required |  |
 | ❌ | `catalog.field.availability` | Name of the availability field on every product card. The value is one of the catalog.availability.* texts. | field_name (256) | required |  |
 | ▫️ | `catalog.field.max_per_order` | Optional: name of a field showing the maximum quantity per order (the value is the number). Shown only on products that have a limit. If empty, the limit is not shown. | field_name (256) | optional |  |
 | ❌ | `catalog.field.price` | Name of the price field on every product card. The value is the price written with common.money_format. | field_name (256) | required |  |
@@ -212,7 +212,15 @@ Feature `catalog` — enabled.
 
 | | Key | Where it appears | Kind (max chars) | Required | Placeholders |
 |---|---|---|---|---|---|
-| ▫️ | `catalog.button.browse` | Button under the last listing message that opens a private, page-by-page view of the products (only when catalog.browse_enabled is true). | button_label (80) | optional |  |
+| ▫️ | `catalog.button.browse` | Button under the listing's header card that opens a private, page-by-page view of the products (only when catalog.browse_enabled is true). | button_label (80) | optional |  |
+
+### Catalog: buy button on product cards
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ❌ | `catalog.button.buy` | Button under each product card (listing and private browsing) that opens the customer's private order channel, or continues the one they already have, with this product in the cart. {name} is the product name (use it when catalog.products_per_listing_message is more than 1, so each button names its product). Disabled while the product is out of stock. | button_label (80) | required | `{name}` |
+| ▫️ | `catalog.button.buy_emoji` | Optional emoji shown on the buy button. | emoji (100) | optional |  |
+| ▫️ | `catalog.button.buy_short` | Optional: label used instead of catalog.button.buy for a product whose name makes that label longer than Discord's 80 characters. Required only when such a product exists (the listing reports it). | button_label (80) | optional |  |
 
 ### Catalog: live product listing
 
@@ -220,7 +228,7 @@ Feature `catalog` — enabled.
 |---|---|---|---|---|---|
 | ❌ | `catalog.listing.description` | Text of the header card at the top of the product listing channel. | description (4096) | required |  |
 | ❌ | `catalog.listing.empty` | Shown below the listing header, and in private browsing, when no product is currently offered. | description (4096) | required |  |
-| ❌ | `catalog.listing.title` | Title of the header card at the top of the product listing channel. | title (256) | required |  |
+| ❌ | `catalog.listing.title` | Title of the header card: the first message of the product listing channel (each product follows in its own message). | title (256) | required |  |
 
 ## Checkout, orders and payment
 
@@ -281,6 +289,15 @@ Feature `checkout` — enabled.
 | ❌ | `checkout.panel.description` | Text of the shop panel. | description (4096) | required |  |
 | ❌ | `checkout.panel.title` | Title of the shop panel (the message with the start button). | title (256) | required |  |
 
+### Checkout: private replies to the start button
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ▫️ | `checkout.buy_added.description` | Optional: private reply when the customer clicks a product's buy button (catalog.button.buy) while they already have an unfinished order channel; the product is now in its cart (one unit, or the quantity already chosen). {name} is the product name, {channel_mention} links the channel. If empty, checkout.session_exists.description is shown. A buy button that opens a new order channel answers with checkout.started.description. | description (4096) | optional (falls back to `checkout.session_exists.description`) | `{name}`, `{channel_mention}` |
+| ❌ | `checkout.limit_reached.description` | Private reply when the customer already has the maximum number of open orders (waiting for payment, paid, or in progress). {limit} is checkout.max_open_orders_per_user. | description (4096) | required | `{limit}` |
+| ❌ | `checkout.session_exists.description` | Private reply when the customer clicks start while they already have an unfinished order channel; no second channel is created. {channel_mention} links the existing channel. | description (4096) | required | `{channel_mention}` |
+| ❌ | `checkout.started.description` | Private reply after the start button created the customer's order channel. {channel_mention} links the channel. | description (4096) | required | `{channel_mention}` |
+
 ### Checkout: order workflow - cart
 
 | | Key | Where it appears | Kind (max chars) | Required | Placeholders |
@@ -322,14 +339,6 @@ Feature `checkout` — enabled.
 | ▫️ | `checkout.fulfillment_step.fee_field` | Name of the field showing the chosen option's fee (fee_minor, written with common.money_format; shown only when that fee is above 0). Needed when an option has a fee. | field_name (256) | optional |  |
 | ▫️ | `checkout.fulfillment_step.select_placeholder` | Greyed-out text of the fulfillment option menu (if empty, Discord would show its own default text). Needed when checkout.fulfillment_options are defined. | select_placeholder (150) | optional |  |
 | ▫️ | `checkout.fulfillment_step.title` | Title of the step where the customer chooses a fulfillment option (delivery, pickup, ...). Needed when checkout.fulfillment_options are defined. | title (256) | optional |  |
-
-### Checkout: private replies to the start button
-
-| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
-|---|---|---|---|---|---|
-| ❌ | `checkout.limit_reached.description` | Private reply when the customer already has the maximum number of open orders (waiting for payment, paid, or in progress). {limit} is checkout.max_open_orders_per_user. | description (4096) | required | `{limit}` |
-| ❌ | `checkout.session_exists.description` | Private reply when the customer clicks start while they already have an unfinished order channel; no second channel is created. {channel_mention} links the existing channel. | description (4096) | required | `{channel_mention}` |
-| ❌ | `checkout.started.description` | Private reply after the start button created the customer's order channel. {channel_mention} links the channel. | description (4096) | required | `{channel_mention}` |
 
 ### Checkout: customer notifications (direct message, or the order channel)
 
@@ -515,7 +524,7 @@ Feature `reviews` — enabled.
 
 ## Summary
 
-- Required keys (for the listed features): 158
-- Required keys still missing: 136
+- Required keys (for the listed features): 159
+- Required keys still missing: 137
 
 Legend: ✅ configured · ❌ required and missing · ▫️ optional and empty

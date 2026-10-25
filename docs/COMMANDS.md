@@ -80,9 +80,10 @@ Default visibility: manage_guild
 | `/product edit` | staff | Edit a product's name, price, stock, limit and description. | `product_id`: Product number (see /product list). |
 | `/product price` | staff | Set a product's price. | `product_id`: Product number.; `amount`: New price, e.g. 12.50 (in the shop currency). |
 | `/product stock` | staff | Set or change a product's stock, or make it unlimited. | `product_id`: Product number.; `mode`: set: units on hand; add: add (or remove, if negative) units; unlimited: no stock limit.; `amount` (optional): Number of units (not needed for 'unlimited'). |
-| `/product image` | staff | Set a product's image from an https link, or remove it. | `product_id`: Product number.; `url` (optional): Permanent https:// image link (uploaded Discord attachments expire). Leave out to remove the image. |
+| `/product image` | staff | Set a product's image (https link or uploaded file), or remove it. | `product_id`: Product number.; `url` (optional): Permanent https:// image link. Leave out (and give no file) to remove the image.; `file` (optional): PNG, JPEG, GIF or WebP image, at most 8 MB (stored by the bot). |
 | `/product toggle` | staff | Switch a product between active (listed) and inactive (hidden). | `product_id`: Product number. |
 | `/product archive` | staff | Archive a product for good (hidden, never orderable again). | `product_id`: Product number.; `confirm` (optional): Set to True to confirm archiving. |
+| `/product remove` | staff | Remove a product from the catalog (asks for confirmation). | `product_id`: Product number. |
 | `/product sort` | staff | Set a product's position in the listing (lower comes first). | `product_id`: Product number.; `position`: Position number; ties are ordered by product number. |
 | `/product view` | staff | Show a product's details and its customer card. | `product_id`: Product number. |
 | `/product list` | staff | List products (staff view, paginated). | `include_archived` (optional): Also list archived products. |

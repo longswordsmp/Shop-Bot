@@ -274,7 +274,12 @@ listing_channel = "catalog"          # "" disables the live product listing
 products_per_listing_message = 1     # 1-10 product embeds per listing message (1 = one message per item)
 manager_roles = []                   # extra role keys allowed to manage products (admins always can)
 browse_enabled = false               # private, paginated product browsing from the shop panel
-image_hosts = []                     # allowed image hosts, e.g. ["cdn.discordapp.com"]; [] = any https host
+image_hosts = []                     # allowed hosts for image LINKS (/product image url:); [] = any https host.
+                                     # Uploaded files (/product image file:) are stored by the bot instead.
+low_stock_threshold = 0              # 1..N units left shows catalog.availability.low_stock in the warning
+                                     # color; 0 = no low-stock state (business decision, off by default)
+# Each product card's color shows its availability: success = available, warning = low stock,
+# danger = out of stock (its buy button is then disabled). Buy buttons appear while checkout is on.
 
 [checkout]
 panel_channel = "purchase"

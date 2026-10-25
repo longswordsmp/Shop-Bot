@@ -603,6 +603,46 @@ def set_quantity(
     )
 
 
+def add_to_cart(
+    conn: sqlite3.Connection,
+    *,
+    guild_id: int,
+    session_id: int,
+    user_id: int,
+    product_id: int,
+    settings: CheckoutSettings,
+    now: int,
+) -> tuple[m.Session, bool]:
+    """A catalog buy button: put one unit of ``product_id`` in the caller's ACTIVE session's cart (every rule of
+    ``set_quantity`` applies) and show the cart step. A product that is already in the cart keeps its quantity (a
+    repeated click never adds a second unit). Returns (session, whether a line was added)."""
+    session = _active_owned(conn, guild_id, session_id, user_id)
+    added = product_id not in cart_quantities(conn, session_id)
+    if added:
+        set_quantity(
+            conn,
+            guild_id=guild_id,
+            session_id=session_id,
+            user_id=user_id,
+            product_id=product_id,
+            quantity=1,
+            settings=settings,
+            now=now,
+        )
+    elif catalog_repo.get_product(conn, guild_id, product_id) is None:
+        raise ProductMissing(str(product_id))
+    session = update_session(
+        conn,
+        guild_id=guild_id,
+        session_id=session.id,
+        user_id=user_id,
+        now=now,
+        expiry_seconds=settings.session_expiry_minutes * 60,
+        step=m.CART,
+    )
+    return session, added
+
+
 # ---------------------------------------------------------------------------------------------------
 # Workflow snapshot and totals
 # ---------------------------------------------------------------------------------------------------

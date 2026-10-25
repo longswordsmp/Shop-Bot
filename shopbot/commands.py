@@ -78,7 +78,7 @@ async def reply(
 ) -> None:
     kwargs = send_kwargs(spec)
     if files:
-        kwargs["files"] = list(files)
+        kwargs["files"] = [*kwargs.get("files", ()), *files]
     if interaction.response.is_done():
         await interaction.followup.send(ephemeral=ephemeral, **kwargs)
     else:
