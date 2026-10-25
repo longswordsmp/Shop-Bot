@@ -33,7 +33,8 @@ Features: `core` (shared text), `server` (/setup), `admin` (operator tools), `in
 - **Readiness gate:** a feature is shown to customers only when it is enabled, its settings are valid, its
   dependencies are ready, and all its required keys are configured and valid. Otherwise its panels are not
   published, panels already published are withdrawn automatically (at startup, after `/reload`, after
-  `/content clear`, and by `/setup`), and its controls answer with the configured "unavailable" message. Text
+  `/content set` and `/content clear`, and by `/setup`), and its controls answer with the configured
+  "unavailable" message. Text
   *changes* to a ready feature's panels are applied by running `/setup` (it edits panels in place).
 - **Missing text at runtime:** never replaced by invented wording. Error replies fall back to a silent
   acknowledgement; messages that cannot be rendered are not sent.
@@ -61,9 +62,12 @@ Features: `core` (shared text), `server` (/setup), `admin` (operator tools), `in
 - **Router protections** (before any handler): configured guild only (DMs only for routes that allow them), per-user
   rate limit, anti-double-click spacing, in-flight duplicate guard, feature readiness, access level. Handlers then
   reload records by ID and re-check ownership/state; custom IDs are never trusted beyond the ID.
-- `tools.check_limits --all-features --fixtures` builds every preview state (customer and staff, using in-memory
-  synthetic tokens for text that is not configured yet) and fails if any component has no registered handler or
-  any state breaks a Discord limit. CI runs it on every push, so a button that "does nothing" cannot ship unnoticed.
+- `tools.check_limits --all-features --fixtures` builds every preview state your settings allow (customer and
+  staff, using in-memory synthetic tokens for text that is not configured yet) and fails if any component has no
+  registered handler or any state breaks a Discord limit. States that exist only with optional settings
+  (fulfillment options, the order details form, ticket category forms) are built with full example settings by
+  the pytest preview tests, which apply the same limit and handler checks. CI runs both on every push, so a button
+  that "does nothing" cannot ship unnoticed.
 
 ## 4. Data
 

@@ -100,10 +100,12 @@ async def reply_operator(
     await reply(interaction, spec, ephemeral=True, files=files)
 
 
-async def reply_content_error(interaction: discord.Interaction[Any], key: str = ck.ERROR_GENERIC) -> None:
+async def reply_content_error(
+    interaction: discord.Interaction[Any], key: str = ck.ERROR_GENERIC, **values: str | int
+) -> None:
     """Customer-safe error: configured content, or a silent acknowledgement when not configured."""
     app = app_of(interaction)
-    embed = app.ui.error_embed(key)
+    embed = app.ui.error_embed(key, **values)
     if embed is None:
         # Slash commands have no silent acknowledgement: deferring leaves a "thinking" message. Defer, then delete
         # the deferred response so nothing (and no invented wording) remains.
@@ -144,7 +146,7 @@ async def on_tree_error(interaction: discord.Interaction[Any], error: app_comman
         if app.perms.is_staff(_member(interaction), interaction.user.id):
             await reply_operator(interaction, app.op("command.failed", error_id=error_id), tone="danger")
         else:
-            await reply_content_error(interaction, ck.ERROR_GENERIC)
+            await reply_content_error(interaction, ck.ERROR_GENERIC, error_id=error_id)
     except (discord.HTTPException, RenderError):
         log.exception("failed to report command error")
 

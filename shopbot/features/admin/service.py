@@ -328,6 +328,8 @@ async def save_override(app: App, key: str, value: str, *, actor_id: int) -> Sav
         target_id=key,
         details={"key": key, "length": len(value), "feature": definition.feature},
     )
+    # A valid value can still break a rule across keys (e.g. the longest possible ticket channel name).
+    await withdraw_and_audit(app, actor_id=actor_id, reason="content_set")
     return SaveResult(key=key, saved=True, changes=tuple(changes))
 
 

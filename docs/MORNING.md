@@ -165,9 +165,10 @@ Use a second (non-staff) Discord account as the "customer".
 **Admin**
 - [ ] `/status`, `/content show`, `/backup` (creates a file on the volume), `/audit` (shows your actions).
 
-Record what you tested and anything unexpected. Every unexpected failure is logged in Railway with an error
+Record what you tested and anything unexpected. Every failure answered with the generic error text (a crash, or
+an expected failure such as a ticket channel that could not be created) is logged in Railway with an error
 reference (`error_id`). Staff see that reference in failed slash-command replies; customers see it only if you
-include `{error_id}` in your `common.error.generic` text.
+include `{error_id}` in your `common.error.generic` text (e.g. "Reference: {error_id}"), and can quote it to you.
 
 ---
 

@@ -156,6 +156,7 @@ async def handle_content_clear(interaction: discord.Interaction[Any], key: str) 
     if not service.clearable(app, key, overrides):
         await reply(interaction, views.unknown_key(app.ui, app.op, key, service.close_keys(app, key)))
         return
+    await _defer(interaction)  # clearing can withdraw many panels over Discord (3-second reply deadline)
     result = await service.clear_override(app, key, actor_id=interaction.user.id)
     await reply(interaction, views.content_cleared(app.ui, app.op, result))
 

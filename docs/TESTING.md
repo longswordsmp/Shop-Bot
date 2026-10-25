@@ -34,9 +34,12 @@ deployed.
 `tools.check_limits` exits 1 on any Discord limit violation, invalid configured value, or a component that no
 handler would receive. With your real text, states whose text is not configured yet are reported as *incomplete*
 (they are never shown to customers); add `--strict` to make those fail too, e.g. before going live. With
-`--fixtures`, text that is not configured yet is replaced in memory by short synthetic tokens so that every one of
-the ~120 states (customer and staff) is built and checked; CI runs this so a structural limit problem or a button
-without a handler cannot be merged even before any text exists.
+`--fixtures`, text that is not configured yet is replaced in memory by short synthetic tokens so that every state
+your settings allow (~120 with the shipped settings, customer and staff) is built and checked; CI runs this so a
+structural limit problem or a button without a handler cannot be merged even before any text exists. States that
+need optional settings (fulfillment options, the order details form, ticket category forms) are not in the shipped
+settings; `tests/checkout/test_config_preview.py` and `tests/tickets/test_config_preview_publish.py` build them
+with full example settings and apply the same limit and handler checks.
 
 Not a gate, but useful: `python -m tools.checklist --write` (content checklist) and `python -m tools.build_preview`
 (HTML preview).

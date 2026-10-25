@@ -13,10 +13,12 @@ from shopbot.features.tickets import content_keys as k
 from shopbot.features.tickets.panel import PANEL_KEY
 from shopbot.ui.custom_ids import cid
 from shopbot.ui.limits import validate_message, validate_modal
+from shopbot.ui.routing import Router
 from shopbot.ui.spec import MessageSpec, ModalSpec
 from tests.fakes import submit_modal
 from tests.helpers import TestEnv, deep_merge, make_settings, shipped_settings_dict
 from tests.tickets.util import channel, form_overrides, make_env
+from tools.check_limits import unrouted_components
 
 
 def _required(settings_overrides: dict[str, Any]) -> dict[str, bool]:
@@ -100,8 +102,9 @@ def test_shipped_settings_have_no_ticket_problems() -> None:
     assert MODULE.settings_problems(make_settings(form_overrides())) == []
 
 
-def _assert_valid(states: list[Any]) -> None:
+def _assert_valid(states: list[Any], router: Router) -> None:
     for state in states:
+        assert unrouted_components(state, router) == [], state.name  # every button/menu/form has a handler
         if isinstance(state.spec, ModalSpec):
             assert validate_modal(state.spec) == [], state.name
         else:
@@ -141,7 +144,7 @@ async def test_preview_states_pass_limits(tk: TestEnv) -> None:
     }
     assert expected <= names
     assert len(names) == len(states)
-    _assert_valid(states)
+    _assert_valid(states, tk.app.router)
 
 
 async def test_preview_with_forms_and_maximum_answers(tmp_path: Path) -> None:
@@ -155,7 +158,7 @@ async def test_preview_with_forms_and_maximum_answers(tmp_path: Path) -> None:
         names = {s.name for s in states}
         assert {"form.billing", "welcome.billing", "welcome.billing.max_answers.1"} <= names
         assert "welcome.billing.max_answers.2" in names  # 12000 characters of answers need a second message
-        _assert_valid(states)
+        _assert_valid(states, tenv.app.router)
         welcome = next(s for s in states if s.name == "welcome.billing")
         assert isinstance(welcome.spec, MessageSpec)
         assert "[sample answer 1]" in [f.value for f in welcome.spec.embeds[0].fields]

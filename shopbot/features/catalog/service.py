@@ -240,6 +240,8 @@ async def _refresh_listing(app: App, st: _RefreshState) -> RefreshReport:
     try:
         repost = False
         for index, spec in enumerate(specs):
+            if not app.ready(CATALOG):
+                break  # readiness changed while posting (/reload, /content): stop and withdraw below
             key = listing_key(index)
             if repost and key in existing:
                 # An earlier message was (re)posted at the bottom: re-post the following ones too so the
@@ -248,6 +250,11 @@ async def _refresh_listing(app: App, st: _RefreshState) -> RefreshReport:
             _, action = await upsert_message(app, key, channel, spec)
             counts[action] += 1
             repost = repost or action in ("created", "recreated", "moved")
+        if not app.ready(CATALOG):
+            # The automatic withdrawal may have run while this refresh was posting: remove what it re-posted.
+            for record in await app.db.run(state.published_with_prefix, guild_id, LISTING_PREFIX):
+                await remove_message(app, record.key)
+            return RefreshReport(ok=True, lines=(op("catalog.refresh.not_ready"),))
         for record in records:
             index_of = _listing_index(record.key)
             if index_of is None or index_of >= len(specs):

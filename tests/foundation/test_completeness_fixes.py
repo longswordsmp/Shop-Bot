@@ -4,8 +4,13 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import logging
 import re
 import shutil
+from pathlib import Path
+
+import discord
+import pytest
 
 from shopbot.config.content import ContentStore
 from shopbot.config.content_keys import Kind, Registry, ck
@@ -166,3 +171,124 @@ async def test_shutdown_drain_is_bounded(tenv: TestEnv) -> None:
     running.cancel()
     with contextlib.suppress(asyncio.CancelledError):
         await running
+
+
+async def test_content_clear_defers_before_withdrawing_panels(tenv: TestEnv) -> None:
+    from tests.admin.util import run_command
+
+    app = tenv.app
+    key = "tickets.panel.title"
+    values = dict(tenv.content)
+    title = values.pop(key)
+    app.content.replace(file_values=values)
+    admin = tenv.member(admin=True)
+    await admin_service.save_override(app, key, title, actor_id=admin.id)
+    await _publish_ticket_panel(tenv)
+    interaction = await run_command(tenv, "clear", group="content", user=admin, key=key)
+    calls = interaction.response.calls  # type: ignore[attr-defined]
+    assert calls[0][0] == "defer"  # acknowledged before the Discord work (3-second deadline)
+    assert await app.db.run(state.published_get, app.env.guild_id, "tickets:panel") is None
+    assert interaction.last_sent is not None  # the result still reaches the admin (follow-up)
+
+
+async def test_content_set_that_makes_a_feature_not_ready_withdraws_its_panel(tmp_path: Path) -> None:
+    from tests.tickets.util import make_env
+
+    tenv = await make_env(tmp_path, {"tickets": {"channel_name_pattern": "{prefix}-{user}-{number}"}})
+    try:
+        app = tenv.app
+        assert app.ready("tickets")
+        record = await _publish_ticket_panel(tenv)
+        admin = tenv.member(admin=True)
+        # Valid on its own (60 characters), but the longest possible channel name would exceed 100 characters.
+        result = await admin_service.save_override(
+            app, "tickets.category.general.channel_prefix", "p" * 60, actor_id=admin.id
+        )
+        assert result.saved and not app.ready("tickets")
+        assert await app.db.run(state.published_get, app.env.guild_id, "tickets:panel") is None
+        channel = tenv.guild.get_channel(record.channel_id)
+        assert not any(m.id == record.message_id for m in channel.messages)
+    finally:
+        await tenv.close()
+
+
+async def test_expected_failures_answered_with_the_generic_text_carry_a_logged_reference(
+    tenv: TestEnv, caplog: pytest.LogCaptureFixture
+) -> None:
+    app = tenv.app
+    app.content.set_override(core.ERROR_GENERIC, "Something went wrong. Reference: {error_id}")
+    await provision_channels(tenv)
+    category = app.resources.category(tenv.guild, "tickets")
+    assert category is not None
+    for index in range(50 - len(category.channels)):
+        tenv.guild.add_text_channel(name=f"filler-{index}", category=category)
+    with caplog.at_level(logging.WARNING):
+        interaction = await click(app, user=tenv.member(), custom_id="sb:tk:open:general")
+    assert interaction.last_sent is not None
+    description = interaction.last_sent.embeds[0].description or ""
+    match = re.fullmatch(r"Something went wrong\. Reference: ([0-9a-f]{12})", description)
+    assert match, description
+    logged = [
+        getattr(r, "error_id", None) for r in caplog.records if getattr(r, "event", "") == "interaction_generic_error"
+    ]
+    assert logged == [match.group(1)]  # the same reference is in the log, with the cause
+
+
+async def test_failed_command_shown_to_a_non_staff_member_keeps_the_reference(
+    tenv: TestEnv, caplog: pytest.LogCaptureFixture
+) -> None:
+    from discord import app_commands
+
+    from shopbot.commands import on_tree_error
+    from tests.fakes import FakeInteraction
+
+    tenv.app.content.set_override(core.ERROR_GENERIC, "Reference: {error_id}")
+    interaction = FakeInteraction(
+        client=tenv.app.bot, user=tenv.member(), guild=tenv.guild, type=discord.InteractionType.application_command
+    )
+    with caplog.at_level(logging.ERROR):
+        await on_tree_error(interaction, app_commands.AppCommandError("boom"))  # type: ignore[arg-type]
+    assert interaction.last_sent is not None
+    description = interaction.last_sent.embeds[0].description or ""
+    match = re.fullmatch(r"Reference: ([0-9a-f]{12})", description)
+    assert match, description
+    assert [getattr(r, "error_id", None) for r in caplog.records if getattr(r, "event", "") == "command_failed"] == [
+        match.group(1)
+    ]
+
+
+async def test_listing_refresh_overlapping_a_withdrawal_does_not_repost(
+    tenv: TestEnv, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from shopbot.core.panels import withdraw_and_audit
+    from shopbot.features.catalog import service as catalog_service
+    from tests.catalog.util import add_product, listing_channel
+
+    app = tenv.app
+    channel = await listing_channel(tenv)
+    for index in range(7):
+        await add_product(tenv, f"[p{index}]")
+    await catalog_service.request_listing_refresh(app)
+    assert len(channel.messages) == 2
+    await add_product(tenv, "[new]")  # the next refresh edits both messages
+
+    required = next(k.key for k in app.content.registry.all() if k.feature == "catalog" and k.required)
+    original = catalog_service.upsert_message
+    withdrawn = False
+
+    async def withdraw_mid_refresh(*args, **kwargs):  # type: ignore[no-untyped-def]
+        nonlocal withdrawn
+        if not withdrawn:  # an admin clears catalog text while the refresh is posting
+            withdrawn = True
+            values = dict(tenv.content)
+            values[required] = ""
+            app.content.replace(file_values=values)
+            app.recompute_readiness()
+            await withdraw_and_audit(app, actor_id=None, reason="content_clear")
+        return await original(*args, **kwargs)
+
+    monkeypatch.setattr(catalog_service, "upsert_message", withdraw_mid_refresh)
+    await catalog_service.request_listing_refresh(app)
+    assert withdrawn and not app.ready("catalog")
+    assert await app.db.run(state.published_with_prefix, app.env.guild_id, "catalog:listing:") == []
+    assert channel.messages == []

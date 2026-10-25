@@ -85,6 +85,7 @@ async def content_set_submit(ctx: Ctx) -> None:
         await reply(ctx.interaction, views.unknown_key(app.ui, app.op, key, service.close_keys(app, key)))
         return
     value = ctx.fields.get(views.VALUE_INPUT_ID, "")  # exactly as submitted: never stripped
+    await ctx.defer_reply()  # saving can withdraw panels over Discord (3-second reply deadline)
     result = await service.save_override(app, key, value, actor_id=ctx.user_id)
     if not result.saved:
         log_event(log, logging.INFO, "admin_content_rejected", key=key, problems=len(result.problems))

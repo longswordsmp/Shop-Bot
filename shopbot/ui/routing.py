@@ -389,7 +389,23 @@ class Router:
         try:
             await route.handler(ctx)
         except HandlerError as exc:
-            await ctx.fail(exc.key, **exc.values)
+            values = dict(exc.values)
+            if exc.key == ck.ERROR_GENERIC and "error_id" not in values:
+                # Handlers report expected failures (e.g. a ticket channel could not be created) with the generic
+                # text; give them a reference too, logged with the cause, so a customer's report can be matched.
+                values["error_id"] = uuid.uuid4().hex[:12]
+                cause = exc.__cause__ or exc.__context__
+                log_event(
+                    log,
+                    logging.WARNING,
+                    "interaction_generic_error",
+                    route=route.route,
+                    action=route.action,
+                    user_id=ctx.user_id,
+                    error_id=values["error_id"],
+                    cause=type(cause).__name__ if cause is not None else None,
+                )
+            await ctx.fail(exc.key, **values)
             return
         except MissingContent as exc:
             log_event(
