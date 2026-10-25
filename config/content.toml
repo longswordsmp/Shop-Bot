@@ -772,7 +772,7 @@ checkout.quantity.title = ""
 
 # --- Checkout: staff order controls (staff channel) ---
 
-# Staff button: cancel the order (unpaid: stock and credit are returned; paid: nothing is restocked or refunded automatically - use the refund button).
+# Staff button: cancel the order (unpaid: stock and credit are returned; paid: nothing is restocked, refunded or returned automatically - use the refund buttons and the return-credit button).
 # button_label · max 80 characters · required
 checkout.staff.button.cancel = ""
 
@@ -799,6 +799,14 @@ checkout.staff.button.refund_credit = ""
 # Staff button: reject an unpaid order (reserved stock and applied credit are returned).
 # button_label · max 80 characters · required
 checkout.staff.button.reject = ""
+
+# Staff button: give back the store credit the customer applied to a paid order (all of it at once; shown until it was given back, e.g. after cancelling a paid order). Cancelling a paid order returns neither money nor credit automatically. Needed when credits are enabled and credits.allow_at_checkout = true.
+# button_label · max 80 characters · required
+checkout.staff.button.return_credit = ""
+
+# Optional name of the field on the staff order controls showing the applied store credit that was given back to the customer (written with common.money_format).
+# field_name · max 256 characters · optional
+checkout.staff.credit_returned_field = ""
 
 # Text of the staff order controls. {user_mention} mentions the customer (no ping), {channel_mention} links the order channel, {order_number}/{total}/{status} as in the title. The order lines, totals and buttons follow.
 # description · max 4096 characters · required · placeholders: {order_number}, {user_mention}, {channel_mention}, {total}, {status}

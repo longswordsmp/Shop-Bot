@@ -32,6 +32,8 @@ perform staff actions check staff status inside the handler, e.g. per-ticket-cat
 | component | `cr` | `balance` | credits | any | no | `shopbot.features.credits.handlers.on_balance` |
 | component | `cr` | `hpage` | credits | staff | no | `shopbot.features.credits.handlers.on_history_page` |
 | component | `cs` | `cancel` | checkout | staff | no | `shopbot.features.checkout.handlers.on_staff_action` |
+| component | `cs` | `creturn` | checkout | staff | no | `shopbot.features.checkout.handlers.on_credit_return` |
+| modal | `cs` | `creturnform` | checkout | staff | no | `shopbot.features.checkout.handlers.on_credit_return_form` |
 | component | `cs` | `fulfill` | checkout | staff | no | `shopbot.features.checkout.handlers.on_staff_action` |
 | component | `cs` | `lpage` | checkout | staff | no | `shopbot.features.checkout.handlers.on_list_page` |
 | component | `cs` | `paid` | checkout | staff | no | `shopbot.features.checkout.handlers.on_staff_action` |
@@ -64,9 +66,12 @@ perform staff actions check staff status inside the handler, e.g. per-ticket-cat
 
 - `admin.maintenance`
 - `catalog.refresh_listing`
+- `checkout.after_submit`
+- `checkout.after_transition`
 - `checkout.payment_expire`
 - `checkout.payment_reminder`
 - `checkout.session_expire`
+- `checkout.ticket_check`
 - `reviews.prompt`
 - `reviews.publish`
 - `tickets.auto_close`

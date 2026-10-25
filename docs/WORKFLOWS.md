@@ -86,12 +86,24 @@ cancelled       -> refunded   (only if it had been paid)
 |---|---|---|---|
 | → paid (staff confirms payment) | reserved stock is sold | – | stays open |
 | → rejected / cancelled / expired from pending | reservations released | debit returned | closed |
-| → cancelled after payment | not restocked automatically (staff decide) | – | closed |
+| → cancelled after payment | not restocked automatically (staff decide) | not returned automatically: staff use the refund and "give back applied credit" controls | closed |
 | → fulfilled | – | – | closed; review prompt scheduled (reviews on) |
 | refunds (partial or full) | – | optionally refunded as store credit | – |
 
 After every change the customer's workflow message and the staff message are updated, the customer is notified
-(DM, or a mention in the order channel when DMs are closed), and the change is audited.
+(DM, or a mention in the order channel when DMs are closed), and the change is audited. These follow-up steps are
+also scheduled as a durable task in the same database transaction as the status change, so a crash or a Discord
+error cannot lose them; each step is idempotent.
+
+**Refunds and store credit after payment:** money refunds (partial or full, optionally paid out as store credit) and
+giving back the store credit applied to the order are separate staff actions. An order counts as fully refunded
+when money refunds plus returned credit cover the total plus the credit applied. Neither ever exceeds what was paid
+or applied, and repeating an action changes nothing.
+
+**Staff controls carry the status they were shown for:** a button from an older view (the order changed meanwhile)
+does nothing except refresh the controls, so a stale "cancel" can never cancel an order that was paid in between.
+The submit button carries both the gross amount and the total the customer saw; any difference (price, fee, option,
+or credit change) shows the review again instead of placing the order.
 
 **Timers** (all off by default): cart expiry, payment reminder, payment expiry.
 

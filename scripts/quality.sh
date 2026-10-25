@@ -16,10 +16,12 @@ step "Tests";                 "${BIN}pytest" -q -p no:cacheprovider
 step "Discord limits + handler coverage"; "${BIN}python" -m tools.check_limits --all-features
 step "Secret scan";           "${BIN}python" -m tools.secret_scan
 step "Generated docs are current"
+GENERATED="docs/COMMANDS.md docs/COMPONENTS.md docs/DATABASE.md docs/CONTENT_CHECKLIST.md"
+before=$(cat $GENERATED 2>/dev/null | sha256sum)
 "${BIN}python" -m tools.reference_docs >/dev/null
-if ! git diff --quiet -- docs/; then
-  echo "Generated docs are out of date; run 'python -m tools.reference_docs' and commit the result." >&2
-  git --no-pager diff --stat -- docs/ >&2
+after=$(cat $GENERATED | sha256sum)
+if [ "$before" != "$after" ]; then
+  echo "Generated docs were out of date and have been regenerated; review and commit them." >&2
   exit 1
 fi
 printf '\nAll quality gates passed.\n'

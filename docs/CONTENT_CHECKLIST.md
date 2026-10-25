@@ -361,13 +361,15 @@ Feature `checkout` — enabled.
 
 | | Key | Where it appears | Kind (max chars) | Required | Placeholders |
 |---|---|---|---|---|---|
-| ❌ | `checkout.staff.button.cancel` | Staff button: cancel the order (unpaid: stock and credit are returned; paid: nothing is restocked or refunded automatically - use the refund button). | button_label (80) | required |  |
+| ❌ | `checkout.staff.button.cancel` | Staff button: cancel the order (unpaid: stock and credit are returned; paid: nothing is restocked, refunded or returned automatically - use the refund buttons and the return-credit button). | button_label (80) | required |  |
 | ❌ | `checkout.staff.button.fulfilled` | Staff button: the order was delivered/completed (the order channel is closed). | button_label (80) | required |  |
 | ❌ | `checkout.staff.button.mark_paid` | Staff button: the payment was received (unpaid -> paid; stock is then taken). | button_label (80) | required |  |
 | ❌ | `checkout.staff.button.processing` | Staff button: mark a paid order as being prepared (optional stage). | button_label (80) | required |  |
 | ❌ | `checkout.staff.button.refund` | Staff button: record a (partial) refund. With the manual payment method the money is returned outside the bot. | button_label (80) | required |  |
 | ❌ | `checkout.staff.button.refund_credit` | Staff button: refund (part of) the order as store credit. Needed when the credits feature is on. | button_label (80) | required |  |
 | ❌ | `checkout.staff.button.reject` | Staff button: reject an unpaid order (reserved stock and applied credit are returned). | button_label (80) | required |  |
+| ❌ | `checkout.staff.button.return_credit` | Staff button: give back the store credit the customer applied to a paid order (all of it at once; shown until it was given back, e.g. after cancelling a paid order). Cancelling a paid order returns neither money nor credit automatically. Needed when credits are enabled and credits.allow_at_checkout = true. | button_label (80) | required |  |
+| ▫️ | `checkout.staff.credit_returned_field` | Optional name of the field on the staff order controls showing the applied store credit that was given back to the customer (written with common.money_format). | field_name (256) | optional |  |
 | ❌ | `checkout.staff.description` | Text of the staff order controls. {user_mention} mentions the customer (no ping), {channel_mention} links the order channel, {order_number}/{total}/{status} as in the title. The order lines, totals and buttons follow. | description (4096) | required | `{order_number}`, `{user_mention}`, `{channel_mention}`, `{total}`, `{status}` |
 | ▫️ | `checkout.staff.details_title` | Optional title of the message posted under the staff order controls with the customer's form answers (only when a form is defined). {order_number} is the order number. | title (256) | optional | `{order_number}` |
 | ❌ | `checkout.staff.refunded_field` | Name of the field on the staff order controls showing how much was refunded so far. | field_name (256) | required |  |
@@ -500,7 +502,7 @@ Feature `reviews` — enabled.
 
 ## Summary
 
-- Required keys (for the listed features): 148
-- Required keys still missing: 148
+- Required keys (for the listed features): 149
+- Required keys still missing: 149
 
 Legend: ✅ configured · ❌ required and missing · ▫️ optional and empty
