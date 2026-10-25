@@ -884,11 +884,11 @@ checkout.cancel_confirm.description = ""
 # title · max 256 characters · optional
 checkout.cancel_confirm.title = ""
 
-# Text of the workflow message after the customer cancelled an unfinished order.
+# Text of the workflow message after the customer cancelled an unfinished order. Also used after staff closed the ticket of an unfinished order (/ticket close) when checkout.staff_closed.description is empty.
 # description · max 4096 characters · required
 checkout.cancelled.description = ""
 
-# Optional title of the workflow message after the customer cancelled an unfinished order (the channel is then closed).
+# Optional title of the workflow message after the customer cancelled an unfinished order (the channel is then closed). Also used after staff closed the ticket of an unfinished order when checkout.staff_closed.title is empty.
 # title · max 256 characters · optional
 checkout.cancelled.title = ""
 
@@ -907,6 +907,14 @@ checkout.order_cancel_confirm.description = ""
 # Optional title of the question asking the customer to confirm cancelling a submitted, unpaid order. {order_number} is the order number.
 # title · max 256 characters · optional · placeholders: {order_number}
 checkout.order_cancel_confirm.title = ""
+
+# Optional text of the workflow message after staff closed the ticket of an unfinished (never submitted) order with /ticket close (the order is cancelled, the channel closed). Empty = checkout.cancelled.description.
+# description · max 4096 characters · optional; falls back to checkout.cancelled.description
+checkout.staff_closed.description = ""
+
+# Optional title of the workflow message after staff closed the ticket of an unfinished (never submitted) order with /ticket close. Empty = checkout.cancelled.title.
+# title · max 256 characters · optional; falls back to checkout.cancelled.title
+checkout.staff_closed.title = ""
 
 # --- Checkout: order workflow - order details form ---
 
@@ -1292,7 +1300,7 @@ checkout.staff.customer_field = ""
 # description · max 4096 characters · required · placeholders: {order_number}, {user_mention}, {channel_mention}, {total}, {status}
 checkout.staff.description = ""
 
-# Optional title of the message posted under the staff order controls with the customer's form answers (only when a form is defined). {order_number} is the order number.
+# Optional title of the message posted under the staff order controls with the customer's form answers (only when a form is defined and operations.answers_in_orders_channel = true; otherwise the answers are shown only privately in the record's details). {order_number} is the order number.
 # title · max 256 characters · optional · placeholders: {order_number}
 checkout.staff.details_title = ""
 

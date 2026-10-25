@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import weakref
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
@@ -18,8 +18,23 @@ from shopbot.core.ratelimit import Cooldowns
 
 if TYPE_CHECKING:
     from shopbot.context import App
+    from shopbot.features.tickets.models import Ticket
 
 ACTIVITY_THROTTLE_SECONDS = 60
+
+
+@dataclass(frozen=True)
+class StaffCloseReply:
+    """What a staff closer did, as the private operator reply to the staff member: ``text`` (the embed title, at most
+    256 characters), an optional longer ``detail`` (its description) and a ``Ui`` tone."""
+
+    text: str
+    tone: str = "info"
+    detail: str | None = None
+
+
+# (app, ticket, actor id, optional reason) -> the operator reply. The closer re-reads the ticket and its records.
+StaffCloser = Callable[["App", "Ticket", int, "str | None"], Awaitable[StaffCloseReply]]
 
 
 @dataclass
@@ -37,6 +52,9 @@ class TicketRuntime:
     external_categories: dict[str, Callable[[App], tuple[str, ...]]] = field(default_factory=dict)
     # category id -> the Discord category key its open tickets live in (a reopened ticket moves back there).
     external_discord_categories: dict[str, Callable[[App], str]] = field(default_factory=dict)
+    # ticket kind -> how staff close a ticket of that kind with /ticket close (see service.register_staff_closer);
+    # e.g. order tickets, whose unfinished checkout session must end first.
+    staff_closers: dict[str, StaffCloser] = field(default_factory=dict)
 
     def transcript_lock(self, ticket_id: int) -> asyncio.Lock:
         lock = self.transcript_locks.get(ticket_id)

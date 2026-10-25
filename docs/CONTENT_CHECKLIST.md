@@ -440,12 +440,14 @@ Feature `checkout` — enabled.
 | ❌ | `checkout.button.cancel_order` | Button under a submitted order that lets the customer cancel it while it is not paid yet. | button_label (80) | required |  |
 | ❌ | `checkout.cancel_confirm.description` | Question asking the customer to confirm cancelling an unfinished order (shared confirm/cancel buttons). | description (4096) | required |  |
 | ▫️ | `checkout.cancel_confirm.title` | Optional title of the question asking the customer to confirm cancelling an unfinished order. | title (256) | optional |  |
-| ❌ | `checkout.cancelled.description` | Text of the workflow message after the customer cancelled an unfinished order. | description (4096) | required |  |
-| ▫️ | `checkout.cancelled.title` | Optional title of the workflow message after the customer cancelled an unfinished order (the channel is then closed). | title (256) | optional |  |
+| ❌ | `checkout.cancelled.description` | Text of the workflow message after the customer cancelled an unfinished order. Also used after staff closed the ticket of an unfinished order (/ticket close) when checkout.staff_closed.description is empty. | description (4096) | required |  |
+| ▫️ | `checkout.cancelled.title` | Optional title of the workflow message after the customer cancelled an unfinished order (the channel is then closed). Also used after staff closed the ticket of an unfinished order when checkout.staff_closed.title is empty. | title (256) | optional |  |
 | ▫️ | `checkout.expired.description` | Text of the workflow message when an unfinished order expired. Needed when checkout.session_expiry_minutes is above 0. | description (4096) | optional |  |
 | ▫️ | `checkout.expired.title` | Optional title of the workflow message when an unfinished order expired after checkout.session_expiry_minutes without activity. | title (256) | optional |  |
 | ❌ | `checkout.order_cancel_confirm.description` | Question asking the customer to confirm cancelling a submitted, unpaid order (shared confirm/back buttons). {order_number} is the order number. | description (4096) | required | `{order_number}` |
 | ▫️ | `checkout.order_cancel_confirm.title` | Optional title of the question asking the customer to confirm cancelling a submitted, unpaid order. {order_number} is the order number. | title (256) | optional | `{order_number}` |
+| ▫️ | `checkout.staff_closed.description` | Optional text of the workflow message after staff closed the ticket of an unfinished (never submitted) order with /ticket close (the order is cancelled, the channel closed). Empty = checkout.cancelled.description. | description (4096) | optional (falls back to `checkout.cancelled.description`) |  |
+| ▫️ | `checkout.staff_closed.title` | Optional title of the workflow message after staff closed the ticket of an unfinished (never submitted) order with /ticket close. Empty = checkout.cancelled.title. | title (256) | optional (falls back to `checkout.cancelled.title`) |  |
 
 ### Checkout: order workflow - order details form
 
@@ -596,7 +598,7 @@ Feature `checkout` — enabled.
 | ▫️ | `checkout.staff.credit_returned_field` | Optional name of the field on the staff order controls showing the applied store credit that was given back to the customer (written with common.money_format). | field_name (256) | optional |  |
 | ❌ | `checkout.staff.customer_field` | Name of the field on the staff order record that mentions the customer (no ping). | field_name (256) | required |  |
 | ❌ | `checkout.staff.description` | Text of the staff order controls. {user_mention} mentions the customer (no ping), {channel_mention} links the order channel, {order_number}/{total}/{status} as in the title. The order lines, totals and buttons follow. | description (4096) | required | `{order_number}`, `{user_mention}`, `{channel_mention}`, `{total}`, `{status}` |
-| ▫️ | `checkout.staff.details_title` | Optional title of the message posted under the staff order controls with the customer's form answers (only when a form is defined). {order_number} is the order number. | title (256) | optional | `{order_number}` |
+| ▫️ | `checkout.staff.details_title` | Optional title of the message posted under the staff order controls with the customer's form answers (only when a form is defined and operations.answers_in_orders_channel = true; otherwise the answers are shown only privately in the record's details). {order_number} is the order number. | title (256) | optional | `{order_number}` |
 | ❌ | `checkout.staff.reference_field` | Name of the field on the staff order record showing the order's unique reference (its number). | field_name (256) | required |  |
 | ❌ | `checkout.staff.refunded_field` | Name of the field on the staff order controls showing how much was refunded so far. | field_name (256) | required |  |
 | ❌ | `checkout.staff.status_field` | Name of the field on the staff order record showing the current status (its name from checkout.status_label.*). | field_name (256) | required |  |

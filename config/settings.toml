@@ -93,7 +93,13 @@ mentionable = false
 [[server.roles]]
 key = "staff"
 id = 0
-permissions = []
+# Manage Messages lets Staff see the staff slash commands (/orders, /order, /ticket, /review, /announce) in Discord's
+# command picker: Discord shows them by default only to members with this permission. The bot checks the Staff role
+# itself on every use. It also lets staff delete and pin messages in every channel they can see, including the bot's
+# panels (/setup posts a deleted panel again). /setup sets EXACTLY these permissions on the role, so list every
+# server-wide permission it should keep. Admins can instead fine-tune who sees each command under
+# Server Settings -> Integrations -> (the bot) and set this back to [] (an adopted role is then left untouched).
+permissions = ["manage_messages"]
 color = ""
 hoist = false
 mentionable = true                   # so #staff-chat alerts and reminders can notify staff (operations.ping_roles)
@@ -318,6 +324,11 @@ ping_roles = ["staff"]               # role keys mentioned on alerts that need a
                                      # or the bot needs "Mention @everyone, @here and All Roles", to notify anyone)
 owner_dm_alerts = true               # also send order alerts and critical failure alerts to the Owner (OWNER_ID) by
                                      # direct message; when the DM fails they are posted in staff_channel instead
+answers_in_orders_channel = false    # false = the customer's typed form answers (details, fulfillment option and
+                                     # submission forms) are NOT posted in #orders; staff see them privately with the
+                                     # order record's Details button or /order view (staff-checked, only to the
+                                     # person who asked). true = also post them as messages under each order record
+                                     # in #orders, visible to everyone who can read that channel.
 # Reminders posted in staff_channel (minutes; 0 = off). Business decisions: left off until you choose them.
 unclaimed_order_minutes = 0          # an open order nobody claimed for this long
 unpaid_order_minutes = 0             # an order still waiting for payment this long after it was submitted

@@ -109,6 +109,8 @@ CANCELLED_TITLE = "checkout.cancelled.title"
 CANCELLED_DESCRIPTION = "checkout.cancelled.description"
 EXPIRED_TITLE = "checkout.expired.title"
 EXPIRED_DESCRIPTION = "checkout.expired.description"
+STAFF_CLOSED_TITLE = "checkout.staff_closed.title"
+STAFF_CLOSED_DESCRIPTION = "checkout.staff_closed.description"
 ORDER_CANCEL_CONFIRM_TITLE = "checkout.order_cancel_confirm.title"
 ORDER_CANCEL_CONFIRM_DESCRIPTION = "checkout.order_cancel_confirm.description"
 BUTTON_CANCEL_ORDER = "checkout.button.cancel_order"
@@ -755,7 +757,8 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             FEATURE,
             g_cancel,
             "Optional title of the workflow message after the customer cancelled an unfinished order (the "
-            "channel is then closed).",
+            "channel is then closed). Also used after staff closed the ticket of an unfinished order when "
+            "checkout.staff_closed.title is empty.",
             required=False,
         ),
         ck(
@@ -763,7 +766,28 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             Kind.DESCRIPTION,
             FEATURE,
             g_cancel,
-            "Text of the workflow message after the customer cancelled an unfinished order.",
+            "Text of the workflow message after the customer cancelled an unfinished order. Also used after staff "
+            "closed the ticket of an unfinished order (/ticket close) when checkout.staff_closed.description is "
+            "empty.",
+        ),
+        ck(
+            STAFF_CLOSED_TITLE,
+            Kind.TITLE,
+            FEATURE,
+            g_cancel,
+            "Optional title of the workflow message after staff closed the ticket of an unfinished (never "
+            "submitted) order with /ticket close. Empty = checkout.cancelled.title.",
+            fallback=CANCELLED_TITLE,
+        ),
+        ck(
+            STAFF_CLOSED_DESCRIPTION,
+            Kind.DESCRIPTION,
+            FEATURE,
+            g_cancel,
+            "Optional text of the workflow message after staff closed the ticket of an unfinished (never "
+            "submitted) order with /ticket close (the order is cancelled, the channel closed). Empty = "
+            "checkout.cancelled.description.",
+            fallback=CANCELLED_DESCRIPTION,
         ),
         ck(
             EXPIRED_TITLE,
@@ -1020,7 +1044,8 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             FEATURE,
             g_staff,
             "Optional title of the message posted under the staff order controls with the customer's form "
-            "answers (only when a form is defined). {order_number} is the order number.",
+            "answers (only when a form is defined and operations.answers_in_orders_channel = true; otherwise the "
+            "answers are shown only privately in the record's details). {order_number} is the order number.",
             required=False,
             placeholders=("order_number",),
         ),

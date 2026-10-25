@@ -21,7 +21,10 @@ from typing import TYPE_CHECKING
 from shopbot.features.base import FeatureModule
 from shopbot.features.checkout import commands, handlers, panel, preview, staff_keys, tasks
 from shopbot.features.checkout import content_keys as keys
+from shopbot.features.checkout import service as checkout_service
 from shopbot.features.checkout.text import OPERATOR_TEXT
+from shopbot.features.tickets import service as tickets_service
+from shopbot.features.tickets.models import KIND_ORDER
 
 if TYPE_CHECKING:
     from shopbot.context import App
@@ -31,6 +34,8 @@ def _register(app: App) -> None:
     handlers.register(app)
     tasks.register(app)
     commands.register(app)
+    # /ticket close in an order ticket: end an unfinished order first, refuse a submitted open one.
+    tickets_service.register_staff_closer(app, KIND_ORDER, checkout_service.staff_close_ticket)
 
 
 MODULE = FeatureModule(

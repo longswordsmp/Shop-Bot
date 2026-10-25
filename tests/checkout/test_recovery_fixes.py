@@ -18,6 +18,7 @@ from shopbot.features.tickets import service as tickets_service
 from shopbot.ui.custom_ids import cid
 from shopbot.ui.routing import Ctx
 from tests.checkout.util import (
+    ANSWERS_IN_CHANNEL,
     FULL_SETTINGS,
     add_product,
     audit_actions,
@@ -43,7 +44,7 @@ from tests.checkout.util import (
     workflow_message,
 )
 from tests.fakes import FakeResponse, click, http_error, submit_modal
-from tests.helpers import GUILD_ID, TestEnv
+from tests.helpers import GUILD_ID, TestEnv, deep_merge
 
 TIMERS = {"checkout": {"session_expiry_minutes": 30, "payment_reminder_minutes": 30, "payment_expiry_minutes": 60}}
 
@@ -430,7 +431,7 @@ async def test_the_channel_check_waits_for_a_young_orphan(co: TestEnv) -> None:
 
 
 async def test_restart_recovery_posts_missing_staff_details(tmp_path: Path) -> None:
-    tenv = await make_env(tmp_path, FULL_SETTINGS)
+    tenv = await make_env(tmp_path, deep_merge(FULL_SETTINGS, ANSWERS_IN_CHANNEL))
     try:
         customer = tenv.member()
         p1 = await add_product(tenv, "[p1]", price=1000)

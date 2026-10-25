@@ -23,6 +23,7 @@ from tests.checkout.util import (
     order,
     orders,
     place_order,
+    post_answers_in_channel,
     press,
     product,
     reload_session,
@@ -254,6 +255,7 @@ async def test_credits_changed_since_review_is_a_price_change(co: TestEnv) -> No
 
 async def test_full_workflow_order_keeps_details_fees_and_posts_staff_details(cof: TestEnv) -> None:
     tenv = cof
+    post_answers_in_channel(tenv)  # operations.answers_in_orders_channel (off by default: see tests/orders_privacy)
     customer = tenv.member()
     p1 = await add_product(tenv, "[p1]", price=1000)
     _, session, _, message = await start(tenv, customer)

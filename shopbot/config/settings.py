@@ -650,11 +650,15 @@ class OperationsSettings:
     ``staff_channel``: channel key of the staff alert channel (#staff-chat). ``ping_roles``: role keys mentioned on
     alerts that need attention. ``owner_dm_alerts``: the Owner (OWNER_ID) also receives order alerts and critical
     failure alerts by direct message (falling back to the staff channel). Reminder thresholds are minutes; 0 = off.
+    ``answers_in_orders_channel``: also post the customer's typed form answers (details, fulfillment option and
+    submission forms) as messages under the order record in ``checkout.staff_channel``. Off (the default): the
+    answers are shown only privately, to the staff member who opens the record's Details or runs ``/order view``.
     """
 
     staff_channel: str = ""
     ping_roles: tuple[str, ...] = ()
     owner_dm_alerts: bool = False
+    answers_in_orders_channel: bool = False
     unclaimed_order_minutes: int = 0
     unpaid_order_minutes: int = 0
     unfulfilled_order_minutes: int = 0
@@ -1228,6 +1232,7 @@ def _parse_operations(r: _Reader) -> OperationsSettings:
             staff_channel=r.str_("staff_channel", "", pattern=KEY_PATTERN),
             ping_roles=r.keys_("ping_roles"),
             owner_dm_alerts=r.bool_("owner_dm_alerts", False),
+            answers_in_orders_channel=r.bool_("answers_in_orders_channel", False),
             unclaimed_order_minutes=r.int_("unclaimed_order_minutes", 0, min_=0, max_=_MAX_MINUTES),
             unpaid_order_minutes=r.int_("unpaid_order_minutes", 0, min_=0, max_=_MAX_MINUTES),
             unfulfilled_order_minutes=r.int_("unfulfilled_order_minutes", 0, min_=0, max_=_MAX_MINUTES),

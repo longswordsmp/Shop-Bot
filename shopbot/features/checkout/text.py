@@ -52,6 +52,24 @@ OPERATOR_TEXT: dict[str, str] = {
     ),
     "checkout.op.credit_returnable": "Applied store credit not given back yet: {amount}.",
     "checkout.op.paid_cancel": "Order #{number} had been paid: nothing was refunded or given back automatically.",
+    # /ticket close in an order ticket (staff)
+    "checkout.op.ticket_closed": "Order ticket {number} closed.",
+    "checkout.op.ticket_session_closed": (
+        "Order ticket {number} closed. The customer's unfinished order (never submitted) was cancelled."
+    ),
+    "checkout.op.ticket_close_pending": (
+        "The customer's unfinished order in ticket {number} was cancelled, but the channel could not be closed right "
+        "now. The bot retries and closes it automatically."
+    ),
+    "checkout.op.ticket_order_open": (
+        "Ticket {number} belongs to order #{order}, which is {status}. Nothing was changed."
+    ),
+    "checkout.op.ticket_order_open_hint": (
+        "End the order with its record's controls in the staff channel ({record}) or with /order cancel; its ticket "
+        "then closes automatically."
+    ),
+    "checkout.op.ticket_not_open": "Ticket {number} is {status}; it is not open any more. Nothing was changed.",
+    "checkout.op.ticket_busy": "Ticket {number} is in use right now. Nothing was changed; try again.",
     # refund form (staff only)
     "checkout.refund.title": "Refund order #{number}",
     "checkout.refund.title_credit": "Refund #{number} as store credit",

@@ -282,9 +282,10 @@ async def test_full_workflow_preview_states(tmp_path: Path) -> None:
             "workflow_details_empty",
             "workflow_details_answered",
             "details_form_1",
-            "staff_details_1",
         ):
             assert name in states, name
+        # The answers are not posted in the staff channel by default (operations.answers_in_orders_channel).
+        assert "staff_details_1" not in states
         review = states["workflow_review"]
         assert isinstance(review, MessageSpec)
         names = [f.name for f in review.embeds[0].fields]

@@ -110,6 +110,18 @@ duplicates or deletes anything except withdrawing panels of features that are no
 Check: Server Settings → Roles shows the bot's role **above** Owner, Staff, Member, Customer and Restock Alerts
 (Discord only lets the bot give roles below its own). Give your staff the Staff role.
 
+**Who sees which slash command.** Discord lists a command only for members with its default permission: the staff
+commands (`/orders`, `/order`, `/ticket`, `/review`, `/announce`) need *Manage Messages*, which `/setup` gives the Staff
+role (`permissions = ["manage_messages"]` in `settings.toml`; it also lets staff delete and pin messages, and `/setup`
+sets exactly the listed permissions on that role). Admin commands need Administrator; `/product` needs Manage
+Server. To fine-tune, open **Server Settings → Integrations → (the bot) → Manage** and allow or deny each command for
+roles, members or channels. For example, to let the Staff role manage products: allow `/product` for Staff there and
+add `"staff"` to `catalog.manager_roles` (do not give Staff Manage Server). These settings only change who *sees* a
+command; the bot checks the roles itself on every use.
+
+Check: with a staff account (Staff role only), typing `/` lists the staff commands; a customer account sees none of
+them (only `/myorders`, once its description is configured).
+
 ## 11. Enter your business configuration and exact text
 
 **Decisions in `config/settings.toml`** (edit on GitHub, commit, push → Railway redeploys):
@@ -160,6 +172,11 @@ Use a second (non-staff) Discord account as the "customer".
       the customer's panel timeline and DMs follow; the Customer role is given (on completion by default).
 - [ ] Reject with a reason and Request correction → the customer sees the reason/request.
 - [ ] Ticket closes → transcript in #transcripts with the final status; `/myorders` shows the order and timeline.
+- [ ] Start a ticket, add an item, do not submit; as staff run `/ticket close` in it → the unfinished order is
+      cancelled and the ticket closes (one transcript). In the ticket of a submitted open order → refused, with a link
+      to its #orders record.
+- [ ] With a details or submission form: #orders shows no typed answers; the record's **Details** button and
+      `/order view` show them privately to staff.
 
 **Problems, staff, admin**
 - [ ] #purchase Report a Problem → choose order and type → form → private problem ticket; staff Resolve/Reject.

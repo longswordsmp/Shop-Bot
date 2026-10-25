@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -40,6 +41,16 @@ FULL_SETTINGS: dict[str, Any] = {
         ],
     }
 }
+
+
+# The customer's form answers are also posted under the order record in the staff channel (off by default).
+ANSWERS_IN_CHANNEL: dict[str, Any] = {"operations": {"answers_in_orders_channel": True}}
+
+
+def post_answers_in_channel(tenv: TestEnv) -> None:
+    """Switch ``operations.answers_in_orders_channel`` on for an existing environment."""
+    settings = tenv.app.settings
+    tenv.app.settings = replace(settings, operations=replace(settings.operations, answers_in_orders_channel=True))
 
 
 async def make_env(tmp_path: Path, overrides: dict[str, Any] | None = None, **kwargs: Any) -> TestEnv:

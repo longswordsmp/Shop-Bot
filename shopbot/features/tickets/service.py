@@ -30,6 +30,8 @@ Private channels (any kind)
     ``register_external_category(app, category_id, staff_keys)``: another feature's support tickets (a category
         id that is not in tickets.categories, e.g. problem reports) get their staff roles from ``staff_keys(app)``
         in the ticket controls and /ticket commands.
+    ``register_staff_closer(app, kind, closer)``: ``/ticket close`` on a ticket of another ``kind`` (order tickets)
+        calls ``closer(app, ticket, actor_id, reason) -> StaffCloseReply`` after the per-ticket staff check.
 
 Lifecycle (any kind; support-ticket UI messages are only posted for ``kind='support'``)
     ``await close_ticket(app, ticket_id, *, actor_id, reason=None, transcript=None,
@@ -94,7 +96,7 @@ from shopbot.features.tickets.models import (
     TRANSCRIPT_SKIPPED,
     Ticket,
 )
-from shopbot.features.tickets.runtime import runtime
+from shopbot.features.tickets.runtime import StaffCloser, StaffCloseReply, runtime
 from shopbot.features.tickets.views import Rows
 from shopbot.logging_setup import log_event
 from shopbot.ui.discord_render import RenderError, check_message, send_kwargs, send_spec, to_view
@@ -221,6 +223,18 @@ def register_external_category(
     runtime(app).external_categories[category_id] = staff_keys
     if discord_category is not None:
         runtime(app).external_discord_categories[category_id] = discord_category
+
+
+def register_staff_closer(app: App, kind: str, closer: StaffCloser) -> None:
+    """Declare how ``/ticket close`` closes a ticket of ``kind`` other than a support ticket (the checkout feature
+    registers its order tickets: an unfinished order is ended first, a submitted open order is refused). The closer
+    receives the ticket after the staff check of that ticket passed and returns the operator reply."""
+    runtime(app).staff_closers[kind] = closer
+
+
+def staff_closer(app: App, kind: str) -> StaffCloser | None:
+    """The registered ``/ticket close`` handler of a ticket kind (None: that kind cannot be closed by command)."""
+    return runtime(app).staff_closers.get(kind)
 
 
 def external_staff_keys(app: App) -> tuple[str, ...]:
@@ -1442,6 +1456,8 @@ __all__ = [
     "KIND_SUPPORT",
     "OPEN",
     "CreatedChannel",
+    "StaffCloseReply",
+    "StaffCloser",
     "TicketCreateFailed",
     "TicketError",
     "TicketLimitReached",
@@ -1460,9 +1476,11 @@ __all__ = [
     "get_ticket_by_channel",
     "participants",
     "register_external_category",
+    "register_staff_closer",
     "remove_participant",
     "reopen_ticket",
     "schedule_channel_deletion",
+    "staff_closer",
     "staff_role_ids",
     "ticket_channel",
     "unclaim_ticket",
