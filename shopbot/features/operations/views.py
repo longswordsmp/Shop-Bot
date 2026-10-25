@@ -1,12 +1,16 @@
 """Pure builders of the operations messages: order alerts, reminders and failure alerts (staff channel), and the
 Owner's private alerts. Values are data supplied by the caller; every word comes from content keys. Missing required
 text raises ``MissingContent`` (nothing incomplete is sent).
+
+Banners: staff alerts (orders and failures) show ``staff-notifications``, reminders ``reminder``, and the Owner's
+private alerts ``direct-message-notification`` (also when one is posted in the staff channel instead).
 """
 
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 
+from shopbot.config.banner_ids import BannerId
 from shopbot.config.content import MissingContent
 from shopbot.features.operations import content_keys as k
 from shopbot.features.operations import repo
@@ -16,6 +20,9 @@ from shopbot.ui.style import Ui
 Values = Mapping[str, str | int]
 
 _ALERT_TONES = {k.NEW_ORDER: "info", k.PAID_ORDER: "success"}
+STAFF_ALERT_BANNER: BannerId = "staff-notifications"
+REMINDER_BANNER: BannerId = "reminder"
+OWNER_ALERT_BANNER: BannerId = "direct-message-notification"
 
 
 def _embed_message(
@@ -25,6 +32,7 @@ def _embed_message(
     values: Values,
     *,
     tone: str,
+    banner: BannerId,
     ping_role_ids: Sequence[int] = (),
     mention_user_ids: Sequence[int] = (),
     link: ButtonSpec | None = None,
@@ -41,6 +49,7 @@ def _embed_message(
         rows=rows_of(link),
         mention_role_ids=tuple(ping_role_ids),
         mention_user_ids=tuple(mention_user_ids),
+        banner=ui.banner(banner),
     )
 
 
@@ -70,6 +79,7 @@ def order_alert(
         description_key,
         values,
         tone=_ALERT_TONES.get(alert, "info"),
+        banner=OWNER_ALERT_BANNER if owner else STAFF_ALERT_BANNER,
         ping_role_ids=() if owner else ping_role_ids,
         link=link_button(ui, k.BUTTON_OPEN_RECORD, record_url),
     )
@@ -86,6 +96,7 @@ def reminder(
         k.reminder_key(kind, "description"),
         values,
         tone="warning",
+        banner=REMINDER_BANNER,
         ping_role_ids=ping_role_ids,
         link=link_button(ui, label_key, link_url),
     )
@@ -100,5 +111,11 @@ def failure_alert(
     else:
         title_key, description_key = k.failure_key(kind, "title"), k.failure_key(kind, "description")
     return _embed_message(
-        ui, title_key, description_key, values, tone="danger", ping_role_ids=() if owner else ping_role_ids
+        ui,
+        title_key,
+        description_key,
+        values,
+        tone="danger",
+        banner=OWNER_ALERT_BANNER if owner else STAFF_ALERT_BANNER,
+        ping_role_ids=() if owner else ping_role_ids,
     )

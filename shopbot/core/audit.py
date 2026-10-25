@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Any
 
 import discord
 
+from shopbot.config.banner_ids import BannerId
 from shopbot.db.repos import audit as audit_repo
 from shopbot.features.server_keys import PRIVATE_ACCESS, effective_access
 from shopbot.logging_setup import log_event, redact
@@ -38,6 +39,8 @@ REDACTED = "[REDACTED]"
 # 1024-character field and 6000-character embed limits); anything longer is cut there (the database keeps it all).
 DETAIL_FIELD_TEXT = 1000
 MAX_DETAIL_FIELDS = 4
+# Every audit-channel entry shows the activity-log banner (``[banners] off`` can switch it off for the channel).
+AUDIT_BANNER: BannerId = "activity-log"
 
 
 def sanitize_details(value: Any, key: str | None = None) -> Any:
@@ -132,7 +135,10 @@ class AuditLog:
         if details:
             name = self.app.op("audit.details")
             fields.extend(EmbedField(name, f"```{chunk}```") for chunk in detail_chunks(details))
-        spec = MessageSpec(embeds=(self.app.ui.operator_embed(action, tone="neutral", fields=fields),))
+        spec = MessageSpec(
+            embeds=(self.app.ui.operator_embed(action, tone="neutral", fields=fields),),
+            banner=self.app.ui.banner(AUDIT_BANNER),
+        )
         try:
             await channel.send(**send_kwargs(spec))
         except (discord.HTTPException, RenderError) as exc:

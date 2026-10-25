@@ -1469,4 +1469,4 @@ def order_list_page(
                 ),
             )
         )
-    return MessageSpec(embeds=(embed,), rows=tuple(rows))
+    return MessageSpec(embeds=(embed,), rows=tuple(rows), banner=ui.banner("staff-dashboard"))
