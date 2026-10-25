@@ -45,6 +45,7 @@ def test_operator_text_has_no_unknown_placeholders(tenv: TestEnv) -> None:
         "{feature}",
         "{error_id}",
         "{count}",
+        "{key}",
     }
     for key, text in MODULE.operator_text.items():
         assert key.startswith("server.")

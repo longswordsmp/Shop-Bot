@@ -38,6 +38,15 @@ class PermanentTaskError(Exception):
     """Raise from a handler when retrying cannot help (the task is marked failed immediately)."""
 
 
+class RescheduleTask(Exception):
+    """Raise from a handler to run the same task again at ``run_at`` (e.g. it ran early, or it is a
+    recurring task). The row and its dedupe key are kept; attempts are reset."""
+
+    def __init__(self, run_at: int) -> None:
+        super().__init__(run_at)
+        self.run_at = run_at
+
+
 class Scheduler:
     def __init__(
         self,
@@ -166,6 +175,18 @@ class Scheduler:
             raise RuntimeError("scheduler is not bound to an app")
         try:
             await handler(self._app, task)
+        except RescheduleTask as signal:
+            moved = await self._db.transaction(task_repo.reschedule_running, task.id, signal.run_at, self._clock.now())
+            log_event(
+                log,
+                logging.INFO,
+                "scheduled_task_rescheduled",
+                task_id=task.id,
+                kind=task.kind,
+                run_at=signal.run_at,
+                moved=moved,
+            )
+            return
         except PermanentTaskError as exc:
             await self._fail(task, str(exc) or type(exc).__name__, permanent=True)
             return

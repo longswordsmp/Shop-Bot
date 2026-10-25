@@ -53,5 +53,6 @@ MODULE = FeatureModule(
     register=register,
     on_ready=tasks.on_ready,
     publish=publish,
+    panel_prefixes=(service.LISTING_PREFIX,),
     preview=preview,
 )

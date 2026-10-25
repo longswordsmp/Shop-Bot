@@ -73,6 +73,9 @@ OPERATOR_TEXT: dict[str, str] = {
     "server.setup.change.sync": "permissions synced with category",
     # panels
     "server.setup.publish_skipped": "Panels were not published (publish: False).",
+    "server.setup.panel_withdrawn": "Withdrew panel `{key}`: feature `{feature}` is not ready",
+    "server.setup.panel_would_withdraw": "Would withdraw panel `{key}` (feature `{feature}` is not ready)",
+    "server.setup.panel_withdraw_failed": "Could not withdraw panel `{key}` of feature `{feature}`",
     "server.setup.publish_skipped_dry_run": "Panels are not published during a dry run.",
     "server.setup.publish_failed": (
         "Feature `{feature}`: publishing failed (reference {error_id}; details in the bot logs)"

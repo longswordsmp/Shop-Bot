@@ -343,15 +343,3 @@ def remove_participant(conn: sqlite3.Connection, ticket_id: int, user_id: int) -
 
 
 # -- scheduler support -------------------------------------------------------------------------------------
-
-
-def rearm_running_task(conn: sqlite3.Connection, task_id: int, run_at: int, now: int) -> bool:
-    """Push the currently running task back to 'pending' at ``run_at`` (used by a handler that finds it ran
-    early because activity happened meanwhile). The scheduler only marks a task done while it is still
-    'running', so the re-armed task is kept. See foundation_requests: a scheduler API for this."""
-    cur = conn.execute(
-        "UPDATE scheduled_tasks SET status = 'pending', run_at = ?, attempts = 0, locked_at = NULL, "
-        "last_error = NULL, updated_at = ? WHERE id = ? AND status = 'running'",
-        (run_at, now, task_id),
-    )
-    return cur.rowcount > 0

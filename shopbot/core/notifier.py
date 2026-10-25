@@ -8,7 +8,9 @@ The caller supplies the fully rendered ``MessageSpec``; the notifier never adds 
 
 from __future__ import annotations
 
+import io
 import logging
+from collections.abc import Sequence
 from dataclasses import replace
 from typing import TYPE_CHECKING, Literal
 
@@ -26,6 +28,12 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 Delivery = Literal["dm", "channel", "none", "duplicate"]
+Attachment = tuple[str, bytes]  # (filename, data)
+
+
+def _files(attachments: Sequence[Attachment]) -> list[discord.File]:
+    """Fresh File objects per send attempt (a File's stream cannot be reused after a failed send)."""
+    return [discord.File(io.BytesIO(data), filename=name) for name, data in attachments]
 
 
 class Notifier:
@@ -69,6 +77,7 @@ class Notifier:
         dedupe_key: str | None,
         fallback_channel_id: int | None = None,
         prefer_channel: bool = False,
+        attachments: Sequence[Attachment] = (),
     ) -> Delivery:
         if await self._already(dedupe_key):
             return "duplicate"
@@ -79,7 +88,10 @@ class Notifier:
         if self.app.settings.features.dm_notifications and not prefer_channel:
             try:
                 user = bot.get_user(user_id) or await bot.fetch_user(user_id)
-                await user.send(**send_kwargs(spec))
+                kwargs = send_kwargs(spec)
+                if attachments:
+                    kwargs["files"] = _files(attachments)
+                await user.send(**kwargs)
                 await self._record(
                     dedupe_key, user_id=user_id, channel_id=None, kind=kind, delivery="dm", status="sent", error=None
                 )
@@ -95,7 +107,10 @@ class Notifier:
             channel = bot.get_channel(fallback_channel_id)
             if isinstance(channel, discord.abc.Messageable):
                 try:
-                    await channel.send(**send_kwargs(replace(spec, mention_user_ids=(user_id,))))
+                    kwargs = send_kwargs(replace(spec, mention_user_ids=(user_id,)))
+                    if attachments:
+                        kwargs["files"] = _files(attachments)
+                    await channel.send(**kwargs)
                     await self._record(
                         dedupe_key,
                         user_id=user_id,
@@ -124,7 +139,13 @@ class Notifier:
         return "none"
 
     async def notify_channel(
-        self, *, channel_id: int, spec: MessageSpec, kind: str, dedupe_key: str | None
+        self,
+        *,
+        channel_id: int,
+        spec: MessageSpec,
+        kind: str,
+        dedupe_key: str | None,
+        attachments: Sequence[Attachment] = (),
     ) -> discord.Message | None:
         """Post to a channel (e.g. staff alerts). Returns the message, or None if undeliverable/duplicate."""
         if await self._already(dedupe_key):
@@ -144,7 +165,10 @@ class Notifier:
             )
             return None
         try:
-            message = await channel.send(**send_kwargs(spec))
+            kwargs = send_kwargs(spec)
+            if attachments:
+                kwargs["files"] = _files(attachments)
+            message = await channel.send(**kwargs)
         except (discord.HTTPException, RenderError) as exc:
             log_event(
                 log,

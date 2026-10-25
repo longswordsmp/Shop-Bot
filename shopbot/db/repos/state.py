@@ -19,6 +19,14 @@ def kv_set(conn: sqlite3.Connection, key: str, value: str, now: int) -> None:
     )
 
 
+def kv_delete(conn: sqlite3.Connection, key: str) -> bool:
+    return conn.execute("DELETE FROM kv_state WHERE key = ?", (key,)).rowcount > 0
+
+
+def kv_delete_prefix(conn: sqlite3.Connection, prefix: str) -> int:
+    return conn.execute("DELETE FROM kv_state WHERE substr(key, 1, ?) = ?", (len(prefix), prefix)).rowcount
+
+
 def next_counter(conn: sqlite3.Connection, guild_id: int, name: str) -> int:
     """Increment and return a per-guild counter. Must run inside a transaction."""
     conn.execute(

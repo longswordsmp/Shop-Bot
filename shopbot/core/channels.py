@@ -61,9 +61,15 @@ def private_overwrites(
 
 
 def normalize_text_channel_name(name: str) -> str:
-    """Approximate Discord's normalization of text channel names (for comparisons only)."""
+    """Approximate Discord's normalization of text channel names (for comparisons only, never for display).
+
+    Discord lowercases text channel names, turns whitespace into dashes, drops most ASCII punctuation, and
+    collapses repeated dashes. Non-ASCII characters (letters, emoji) are kept.
+    """
     lowered = name.strip().lower()
     lowered = re.sub(r"\s+", "-", lowered)
+    lowered = "".join(ch for ch in lowered if not (ch.isascii() and not (ch.isalnum() or ch in "-_")))
+    lowered = re.sub(r"-{2,}", "-", lowered).strip("-")
     return lowered[:100]
 
 

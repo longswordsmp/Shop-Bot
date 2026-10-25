@@ -139,6 +139,10 @@ class ShopBot(discord.Client):
         if payload.guild_id == self.app.env.guild_id:
             await self._emit("raw_message_delete", payload)
 
+    async def on_raw_bulk_message_delete(self, payload: discord.RawBulkMessageDeleteEvent) -> None:
+        if payload.guild_id == self.app.env.guild_id:
+            await self._emit("raw_bulk_message_delete", payload)
+
     async def on_member_remove(self, member: discord.Member) -> None:
         if member.guild.id == self.app.env.guild_id:
             await self._emit("member_remove", member)

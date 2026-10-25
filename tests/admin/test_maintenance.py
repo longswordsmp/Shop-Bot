@@ -159,7 +159,9 @@ async def test_failed_run_is_retried_and_work_is_not_doubled(tenv: TestEnv, monk
     assert task.run_at == tenv.clock.now() + DAY
 
 
-async def test_handler_started_outside_scheduler_ensures_next_run(tenv: TestEnv) -> None:
+async def test_handler_asks_scheduler_to_run_again_tomorrow(tenv: TestEnv) -> None:
+    from shopbot.core.scheduler import RescheduleTask
+    from shopbot.features.admin import service
     from shopbot.features.admin.tasks import maintenance_task
 
     fake = task_repo.Task(
@@ -173,6 +175,6 @@ async def test_handler_started_outside_scheduler_ensures_next_run(tenv: TestEnv)
         dedupe_key="admin.maintenance",
         last_error=None,
     )
-    await maintenance_task(tenv.app, fake)
-    task = await tenv.app.db.run(task_repo.get_by_dedupe, "admin.maintenance")
-    assert task is not None and task.status == "pending"
+    with pytest.raises(RescheduleTask) as signal:
+        await maintenance_task(tenv.app, fake)
+    assert signal.value.run_at == tenv.clock.now() + service.MAINTENANCE_INTERVAL_SECONDS

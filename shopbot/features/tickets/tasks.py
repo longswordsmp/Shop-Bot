@@ -7,7 +7,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from shopbot.config.content import MissingContent
-from shopbot.core.scheduler import PermanentTaskError
+from shopbot.core.scheduler import PermanentTaskError, RescheduleTask
 from shopbot.db.repos.tasks import Task
 from shopbot.features.tickets import content_keys as k
 from shopbot.features.tickets import repo, service, views
@@ -27,9 +27,9 @@ def _ticket_id(task: Task) -> int:
         raise PermanentTaskError("payload has no ticket_id") from None
 
 
-async def _rearm(app: App, task: Task, run_at: int) -> None:
+def _rearm(run_at: int) -> RescheduleTask:
     """The task ran early (activity happened since it was scheduled): run it again at ``run_at``."""
-    await app.db.transaction(repo.rearm_running_task, task.id, run_at, app.clock.now())
+    return RescheduleTask(run_at)
 
 
 async def transcript_task(app: App, task: Task) -> None:
@@ -88,8 +88,7 @@ async def auto_close_task(app: App, task: Task) -> None:
         return  # nothing to do: closed meanwhile, or automatic closing / the feature was switched off
     due = ticket.last_activity_at + app.settings.tickets.auto_close_inactive_minutes * 60
     if app.clock.now() < due:
-        await _rearm(app, task, due)
-        return
+        raise _rearm(due)
     if not app.ready(k.FEATURE):
         raise RuntimeError("tickets feature is not ready; auto-close postponed")
     await service.close_ticket(app, ticket.id, actor_id=None, reason=CLOSE_REASON_INACTIVE)
@@ -103,8 +102,7 @@ async def auto_close_warning_task(app: App, task: Task) -> None:
     due = ticket.last_activity_at + (t.auto_close_inactive_minutes - t.auto_close_warning_minutes) * 60
     now = app.clock.now()
     if now < due:
-        await _rearm(app, task, due)
-        return
+        raise _rearm(due)
     if now >= ticket.last_activity_at + t.auto_close_inactive_minutes * 60 or not app.ready(k.FEATURE):
         return  # too late for a warning (the close task handles it) or the feature is not available
     try:

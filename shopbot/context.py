@@ -102,10 +102,10 @@ class App:
     def module(self, name: str) -> FeatureModule | None:
         return next((m for m in self.modules if m.name == name), None)
 
-    def text(self, key: str, **values: str | int) -> str | None:
+    def text(self, key: str, /, **values: str | int) -> str | None:
         return self.content.render(key, **values)
 
-    def op(self, key: str, **values: object) -> str:
+    def op(self, key: str, /, **values: object) -> str:
         """Operator (admin-only) text, overridable via ``operator.<key>`` in content.toml."""
         template = self.content.operator_value(key) or self.operator_defaults.get(key)
         if template is None:

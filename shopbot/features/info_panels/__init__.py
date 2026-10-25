@@ -21,5 +21,6 @@ MODULE = FeatureModule(
     content_problems=info_panel_content_problems,
     operator_text=OPERATOR_TEXT,
     publish=publish,
+    panel_prefixes=("info_panel:",),
     preview=preview,
 )

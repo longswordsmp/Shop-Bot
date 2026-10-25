@@ -19,6 +19,8 @@ class Task:
     max_attempts: int
     dedupe_key: str | None
     last_error: str | None
+    created_at: int = 0
+    updated_at: int = 0
 
 
 def _row(r: sqlite3.Row) -> Task:
@@ -32,6 +34,8 @@ def _row(r: sqlite3.Row) -> Task:
         max_attempts=int(r["max_attempts"]),
         dedupe_key=r["dedupe_key"],
         last_error=r["last_error"],
+        created_at=int(r["created_at"]),
+        updated_at=int(r["updated_at"]),
     )
 
 
@@ -145,6 +149,22 @@ def mark_failed_attempt(conn: sqlite3.Connection, task_id: int, error: str, retr
             "updated_at = ? WHERE id = ?",
             (retry_at, error[:1000], now, task_id),
         )
+
+
+def reschedule_running(conn: sqlite3.Connection, task_id: int, run_at: int, now: int) -> bool:
+    """Return the currently running task to 'pending' at ``run_at`` (same row, same dedupe key).
+
+    Used when a handler asks to run again later (``RescheduleTask``). Attempts are reset because a
+    reschedule is not a failure. Returns False if the task is no longer running (e.g. cancelled).
+    """
+    return (
+        conn.execute(
+            "UPDATE scheduled_tasks SET status = 'pending', run_at = ?, attempts = 0, last_error = NULL, "
+            "locked_at = NULL, updated_at = ? WHERE id = ? AND status = 'running'",
+            (run_at, now, task_id),
+        ).rowcount
+        > 0
+    )
 
 
 def recover_interrupted(conn: sqlite3.Connection, now: int) -> int:

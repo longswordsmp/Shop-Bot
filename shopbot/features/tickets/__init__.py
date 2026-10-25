@@ -34,5 +34,6 @@ MODULE = FeatureModule(
     register=_register,
     on_ready=events.on_ready,
     publish=panel.publish,
+    panel_prefixes=(panel.PANEL_KEY,),
     preview=preview.preview,
 )

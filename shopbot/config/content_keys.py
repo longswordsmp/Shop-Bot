@@ -117,6 +117,10 @@ class Registry:
     def all(self) -> list[ContentKey]:
         return sorted(self._keys.values(), key=lambda k: k.key)
 
+    def in_declaration_order(self) -> list[ContentKey]:
+        """Keys in the order features declared them (dicts preserve insertion order)."""
+        return list(self._keys.values())
+
     def for_feature(self, feature: str) -> list[ContentKey]:
         return [k for k in self.all() if k.feature == feature]
 

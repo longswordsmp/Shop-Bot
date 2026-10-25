@@ -5,17 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from tests.fakes import FakeMember
 from tests.helpers import TestEnv
 from tests.tickets.util import form_overrides, make_env
-
-
-@pytest.fixture(autouse=True)
-def _hashable_fake_members(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Real ``discord.Member`` objects are hashable (``hash(member._user)``); ``FakeMember`` has no ``_user``.
-    ``core.channels.private_overwrites`` uses the bot member as a dict key, so give the fake the same
-    behaviour for these tests (requested as a fix in tests/fakes.py)."""
-    monkeypatch.setattr(FakeMember, "__hash__", lambda self: hash(self.id), raising=False)
 
 
 @pytest.fixture

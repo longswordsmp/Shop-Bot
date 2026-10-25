@@ -72,6 +72,10 @@ class FakeRole(discord.Role):
             self.hoist = kwargs["hoist"]
         if "mentionable" in kwargs:
             self.mentionable = kwargs["mentionable"]
+        for key in ("colour", "color"):
+            if key in kwargs:
+                value = kwargs[key]
+                self._colour = value.value if isinstance(value, discord.Colour) else int(value or 0)
         return self
 
     async def delete(self, *, reason: str | None = None) -> None:
@@ -168,6 +172,9 @@ class FakeMember(discord.Member):
         message = FakeMessage(None, author=self.guild.me, content=content, **_message_kwargs(kwargs))
         self.dms.append(message)
         return message
+
+    def __hash__(self) -> int:  # discord.Member hashes its user; the fake hashes its id
+        return hash(self._fake_id)
 
     def __repr__(self) -> str:
         return f"<FakeMember id={self._fake_id} name={self._fake_name!r}>"
@@ -577,6 +584,9 @@ class FakeGuild:
         role = self.add_role(name=name, position=len(self._roles), permissions=permissions)
         role.hoist = hoist
         role.mentionable = mentionable
+        value = colour if colour is not None else color
+        if value is not None:
+            role._colour = value.value if isinstance(value, discord.Colour) else int(value)
         self.audit.append(("create_role", role))
         return role
 
@@ -742,6 +752,7 @@ class FakeResponse:
             **_message_kwargs(kwargs),
         )
         message.ephemeral = kwargs.get("ephemeral", False)  # type: ignore[attr-defined]
+        message.flags = discord.MessageFlags(ephemeral=bool(kwargs.get("ephemeral", False)))
         self._interaction.sent.append(message)
         self._interaction._original = message
 
@@ -774,6 +785,7 @@ class FakeFollowup:
         self.calls.append({"content": content, **kwargs})
         message = FakeMessage(self._interaction.channel, content=content, **_message_kwargs(kwargs))
         message.ephemeral = kwargs.get("ephemeral", False)  # type: ignore[attr-defined]
+        message.flags = discord.MessageFlags(ephemeral=bool(kwargs.get("ephemeral", False)))
         self._interaction.sent.append(message)
         return message
 

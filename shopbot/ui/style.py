@@ -38,7 +38,7 @@ class Ui:
 
     # -- text -------------------------------------------------------------------------------------
 
-    def text(self, key: str, **values: str | int) -> str | None:
+    def text(self, key: str, /, **values: str | int) -> str | None:
         return self.content.render(key, **values)
 
     def money(self, minor: int) -> str | None:
@@ -76,11 +76,17 @@ class Ui:
         panel: bool = False,
         timestamp: bool = False,
         footer_extra: str | None = None,
+        branding_text: bool = True,
     ) -> EmbedSpec:
-        """Build a branded customer-facing embed from already-resolved text."""
+        """Build a branded customer-facing embed from already-resolved text.
+
+        ``branding_text=False`` omits the configured author line and footer (e.g. for the second and later
+        cards of a multi-embed message, where repeating them would only consume the 6000-character budget).
+        """
         branding = self._settings().branding
-        footer_parts = [p for p in (self.content.get(ck.FOOTER_TEXT), footer_extra) if p]
-        author = self.content.get(ck.AUTHOR_NAME)
+        footer_text = self.content.get(ck.FOOTER_TEXT) if branding_text else None
+        footer_parts = [p for p in (footer_text, footer_extra) if p]
+        author = self.content.get(ck.AUTHOR_NAME) if branding_text else None
         if panel:
             image_url = image_url or (branding.banner_url if branding.panel_banner and branding.banner_url else None)
             if thumbnail_url is None and branding.panel_thumbnail and branding.logo_url:
@@ -124,7 +130,7 @@ class Ui:
             return None
         return self.embed(title=title, description=description, **kwargs)  # type: ignore[arg-type]
 
-    def error_embed(self, key: str, **values: str | int) -> EmbedSpec | None:
+    def error_embed(self, key: str, /, **values: str | int) -> EmbedSpec | None:
         description = self.content.render(key, **values)
         if description is None:
             return None
@@ -180,11 +186,22 @@ class Ui:
     # -- operator (admin-only) --------------------------------------------------------------------
 
     def operator_embed(
-        self, title: str, description: str | None = None, *, tone: str = "info", fields: Sequence[EmbedField] = ()
+        self,
+        title: str,
+        description: str | None = None,
+        *,
+        tone: str = "info",
+        fields: Sequence[EmbedField] = (),
+        footer_text: str | None = None,
     ) -> EmbedSpec:
         color = self.color(tone) or _OPERATOR_COLORS.get(tone)
         return EmbedSpec(
-            title=title, description=description, color=color, fields=tuple(fields), timestamp=self.clock.now()
+            title=title,
+            description=description,
+            color=color,
+            fields=tuple(fields),
+            footer_text=footer_text,
+            timestamp=self.clock.now(),
         )
 
 

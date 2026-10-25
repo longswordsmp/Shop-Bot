@@ -45,20 +45,3 @@ def ensure_task(
         now=now,
     )
     return task_id is not None
-
-
-def reschedule_running(conn: sqlite3.Connection, task_id: int, *, run_at: int, now: int) -> bool:
-    """Return the currently running task ``task_id`` to 'pending' at ``run_at`` (self-rescheduling).
-
-    The scheduler marks a task done only while it is still 'running', so a handler that reschedules its
-    own row this way keeps a single row (one dedupe key) cycling forever. Returns False if the task is
-    not running (e.g. it was cancelled meanwhile).
-    """
-    return (
-        conn.execute(
-            "UPDATE scheduled_tasks SET status = 'pending', run_at = ?, attempts = 0, last_error = NULL, "
-            "locked_at = NULL, updated_at = ? WHERE id = ? AND status = 'running'",
-            (run_at, now, task_id),
-        ).rowcount
-        > 0
-    )

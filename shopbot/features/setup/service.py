@@ -37,7 +37,9 @@ import discord
 
 from shopbot.config.settings import CategoryDef, ChannelDef, RoleDef
 from shopbot.core.channels import normalize_text_channel_name
+from shopbot.core.panels import remove_message
 from shopbot.core.permissions import can_manage_role, missing_permissions
+from shopbot.db.repos import state
 from shopbot.features.server_keys import category_name_key, channel_name_key, channel_topic_key, role_name_key
 from shopbot.features.setup import overwrites as ow
 from shopbot.features.setup.report import SetupReport
@@ -564,6 +566,32 @@ async def publish_panels(app: App, report: SetupReport) -> None:
         report.add("panels", app.op("server.setup.no_panels"))
 
 
+async def withdraw_panels(app: App, report: SetupReport, *, dry_run: bool) -> None:
+    """Remove published panels of features that are disabled or not fully configured."""
+    for module in app.modules:
+        if not module.panel_prefixes or app.ready(module.name):
+            continue
+        for prefix in module.panel_prefixes:
+            records = await app.db.run(state.published_with_prefix, app.env.guild_id, prefix)
+            for record in records:
+                if dry_run:
+                    report.add(
+                        "panels", app.op("server.setup.panel_would_withdraw", feature=module.name, key=record.key)
+                    )
+                    continue
+                try:
+                    await remove_message(app, record.key)
+                except Exception as exc:  # report and continue with the other panels
+                    log_event(log, logging.WARNING, "setup_withdraw_failed", key=record.key, error=type(exc).__name__)
+                    report.add(
+                        "panels",
+                        app.op("server.setup.panel_withdraw_failed", feature=module.name, key=record.key),
+                        "failed",
+                    )
+                    continue
+                report.add("panels", app.op("server.setup.panel_withdrawn", feature=module.name, key=record.key))
+
+
 def report_not_ready(app: App, report: SetupReport) -> None:
     not_ready = [status for status in app.readiness.statuses.values() if status.enabled and not status.ready]
     for status in not_ready:
@@ -584,9 +612,11 @@ async def run_setup(
     await Reconciler(app, guild, report, dry_run=dry_run, reason=reason).run()
     if dry_run:
         report.add("panels", app.op("server.setup.publish_skipped_dry_run"))
+        await withdraw_panels(app, report, dry_run=True)
     elif not publish:
         report.add("panels", app.op("server.setup.publish_skipped"))
     else:
+        await withdraw_panels(app, report, dry_run=False)
         await publish_panels(app, report)
     report_not_ready(app, report)
     log_event(log, logging.INFO, "setup_finished", actor_id=actor_id, **report.audit_details())

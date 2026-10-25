@@ -10,6 +10,8 @@ A feature contributes:
 - ``on_ready(app)``: restart recovery after the gateway connection is ready;
 - ``publish(app)``: create or update this feature's panels (called by /setup only when the feature is
   ready); returns operator report lines. Must be idempotent: edit existing messages, never duplicate.
+- ``panel_prefixes``: ``published_messages`` key prefixes this feature owns. /setup withdraws (deletes) those
+  messages while the feature is disabled or not fully configured, so customers never see a stale panel.
 - ``preview(app)``: every UI state this feature can show, built by the same pure view functions used
   at runtime, for the offline limits checker and HTML preview. Sample *data* (not wording) must be
   obviously synthetic, e.g. ``[sample product 1]``.
@@ -59,6 +61,7 @@ class FeatureModule:
     register: Callable[[App], None] | None = None
     on_ready: Callable[[App], Awaitable[None]] | None = None
     publish: Callable[[App], Awaitable[list[str]]] | None = None
+    panel_prefixes: tuple[str, ...] = ()
     preview: Callable[[App], list[PreviewState]] | None = None
     # Whether customers can see anything from this feature (requires the core error messages).
     customer_facing: bool = True

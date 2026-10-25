@@ -45,7 +45,7 @@ TASK_ERROR_MAX = 300
 
 
 class OpFn(Protocol):
-    def __call__(self, key: str, **values: object) -> str: ...
+    def __call__(self, key: str, /, **values: object) -> str: ...
 
 
 @dataclass(frozen=True)

@@ -161,7 +161,7 @@ class ContentStore:
 
     # -- rendering --------------------------------------------------------------------------------
 
-    def render(self, key: str, **values: str | int) -> str | None:
+    def render(self, key: str, /, **values: str | int) -> str | None:
         """Configured text with declared placeholders substituted; None when not configured."""
         text = self.get(key)
         if text is None:
@@ -183,7 +183,7 @@ class ContentStore:
 
         return _PLACEHOLDER_RE.sub(substitute, text)
 
-    def require(self, key: str, **values: str | int) -> str:
+    def require(self, key: str, /, **values: str | int) -> str:
         text = self.render(key, **values)
         if text is None:
             raise MissingContent(key)

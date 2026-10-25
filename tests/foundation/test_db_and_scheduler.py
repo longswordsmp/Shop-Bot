@@ -58,15 +58,17 @@ def test_failed_migration_rolls_back_and_backup_is_written(tmp_path: Path) -> No
     conn = sqlite3.connect(str(path), isolation_level=None)
     apply_migrations(conn, db_path=path)
     conn.execute("INSERT INTO kv_state(key, value, updated_at) VALUES ('x', 'y', 0)")
-    bad = tmp_path / "0002_bad.sql"
+    known = discover()
+    next_version = len(known) + 1
+    bad = tmp_path / f"{next_version:04d}_bad.sql"
     bad.write_text("CREATE TABLE extra (id INTEGER);\nINSERT INTO nope VALUES (1);\n")
-    migrations = [*discover(), Migration(2, "bad", bad)]
+    migrations = [*known, Migration(next_version, "bad", bad)]
     with pytest.raises(MigrationError):
         apply_migrations(conn, db_path=path, migrations=migrations)
     tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
     assert "extra" not in tables  # rolled back
     assert conn.execute("SELECT value FROM kv_state WHERE key='x'").fetchone()[0] == "y"  # data intact
-    assert list(tmp_path.glob("m.db.pre-v0002-*.bak")), "backup must be written before migrating data"
+    assert list(tmp_path.glob(f"m.db.pre-v{next_version:04d}-*.bak")), "backup must be written before migrating data"
 
 
 def test_split_statements_handles_triggers() -> None:
@@ -175,3 +177,25 @@ async def test_scheduler_replace_reschedules_pending(tenv: TestEnv) -> None:
     task = await app.db.run(task_repo.get_by_dedupe, "r")
     assert task is not None and task.run_at == now + 500
     assert await app.scheduler.cancel("r") == 1
+
+
+async def test_scheduler_reschedule_signal_keeps_one_row_cycling(tenv: TestEnv) -> None:
+    from shopbot.core.scheduler import RescheduleTask
+
+    app = tenv.app
+    runs: list[int] = []
+
+    async def recurring(app_: object, task: task_repo.Task) -> None:
+        runs.append(task.id)
+        raise RescheduleTask(tenv.clock.now() + 60)
+
+    app.scheduler.register("test.recurring", recurring)
+    task_id = await app.scheduler.schedule("test.recurring", run_at=tenv.clock.now(), dedupe_key="rec")
+    await app.scheduler.run_due()
+    tenv.clock.advance(30)
+    assert await app.scheduler.run_due() == 0
+    tenv.clock.advance(31)
+    await app.scheduler.run_due()
+    assert runs == [task_id, task_id]
+    task = await app.db.run(task_repo.get_by_dedupe, "rec")
+    assert task is not None and task.status == "pending" and task.attempts == 0
