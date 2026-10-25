@@ -47,12 +47,15 @@ progress_filled = ""                 # symbols used by {bar} in common.progress_
 progress_empty = ""
 
 [branding.colors]                    # "#RRGGBB" or "" for Discord's default embed color
-primary = ""
-info = ""
-success = ""
-warning = ""
-danger = ""
-neutral = ""
+# Owner's palette: #FF9900 orange, #146EB4 blue, #232F3E navy (also #000000 black and #F2F2F2 light grey,
+# which are background/text colors that Discord does not let bots set). The palette has no green or red,
+# so success and danger use the green and red Amazon's site uses for "In Stock" and prices.
+primary = "#FF9900"                  # panels and main messages
+info = "#146EB4"                     # information and confirmations
+success = "#007600"                  # completed / paid / approved
+warning = "#FF9900"                  # needs attention / pending
+danger = "#B12704"                   # errors / rejected / cancelled
+neutral = "#232F3E"                  # closed / inactive
 
 # -------------------------------------------------------------------------------------------------
 # Server structure created/reconciled by /setup. Set `id` to adopt an existing role/channel instead
