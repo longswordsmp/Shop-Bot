@@ -102,6 +102,9 @@ class Route:
     feature: str | None = None
     access: Access = "any"
     allow_dm: bool = False
+    # Extra role keys (besides settings.permissions.staff_roles) that count as staff for this route,
+    # e.g. checkout.staff_roles. Evaluated at click time so configuration reloads apply.
+    staff_roles: Callable[[App], tuple[str, ...]] | None = None
 
 
 class Ctx:
@@ -246,19 +249,33 @@ class Router:
         self._routes[key] = route
 
     def component(
-        self, route: str, action: str, *, feature: str | None, access: Access = "any", allow_dm: bool = False
+        self,
+        route: str,
+        action: str,
+        *,
+        feature: str | None,
+        access: Access = "any",
+        allow_dm: bool = False,
+        staff_roles: Callable[[App], tuple[str, ...]] | None = None,
     ) -> Callable[[Handler], Handler]:
         def decorator(handler: Handler) -> Handler:
-            self.add(Route(route, action, handler, "component", feature, access, allow_dm))
+            self.add(Route(route, action, handler, "component", feature, access, allow_dm, staff_roles))
             return handler
 
         return decorator
 
     def modal(
-        self, route: str, action: str, *, feature: str | None, access: Access = "any", allow_dm: bool = False
+        self,
+        route: str,
+        action: str,
+        *,
+        feature: str | None,
+        access: Access = "any",
+        allow_dm: bool = False,
+        staff_roles: Callable[[App], tuple[str, ...]] | None = None,
     ) -> Callable[[Handler], Handler]:
         def decorator(handler: Handler) -> Handler:
-            self.add(Route(route, action, handler, "modal", feature, access, allow_dm))
+            self.add(Route(route, action, handler, "modal", feature, access, allow_dm, staff_roles))
             return handler
 
         return decorator
@@ -317,8 +334,9 @@ class Router:
             if route.feature is not None and not self.app.readiness.is_ready(route.feature):
                 await ctx.fail(ck.ERROR_UNAVAILABLE)
                 return
+            extra_roles = route.staff_roles(self.app) if route.staff_roles is not None else ()
             denied = (route.access == "admin" and not ctx.is_admin()) or (
-                route.access == "staff" and not ctx.is_staff()
+                route.access == "staff" and not ctx.is_staff(extra_roles)
             )
             if denied:
                 log_event(log, logging.INFO, "interaction_forbidden", route=route_name, action=action, user_id=user_id)

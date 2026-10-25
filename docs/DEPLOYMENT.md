@@ -1,0 +1,121 @@
+# Deployment (Railway worker)
+
+The bot is a single long-running Python worker. It needs no web server and listens on no port.
+
+## Moving parts
+
+| Stage | Where | How you verify it |
+|---|---|---|
+| Source | GitHub repository | `git log origin/<branch>` shows the commit |
+| Build | Railway (Railpack builder) | Railway build log shows `pip install -r requirements.txt` succeeded |
+| Runtime | Railway service, one replica | Deploy log shows `starting` then `db_ready` then `bot_ready` |
+| Discord connection | Discord gateway | `bot_ready` log line; the bot shows online in the server |
+| Features | Your server | `/status` in Discord, then the manual tests in `docs/MORNING.md` |
+
+These are separate stages: a successful push does not prove a deployment, and a running deployment does not
+prove that a feature works in Discord.
+
+## Files Railway uses
+
+- `requirements.txt` – runtime dependencies (pinned).
+- `.python-version` – `3.12` (Railpack reads it; alternatively set the `RAILPACK_PYTHON_VERSION` variable).
+- `railway.json` – builder `RAILPACK`, start command `python -m shopbot`, restart policy `ON_FAILURE` (10 retries).
+
+**Important – Railway config-as-code is deprecated.** Railway documents `railway.json`/`railway.toml` as
+deprecated in favour of "Infrastructure as Code" (`.railway/railway.ts`, applied with the Railway CLI), with
+existing services supported until 2026-12-01 and new services not reading these files. If your service does not
+pick up `railway.json`, set the same values in the Railway dashboard (service → Settings):
+
+| Setting | Value |
+|---|---|
+| Builder | Railpack (default) |
+| Start command | `python -m shopbot` |
+| Restart policy | On Failure (10 retries) |
+| Replicas | 1 (never more – see "Single instance") |
+| Volume | mounted at `/data` |
+
+No `.railway/railway.ts` is shipped because its exact format could not be verified for this project; the
+dashboard settings above are equivalent.
+
+## Variables (Railway → service → Variables)
+
+| Variable | Required | Value |
+|---|---|---|
+| `DISCORD_TOKEN` | yes | Bot token from the Developer Portal (Bot tab). Secret. |
+| `GUILD_ID` | yes | Numeric ID of your server. |
+| `OWNER_ID` | recommended | Your numeric user ID (always treated as admin). |
+| `DB_PATH` | yes | `/data/bot.db` (on the persistent volume). |
+| `LOG_FORMAT` | no | `json` (default) for Railway's log view. |
+| `LOG_LEVEL` | no | `INFO` (default). |
+| `APP_ENV` | no | `production` (default). |
+| `CONFIG_DIR` | no | Defaults to `./config` inside the deployed source. |
+| `STARTUP_FAILURE_DELAY_SECONDS` | no | Delay before exiting on a fatal startup error (default 30) to avoid tight restart loops. |
+
+Never put these values in the repository. `.env` is for local development only and is git-ignored.
+
+## Persistent storage
+
+- Add a volume to the service and mount it at `/data`. Set `DB_PATH=/data/bot.db`.
+- The bot creates the directory and database on first start, applies migrations, and never recreates a
+  populated database. Before applying a new migration to a database that holds data, it writes a copy next to it
+  (`bot.db.pre-vNNNN-<timestamp>.bak`).
+- If the database reports a schema version newer than the code (a rollback to older code), the bot refuses to
+  start instead of risking data loss. Deploy the newer code again or restore a matching backup.
+- A volume is **not** a backup. Use `/backup` regularly (writes a consistent copy to `/data/backups/`, keeps the
+  newest 10) and copy backups off the volume (see "Backups").
+
+## Single instance
+
+Only one bot process may use a database. Railway does not overlap deployments of a service with a volume, and
+the bot also takes an exclusive lock (`/data/bot.db.lock`): a second process waits up to two minutes and then
+exits. Keep replicas at 1.
+
+## Startup sequence (what the logs show)
+
+1. `starting` – version, Python and discord.py versions (never the token).
+2. Environment validation – a missing/invalid variable logs `env_invalid` with the variable name only.
+3. `instance_lock_acquired`.
+4. Configuration load – invalid settings log `config_invalid` with the exact setting path.
+5. `db_opened`, `db_migration_applied` (when needed), `db_ready`.
+6. `feature_not_ready` warnings for enabled features that still miss content or settings.
+7. `routes_registered`, `commands_synced`.
+8. `bot_ready` – lists ready and not-ready features.
+
+On `SIGTERM` (redeploy/stop) the bot stops the scheduler, closes the Discord connection, checkpoints and closes
+the database, releases the lock, and exits with code 0.
+
+## Updating
+
+1. Run the quality gates locally (see `docs/TESTING.md`).
+2. Push to the branch Railway deploys.
+3. Watch the deploy log for `bot_ready`. Run `/status`.
+4. If the update changed panels or text, run `/setup` (idempotent) to republish panels.
+
+## Rollback
+
+Redeploy the previous successful deployment from Railway's deployment list. A rollback across a schema
+migration is refused by design (see above); restore the pre-migration backup only if you accept losing the
+data written since.
+
+## Backups
+
+- In Discord: `/backup` (admin) creates `/data/backups/bot-<timestamp>.db`.
+- To copy a backup off Railway, use the Railway CLI or a temporary shell on the service and download the file;
+  never post database files in Discord (they contain private customer data).
+- To restore: stop the service, replace `/data/bot.db` with the backup file (and delete `bot.db-wal`/`bot.db-shm`
+  if present), start the service.
+
+## Troubleshooting
+
+| Symptom / log event | Cause | Fix |
+|---|---|---|
+| `env_invalid` | Variable missing or malformed | Set it in Railway Variables (the log names it). |
+| `discord_login_failed` | Token wrong or reset | Reset the token in the Developer Portal and update `DISCORD_TOKEN`. |
+| `privileged_intents_required` | Message Content intent not enabled | Developer Portal → Bot → enable Message Content Intent (or set `bot.message_content_intent = false`, which makes transcripts contain no message text). |
+| `guild_not_available` | Bot not in the server | Invite it with `python -m tools.invite_url <APPLICATION_ID>`. |
+| `commands_sync_failed` | Bot invited without `applications.commands`, or wrong `GUILD_ID` | Re-invite with the generated URL; check `GUILD_ID`. |
+| `config_invalid` | Typo or wrong type in settings.toml | Fix the path named in the log. |
+| `db_init_failed` | Volume missing / read-only / downgrade | Check the `/data` volume and `DB_PATH`. |
+| `instance_locked` | Another process uses the database | Ensure replicas = 1; wait for the old deployment to stop. |
+| Buttons answer "unavailable" | Feature not ready | Run `/status`, fill missing content, `/reload` or `/content set`, then `/setup`. |
+| `/setup` reports missing permissions | Bot role lacks permissions or is too low | Give the bot role the permissions in the invite URL and drag it above managed roles. |

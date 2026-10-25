@@ -217,3 +217,18 @@ async def test_admin_route_denies_staff(tenv: TestEnv, access: str) -> None:
     interaction = await click(tenv.app, user=tenv.member(staff=True), custom_id=cid)
     assert interaction.last_sent is not None
     assert isinstance(interaction.last_sent.embeds[0], discord.Embed)
+
+
+async def test_route_specific_staff_roles(tenv: TestEnv) -> None:
+    ran: list[int] = []
+
+    async def handler(ctx: Ctx) -> None:
+        ran.append(ctx.user_id)
+
+    tenv.app.router.add(Route("zz", "extra", handler, "component", None, "staff", False, lambda app: ("helpers",)))
+    helper_role = tenv.guild.add_role(name="helpers", position=5)
+    await tenv.app.resources.remember("role", "helpers", helper_role.id)
+    helper = tenv.guild.add_member(name="helper", roles=[helper_role])
+    await click(tenv.app, user=helper, custom_id="sb:zz:extra")
+    await click(tenv.app, user=tenv.member(), custom_id="sb:zz:extra")
+    assert ran == [helper.id]
