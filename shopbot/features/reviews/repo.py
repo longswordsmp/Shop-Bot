@@ -7,13 +7,24 @@ calls never apply twice.
 Review states::
 
     prompted --rate--> rated --comment--> (submitted) --publish--> published
-        \\                \\
-         +---decline------+---decline / staff remove--> declined   (published --staff remove--> declined)
+        \\                \\        \\
+         \\                \\        +--(reviews.require_approval)--> pending_approval --approve--> (submitted)
+          \\                \\                                             \\
+           +---decline------+---decline--> declined                     +--reject--> rejected
+                               (any state --staff removal with /review remove--> declined)
 
-A review is *submitted* when it is ``rated`` and ``comment IS NOT NULL`` (an empty string means "submitted
-without a comment"). ``comment IS NULL`` while ``rated`` means the comment form has not been submitted yet, so
+A review is *submitted* when it is ``rated``, ``comment IS NOT NULL`` (an empty string means "submitted without
+a comment") and its comment is approved (``approval`` 'automatic' when no staff approval is required, 'approved'
+after a staff approval). ``comment IS NULL`` while ``rated`` means the comment form has not been submitted yet, so
 the customer may still pick another rating. Submitted reviews are never lost: they stay ``rated`` until the
 publication in the reviews channel succeeds.
+
+Approval (``reviews.require_approval``): the customer's submission goes to ``pending_approval`` instead (same
+conditional UPDATE, so it happens once). A staff decision is ``pending_approval -> rated (approval 'approved')``
+or ``pending_approval -> rejected``, exactly once (conditional UPDATE), recorded with ``decided_by``/``decided_at``
+(and the optional rejection reason), with the durable decision follow-up task scheduled in the same transaction.
+The staff approval message is recorded in ``approval_channel_id``/``approval_message_id`` (UNIQUE) with the same
+claim protocol as the publication (kv_state ``reviews.approval_posting:<review_id>``).
 
 Orders are read directly from the ``orders`` table (owned by checkout); this module never writes them.
 
@@ -33,12 +44,27 @@ from enum import StrEnum
 from typing import Any
 
 from shopbot.db.repos import state
+from shopbot.db.repos import tasks as task_repo
 
 PROMPTED = "prompted"
 RATED = "rated"
+PENDING_APPROVAL = "pending_approval"
 PUBLISHED = "published"
+REJECTED = "rejected"
 DECLINED = "declined"
-STATUSES = (PROMPTED, RATED, PUBLISHED, DECLINED)
+STATUSES = (PROMPTED, RATED, PENDING_APPROVAL, PUBLISHED, REJECTED, DECLINED)
+
+# ``approval`` values: how the comment was approved (None = not decided yet). REJECTED is shared with the status.
+AUTOMATIC = "automatic"
+APPROVED = "approved"
+APPROVED_VALUES = (AUTOMATIC, APPROVED)
+
+# Durable follow-up of a staff decision (approval message, publication or rejection notice, audit); scheduled in
+# the decision's transaction and cancelled once the in-process follow-up completed.
+DECISION_TASK = "reviews.decided"
+DECISION_FOLLOWUP_DELAY_SECONDS = 120
+REASON_MAX = 500
+AUDIT_TARGET = "review"
 
 ORDER_FULFILLED = "fulfilled"
 TICKET_DELETED = "deleted"
@@ -76,11 +102,27 @@ class Review:
     published_message_id: int | None
     created_at: int
     updated_at: int
+    approval: str | None = None
+    decided_by: int | None = None
+    decided_at: int | None = None
+    decision_reason: str | None = None
+    approval_channel_id: int | None = None
+    approval_message_id: int | None = None
 
     @property
     def submitted(self) -> bool:
-        """Rated and the comment step is finished, but not published yet."""
-        return self.status == RATED and self.comment is not None
+        """Rated, the comment step is finished and the comment is approved, but not published yet."""
+        return self.status == RATED and self.comment is not None and self.approval in APPROVED_VALUES
+
+    @property
+    def pending_approval(self) -> bool:
+        """Submitted by the customer and waiting for a staff decision (reviews.require_approval)."""
+        return self.status == PENDING_APPROVAL
+
+    @property
+    def finished(self) -> bool:
+        """The customer's part is done (submitted, waiting for approval, published or rejected)."""
+        return self.submitted or self.status in (PENDING_APPROVAL, PUBLISHED, REJECTED)
 
     @property
     def open(self) -> bool:
@@ -96,6 +138,7 @@ class Outcome(StrEnum):
     CLOSED = "closed"  # declined (by the customer or removed by staff)
     EXPIRED = "expired"  # the order is no longer fulfilled
     NOT_RATED = "not_rated"  # comment without a rating
+    NOT_PENDING = "not_pending"  # a staff decision on a review that no longer waits for approval
 
 
 @dataclass(frozen=True)
@@ -145,6 +188,12 @@ def _review(row: sqlite3.Row) -> Review:
         published_message_id=_opt_int(row["published_message_id"]),
         created_at=int(row["created_at"]),
         updated_at=int(row["updated_at"]),
+        approval=None if row["approval"] is None else str(row["approval"]),
+        decided_by=_opt_int(row["decided_by"]),
+        decided_at=_opt_int(row["decided_at"]),
+        decision_reason=None if row["decision_reason"] is None else str(row["decision_reason"]),
+        approval_channel_id=_opt_int(row["approval_channel_id"]),
+        approval_message_id=_opt_int(row["approval_message_id"]),
     )
 
 
@@ -185,12 +234,31 @@ def list_reviews(
 
 
 def submitted_review_ids(conn: sqlite3.Connection, guild_id: int) -> list[int]:
-    """Reviews the customer finished that are not published yet (oldest first)."""
+    """Reviews the customer finished (and whose comment is approved) that are not published yet (oldest first)."""
     rows = conn.execute(
-        "SELECT id FROM reviews WHERE guild_id = ? AND status = 'rated' AND comment IS NOT NULL ORDER BY id",
+        "SELECT id FROM reviews WHERE guild_id = ? AND status = 'rated' AND comment IS NOT NULL "
+        "AND approval IN ('automatic', 'approved') ORDER BY id",
         (guild_id,),
     )
     return [int(r["id"]) for r in rows]
+
+
+def pending_approvals(conn: sqlite3.Connection, guild_id: int) -> list[tuple[int, int | None]]:
+    """(review id, approval message id or None) of every review waiting for a staff decision (oldest first)."""
+    rows = conn.execute(
+        "SELECT id, approval_message_id FROM reviews WHERE guild_id = ? AND status = 'pending_approval' ORDER BY id",
+        (guild_id,),
+    )
+    return [(int(r["id"]), _opt_int(r["approval_message_id"])) for r in rows]
+
+
+def audited(conn: sqlite3.Connection, action: str, review_id: int) -> bool:
+    """Whether the audit event ``action`` was recorded for the review (a re-run follow-up must not repeat it)."""
+    row = conn.execute(
+        "SELECT 1 FROM audit_events WHERE action = ? AND target_type = ? AND target_id = ? LIMIT 1",
+        (action, AUDIT_TARGET, str(review_id)),
+    ).fetchone()
+    return row is not None
 
 
 # -- writes --------------------------------------------------------------------------------------------
@@ -238,7 +306,7 @@ def _check(conn: sqlite3.Connection, review_id: int, user_id: int) -> tuple[Revi
         return None, Result(Outcome.NOT_FOUND)
     if review.user_id != user_id:
         return review, Result(Outcome.FORBIDDEN, review)
-    if review.status == PUBLISHED or review.submitted:
+    if review.finished:
         return review, Result(Outcome.ALREADY, review)
     if review.status == DECLINED:
         return review, Result(Outcome.CLOSED, review)
@@ -250,26 +318,51 @@ def _order_expired(conn: sqlite3.Connection, review: Review) -> bool:
     return order is None or not order.fulfilled
 
 
-def rate(conn: sqlite3.Connection, review_id: int, *, user_id: int, rating: int, submit: bool, now: int) -> Result:
-    """Record (or change) the rating of an open review. ``submit`` finishes the review without a comment."""
+def _submission(approval_required: bool) -> tuple[str, str | None]:
+    """(status, approval) of a review the customer just finished."""
+    return (PENDING_APPROVAL, None) if approval_required else (RATED, AUTOMATIC)
+
+
+def rate(
+    conn: sqlite3.Connection,
+    review_id: int,
+    *,
+    user_id: int,
+    rating: int,
+    submit: bool,
+    now: int,
+    approval_required: bool = False,
+) -> Result:
+    """Record (or change) the rating of an open review. ``submit`` finishes the review without a comment (it then
+    waits for a staff decision when ``approval_required``, else it is approved automatically)."""
     review, refusal = _check(conn, review_id, user_id)
     if refusal is not None:
         return refusal
     assert review is not None
     if _order_expired(conn, review):
         return Result(Outcome.EXPIRED, review)
+    status, approval = _submission(approval_required) if submit else (RATED, None)
     updated = conn.execute(
-        "UPDATE reviews SET status = 'rated', rating = ?, comment = ?, updated_at = ? "
+        "UPDATE reviews SET status = ?, rating = ?, comment = ?, approval = ?, updated_at = ? "
         "WHERE id = ? AND status IN ('prompted', 'rated') AND comment IS NULL",
-        (rating, "" if submit else None, now, review_id),
+        (status, rating, "" if submit else None, approval, now, review_id),
     ).rowcount
     if not updated:  # pragma: no cover - guarded by _check inside the same transaction
         return Result(Outcome.ALREADY, review)
     return Result(Outcome.OK, get_review(conn, review_id))
 
 
-def submit_comment(conn: sqlite3.Connection, review_id: int, *, user_id: int, comment: str, now: int) -> Result:
-    """Finish a rated review with its comment ('' = no comment). Only the first submission counts."""
+def submit_comment(
+    conn: sqlite3.Connection,
+    review_id: int,
+    *,
+    user_id: int,
+    comment: str,
+    now: int,
+    approval_required: bool = False,
+) -> Result:
+    """Finish a rated review with its comment ('' = no comment). Only the first submission counts. With
+    ``approval_required`` the review then waits for a staff decision, else it is approved automatically."""
     review, refusal = _check(conn, review_id, user_id)
     if refusal is not None:
         return refusal
@@ -278,9 +371,11 @@ def submit_comment(conn: sqlite3.Connection, review_id: int, *, user_id: int, co
         return Result(Outcome.NOT_RATED, review)
     if _order_expired(conn, review):
         return Result(Outcome.EXPIRED, review)
+    status, approval = _submission(approval_required)
     updated = conn.execute(
-        "UPDATE reviews SET comment = ?, updated_at = ? WHERE id = ? AND status = 'rated' AND comment IS NULL",
-        (comment, now, review_id),
+        "UPDATE reviews SET status = ?, comment = ?, approval = ?, updated_at = ? "
+        "WHERE id = ? AND status = 'rated' AND comment IS NULL",
+        (status, comment, approval, now, review_id),
     ).rowcount
     if not updated:  # pragma: no cover - guarded by _check inside the same transaction
         return Result(Outcome.ALREADY, review)
@@ -306,6 +401,13 @@ def publish_claim_key(review_id: int) -> str:
     return f"reviews.publishing:{review_id}"
 
 
+def _claim(conn: sqlite3.Connection, key: str, channel_id: int, now: int) -> bool:
+    if state.kv_get(conn, key) is not None:
+        return True
+    state.kv_set(conn, key, str(channel_id), now)
+    return False
+
+
 def claim_publication(conn: sqlite3.Connection, review_id: int, *, channel_id: int, now: int) -> bool | None:
     """Before posting a submitted review: store its publication claim (the value is the channel it is posted in).
 
@@ -315,11 +417,7 @@ def claim_publication(conn: sqlite3.Connection, review_id: int, *, channel_id: i
     review = get_review(conn, review_id)
     if review is None or not review.submitted:
         return None
-    key = publish_claim_key(review_id)
-    if state.kv_get(conn, key) is not None:
-        return True
-    state.kv_set(conn, key, str(channel_id), now)
-    return False
+    return _claim(conn, publish_claim_key(review_id), channel_id, now)
 
 
 def recorded_message_ids(conn: sqlite3.Connection, message_ids: Sequence[int]) -> set[int]:
@@ -356,8 +454,153 @@ def mark_published(conn: sqlite3.Connection, review_id: int, *, message_id: int,
     return (
         conn.execute(
             "UPDATE reviews SET status = 'published', published_message_id = ?, updated_at = ? "
-            "WHERE id = ? AND status = 'rated' AND comment IS NOT NULL",
+            "WHERE id = ? AND status = 'rated' AND comment IS NOT NULL AND approval IN ('automatic', 'approved')",
             (message_id, now, review_id),
+        ).rowcount
+        > 0
+    )
+
+
+# -- staff approval --------------------------------------------------------------------------------------------
+
+
+def decision_key(review_id: int) -> str:
+    """Dedupe key of the durable decision follow-up task."""
+    return f"{DECISION_TASK}:{review_id}"
+
+
+def approval_claim_key(review_id: int) -> str:
+    return f"reviews.approval_posting:{review_id}"
+
+
+def _schedule_followup(conn: sqlite3.Connection, review_id: int, *, now: int, task_attempts: int) -> None:
+    task_repo.schedule(
+        conn,
+        kind=DECISION_TASK,
+        run_at=now + DECISION_FOLLOWUP_DELAY_SECONDS,
+        payload={"review_id": review_id},
+        max_attempts=task_attempts,
+        dedupe_key=decision_key(review_id),
+        replace=True,
+        now=now,
+    )
+
+
+def approve(conn: sqlite3.Connection, review_id: int, *, actor_id: int, now: int, task_attempts: int) -> Result:
+    """Staff approval: ``pending_approval -> rated`` (submitted, approval 'approved'), exactly once.
+
+    Refused (nothing written) when the review no longer waits for approval (NOT_PENDING) or its order is no longer
+    fulfilled (EXPIRED: it could not be shown as a verified review). Schedules the decision follow-up task.
+    """
+    review = get_review(conn, review_id)
+    if review is None:
+        return Result(Outcome.NOT_FOUND)
+    if not review.pending_approval:
+        return Result(Outcome.NOT_PENDING, review)
+    if _order_expired(conn, review):
+        return Result(Outcome.EXPIRED, review)
+    updated = conn.execute(
+        "UPDATE reviews SET status = 'rated', approval = 'approved', decided_by = ?, decided_at = ?, updated_at = ? "
+        "WHERE id = ? AND status = 'pending_approval'",
+        (actor_id, now, now, review_id),
+    ).rowcount
+    if not updated:  # pragma: no cover - checked above inside the same transaction
+        return Result(Outcome.NOT_PENDING, review)
+    _schedule_followup(conn, review_id, now=now, task_attempts=task_attempts)
+    return Result(Outcome.OK, get_review(conn, review_id))
+
+
+def reject(
+    conn: sqlite3.Connection,
+    review_id: int,
+    *,
+    actor_id: int,
+    reason: str | None,
+    now: int,
+    task_attempts: int,
+) -> Result:
+    """Staff rejection: ``pending_approval -> rejected`` (never published), exactly once. Schedules the decision
+    follow-up task. ``reason`` (optional, at most REASON_MAX characters) is stored with the decision."""
+    if reason is not None and not 1 <= len(reason) <= REASON_MAX:
+        raise ValueError("reason must be 1-500 characters")
+    review = get_review(conn, review_id)
+    if review is None:
+        return Result(Outcome.NOT_FOUND)
+    if not review.pending_approval:
+        return Result(Outcome.NOT_PENDING, review)
+    updated = conn.execute(
+        "UPDATE reviews SET status = 'rejected', approval = 'rejected', decided_by = ?, decided_at = ?, "
+        "decision_reason = ?, updated_at = ? WHERE id = ? AND status = 'pending_approval'",
+        (actor_id, now, reason, now, review_id),
+    ).rowcount
+    if not updated:  # pragma: no cover - checked above inside the same transaction
+        return Result(Outcome.NOT_PENDING, review)
+    _schedule_followup(conn, review_id, now=now, task_attempts=task_attempts)
+    return Result(Outcome.OK, get_review(conn, review_id))
+
+
+def cancel_followup(conn: sqlite3.Connection, review_id: int, *, now: int) -> int:
+    return task_repo.cancel(conn, dedupe_key=decision_key(review_id), now=now)
+
+
+def claim_approval_post(conn: sqlite3.Connection, review_id: int, *, channel_id: int, now: int) -> bool | None:
+    """Before posting the approval message of a pending review: store its claim (see ``claim_publication``).
+
+    Returns None when the review no longer waits for approval or its approval message is already recorded.
+    """
+    review = get_review(conn, review_id)
+    if review is None or not review.pending_approval or review.approval_message_id is not None:
+        return None
+    return _claim(conn, approval_claim_key(review_id), channel_id, now)
+
+
+def recorded_approval_ids(conn: sqlite3.Connection, message_ids: Sequence[int]) -> set[int]:
+    """Those of ``message_ids`` that are the recorded approval message of some review."""
+    return {
+        message_id
+        for message_id in message_ids
+        if conn.execute("SELECT 1 FROM reviews WHERE approval_message_id = ? LIMIT 1", (message_id,)).fetchone()
+    }
+
+
+def record_approval_message(
+    conn: sqlite3.Connection, review_id: int, *, channel_id: int, message_id: int, now: int
+) -> bool:
+    """Record the posted approval message and clear the claim. False when the review no longer waits for approval
+    or already has one (nothing stored)."""
+    state.kv_delete(conn, approval_claim_key(review_id))
+    return (
+        conn.execute(
+            "UPDATE reviews SET approval_channel_id = ?, approval_message_id = ?, updated_at = ? "
+            "WHERE id = ? AND status = 'pending_approval' AND approval_message_id IS NULL",
+            (channel_id, message_id, now, review_id),
+        ).rowcount
+        > 0
+    )
+
+
+def adopt_approval_message(
+    conn: sqlite3.Connection, review_id: int, *, channel_id: int, message_ids: Sequence[int], now: int
+) -> int | None:
+    """Record the first of ``message_ids`` (posts showing exactly this review's approval request, newest first) that
+    is not already some review's approval message. Returns its id, or None when none can be adopted."""
+    taken = recorded_approval_ids(conn, message_ids)
+    for message_id in message_ids:
+        if message_id in taken:
+            continue
+        if record_approval_message(conn, review_id, channel_id=channel_id, message_id=message_id, now=now):
+            return message_id
+        return None  # pragma: no cover - the review changed meanwhile (decisions also take the review lock)
+    return None
+
+
+def forget_approval_message(conn: sqlite3.Connection, review_id: int, *, message_id: int, now: int) -> bool:
+    """The recorded approval message was deleted in Discord: clear it so a new one can be posted."""
+    return (
+        conn.execute(
+            "UPDATE reviews SET approval_channel_id = NULL, approval_message_id = NULL, updated_at = ? "
+            "WHERE id = ? AND approval_message_id = ?",
+            (now, review_id, message_id),
         ).rowcount
         > 0
     )
@@ -375,4 +618,5 @@ def remove(conn: sqlite3.Connection, review_id: int, *, now: int) -> Review | No
     if not updated:
         return None
     state.kv_delete(conn, publish_claim_key(review_id))  # a declined review is never published
+    state.kv_delete(conn, approval_claim_key(review_id))
     return review

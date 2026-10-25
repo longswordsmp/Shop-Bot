@@ -481,6 +481,10 @@ class ReviewSettings:
     comment_required: bool = False
     comment_max_length: int = 1000
     prompt_via: str = "dm_then_channel"
+    # Staff approval (moderation): submitted reviews wait in ``approval_channel`` (a staff channel key) for an
+    # Approve/Reject decision instead of being published right away.
+    require_approval: bool = False
+    approval_channel: str = ""
 
 
 @dataclass(frozen=True)
@@ -997,6 +1001,8 @@ def parse_settings(data: dict[str, Any]) -> Settings:
         comment_required=rv.bool_("comment_required", False),
         comment_max_length=rv.int_("comment_max_length", 1000, min_=1, max_=4000),
         prompt_via=rv.str_("prompt_via", "dm_then_channel", choices=("dm", "channel", "dm_then_channel")),
+        require_approval=rv.bool_("require_approval", False),
+        approval_channel=rv.str_("approval_channel", "", pattern=KEY_PATTERN),
     )
     rv.finish()
 

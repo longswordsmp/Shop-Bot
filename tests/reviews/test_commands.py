@@ -60,13 +60,20 @@ async def test_group_metadata(rv: TestEnv) -> None:
     assert isinstance(group, discord.app_commands.Group)
     assert group.default_permissions == discord.Permissions(manage_messages=True)
     assert group.guild_only is True
-    assert {c.name for c in group.commands} == {"list", "remove", "resend"}
+    assert {c.name for c in group.commands} == {"list", "remove", "resend", "approve", "reject"}
     for command in group.commands:
         assert isinstance(command, discord.app_commands.Command)
         assert command.description and all(p.description for p in command.parameters)
         assert len(command.checks) == 1
     status = next(p for p in review_command(rv.app, "list").parameters if p.name == "status")
-    assert [c.value for c in status.choices] == ["prompted", "rated", "published", "declined"]
+    assert [c.value for c in status.choices] == [
+        "prompted",
+        "rated",
+        "pending_approval",
+        "published",
+        "rejected",
+        "declined",
+    ]
     number = next(p for p in review_command(rv.app, "remove").parameters if p.name == "order_number")
     assert number.type is discord.AppCommandOptionType.integer and number.min_value == 1
 

@@ -8,6 +8,9 @@ staff roles, or an admin). Replies are operator text and always ephemeral.
 - ``remove <order_number>``: deletes the published review message and closes the review (status declined); a
   review request that was not sent yet is cancelled.
 - ``resend <order_number>``: sends the review request again while it is unanswered.
+- ``approve <order_number>`` / ``reject <order_number> [reason]``: the staff decision on a review waiting for
+  approval (``reviews.require_approval``), the same as the Approve / Reject buttons of its approval message (for
+  example when that message was deleted). Exactly once: a second decision changes nothing.
 """
 
 from __future__ import annotations
@@ -24,8 +27,9 @@ from shopbot.features.reviews.content_keys import REVIEWS
 if TYPE_CHECKING:
     from shopbot.context import App
 
-StatusChoice = Literal["prompted", "rated", "published", "declined"]
+StatusChoice = Literal["prompted", "rated", "pending_approval", "published", "rejected", "declined"]
 OrderNumber = app_commands.Range[int, 1, 2_147_483_647]
+Reason = app_commands.Range[str, 1, 500]
 
 
 def staff_role_keys(app: App) -> tuple[str, ...]:
@@ -72,6 +76,20 @@ async def review_resend(interaction: discord.Interaction[Any], order_number: int
     await reply_operator(interaction, app.op("reviews.cmd.resend_title"), "\n".join(result.lines), tone=result.tone)
 
 
+async def review_decide(
+    interaction: discord.Interaction[Any], order_number: int, *, approve: bool, reason: str | None = None
+) -> None:
+    app = await _ready(interaction)
+    if app is None:
+        return
+    await _defer(interaction)
+    cleaned = reason.strip() if reason else None
+    result = await service.decide_by_order(
+        app, order_number, approve=approve, actor_id=interaction.user.id, reason=cleaned or None
+    )
+    await reply_operator(interaction, app.op("reviews.decision.title"), "\n".join(result.lines), tone=result.tone)
+
+
 def build_review_group() -> app_commands.Group:
     """A fresh ``/review`` group (one per application instance)."""
     group = app_commands.Group(name="review", description="Customer review tools for staff.")
@@ -95,5 +113,19 @@ def build_review_group() -> app_commands.Group:
     @require_staff(staff_role_keys)
     async def resend(interaction: discord.Interaction[Any], order_number: OrderNumber) -> None:
         await review_resend(interaction, order_number)
+
+    @group.command(name="approve", description="Approve a review that waits for approval and publish it.")
+    @app_commands.describe(order_number="Number of the reviewed order")
+    @require_staff(staff_role_keys)
+    async def approve(interaction: discord.Interaction[Any], order_number: OrderNumber) -> None:
+        await review_decide(interaction, order_number, approve=True)
+
+    @group.command(name="reject", description="Reject a review that waits for approval (it is not published).")
+    @app_commands.describe(order_number="Number of the reviewed order", reason="Optional reason (max 500 characters)")
+    @require_staff(staff_role_keys)
+    async def reject(
+        interaction: discord.Interaction[Any], order_number: OrderNumber, reason: Reason | None = None
+    ) -> None:
+        await review_decide(interaction, order_number, approve=False, reason=reason)
 
     return group

@@ -5,12 +5,20 @@
   dedupe key. While reviews are enabled but not fully configured it waits (hourly checks, up to a week).
 - ``reviews.publish`` (payload ``review_id``, dedupe ``reviews.publish:<review_id>``): publishes a submitted review.
   Retries with the scheduler's backoff, then hourly, until it succeeds or the review is no longer pending.
-- ``on_ready``: re-queues every submitted review that is not published yet.
+- ``reviews.approval`` (payload ``review_id``, dedupe ``reviews.approval:<review_id>``): posts the staff approval
+  message of a review waiting for approval. Retries like ``reviews.publish`` until it is posted or the review no
+  longer waits (or no approval channel is configured).
+- ``reviews.decided`` (payload ``review_id``, dedupe ``reviews.decided:<review_id>``): the durable follow-up of a
+  staff decision, scheduled in the decision's transaction; normally cancelled by the in-process follow-up, it runs
+  the (idempotent) follow-ups again when the process stopped in between.
+- ``on_ready``: re-queues every submitted review that is not published yet and every pending review whose
+  approval message was not posted yet.
 """
 
 from __future__ import annotations
 
 import logging
+from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING
 
 from shopbot.core.scheduler import PermanentTaskError, RescheduleTask
@@ -54,27 +62,55 @@ async def run_prompt_task(app: App, task: Task) -> None:
     await service.send_prompt_for_order(app, order_id)
 
 
-async def run_publish_task(app: App, task: Task) -> None:
+async def _run_until_done(
+    app: App,
+    task: Task,
+    run: Callable[[App, int], Awaitable[service.Publish]],
+    *,
+    what: str,
+) -> None:
+    """Shared body of the publication and approval-request tasks: never give up while the review waits."""
     review_id = _payload_id(task, "review_id")
     now = app.clock.now()
     if not app.ready(REVIEWS):
         raise RescheduleTask(now + service.NOT_READY_RETRY_SECONDS)
     try:
-        outcome = await service.publish_review(app, review_id)
+        outcome = await run(app, review_id)
     except Exception as exc:
-        log_event(log, logging.ERROR, "reviews_publish_error", review_id=review_id, error=type(exc).__name__)
-        log.exception("publishing review %s failed", review_id)
+        log_event(log, logging.ERROR, f"reviews_{what}_error", review_id=review_id, error=type(exc).__name__)
+        log.exception("%s of review %s failed", what, review_id)
         outcome = service.Publish.FAILED
     if outcome is not service.Publish.FAILED:
         return
     if task.attempts >= task.max_attempts:
         # Never give up on a submitted review: keep trying, slowly.
         raise RescheduleTask(now + service.PUBLISH_SLOW_RETRY_SECONDS)
-    raise PublishPending(f"review {review_id} is not published yet")
+    raise PublishPending(f"{what} of review {review_id} is not done yet")
+
+
+async def run_publish_task(app: App, task: Task) -> None:
+    await _run_until_done(app, task, service.publish_review, what="publish")
+
+
+async def run_approval_task(app: App, task: Task) -> None:
+    await _run_until_done(app, task, service.request_approval, what="approval_request")
+
+
+async def run_decision_task(app: App, task: Task) -> None:
+    """The durable follow-up of a staff decision (the decision itself is already committed)."""
+    review_id = _payload_id(task, "review_id")
+    now = app.clock.now()
+    if not app.ready(REVIEWS):
+        raise RescheduleTask(now + service.NOT_READY_RETRY_SECONDS)
+    followups = await service.run_decision_followups(app, review_id)
+    if not followups.complete:
+        raise PublishPending(f"the decision follow-up of review {review_id} is not complete yet")
 
 
 async def on_ready(app: App) -> None:
-    """Restart recovery: publish reviews that were submitted but not published before the restart."""
+    """Restart recovery: publish reviews that were submitted but not published before the restart, and post the
+    approval messages that were not posted yet."""
     if not app.readiness.is_enabled(REVIEWS):
         return
     await service.requeue_pending(app)
+    await service.requeue_approvals(app, sync_messages=False)

@@ -734,6 +734,24 @@ Feature `reviews` — enabled.
 | ❌ | `reviews.declined.description` | Replaces the review request after the customer chose not to leave a review. {order_number} is the number of the reviewed order. | description (4096) | required | `{order_number}` |
 | ❌ | `reviews.expired.description` | Replaces the review request when the order can no longer be reviewed (for example it was refunded, or staff closed the review). {order_number} is the number of the reviewed order. | description (4096) | required | `{order_number}` |
 | ❌ | `reviews.thanks.description` | Replaces the review request after the customer submitted their review (the rating menu and buttons are removed). {order_number} is the number of the reviewed order. | description (4096) | required | `{order_number}` |
+| ▫️ | `reviews.thanks_pending.description` | Optional text that replaces the review request after the customer submitted their review while reviews.require_approval is on (the review is published only after a staff member approves it). If empty, reviews.thanks.description is shown instead. {order_number} is the number of the reviewed order. | description (4096) | optional (falls back to `reviews.thanks.description`) | `{order_number}` |
+
+### Reviews: approval request (staff only, posted in reviews.approval_channel)
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ▫️ | `reviews.approval.button.approve` | Label of the Approve button on the approval message (staff only; publishes the review in the reviews channel). Required when reviews.require_approval is on. | button_label (80) | optional |  |
+| ▫️ | `reviews.approval.button.reject` | Label of the Reject button on the approval message (staff only; opens a form for an optional reason; the review is not published). Required when reviews.require_approval is on. | button_label (80) | optional |  |
+| ▫️ | `reviews.approval.customer_field` | Heading of the reviewer (a mention of the customer) on the approval message. Required when reviews.require_approval is on. | field_name (256) | optional |  |
+| ▫️ | `reviews.approval.order_field` | Heading of the reviewed order's number on the approval message. Required when reviews.require_approval is on. | field_name (256) | optional |  |
+| ▫️ | `reviews.approval.rating_field` | Heading of the rating on the approval message (the rating is shown with reviews.rating.<n>.display or the rating's option label). Required when reviews.require_approval is on. | field_name (256) | optional |  |
+| ▫️ | `reviews.approval.reason_field` | Optional heading of the rejection reason on the approval message (the reason is shown exactly as the staff member wrote it in the reject form). If empty, the reason is not shown there. | field_name (256) | optional |  |
+| ▫️ | `reviews.approval.status.approved` | Approval status shown on the approval message when a staff member approved the review (it is then published in the reviews channel). {staff_mention} mentions the staff member who approved it. Required when reviews.require_approval is on. | field_value (1024) | optional | `{staff_mention}` |
+| ▫️ | `reviews.approval.status.pending` | Approval status shown on the approval message when the review waits for a staff decision (the Approve and Reject buttons are shown). Required when reviews.require_approval is on. | field_value (1024) | optional |  |
+| ▫️ | `reviews.approval.status.rejected` | Approval status shown on the approval message when a staff member rejected the review (it is not published). {staff_mention} mentions the staff member who rejected it. Required when reviews.require_approval is on. | field_value (1024) | optional | `{staff_mention}` |
+| ▫️ | `reviews.approval.status.removed` | Approval status shown on the approval message when the review was removed with /review remove (it is not or no longer published). Required when reviews.require_approval is on. | field_value (1024) | optional |  |
+| ▫️ | `reviews.approval.status_field` | Heading of the approval status on the approval message (its value is one of reviews.approval.status.*). Required when reviews.require_approval is on. | field_name (256) | optional |  |
+| ▫️ | `reviews.approval.title` | Title of the message that asks staff to approve or reject a submitted review (posted in the staff channel reviews.approval_channel; the customer's comment is shown below it exactly as written). {rating} is the chosen rating as a number, {user_name} the reviewer's display name, {order_number} the number of the reviewed order. Required when reviews.require_approval is on. | title (256) | optional | `{rating}`, `{user_name}`, `{order_number}` |
 
 ### Reviews: rating request (sent to the customer after an order is fulfilled)
 
@@ -753,12 +771,24 @@ Feature `reviews` — enabled.
 | ▫️ | `reviews.comment.placeholder` | Optional greyed-out example text inside the empty comment box. | input_placeholder (100) | optional |  |
 | ❌ | `reviews.comment.title` | Title of the form that asks for a written comment after the customer picked a rating. Required when reviews.allow_comment is on. | modal_title (45) | required |  |
 
+### Reviews: decision notices (private, to the customer, when reviews.require_approval is on)
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ▫️ | `reviews.notice.approved.description` | Optional text of the private message telling the customer their review was approved; it is sent once the review is published in the reviews channel. Sent by direct message when features.dm_notifications is on, otherwise (or when direct messages are closed) in the order channel with a mention (notifications.fallback_to_channel). If empty, no message is sent. {order_number} is the number of the reviewed order. {review_link} is a link to the published review. | description (4096) | optional | `{order_number}`, `{review_link}` |
+| ▫️ | `reviews.notice.approved.title` | Optional title of the private message telling the customer their review was approved and published. Needs reviews.notice.approved.description. {order_number} is the number of the reviewed order. | title (256) | optional | `{order_number}` |
+| ▫️ | `reviews.notice.rejected.description` | Optional text of the private message telling the customer their review was not approved (it is not published). Sent by direct message when features.dm_notifications is on, otherwise (or when direct messages are closed) in the order channel with a mention (notifications.fallback_to_channel). If empty, no message is sent. {order_number} is the number of the reviewed order. | description (4096) | optional | `{order_number}` |
+| ▫️ | `reviews.notice.rejected.reason_field` | Optional heading under which the reason the staff member gave in the reject form is shown in that message (exactly as written). If empty, or when no reason was given, the reason is not shown to the customer. | field_name (256) | optional |  |
+| ▫️ | `reviews.notice.rejected.title` | Optional title of the private message telling the customer their review was not approved. Needs reviews.notice.rejected.description. {order_number} is the number of the reviewed order. | title (256) | optional | `{order_number}` |
+
 ### Reviews: published review (posted in the reviews channel)
 
 | | Key | Where it appears | Kind (max chars) | Required | Placeholders |
 |---|---|---|---|---|---|
 | ❌ | `reviews.published.rating_field` | Heading of the rating on a published review; the rating itself is shown with reviews.rating.<n>.display (or the rating's option label). | field_name (256) | required |  |
 | ❌ | `reviews.published.title` | Title of a review posted in the reviews channel. {rating} is the chosen rating as a number (1 to reviews.rating_scale), {user_name} the reviewer's display name, {order_number} the number of the reviewed order. The customer's comment (if any) is shown below the title exactly as written. | title (256) | required | `{rating}`, `{user_name}`, `{order_number}` |
+| ▫️ | `reviews.published.verified_field` | Optional heading of the verification marker shown on every published review (every review comes from a completed order, so every published review is a verified purchase). Set it together with reviews.published.verified_value, or leave both empty to show no marker. | field_name (256) | optional |  |
+| ▫️ | `reviews.published.verified_value` | Optional verification marker text shown under reviews.published.verified_field on every published review (for example that the reviewer bought the order). Set it together with reviews.published.verified_field. {order_number} is the number of the reviewed order. | field_value (1024) | optional | `{order_number}` |
 
 ### Reviews: rating options
 

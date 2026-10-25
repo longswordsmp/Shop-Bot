@@ -132,6 +132,8 @@ Default visibility: manage_messages
 | `/review list` | staff | List recent reviews (max 25). | `status` (optional): Only reviews with this status |
 | `/review remove` | staff | Delete a published review and close it. | `order_number`: Number of the reviewed order |
 | `/review resend` | staff | Send an unanswered review request again. | `order_number`: Number of the order |
+| `/review approve` | staff | Approve a review that waits for approval and publish it. | `order_number`: Number of the reviewed order |
+| `/review reject` | staff | Reject a review that waits for approval (it is not published). | `order_number`: Number of the reviewed order; `reason` (optional): Optional reason (max 500 characters) |
 
 ## /setup
 
