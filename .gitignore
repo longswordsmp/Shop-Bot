@@ -1,0 +1,45 @@
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+
+# Local databases and backups (never commit production data)
+*.db
+*.db-wal
+*.db-shm
+*.db-journal
+*.sqlite
+*.sqlite3
+*.bak
+*.lock
+data/
+backups/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.python-version.local
+
+# Tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Generated output
+preview/out/
+build/
+dist/
+*.log
+logs/
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

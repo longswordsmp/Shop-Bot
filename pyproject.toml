@@ -1,0 +1,48 @@
+[project]
+name = "shopbot"
+version = "1.0.0"
+description = "Configurable Discord business bot: tickets, catalog, checkout, automation."
+requires-python = ">=3.12"
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+extend-exclude = [".venv"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "ASYNC", "S", "SIM", "RUF", "PLE", "T20"]
+ignore = [
+  "S101",   # assert is used in tests
+  "S311",   # random is not used for security
+  "RUF001", "RUF002", "RUF003",  # unicode in strings is intentional (emoji support)
+  "UP047", "UP046",  # TypeVar-style generics are kept for readability
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S", "T20"]
+"tools/**" = ["T20"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.mypy]
+python_version = "3.12"
+strict_optional = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+check_untyped_defs = true
+disallow_untyped_defs = true
+no_implicit_optional = true
+ignore_missing_imports = false
+packages = ["shopbot", "tools"]
+
+[[tool.mypy.overrides]]
+module = ["tests.*"]
+disallow_untyped_defs = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+addopts = "-ra --strict-markers"
+filterwarnings = ["error::RuntimeWarning", "ignore:.audioop. is deprecated:DeprecationWarning"]

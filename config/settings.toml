@@ -1,0 +1,241 @@
+# =================================================================================================
+# Bot settings (behaviour only — no customer-facing text lives here).
+#
+# Customer-facing wording lives in config/content.toml. Business decisions (currency, payment method,
+# fees, review policy, timers) are intentionally left UNSET: each feature stays disabled and reports
+# what is missing (run /status in Discord, or `python -m tools.checklist`) until you decide.
+#
+# Keys such as "staff" or "ticket_panel" below are INTERNAL identifiers. Customers never see them.
+# Visible names are configured in content.toml (server.role.<key>.name, server.channel.<key>.name, ...).
+# Full reference: docs/CONFIGURATION.md
+# =================================================================================================
+
+schema_version = 1
+
+[features]
+info_panels = false
+tickets = false
+catalog = false
+checkout = false
+credits = false
+reviews = false
+dm_notifications = false     # send notifications by direct message (falls back to the ticket/order channel)
+
+[bot]
+interaction_cooldown_ms = 700        # technical anti-double-click protection
+rate_limit_per_10s = 12              # max component interactions per user per 10 seconds
+scheduler_poll_seconds = 5
+scheduler_batch_size = 20
+scheduler_max_attempts = 5
+scheduler_retry_base_seconds = 30
+sync_commands_on_startup = true
+message_content_intent = true        # privileged intent; required for ticket transcripts
+members_intent = false               # privileged intent; not required by any current feature
+
+[permissions]
+admin_roles = []                     # role keys from [[server.roles]] (Discord Administrators are always admins)
+staff_roles = ["staff"]
+
+[branding]
+logo_url = ""                        # https:// image used as author icon / panel thumbnail
+banner_url = ""                      # https:// image shown at the bottom of panels when panel_banner = true
+footer_icon_url = ""
+panel_thumbnail = false
+panel_banner = false
+show_timestamps = true
+progress_filled = ""                 # symbols used by {bar} in common.progress_format (e.g. a filled dot)
+progress_empty = ""
+
+[branding.colors]                    # "#RRGGBB" or "" for Discord's default embed color
+primary = ""
+info = ""
+success = ""
+warning = ""
+danger = ""
+neutral = ""
+
+# -------------------------------------------------------------------------------------------------
+# Server structure created/reconciled by /setup. Set `id` to adopt an existing role/channel instead
+# of creating one. Access levels:
+#   public_readonly    everyone can read, only staff/bot can post
+#   public_interactive everyone can read and post
+#   staff              hidden from everyone except staff roles and admins
+#   admin              hidden from everyone except admin roles
+#   inherit            (channels only) same permissions as the parent category
+# -------------------------------------------------------------------------------------------------
+
+[[server.roles]]
+key = "staff"
+id = 0
+permissions = []
+color = ""
+hoist = false
+mentionable = false
+
+[[server.categories]]
+key = "support"
+access = "public_readonly"
+
+[[server.categories]]
+key = "tickets"
+access = "staff"                     # private ticket channels are created here
+
+[[server.categories]]
+key = "orders"
+access = "staff"                     # private checkout/order channels are created here
+
+[[server.categories]]
+key = "staff"
+access = "staff"
+
+[[server.categories]]
+key = "admin"
+access = "admin"
+
+[[server.channels]]
+key = "ticket_panel"
+category = "support"
+access = "inherit"
+
+[[server.channels]]
+key = "shop"
+category = "support"
+access = "inherit"
+
+[[server.channels]]
+key = "catalog"
+category = "support"
+access = "inherit"
+
+[[server.channels]]
+key = "reviews"
+category = "support"
+access = "inherit"
+
+[[server.channels]]
+key = "staff_alerts"
+category = "staff"
+access = "inherit"
+
+[[server.channels]]
+key = "order_queue"
+category = "staff"
+access = "inherit"
+
+[[server.channels]]
+key = "transcripts"
+category = "staff"
+access = "inherit"
+
+[[server.channels]]
+key = "audit_log"
+category = "admin"
+access = "inherit"
+
+# -------------------------------------------------------------------------------------------------
+# Informational panels (rules, FAQ, announcements...). Each panel's text is configured in content.toml
+# under info_panels.<key>.*  Example (uncomment and add a matching channel above):
+#
+# [[info_panels]]
+# key = "rules"
+# channel = "rules"
+# fields = 0             # number of embed fields (content keys info_panels.rules.field.<n>.name/value)
+# inline_fields = false
+# links = []             # link-button ids (content keys info_panels.rules.link.<id>.label/url)
+# -------------------------------------------------------------------------------------------------
+
+[tickets]
+panel_channel = "ticket_panel"
+panel_style = "buttons"              # "buttons" (one button per category) or "select" (dropdown)
+staff_roles = []                     # extra role keys with access to every ticket (permissions.staff_roles always have access)
+transcript_channel = "transcripts"   # "" disables transcripts
+transcript_dm_user = false
+staff_alert_channel = "staff_alerts" # "" disables staff alerts for new tickets
+max_open_per_user = 1
+creation_cooldown_seconds = 30
+allow_user_close = true
+allow_reopen = true
+user_can_reopen = false
+close_confirmation = true
+lock_on_close = true                 # the ticket owner can no longer post after closing
+closed_category = ""                 # category key to move closed tickets into ("" = leave in place)
+delete_after_close_minutes = 0       # 0 = never delete automatically
+auto_close_inactive_minutes = 0      # 0 = never close automatically
+auto_close_warning_minutes = 0       # 0 = no warning before auto-close (must be less than the above)
+channel_name_pattern = "{prefix}-{number}"   # placeholders: {prefix} (content), {number}, {user}
+number_padding = 4
+
+[[tickets.categories]]
+id = "general"                       # internal id; button label etc. in content.toml tickets.category.general.*
+discord_category = "tickets"
+staff_roles = []
+max_open_per_user = 0                # 0 = use tickets.max_open_per_user
+button_style = "primary"
+ping_staff = false
+# Optional form shown before the ticket is created (max 5 fields). Labels are content keys
+# tickets.category.general.form.<id>.label / .placeholder / .description
+# [[tickets.categories.form]]
+# id = "details"
+# style = "paragraph"
+# required = true
+# min_length = 0
+# max_length = 1000
+
+[catalog]
+listing_channel = "catalog"          # "" disables the live product listing
+products_per_listing_message = 5     # 1-10 product embeds per listing message
+manager_roles = []                   # extra role keys allowed to manage products (admins always can)
+browse_enabled = true                # private, paginated product browsing from the shop panel
+image_hosts = []                     # allowed image hosts, e.g. ["cdn.discordapp.com"]; [] = any https host
+
+[checkout]
+panel_channel = "shop"
+order_category = "orders"
+staff_roles = []
+staff_channel = "order_queue"        # staff order controls are posted here (required)
+currency = ""                        # REQUIRED business decision: ISO 4217 code such as "USD"
+currency_exponent = -1               # -1 = standard minor units for the currency
+decimal_separator = "."
+thousands_separator = ","
+max_open_orders_per_user = 1
+max_line_quantity = 0                # 0 = only limited by stock and per-product limits
+max_cart_lines = 20
+min_order_total_minor = 0
+products_per_page = 25
+session_expiry_minutes = 0           # 0 = an unsubmitted cart never expires automatically
+payment_expiry_minutes = 0           # 0 = an unpaid order never expires automatically
+payment_reminder_minutes = 0         # 0 = no payment reminder
+delete_channel_after_close_minutes = 0
+transcript_on_close = false
+# Fulfillment options (delivery, pickup, ...) are business decisions. Labels live in content.toml
+# checkout.fulfillment.<id>.label / .description. Example:
+# [[checkout.fulfillment_options]]
+# id = "option_a"
+# fee_minor = 0
+# Optional fees. kind = "flat" (amount_minor) or "percent" (basis_points, 100 = 1%):
+# [[checkout.fees]]
+# id = "service"
+# kind = "flat"
+# amount_minor = 0
+
+[payments]
+provider = ""                        # REQUIRED business decision. Implemented: "manual" (staff confirm payment)
+
+[credits]
+allow_at_checkout = true
+
+[reviews]
+channel = "reviews"
+prompt_delay_minutes = -1            # REQUIRED when reviews are enabled: minutes after fulfillment (0 = immediately)
+rating_scale = 0                     # REQUIRED when reviews are enabled: 1-10
+allow_comment = true
+comment_required = false
+comment_max_length = 1000
+prompt_via = "dm_then_channel"       # "dm", "channel" (the order channel), or "dm_then_channel"
+
+[notifications]
+fallback_to_channel = true
+
+[audit]
+channel = "audit_log"                # admin-only channel for audit entries ("" = database only)
+retention_days = 0                   # 0 = keep audit events forever
