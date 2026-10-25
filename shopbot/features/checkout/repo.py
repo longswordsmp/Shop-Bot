@@ -344,6 +344,18 @@ def end_session(conn: sqlite3.Connection, session_id: int, to_status: str, now: 
     return get_session(conn, session_id) if cur.rowcount else None
 
 
+def orphan_order_tickets(conn: sqlite3.Connection, guild_id: int, created_before: int) -> list[int]:
+    """Active order-channel tickets without any checkout session (the process stopped between creating the
+    channel and recording the session)."""
+    rows = conn.execute(
+        "SELECT t.id FROM tickets t WHERE t.guild_id = ? AND t.kind = 'order' AND t.status IN ('creating', 'open') "
+        "AND t.created_at < ? AND NOT EXISTS (SELECT 1 FROM checkout_sessions s WHERE s.ticket_id = t.id) "
+        "ORDER BY t.id",
+        (guild_id, created_before),
+    )
+    return [int(r["id"]) for r in rows]
+
+
 # ---------------------------------------------------------------------------------------------------
 # Cart
 # ---------------------------------------------------------------------------------------------------

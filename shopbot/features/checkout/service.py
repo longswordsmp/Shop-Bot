@@ -58,6 +58,8 @@ CREDITS_FEATURE = "credits"
 REVIEWS_FEATURE = "reviews"
 # Anti-spam: minimum seconds between two order channels created by the same member (not a business rule).
 START_COOLDOWN_SECONDS = 10
+# Refund reasons are also stored as the store-credit note of a refund to credit.
+REFUND_REASON_MAX = views.REFUND_REASON_MAX
 
 
 def session_task_key(session_id: int) -> str:
@@ -773,7 +775,7 @@ async def after_transition(app: App, moved: repo.Transition, *, actor_id: int | 
         await catalog_service.schedule_listing_refresh(app)
     await refresh_customer_message(app, after.id)
     view = await order_view(app, after.id)
-    if view is not None and after.status in k.NOTIFIED_STATUSES and actor_id != after.user_id:
+    if view is not None and after.status in k.NOTIFIED_STATUSES:
         await notify_customer(app, view, after.status, lambda: views.status_notification(app.ui, view, after.status))
     if after.status in m.TERMINAL_STATUSES and after.ticket_id is not None:
         await tickets_service.close_ticket(app, after.ticket_id, actor_id=actor_id, reason=after.status)
@@ -810,7 +812,7 @@ async def _schedule_review(app: App, order_id: int) -> None:
 
 
 class RefundError(Exception):
-    """reason: 'missing' | 'state' | 'amount' | 'credits_unavailable' | 'provider_failed'."""
+    """reason: 'missing' | 'state' | 'amount' | 'reason' | 'credits_unavailable' | 'provider_failed'."""
 
     def __init__(self, reason: str, order: m.Order | None = None, error_id: str | None = None) -> None:
         super().__init__(reason)
@@ -839,12 +841,14 @@ async def refund(
             raise RefundError("amount", order)
         if to_credit and not credit_refunds_enabled(app):
             raise RefundError("credits_unavailable", order)
+        if reason is not None and len(reason) > REFUND_REASON_MAX:
+            raise RefundError("reason", order)
         result: RefundResult | None = None
         method = "credits"
         if not to_credit:
             provider = provider_for(order)
             result = RefundResult(method="manual")
-            if provider is not None:
+            if provider is not None and provider.supports_refunds:
                 try:
                     result = await provider.refund(app, order, amount_minor)
                 except Exception as exc:
@@ -875,18 +879,19 @@ async def refund(
         except repo.RefundNotAllowed as exc:
             raise RefundError(exc.reason, order) from None
     if record.transition is not None:
+        # The full refund moved the order to 'refunded': its status notification tells the customer.
         await after_transition(app, record.transition, actor_id=actor_id)
     else:
         await refresh_staff_message(app, order_id)
-    view = await order_view(app, order_id)
-    if view is not None:
-        await notify_customer(
-            app,
-            view,
-            k.NOTIFY_REFUND,
-            lambda: views.refund_notification(app.ui, view, amount_minor),
-            dedupe_suffix=str(record.adjustment.id),
-        )
+        view = await order_view(app, order_id)
+        if view is not None:
+            await notify_customer(
+                app,
+                view,
+                k.NOTIFY_REFUND,
+                lambda: views.refund_notification(app.ui, view, amount_minor),
+                dedupe_suffix=str(record.adjustment.id),
+            )
     await app.audit.record(
         "checkout.order_refund",
         actor_id=actor_id,

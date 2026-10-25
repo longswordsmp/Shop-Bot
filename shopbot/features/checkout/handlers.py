@@ -63,7 +63,8 @@ async def _open_quantity(ctx: Ctx, session: m.Session, product_id: int) -> None:
     if product is None:
         raise HandlerError(core.ERROR_NOT_FOUND)
     current = (await app.db.run(repo.cart_quantities, session.id)).get(product_id)
-    if not product.listed:
+    # A product already in the cart can always be opened (e.g. to remove it with 0 after it became unavailable).
+    if current is None and not product.listed:
         raise HandlerError(k.ERROR_PRODUCT_UNAVAILABLE, name=views.escape(product.name))
     available = product.available
     if current is None and available is not None and available <= 0:

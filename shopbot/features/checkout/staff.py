@@ -116,6 +116,8 @@ async def refund(
             )
         elif exc.reason == "credits_unavailable":
             text = app.op("checkout.op.credits_unavailable")
+        elif exc.reason == "reason":
+            text = app.op("checkout.op.reason_too_long", max=service.REFUND_REASON_MAX)
         elif exc.reason == "provider_failed":
             text = app.op("checkout.op.refund_failed", number=number, error_id=exc.error_id or "-")
         elif exc.reason == "missing":
@@ -164,7 +166,7 @@ async def list_view(app: App, page: int, status: str, user_id: int) -> MessageSp
     return views.order_list_page(
         app.ui,
         app.op,
-        lambda minor: amount(app, minor, app.settings.checkout.currency or "XXX"),
+        lambda minor, currency: amount(app, minor, currency),
         orders,
         page=current,
         pages=pages,

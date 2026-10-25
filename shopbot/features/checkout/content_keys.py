@@ -124,8 +124,8 @@ ERROR_ORDER_NOT_CANCELLABLE = "checkout.error.order_not_cancellable"
 # -- notification kinds (besides the statuses) ----------------------------------------------------------
 NOTIFY_PAYMENT_REMINDER = "payment_reminder"
 NOTIFY_REFUND = "refund"
-# Statuses that send their own notification. 'refunded' is covered by the refund notification.
-NOTIFIED_STATUSES = (m.PAID, m.PROCESSING, m.FULFILLED, m.CANCELLED, m.REJECTED, m.EXPIRED)
+# Every status change notifies the customer (a partial refund, which changes no status, has its own notification).
+NOTIFIED_STATUSES = (m.PAID, m.PROCESSING, m.FULFILLED, m.CANCELLED, m.REJECTED, m.EXPIRED, m.REFUNDED)
 
 ORDER_PLACEHOLDERS = ("order_number", "total")
 NOTIFY_PLACEHOLDERS = ("order_number", "total", "channel_mention")
@@ -773,8 +773,8 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             Kind.TITLE,
             FEATURE,
             g_notify,
-            "Optional title of the notification sent when staff record a refund. {order_number} is the order "
-            "number, {amount} the refunded amount, {channel_mention} links the order channel.",
+            "Optional title of the notification sent when staff record a partial refund. {order_number} is the "
+            "order number, {amount} the refunded amount, {channel_mention} links the order channel.",
             required=False,
             placeholders=("order_number", "amount", "channel_mention"),
         ),
@@ -783,9 +783,9 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             Kind.DESCRIPTION,
             FEATURE,
             g_notify,
-            "Notification sent to the customer for every refund staff record (partial or full). "
-            "{order_number} is the order number, {amount} the refunded amount (common.money_format), "
-            "{channel_mention} links the order channel.",
+            "Notification sent to the customer when staff record a partial refund (a refund that completes the "
+            "full refund sends the 'refunded' notification instead). {order_number} is the order number, {amount} "
+            "the refunded amount (common.money_format), {channel_mention} links the order channel.",
             placeholders=("order_number", "amount", "channel_mention"),
         ),
         ck(

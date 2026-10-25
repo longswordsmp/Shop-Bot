@@ -494,7 +494,7 @@ def preview(app: App) -> list[PreviewState]:
         lambda: views.order_list_page(
             ui,
             op,
-            lambda minor: staff.amount(app, minor, currency),
+            partial(staff.amount, app),
             sample_orders,
             page=0,
             pages=3,

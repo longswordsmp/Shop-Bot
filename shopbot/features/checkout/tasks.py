@@ -28,6 +28,9 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
+# An order channel younger than this may still be in the middle of being set up by a start click.
+ORPHAN_GRACE_SECONDS = 300
+
 
 def _payload_id(task: Task, name: str) -> int:
     try:
@@ -119,6 +122,37 @@ async def _resend_workflow(app: App, session: m.Session, channel: discord.TextCh
     return True
 
 
+async def _finish_activation(app: App, session_id: int) -> None:
+    """The process stopped before the order channel's ticket was marked open: open it now."""
+    session = await app.db.run(repo.get_session, session_id)
+    if session is None or session.message_id is None:
+        return
+    ticket = await tickets_service.get_ticket(app, session.ticket_id)
+    if ticket is not None and ticket.status == "creating":
+        try:
+            await tickets_service.activate_ticket(app, ticket.id, control_message_id=session.message_id)
+        except tickets_service.TicketStateError:
+            return
+
+
+async def _close_orphan(app: App, ticket_id: int) -> bool:
+    """An order channel without a session can never be used: remove it (creating) or close it (open)."""
+    ticket = await tickets_service.get_ticket(app, ticket_id)
+    if ticket is None:
+        return False
+    if ticket.status == "creating":
+        guild = app.guild
+        channel = guild.get_channel(ticket.channel_id) if guild is not None and ticket.channel_id else None
+        await tickets_service.abort_ticket(
+            app,
+            ticket_id,
+            reason="checkout_orphan",
+            channel=channel if isinstance(channel, discord.TextChannel) else None,
+        )
+        return True
+    return await tickets_service.close_ticket(app, ticket_id, actor_id=None, reason="checkout_orphan") is not None
+
+
 async def on_ready(app: App) -> None:
     """Restart recovery: expire sessions whose order channel is gone, finish interrupted session starts, re-post
     missing staff order controls, and make sure reminder/expiry tasks exist for unpaid orders (deduplicated).
@@ -127,7 +161,7 @@ async def on_ready(app: App) -> None:
     if guild is None:
         log_event(log, logging.WARNING, "checkout_recovery_skipped", reason="guild_unavailable")
         return
-    counts = {"sessions_expired": 0, "workflows_sent": 0, "staff_reposted": 0}
+    counts = {"sessions_expired": 0, "workflows_sent": 0, "staff_reposted": 0, "orphans_closed": 0}
     for session in await app.db.run(repo.active_sessions, app.env.guild_id):
         channel = await service.session_channel(app, session)
         if channel is None:
@@ -136,7 +170,12 @@ async def on_ready(app: App) -> None:
             continue
         if session.message_id is None and await _resend_workflow(app, session, channel):
             counts["workflows_sent"] += 1
+        await _finish_activation(app, session.id)
         await service.schedule_session_expiry(app, session)
+    stale = app.clock.now() - ORPHAN_GRACE_SECONDS
+    for ticket_id in await app.db.run(repo.orphan_order_tickets, app.env.guild_id, stale):
+        if await _close_orphan(app, ticket_id):
+            counts["orphans_closed"] += 1
     for order in await app.db.run(repo.orders_with_status, app.env.guild_id, m.OPEN_STATUSES):
         if not await _staff_message_exists(app, order) and await service.post_staff_message(app, order.id):
             counts["staff_reposted"] += 1

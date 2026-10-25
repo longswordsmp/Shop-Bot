@@ -263,3 +263,58 @@ async def test_paying_after_the_channel_was_deleted(co: TestEnv) -> None:
     assert result.last_sent is not None
     assert (await order(co, placed.id)).status == m.PAID
     assert (await product(co, p1.id)).stock_on_hand == 0
+
+
+async def test_recovery_of_an_interrupted_start(co: TestEnv) -> None:
+    from shopbot.features.tickets import service as tickets_service
+
+    customer = co.member()
+    # The process stopped after creating the channel but before activating it (session + message exist).
+    _, session, _, _ = await start(co, customer)
+    await co.app.db.run(
+        lambda conn: conn.execute("UPDATE tickets SET status = 'creating' WHERE id = ?", (session.ticket_id,))
+    )
+    # ...and an order channel whose session was never recorded.
+    orphan = await tickets_service.create_private_channel(
+        co.app,
+        member=co.member(name="orphan"),
+        kind="order",
+        category_id="checkout",
+        discord_category_key="orders",
+        channel_prefix_key=k.CHANNEL_PREFIX,
+        extra_staff_role_keys=(),
+        topic=None,
+        limit=1,
+    )
+    co.clock.advance(checkout_tasks.ORPHAN_GRACE_SECONDS + 1)
+    app = restarted_app(co)
+    await app.resources.refresh()
+    await ticket_events.on_ready(app)
+    await checkout_tasks.on_ready(app)
+    assert await ticket_status(co, session.ticket_id) == "open"
+    assert (await reload_session(co, session.id)).status == m.ACTIVE
+    assert await ticket_status(co, orphan.ticket.id) in ("closed", "failed")
+
+
+async def test_young_orphans_are_left_alone_and_sessions_are_activated(co: TestEnv) -> None:
+    from shopbot.features.tickets import service as tickets_service
+
+    _, session, _, message = await start(co, co.member())
+    await co.app.db.run(
+        lambda conn: conn.execute("UPDATE tickets SET status = 'creating' WHERE id = ?", (session.ticket_id,))
+    )
+    orphan = await tickets_service.create_private_channel(
+        co.app,
+        member=co.member(name="orphan"),
+        kind="order",
+        category_id="checkout",
+        discord_category_key="orders",
+        channel_prefix_key=k.CHANNEL_PREFIX,
+        extra_staff_role_keys=(),
+        topic=None,
+        limit=1,
+    )
+    await checkout_tasks.on_ready(co.app)
+    assert await ticket_status(co, orphan.ticket.id) == "creating"
+    ticket = await tickets_service.get_ticket(co.app, session.ticket_id)
+    assert ticket is not None and ticket.status == "open" and ticket.control_message_id == message.id

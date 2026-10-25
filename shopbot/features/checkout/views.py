@@ -23,11 +23,13 @@ from shopbot.config.content import MissingContent
 from shopbot.config.settings import Settings
 from shopbot.features import core_keys as core
 from shopbot.features.catalog import content_keys as catalog_keys
+from shopbot.features.catalog import views as catalog_views
 from shopbot.features.catalog.repo import Product
 from shopbot.features.checkout import content_keys as k
 from shopbot.features.checkout import flow
 from shopbot.features.checkout import models as m
 from shopbot.features.checkout.payments import PaymentInstructions
+from shopbot.features.credits import repo as credits_repo
 from shopbot.ui.custom_ids import cid
 from shopbot.ui.limits import EMBED_FIELD_VALUE, EMBED_FIELDS, EMBED_TOTAL_CHARS, OPTION_DESCRIPTION
 from shopbot.ui.spec import (
@@ -54,7 +56,8 @@ QUANTITY_INPUT = "quantity"
 QUANTITY_MAX_DIGITS = 7
 REFUND_AMOUNT_INPUT = "amount"
 REFUND_REASON_INPUT = "reason"
-REFUND_REASON_MAX = 200
+# Refund reasons are also stored as the store-credit note of a refund to credit.
+REFUND_REASON_MAX = credits_repo.NOTE_MAX_LENGTH
 MODE_MONEY = "money"
 MODE_CREDIT = "credit"
 # Raw characters of a form answer per embed field. Escaping at most doubles the length, so every field value
@@ -379,8 +382,6 @@ def _option_label(ui: Ui, option_id: str | None) -> str | None:
 def _fee_fields(ui: Ui, fees: Sequence[tuple[str, int]]) -> list[EmbedField]:
     fields: list[EmbedField] = []
     for fee_id, amount in fees:
-        if amount <= 0:
-            continue
         item = _optional_field(ui, k.fee_label_key(fee_id), money(ui, amount), inline=True)
         if item is not None:
             fields.append(item)
@@ -435,7 +436,7 @@ def _navigation(ui: Ui, settings: Settings, data: m.WorkflowData, step: str, *, 
 
 
 def _product_option(ui: Ui, product: Product) -> SelectOptionSpec:
-    price = money(ui, product.price_minor)
+    price = catalog_views.price_text(ui, product)
     return SelectOptionSpec(
         label=product.name,
         value=str(product.id),
@@ -575,8 +576,7 @@ def review_fields(ui: Ui, settings: Settings, data: m.WorkflowData) -> list[Embe
     if totals.fulfillment_fee_minor > 0:
         fields.append(_field(ui, k.FULFILLMENT_FEE_FIELD, money(ui, totals.fulfillment_fee_minor), inline=True))
     for fee in totals.fees:
-        if fee.amount_minor > 0:
-            fields.append(_field(ui, k.fee_label_key(fee.fee_id), money(ui, fee.amount_minor), inline=True))
+        fields.append(_field(ui, k.fee_label_key(fee.fee_id), money(ui, fee.amount_minor), inline=True))
     if totals.credits_applied_minor > 0:
         fields.append(_field(ui, k.REVIEW_CREDITS_FIELD, money(ui, totals.credits_applied_minor), inline=True))
     elif data.credits_enabled and data.credits_available_minor > 0:
@@ -984,7 +984,7 @@ def refund_modal(op: OperatorText, order: m.Order, *, mode: str, max_text: str, 
 def order_list_page(
     ui: Ui,
     op: OperatorText,
-    amount: Callable[[int], str],
+    amount: Callable[[int, str], str],
     orders: Sequence[m.Order],
     *,
     page: int,
@@ -1000,7 +1000,7 @@ def order_list_page(
             number=o.number,
             status=o.status,
             customer=user_mention(o.user_id),
-            total=amount(o.total_minor),
+            total=amount(o.total_minor, o.currency),
             created=f"<t:{o.created_at}:d>",
         )
         for o in orders

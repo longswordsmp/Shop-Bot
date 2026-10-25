@@ -390,3 +390,23 @@ async def test_no_credit_buttons_without_balance_or_credits_feature(tmp_path: Pa
         assert error_text(forged) == tenv.text(core.ERROR_UNAVAILABLE)
     finally:
         await tenv.close()
+
+
+async def test_unavailable_product_can_be_removed_from_the_cart(co: TestEnv) -> None:
+    from shopbot.features.catalog import repo as catalog_repo
+    from shopbot.features.checkout import repo
+
+    customer = co.member()
+    p1 = await add_product(co, "[p1]")
+    _, session, _, message = await start(co, customer)
+    await set_qty(co, customer, message, session.id, p1.id, 2)
+    await go(co, customer, message, session.id, m.CART)
+    current = await co.app.db.run(catalog_repo.get_product, p1.guild_id, p1.id)
+    assert current is not None
+    await co.app.db.transaction(catalog_repo.update_product, p1.id, current.version, now=co.clock.now(), archived=True)
+    opened = await press(co, customer, message, views.edit_id(session.id), values=[str(p1.id)])
+    assert modal_of(opened) is not None
+    more = await set_qty(co, customer, message, session.id, p1.id, 3)
+    assert error_text(more) == render(co, k.ERROR_PRODUCT_UNAVAILABLE, name=views.escape("[p1]"))
+    await set_qty(co, customer, message, session.id, p1.id, 0)
+    assert await co.app.db.run(repo.cart_quantities, session.id) == {}

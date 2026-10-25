@@ -246,13 +246,13 @@ async def test_closed_dms_fall_back_to_the_order_channel(co: TestEnv) -> None:
     assert [r["delivery"] for r in rows] == ["channel"]
 
 
-async def test_customer_cancel_does_not_notify_the_customer(co: TestEnv) -> None:
+async def test_customer_cancel_is_confirmed_by_notification(co: TestEnv) -> None:
     customer = co.member()
     p1 = await add_product(co, "[p1]")
-    placed, _, message = await place_order(co, customer, [(p1.id, 1)])
+    placed, ch, message = await place_order(co, customer, [(p1.id, 1)])
     await press(co, customer, message, views.order_cancel_yes_id(placed.id))
     assert (await order(co, placed.id)).status == m.CANCELLED
-    assert customer.dms == []
+    assert [d.embeds[0].description for d in customer.dms] == [_notification(co, m.CANCELLED, placed, ch.id)]
     others = await press(co, co.member(name="x"), message, views.order_cancel_yes_id(placed.id))
     assert error_text(others) == co.text(core.ERROR_PERMISSION)
 
@@ -326,12 +326,21 @@ async def test_partial_and_full_refunds(co: TestEnv) -> None:
     assert done.status == m.REFUNDED and done.refunded_minor == done.total_minor == 2000
     assert staff_message(co, done).custom_ids() == []
     assert await ticket_status(co, placed.ticket_id or 0) == "closed"
-    refunds = [
-        d
+    # partial refund: the refund notification; the refund that completes it: the 'refunded' notification
+    assert customer.dms[-1].embeds[0].description == _notification(co, m.REFUNDED, placed, ch.id)
+    partial_notices = [
+        d.embeds[0].description
         for d in customer.dms
-        if d.embeds[0].description.startswith(co.text(k.notify_description_key(k.NOTIFY_REFUND))[:5])
+        if d.embeds[0].description
+        == render(
+            co,
+            k.notify_description_key(k.NOTIFY_REFUND),
+            order_number="1",
+            amount=money(co, 500),
+            channel_mention=f"<#{ch.id}>",
+        )
     ]
-    assert len(refunds) >= 2
+    assert len(partial_notices) == 1
     after = await refund("1.00")
     assert op_text(after) == co.app.op("checkout.op.refund_not_allowed", number=1, status=m.REFUNDED)
     assert "checkout.order_refund" in await audit_actions(co)
