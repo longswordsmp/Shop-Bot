@@ -119,7 +119,7 @@ async def test_set_rejects_empty_value(tenv: TestEnv) -> None:
 async def test_set_rejects_blank_button_label(tenv: TestEnv) -> None:
     interaction = await set_value(tenv, ck.BUTTON_BACK, "   ")
     assert await tenv.app.db.run(state_repo.overrides_all) == {}
-    assert "must contain visible characters" in sent(interaction).text()
+    assert "contains only whitespace" in sent(interaction).text()
 
 
 async def test_set_unknown_key_suggests_close_matches(tenv: TestEnv) -> None:

@@ -470,6 +470,9 @@ class FakeTextChannel(_ChannelMixin, discord.TextChannel):
 
 
 BOT_GUILD_PERMISSIONS = discord.Permissions(
+    add_reactions=True,
+    create_public_threads=True,
+    create_private_threads=True,
     view_channel=True,
     send_messages=True,
     embed_links=True,
@@ -829,6 +832,13 @@ class FakeInteraction:
         if target is not None:
             await target.edit(**kwargs)
         return target
+
+    async def delete_original_response(self) -> None:
+        if not self.response.is_done():
+            raise AssertionError("delete_original_response before responding")
+        self.original_deleted = True
+        if self._original is not None and self._original in self.sent:
+            self.sent.remove(self._original)
 
     async def original_response(self) -> Any:
         return self._original if self._original is not None else self.message

@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Any, Literal
 import discord
 
 from shopbot.config.content import MissingContent
-from shopbot.core.ratelimit import InFlight, SlidingWindowLimiter
+from shopbot.core.ratelimit import Cooldowns, InFlight, SlidingWindowLimiter
 from shopbot.features import core_keys as ck
 from shopbot.logging_setup import log_event
 from shopbot.ui import custom_ids
@@ -240,6 +240,7 @@ class Router:
         settings = app.settings.bot
         self._limiter = SlidingWindowLimiter(settings.rate_limit_per_10s, 10.0)
         self._inflight = InFlight()
+        self._spacing = Cooldowns()
 
     def add(self, route: Route) -> None:
         key = (route.kind, route.route, route.action)
@@ -324,6 +325,14 @@ class Router:
             return
 
         flight_key = (user_id, kind, custom_id)
+        spacing = self.app.settings.bot.interaction_cooldown_ms / 1000
+        if spacing and self._spacing.remaining(flight_key, spacing) > 0:
+            # The same control clicked again within the anti-double-click window: treat as a duplicate.
+            if self.app.content.has(ck.ERROR_BUSY):
+                await ctx.fail(ck.ERROR_BUSY)
+            else:
+                await ctx.ack()
+            return
         if not self._inflight.try_acquire(flight_key):
             if self.app.content.has(ck.ERROR_BUSY):
                 await ctx.fail(ck.ERROR_BUSY)
@@ -345,6 +354,7 @@ class Router:
             await self._run(ctx)
         finally:
             self._inflight.release(flight_key)
+            self._spacing.mark(flight_key)
 
     async def _run(self, ctx: Ctx) -> None:
         route = ctx.route

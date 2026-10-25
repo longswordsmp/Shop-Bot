@@ -63,7 +63,9 @@ async def test_denial_without_configured_text_is_a_silent_ack(tenv: TestEnv) -> 
     tenv.app.content.replace(file_values={})  # no customer-facing text configured at all
     interaction = await invoke_setup(tenv, tenv.member())
     assert interaction.sent == []
+    # Slash commands have no silent acknowledgement: the deferred "thinking" response is deleted right away.
     assert interaction.response_kinds() == ["defer"]
+    assert getattr(interaction, "original_deleted", False) is True
 
 
 async def test_concurrent_run_is_refused(tenv: TestEnv) -> None:

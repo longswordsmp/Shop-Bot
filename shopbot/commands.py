@@ -105,8 +105,14 @@ async def reply_content_error(interaction: discord.Interaction[Any], key: str = 
     app = app_of(interaction)
     embed = app.ui.error_embed(key)
     if embed is None:
-        if not interaction.response.is_done():
-            await interaction.response.defer(ephemeral=True, thinking=False)
+        # Slash commands have no silent acknowledgement: deferring leaves a "thinking" message. Defer, then delete
+        # the deferred response so nothing (and no invented wording) remains.
+        try:
+            if not interaction.response.is_done():
+                await interaction.response.defer(ephemeral=True, thinking=True)
+            await interaction.delete_original_response()
+        except discord.HTTPException:
+            log.debug("could not clear deferred command response")
         return
     await reply(interaction, MessageSpec(embeds=(embed,)), ephemeral=True)
 

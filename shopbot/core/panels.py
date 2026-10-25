@@ -69,8 +69,21 @@ async def upsert_message(
             action = "moved"
             old_channel = app.bot.get_channel(record.channel_id) if app.bot is not None else None
             if isinstance(old_channel, discord.TextChannel):
-                with contextlib.suppress(discord.HTTPException):
+                try:
                     await old_channel.get_partial_message(record.message_id).delete()
+                except discord.NotFound:
+                    pass
+                except discord.HTTPException as exc:
+                    # The new message is still published; the old one must be removed by hand. Make it visible.
+                    log_event(
+                        log,
+                        logging.WARNING,
+                        "panel_old_copy_not_deleted",
+                        key=key,
+                        channel_id=record.channel_id,
+                        message_id=record.message_id,
+                        error=type(exc).__name__,
+                    )
     message = await send_spec(channel, spec)
     await app.db.transaction(state.published_set, guild_id, key, channel.id, message.id, digest, app.clock.now())
     log_event(log, logging.INFO, "panel_published", key=key, channel_id=channel.id, action=action)
@@ -84,8 +97,15 @@ async def remove_message(app: App, key: str) -> bool:
     if record is None:
         return False
     channel = app.bot.get_channel(record.channel_id) if app.bot is not None else None
+    if channel is None and app.bot is not None:
+        try:
+            channel = await app.bot.fetch_channel(record.channel_id)
+        except discord.NotFound:
+            channel = None  # the channel is gone, so is the message
     if isinstance(channel, discord.TextChannel):
-        with contextlib.suppress(discord.HTTPException):
+        # NotFound = already deleted. Any other HTTPException propagates: the record is kept so a later run can
+        # retry, and the caller reports it.
+        with contextlib.suppress(discord.NotFound):
             await channel.get_partial_message(record.message_id).delete()
     await app.db.transaction(state.published_delete, guild_id, key)
     log_event(log, logging.INFO, "panel_removed", key=key)

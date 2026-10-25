@@ -75,9 +75,11 @@ def test_bot_always_gets_full_channel_permissions() -> None:
             "attach_files",
             "manage_messages",
             "manage_channels",
-            "manage_roles",
         ):
             assert getattr(allow, name) is True, (access, name)
+        # Discord only lets administrators grant Manage Permissions in an overwrite; the bot relies on its
+        # guild-level Manage Roles instead (granting it here makes channel creation fail with 403).
+        assert allow.manage_roles is False, access
 
 
 def test_role_in_both_lists_gets_one_overwrite() -> None:

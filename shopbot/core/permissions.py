@@ -20,7 +20,8 @@ from shopbot.core.resources import Resources
 # Permissions the bot needs, by capability. Used for diagnostics and the invite URL.
 BOT_PERMISSIONS: dict[str, tuple[str, ...]] = {
     "base": ("view_channel", "send_messages", "embed_links", "read_message_history", "use_external_emojis"),
-    "setup": ("manage_roles", "manage_channels"),
+    # /setup denies these on @everyone in read-only channels; Discord only lets a bot set permissions it holds.
+    "setup": ("manage_roles", "manage_channels", "add_reactions", "create_public_threads", "create_private_threads"),
     "tickets": ("manage_channels", "manage_roles", "attach_files", "manage_messages"),
     "transcripts": ("read_message_history", "attach_files"),
     "catalog": ("attach_files",),

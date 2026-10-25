@@ -364,8 +364,13 @@ async def clear_override(app: App, key: str, *, actor_id: int) -> ClearResult:
 
 
 def export_values(app: App) -> dict[str, str]:
-    """Every registered key with its effective configured value (override wins); unset keys are ''."""
-    return {d.key: app.content.raw(d.key) or "" for d in app.content.registry.all()}
+    """Every registered key with its effective configured value (override wins; unset keys are ''), plus every
+    other configured value (``operator.*`` overrides and keys not registered for the current settings) so an
+    export never loses text."""
+    values = app.content.all_configured_values()
+    for definition in app.content.registry.all():
+        values.setdefault(definition.key, "")
+    return values
 
 
 # --------------------------------------------------------------------------------------------------

@@ -232,3 +232,23 @@ async def test_route_specific_staff_roles(tenv: TestEnv) -> None:
     await click(tenv.app, user=helper, custom_id="sb:zz:extra")
     await click(tenv.app, user=tenv.member(), custom_id="sb:zz:extra")
     assert ran == [helper.id]
+
+
+async def test_anti_double_click_spacing_drops_rapid_repeat_of_same_control(tenv: TestEnv) -> None:
+    from dataclasses import replace
+
+    ran: list[int] = []
+
+    async def handler(ctx: Ctx) -> None:
+        ran.append(1)
+        await ctx.ack()
+
+    app = tenv.app
+    app.settings = replace(app.settings, bot=replace(app.settings.bot, interaction_cooldown_ms=60_000))
+    cid = _register(tenv, "spaced", handler, feature=None)
+    user = tenv.member()
+    await click(app, user=user, custom_id=cid + ":1")
+    second = await click(app, user=user, custom_id=cid + ":1")
+    await click(app, user=user, custom_id=cid + ":2")  # a different control is not affected
+    assert ran == [1, 1]
+    assert second.response_kinds() in (["defer"], ["send_message"])

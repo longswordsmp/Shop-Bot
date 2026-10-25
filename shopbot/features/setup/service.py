@@ -58,6 +58,9 @@ SETUP_PERMISSIONS = (
     "send_messages",
     "embed_links",
     "read_message_history",
+    "add_reactions",
+    "create_public_threads",
+    "create_private_threads",
 )
 
 T = TypeVar("T")

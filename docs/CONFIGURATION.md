@@ -119,6 +119,7 @@ and leaves overwrites you added for other roles/members untouched.
 | `staff_alert_channel` | `staff_alerts` | New-ticket alerts (`""` = none). |
 | `max_open_per_user` | 1 | Open tickets per user per category (a category can override). |
 | `creation_cooldown_seconds` | 30 | Minimum time between ticket creations per user. |
+| `max_created_per_user_per_day` | 10 | Anti-abuse cap on tickets a user can create per 24 hours (0 = unlimited); prevents one user from filling the ticket category with channels. |
 | `allow_user_close` | true | The owner may close their ticket. |
 | `allow_reopen` / `user_can_reopen` | true / false | Reopening (staff; and optionally the owner). |
 | `close_confirmation` | true | Ask for confirmation before closing. |

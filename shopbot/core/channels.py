@@ -6,12 +6,16 @@ import re
 
 import discord
 
+# Owners/participants: may talk in their ticket, but may not create threads (thread messages would escape the
+# lock-on-close and the transcript).
 OWNER_ALLOW = dict(
     view_channel=True,
     send_messages=True,
     read_message_history=True,
     attach_files=True,
     embed_links=True,
+    create_public_threads=False,
+    create_private_threads=False,
 )
 STAFF_ALLOW = dict(
     view_channel=True,
@@ -21,6 +25,9 @@ STAFF_ALLOW = dict(
     embed_links=True,
     manage_messages=True,
 )
+# The bot's own overwrite. It deliberately does NOT include manage_roles ("Manage Permissions"): Discord only lets
+# administrators grant that in an overwrite, so including it makes channel creation fail with 403 for a bot without
+# Administrator. The bot's guild-level Manage Roles permission already lets it edit overwrites of its channels.
 BOT_ALLOW = dict(
     view_channel=True,
     send_messages=True,
@@ -29,7 +36,6 @@ BOT_ALLOW = dict(
     embed_links=True,
     manage_messages=True,
     manage_channels=True,
-    manage_roles=True,
 )
 # Permissions the bot must hold in the parent category (or guild) to create a private channel.
 CREATE_PRIVATE_REQUIRED = ("view_channel", "manage_channels", "manage_roles", "send_messages", "embed_links")
@@ -74,7 +80,12 @@ def normalize_text_channel_name(name: str) -> str:
 
 
 def render_channel_name(pattern: str, *, prefix: str, number: int, padding: int, user: str = "") -> str:
-    """Fill the channel-name pattern. ``prefix`` is configured content; nothing else is invented."""
+    """Fill the channel-name pattern. ``prefix`` is configured content; nothing else is invented.
+
+    The result is never truncated; callers must refuse names longer than ``CHANNEL_NAME_MAX``.
+    """
     number_text = str(number).zfill(padding) if padding else str(number)
-    name = pattern.replace("{prefix}", prefix).replace("{number}", number_text).replace("{user}", user)
-    return name[:100]
+    return pattern.replace("{prefix}", prefix).replace("{number}", number_text).replace("{user}", user)
+
+
+CHANNEL_NAME_MAX = 100

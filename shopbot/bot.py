@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections import defaultdict
 from collections.abc import Awaitable, Callable
@@ -44,6 +45,8 @@ class ShopBot(discord.Client):
         self.tree.on_error = on_tree_error  # type: ignore[method-assign]
         self._event_listeners: dict[str, list[Listener]] = defaultdict(list)
         self._ready_once = False
+        self._recovery_lock = asyncio.Lock()
+        self.gateway_ready_seen = False
 
     def add_listener(self, event: str, listener: Listener) -> None:
         self._event_listeners[event].append(listener)
@@ -76,40 +79,63 @@ class ShopBot(discord.Client):
                 log_event(log, logging.ERROR, "commands_sync_failed", status=exc.status, code=exc.code)
 
     async def on_ready(self) -> None:
+        self.gateway_ready_seen = True
         if self._ready_once:
             log_event(log, logging.INFO, "gateway_ready_again")
             return
-        self._ready_once = True
         guild = self.get_guild(self.app.env.guild_id)
-        if guild is None:
+        if guild is None or guild.unavailable:
+            # Recovery must not run against an empty/unavailable cache (it would conclude that channels were
+            # deleted). It runs from on_guild_available / on_guild_join once the guild is usable.
             log_event(
                 log,
-                logging.ERROR,
+                logging.WARNING if guild is not None else logging.ERROR,
                 "guild_not_available",
                 guild_id=self.app.env.guild_id,
-                hint="invite the bot to the server identified by GUILD_ID",
+                hint="waiting for the guild; if this persists, invite the bot to the server identified by GUILD_ID",
             )
-        await self.app.resources.refresh()
-        await self.app.load_overrides()
-        await self.app.scheduler.recover()
-        for module in self.app.modules:
-            if module.on_ready is None:
-                continue
+            return
+        await self._startup_recovery(guild)
+
+    async def on_guild_available(self, guild: discord.Guild) -> None:
+        if guild.id == self.app.env.guild_id and self.gateway_ready_seen and not self._ready_once:
+            await self._startup_recovery(guild)
+
+    async def on_guild_join(self, guild: discord.Guild) -> None:
+        if guild.id == self.app.env.guild_id and self.gateway_ready_seen and not self._ready_once:
+            await self._startup_recovery(guild)
+
+    async def _startup_recovery(self, guild: discord.Guild) -> None:
+        """Runs exactly once per process, after the gateway is ready and the guild is available."""
+        async with self._recovery_lock:
+            if self._ready_once:
+                return
+            self._ready_once = True
             try:
-                await module.on_ready(self.app)
+                await self.app.resources.refresh()
+                await self.app.load_overrides()
+                await self.app.scheduler.recover()
+                for module in self.app.modules:
+                    if module.on_ready is None:
+                        continue
+                    try:
+                        await module.on_ready(self.app)
+                    except Exception:
+                        log.exception("recovery for feature %s failed", module.name)
             except Exception:
-                log.exception("recovery for feature %s failed", module.name)
-        self.app.scheduler.start(self.app)
-        statuses = self.app.readiness.statuses
-        log_event(
-            log,
-            logging.INFO,
-            "bot_ready",
-            user=str(self.user),
-            guild_available=guild is not None,
-            ready_features=[n for n, s in statuses.items() if s.ready],
-            not_ready_features=[n for n, s in statuses.items() if s.enabled and not s.ready],
-        )
+                log.exception("startup recovery failed; continuing with the scheduler running")
+            finally:
+                self.app.scheduler.start(self.app)
+            statuses = self.app.readiness.statuses
+            log_event(
+                log,
+                logging.INFO,
+                "bot_ready",
+                user=str(self.user),
+                guild=guild.id,
+                ready_features=[n for n, s in statuses.items() if s.ready],
+                not_ready_features=[n for n, s in statuses.items() if s.enabled and not s.ready],
+            )
 
     async def on_resumed(self) -> None:
         log_event(log, logging.INFO, "gateway_resumed")

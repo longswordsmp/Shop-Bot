@@ -153,6 +153,7 @@ transcript_dm_user = false
 staff_alert_channel = "staff_alerts" # "" disables staff alerts for new tickets
 max_open_per_user = 1
 creation_cooldown_seconds = 30
+max_created_per_user_per_day = 10    # anti-abuse cap on new tickets per user per 24 h (0 = unlimited)
 allow_user_close = true
 allow_reopen = true
 user_can_reopen = false

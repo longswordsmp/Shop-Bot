@@ -64,8 +64,12 @@ TEST_BUSINESS_SETTINGS: dict[str, Any] = {
 }
 
 
+# Tests click the same control repeatedly on purpose; the 700 ms anti-double-click spacing has its own router test.
+TEST_TECHNICAL_SETTINGS: dict[str, Any] = {"bot": {"interaction_cooldown_ms": 0}}
+
+
 def make_settings(overrides: dict[str, Any] | None = None, *, all_features: bool = True) -> Settings:
-    data = shipped_settings_dict()
+    data = deep_merge(shipped_settings_dict(), TEST_TECHNICAL_SETTINGS)
     if all_features:
         data = deep_merge(data, TEST_BUSINESS_SETTINGS)
     if overrides:

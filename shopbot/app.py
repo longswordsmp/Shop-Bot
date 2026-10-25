@@ -38,6 +38,7 @@ EXIT_RUNTIME_ERROR = 1
 EXIT_CONFIG_ERROR = 78
 EXIT_DB_ERROR = 70
 EXIT_LOCKED = 75
+EXIT_UNAVAILABLE = 69  # could not reach Discord before the first READY (network/outage)
 
 
 def _fatal_delay(seconds: int) -> None:
@@ -131,9 +132,15 @@ async def run(env: Env) -> int:
             hint="enable Message Content (and Server Members if members_intent=true) in the Developer Portal",
         )
         exit_code = EXIT_CONFIG_ERROR
-    except Exception:
-        log.exception("bot stopped unexpectedly")
-        exit_code = EXIT_RUNTIME_ERROR
+    except Exception as exc:
+        if not getattr(bot, "gateway_ready_seen", False):
+            # Login/first connection failed (network error, Discord outage). discord.py retries reconnects only
+            # after a successful connection; exit and let the platform restart a clean process after a delay.
+            log_event(log, logging.ERROR, "discord_unreachable_at_startup", error=type(exc).__name__)
+            exit_code = EXIT_UNAVAILABLE
+        else:
+            log.exception("bot stopped unexpectedly")
+            exit_code = EXIT_RUNTIME_ERROR
     finally:
         await app.scheduler.stop()
         await db.close()
@@ -177,6 +184,6 @@ def main() -> int:
         code = asyncio.run(run(env))
     finally:
         lock.release()
-    if code in (EXIT_CONFIG_ERROR, EXIT_DB_ERROR):
+    if code in (EXIT_CONFIG_ERROR, EXIT_DB_ERROR, EXIT_UNAVAILABLE):
         _fatal_delay(env.startup_failure_delay_seconds)
     return code

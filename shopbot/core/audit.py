@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any
 import discord
 
 from shopbot.db.repos import audit as audit_repo
+from shopbot.features.server_keys import PRIVATE_ACCESS, effective_access
 from shopbot.logging_setup import log_event
 from shopbot.ui.discord_render import RenderError, send_kwargs
 from shopbot.ui.spec import EmbedField, MessageSpec
@@ -69,6 +70,9 @@ class AuditLog:
         channel_key = self.app.settings.audit.channel
         bot = self.app.bot
         if not channel_key or bot is None:
+            return
+        if effective_access(self.app.settings, channel_key) not in PRIVATE_ACCESS:
+            log_event(log, logging.WARNING, "audit_channel_not_private", channel=channel_key)
             return
         channel_id = self.app.resources.channel_id(channel_key)
         channel = bot.get_channel(channel_id) if channel_id else None

@@ -25,7 +25,6 @@ from shopbot.context import App
 from tools.offline import ROOT, build_offline_app
 
 CHECKLIST_PATH = ROOT / "docs" / "CONTENT_CHECKLIST.md"
-CONTENT_PATH = ROOT / "config" / "content.toml"
 
 FEATURE_TITLES = {
     "core": "Shared (errors, buttons, formats, branding)",
@@ -132,9 +131,15 @@ async def _run(config_dir: Path, *, enabled_only: bool, write: bool, template: b
         if template:
             from shopbot.features.admin.content_toml import render_content_toml
 
-            values = {d.key: app.content.raw(d.key) or "" for d in app.content.registry.all()}
-            CONTENT_PATH.write_text(render_content_toml(app.content.registry, values), encoding="utf-8")
-            print(f"Wrote {CONTENT_PATH} ({len(values)} keys; existing values preserved)")
+            # Start from EVERY value in the file (including operator.* and keys the current settings do not
+            # register, e.g. a temporarily removed ticket category) so regenerating never deletes text.
+            values = app.content.all_configured_values()
+            for definition in app.content.registry.all():
+                values.setdefault(definition.key, "")
+            target = config_dir / "content.toml"
+            target.write_text(render_content_toml(app.content.registry, values), encoding="utf-8")
+            kept = len([k for k in values if k not in app.content.registry])
+            print(f"Wrote {target} ({len(values)} keys; existing values preserved; {kept} unregistered kept)")
         if not write and not template:
             print(text)
     finally:

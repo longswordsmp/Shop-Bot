@@ -99,8 +99,8 @@ def validate_value(key: ContentKey, value: str) -> list[str]:
         problems.append("must be an https:// URL")
     if key.kind in (Kind.CHANNEL_NAME, Kind.CHANNEL_PREFIX) and value.strip() != value:
         problems.append("must not start or end with whitespace")
-    if key.kind in (Kind.BUTTON_LABEL, Kind.OPTION_LABEL, Kind.MODAL_TITLE, Kind.INPUT_LABEL) and not value.strip():
-        problems.append("must contain visible characters")
+    if not value.strip():
+        problems.append("contains only whitespace; Discord cannot display it (leave it empty to unset)")
     unknown = sorted(set(_PLACEHOLDER_RE.findall(value)) - set(key.placeholders))
     if unknown and key.placeholders:
         problems.append(
@@ -225,6 +225,13 @@ class ContentStore:
         """Configured keys that are not registered (likely typos or keys for removed settings)."""
         configured = {k for k, v in {**self._file, **self._overrides}.items() if v}
         return sorted(k for k in configured if k not in self.registry and not k.startswith(OPERATOR_PREFIX))
+
+    def all_configured_values(self) -> dict[str, str]:
+        """Every non-empty value from the file and overrides (override wins), including keys that are not
+        registered for the current settings and ``operator.*`` keys - used by exports so no text is lost."""
+        merged = {k: v for k, v in self._file.items() if v}
+        merged.update({k: v for k, v in self._overrides.items() if v})
+        return merged
 
     def operator_value(self, key: str) -> str | None:
         value = self._overrides.get(OPERATOR_PREFIX + key) or self._file.get(OPERATOR_PREFIX + key)

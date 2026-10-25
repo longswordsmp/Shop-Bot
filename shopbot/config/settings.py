@@ -355,6 +355,7 @@ class TicketSettings:
     staff_alert_channel: str = ""
     max_open_per_user: int = 1
     creation_cooldown_seconds: int = 30
+    max_created_per_user_per_day: int = 10
     allow_user_close: bool = True
     allow_reopen: bool = True
     user_can_reopen: bool = False
@@ -644,6 +645,7 @@ def parse_settings(data: dict[str, Any]) -> Settings:
         staff_alert_channel=t.str_("staff_alert_channel", "", pattern=KEY_PATTERN),
         max_open_per_user=t.int_("max_open_per_user", 1, min_=1, max_=50),
         creation_cooldown_seconds=t.int_("creation_cooldown_seconds", 30, min_=0, max_=86400),
+        max_created_per_user_per_day=t.int_("max_created_per_user_per_day", 10, min_=0, max_=1000),
         allow_user_close=t.bool_("allow_user_close", True),
         allow_reopen=t.bool_("allow_reopen", True),
         user_can_reopen=t.bool_("user_can_reopen", False),

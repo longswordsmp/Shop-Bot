@@ -100,6 +100,32 @@ def reference_problems(
     return problems
 
 
+PRIVATE_ACCESS = frozenset({"staff", "admin"})
+
+
+def effective_access(settings: Settings, channel_key: str) -> str | None:
+    """The access level a channel gets from settings ('inherit' resolved through its category)."""
+    channel = settings.server.channel(channel_key)
+    if channel is None:
+        return None
+    if channel.access != "inherit":
+        return channel.access
+    category = settings.server.category(channel.category) if channel.category else None
+    return category.access if category is not None else None
+
+
+def private_channel_problems(settings: Settings, references: tuple[tuple[str, str], ...]) -> list[str]:
+    """Channels that receive staff/admin-only output must be configured as staff or admin channels."""
+    problems: list[str] = []
+    for path, key in references:
+        if not key or settings.server.channel(key) is None:
+            continue
+        access = effective_access(settings, key)
+        if access not in PRIVATE_ACCESS:
+            problems.append(f"{path}: channel '{key}' must have staff or admin access (it is '{access}')")
+    return problems
+
+
 def server_problems(settings: Settings) -> list[str]:
     problems: list[str] = []
     for channel in settings.server.channels:
@@ -111,4 +137,5 @@ def server_problems(settings: Settings) -> list[str]:
         reference_problems(settings, roles=settings.permissions.admin_roles + settings.permissions.staff_roles)
     )
     problems.extend(reference_problems(settings, channels=(("audit.channel", settings.audit.channel),)))
+    problems.extend(private_channel_problems(settings, (("audit.channel", settings.audit.channel),)))
     return problems
