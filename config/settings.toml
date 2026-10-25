@@ -282,7 +282,30 @@ announce_new_products = true         # post an update when a product is added or
 announce_restocks = true             # post an update when a sold-out product can be ordered again
 mention_role = true                  # mention the role in those updates (the role must be mentionable)
 
+# Report a Problem (#purchase button): a private step to pick the order and issue type, the issue form, then a
+# private ticket per report where staff Resolve or Reject it. Every word customers see is in content.toml under
+# problems.* (issue-type labels: problems.type.<id>.*). Tickets use the [tickets] settings (numbering, transcripts,
+# closing, staff alert channel).
 [problems]
+discord_category = "purchase"        # category key where report tickets are created (customer + staff only)
+eligible_statuses = ["paid", "processing", "fulfilled"]   # order statuses a report may refer to ([] = never an order)
+allow_without_order = true           # also offer "not about an order" (and allow reports without any order)
+max_open_per_user = 1                # undecided reports with an open ticket per customer
+staff_roles = []                     # extra role keys that may resolve/reject (permissions.staff_roles always can)
+require_reason_on_reject = true      # rejecting asks staff for a reason shown to the customer
+ping_staff = false                   # mention the staff roles in the new-report alert (or in the ticket without one)
+
+# Issue types (max 25). The id is internal; label/description/emoji are content keys problems.type.<id>.*
+# Optional form per type (max 5 fields, same schema as ticket forms; labels: problems.type.<id>.form.<field>.*).
+[[problems.types]]
+id = "general"
+
+[[problems.types.form]]
+id = "details"
+style = "paragraph"
+required = true
+min_length = 0
+max_length = 1000
 
 [my_orders]
 orders_per_page = 5                  # orders per /myorders page (1-9; fewer when the cards would not fit one message)
@@ -311,13 +334,15 @@ auto_close_warning_minutes = 0       # 0 = no warning before auto-close (must be
 channel_name_pattern = "{prefix}-{number}-{user}"   # placeholders: {prefix} (content), {number}, {user}
 number_padding = 4
 
-[[tickets.categories]]
-id = "general"                       # internal id; button label etc. in content.toml tickets.category.general.*
-discord_category = "purchase"
-staff_roles = []
-max_open_per_user = 0                # 0 = use tickets.max_open_per_user
-button_style = "primary"
-ping_staff = false
+# Categories of the standalone ticket panel (only used when tickets.panel_channel is set). Support starts from
+# #purchase (Report a Problem), so none is defined. Example:
+# [[tickets.categories]]
+# id = "general"                     # internal id; button label etc. in content.toml tickets.category.general.*
+# discord_category = "purchase"
+# staff_roles = []
+# max_open_per_user = 0              # 0 = use tickets.max_open_per_user
+# button_style = "primary"
+# ping_staff = false
 # Optional form shown before the ticket is created (max 5 fields). Labels are content keys
 # tickets.category.general.form.<id>.label / .placeholder / .description
 # [[tickets.categories.form]]

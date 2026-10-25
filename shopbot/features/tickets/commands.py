@@ -37,6 +37,7 @@ def command_staff_keys(app: App) -> tuple[str, ...]:
     keys = list(t.staff_roles)
     for category in t.categories:
         keys.extend(category.staff_roles)
+    keys.extend(service.external_staff_keys(app))
     return tuple(dict.fromkeys(keys))
 
 

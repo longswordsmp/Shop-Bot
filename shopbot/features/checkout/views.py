@@ -433,12 +433,18 @@ def catalog_browse_button(ui: Ui) -> ButtonSpec | None:
     return ui.button(catalog_keys.BUTTON_BROWSE, cid("ct", "browse", 0), style="secondary")
 
 
-def panel(ui: Ui, *, browse_button: ButtonSpec | None = None, balance_button: ButtonSpec | None = None) -> MessageSpec:
+def panel(
+    ui: Ui,
+    *,
+    browse_button: ButtonSpec | None = None,
+    balance_button: ButtonSpec | None = None,
+    report_button: ButtonSpec | None = None,
+) -> MessageSpec:
     embed = _content_embed(
         ui, k.PANEL_TITLE, k.PANEL_DESCRIPTION, required=(k.PANEL_TITLE, k.PANEL_DESCRIPTION), panel=True
     )
     start = _button(ui, k.BUTTON_START, start_id(), style="primary")
-    return MessageSpec(embeds=(embed,), rows=rows_of(start, browse_button, balance_button))
+    return MessageSpec(embeds=(embed,), rows=rows_of(start, report_button, browse_button, balance_button))
 
 
 def _open_ticket_rows(ui: Ui, url: str | None) -> Rows:

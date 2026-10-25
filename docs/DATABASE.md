@@ -550,3 +550,35 @@ Constraints:
 - `size INTEGER NOT NULL CHECK (size BETWEEN 1 AND 8388608)`
 - `sha256 TEXT NOT NULL CHECK (length(sha256) = 64 AND sha256 NOT GLOB '*[^0-9a-f]*')`
 - `data BLOB NOT NULL CHECK (typeof(data) = 'blob' AND length(data) = size)`
+
+## `problem_reports`
+
+| Column | Type | Not null | Default | Key |
+|---|---|---|---|---|
+| `id` | INTEGER |  |  | PK |
+| `guild_id` | INTEGER | yes |  |  |
+| `user_id` | INTEGER | yes |  |  |
+| `nonce` | TEXT | yes |  |  |
+| `order_id` | INTEGER |  |  |  |
+| `issue_type` | TEXT | yes |  |  |
+| `answers` | TEXT | yes | '{}' |  |
+| `ticket_id` | INTEGER | yes |  |  |
+| `panel_message_id` | INTEGER |  |  |  |
+| `status` | TEXT | yes | 'open' |  |
+| `reason` | TEXT |  |  |  |
+| `decided_by` | INTEGER |  |  |  |
+| `created_at` | INTEGER | yes |  |  |
+| `updated_at` | INTEGER | yes |  |  |
+| `decided_at` | INTEGER |  |  |  |
+
+Indexes: `idx_problem_reports_order`, `idx_problem_reports_user`
+
+Constraints:
+
+- `nonce TEXT NOT NULL CHECK (length(nonce) BETWEEN 8 AND 64)`
+- `issue_type TEXT NOT NULL CHECK (length(issue_type) BETWEEN 1 AND 32)`
+- `status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'resolved', 'rejected'))`
+- `reason TEXT CHECK (reason IS NULL OR length(reason) BETWEEN 1 AND 1000)`
+- `CHECK ((status = 'open') = (decided_at IS NULL))`
+- `CHECK ((status = 'open') = (decided_by IS NULL))`
+- `CHECK (status != 'open' OR reason IS NULL)`

@@ -27,6 +27,9 @@ Private channels (any kind)
     ``await activate_ticket(app, ticket_id, *, control_message_id) -> Ticket``  'creating' -> 'open'.
     ``await abort_ticket(app, ticket_id, *, reason, channel=None)``  deletes the channel, 'creating' -> 'failed'.
     ``await staff_role_ids(app, extra_keys) -> list[discord.Role]`` (resolved Role objects).
+    ``register_external_category(app, category_id, staff_keys)``: another feature's support tickets (a category
+        id that is not in tickets.categories, e.g. problem reports) get their staff roles from ``staff_keys(app)``
+        in the ticket controls and /ticket commands.
 
 Lifecycle (any kind; support-ticket UI messages are only posted for ``kind='support'``)
     ``await close_ticket(app, ticket_id, *, actor_id, reason=None, transcript=None,
@@ -204,11 +207,31 @@ def format_number(app: App, number: int) -> str:
     return views.number_text(app.settings.tickets, number)
 
 
+def register_external_category(app: App, category_id: str, staff_keys: Callable[[App], tuple[str, ...]]) -> None:
+    """Declare a support-ticket category that another feature creates tickets in (it is not one of
+    tickets.categories; e.g. problem reports). ``staff_keys(app)`` returns the extra staff role keys of its
+    tickets, read at check time so configuration reloads apply. Ticket controls and /ticket commands then treat
+    those roles as staff of these tickets."""
+    runtime(app).external_categories[category_id] = staff_keys
+
+
+def external_staff_keys(app: App) -> tuple[str, ...]:
+    """Extra staff role keys of every external category (see ``register_external_category``)."""
+    keys: list[str] = []
+    for provider in runtime(app).external_categories.values():
+        keys.extend(provider(app))
+    return tuple(dict.fromkeys(keys))
+
+
 def support_staff_keys(app: App, category_id: str) -> tuple[str, ...]:
     """Role keys (besides permissions.staff_roles/admins) that are staff for a support category."""
     t = app.settings.tickets
     category = t.category(category_id)
-    extra = category.staff_roles if category is not None else ()
+    if category is not None:
+        extra = category.staff_roles
+    else:
+        provider = runtime(app).external_categories.get(category_id)
+        extra = provider(app) if provider is not None else ()
     return tuple(dict.fromkeys(t.staff_roles + extra))
 
 
@@ -1403,6 +1426,7 @@ __all__ = [
     "get_ticket",
     "get_ticket_by_channel",
     "participants",
+    "register_external_category",
     "remove_participant",
     "reopen_ticket",
     "schedule_channel_deletion",

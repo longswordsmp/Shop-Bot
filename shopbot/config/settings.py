@@ -602,8 +602,28 @@ class AnnouncementSettings:
 
 
 @dataclass(frozen=True)
+class ProblemType:
+    """[[problems.types]]: one kind of issue customers can report. Its label and form wording are content keys."""
+
+    id: str
+    form: tuple[FormField, ...] = ()
+
+
+@dataclass(frozen=True)
 class ProblemSettings:
     """[problems]: the Report a Problem workflow."""
+
+    discord_category: str = ""
+    eligible_statuses: tuple[str, ...] = ()
+    allow_without_order: bool = True
+    max_open_per_user: int = 1
+    staff_roles: tuple[str, ...] = ()
+    require_reason_on_reject: bool = True
+    ping_staff: bool = False
+    types: tuple[ProblemType, ...] = ()
+
+    def type(self, type_id: str) -> ProblemType | None:
+        return next((t for t in self.types if t.id == type_id), None)
 
 
 # Orders per /myorders page: one card per order plus the list's own card must fit Discord's 10 cards per message.
@@ -1129,8 +1149,33 @@ def _parse_announcements(r: _Reader) -> AnnouncementSettings:
     return _finish(r, settings)
 
 
+MAX_PROBLEM_TYPES = 25  # one selection menu
+
+
 def _parse_problems(r: _Reader) -> ProblemSettings:
-    return _finish(r, ProblemSettings())
+    types: list[ProblemType] = []
+    for t in r.tables("types"):
+        item = ProblemType(id=t.str_("id", "", pattern=KEY_PATTERN, allow_empty=False), form=_form(t, "form"))
+        if not item.id:
+            t.error("id", "is required")
+        t.finish()
+        types.append(item)
+    if len(types) > MAX_PROBLEM_TYPES:
+        r.error("types", f"at most {MAX_PROBLEM_TYPES} issue types fit in one selection menu")
+    _unique(tuple(types), lambda x: x.id, r._p("types"), r._errors)
+    return _finish(
+        r,
+        ProblemSettings(
+            discord_category=r.str_("discord_category", "", pattern=KEY_PATTERN),
+            eligible_statuses=r.keys_("eligible_statuses"),
+            allow_without_order=r.bool_("allow_without_order", True),
+            max_open_per_user=r.int_("max_open_per_user", 1, min_=1, max_=20),
+            staff_roles=r.keys_("staff_roles"),
+            require_reason_on_reject=r.bool_("require_reason_on_reject", True),
+            ping_staff=r.bool_("ping_staff", False),
+            types=tuple(types),
+        ),
+    )
 
 
 def _parse_my_orders(r: _Reader) -> MyOrdersSettings:

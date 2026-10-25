@@ -18,6 +18,7 @@ def all_modules() -> list[FeatureModule]:
     from shopbot.features.info_panels import MODULE as info_panels
     from shopbot.features.my_orders import MODULE as my_orders
     from shopbot.features.new_arrivals import MODULE as new_arrivals
+    from shopbot.features.problems import MODULE as problems
     from shopbot.features.reviews import MODULE as reviews
     from shopbot.features.setup import MODULE as setup
     from shopbot.features.tickets import MODULE as tickets
@@ -40,4 +41,5 @@ def all_modules() -> list[FeatureModule]:
         credits,
         reviews,
         announcements,
+        problems,
     ]

@@ -34,7 +34,15 @@ def browse_button(app: App) -> ButtonSpec | None:
 
 
 def panel_spec(app: App) -> MessageSpec:
-    return views.panel(app.ui, browse_button=browse_button(app), balance_button=credits_service.balance_button(app))
+    # Imported here: the problems feature depends on checkout (no import cycle at module load).
+    from shopbot.features.problems import button as problems_button
+
+    return views.panel(
+        app.ui,
+        browse_button=browse_button(app),
+        balance_button=credits_service.balance_button(app),
+        report_button=problems_button.report_button(app),
+    )
 
 
 def _diagnostics(app: App, guild: discord.Guild) -> list[str]:

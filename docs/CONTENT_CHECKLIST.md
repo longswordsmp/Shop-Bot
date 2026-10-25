@@ -296,18 +296,6 @@ Feature `tickets` — enabled.
 | ❌ | `tickets.button.transcript` | Transcript button on the ticket-closed message (staff only; posts a transcript to the transcript channel). Needed when tickets.transcript_channel is set. | button_label (80) | required |  |
 | ❌ | `tickets.button.unclaim` | Unclaim button that replaces the claim button while a staff member has claimed the ticket. | button_label (80) | required |  |
 
-### Ticket category 'general'
-
-| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
-|---|---|---|---|---|---|
-| ▫️ | `tickets.category.general.button_emoji` | Optional emoji on the 'general' panel button / selection option. | emoji (100) | optional |  |
-| ❌ | `tickets.category.general.button_label` | Label of the 'general' button on the ticket panel (also the option label when the panel uses a selection menu, and {category_label} in the staff alert). | button_label (80) | required |  |
-| ❌ | `tickets.category.general.channel_prefix` | Channel-name prefix for 'general' tickets ({prefix} in tickets.channel_name_pattern). Discord lower-cases channel names and replaces spaces with dashes. | channel_prefix (60) | required |  |
-| ▫️ | `tickets.category.general.channel_topic` | Optional topic of each 'general' ticket channel. {number} is the ticket number, zero-padded to tickets.number_padding digits. {user_name} is the customer's display name. | channel_topic (1024) | optional | `{number}`, `{user_name}` |
-| ▫️ | `tickets.category.general.select_description` | Optional small text under the 'general' option when the panel uses a selection menu. | option_description (100) | optional |  |
-| ❌ | `tickets.category.general.welcome_description` | Text of the welcome message posted in a new 'general' ticket. {user_mention} mentions the customer, {user_name} is their display name. {number} is the ticket number, zero-padded to tickets.number_padding digits. Form answers (if the category has a form) are added below as fields named by the form labels. | description (4096) | required | `{user_mention}`, `{user_name}`, `{number}` |
-| ❌ | `tickets.category.general.welcome_title` | Title of the welcome message posted in a new 'general' ticket (the message that carries the close/claim buttons). {number} is the ticket number, zero-padded to tickets.number_padding digits. Mentions do not render in titles; use {user_name}. | title (256) | required | `{user_mention}`, `{user_name}`, `{number}` |
-
 ### Ticket confirmation prompts (private)
 
 | | Key | Where it appears | Kind (max chars) | Required | Placeholders |
@@ -329,9 +317,9 @@ Feature `tickets` — enabled.
 
 | | Key | Where it appears | Kind (max chars) | Required | Placeholders |
 |---|---|---|---|---|---|
-| ❌ | `tickets.panel.description` | Text of the ticket panel. | description (4096) | required |  |
-| ▫️ | `tickets.panel.select_placeholder` | Greyed-out text of the category selection menu (used when tickets.panel_style = "select"). | select_placeholder (150) | optional |  |
-| ❌ | `tickets.panel.title` | Title of the ticket panel (the message with the open buttons). | title (256) | required |  |
+| ▫️ | `tickets.panel.description` | Text of the ticket panel. Needed when tickets.panel_channel is set. | description (4096) | optional |  |
+| ▫️ | `tickets.panel.select_placeholder` | Greyed-out text of the category selection menu (used when tickets.panel_style = "select" and tickets.panel_channel is set). | select_placeholder (150) | optional |  |
+| ▫️ | `tickets.panel.title` | Title of the ticket panel (the message with the open buttons). Needed when tickets.panel_channel is set. | title (256) | optional |  |
 
 ### New-ticket staff alert
 
@@ -758,14 +746,99 @@ Feature `reviews` — enabled.
 | ▫️ | `reviews.rating.5.emoji` | Optional emoji shown next to the option for rating 5 of 5 in the rating selection menu. | emoji (100) | optional |  |
 | ❌ | `reviews.rating.5.label` | Option label for rating 5 of 5 in the rating selection menu of the review request (options are listed from the highest rating to the lowest). Also shown on the published review when reviews.rating.5.display is empty. | option_label (100) | required |  |
 
+## problems
+
+Feature `problems` — enabled.
+
+### Report a Problem: private choice step (shown only to the customer)
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ❌ | `problems.attachments_note` | Tells the customer that screenshots or files can be uploaded in the private ticket once it is open (the ticket channel allows attachments). Shown below the choice step, below the confirmation after the report was created, and on the report's ticket panel while the report is open. | description (4096) | required |  |
+| ❌ | `problems.choose.description` | Text of the private message in which the customer chooses the order the problem is about (their orders in problems.eligible_statuses, newest first) and/or the issue type, then presses the shared Continue button to describe the problem. Shown only when there is something to choose. You can link server channels with {channel_<key>} (for example {channel_faq}). | description (4096) | required | `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
+| ❌ | `problems.choose.no_order_option` | Label of the last option of the order menu, for a problem that is not about one of the listed orders. Needed when problems.allow_without_order = true and problems.eligible_statuses is not empty. | option_label (100) | required |  |
+| ▫️ | `problems.choose.no_order_option_description` | Optional small text under the 'not about an order' option. | option_description (100) | optional |  |
+| ❌ | `problems.choose.order_option` | Label of each order in the order menu. {order_number} is the order number, {total} the order total written with common.money_format, {status} the order's status name (checkout.status_label.<status>). Needed when problems.eligible_statuses is not empty. | option_label (100) | required | `{order_number}`, `{total}`, `{status}` |
+| ▫️ | `problems.choose.order_option_description` | Optional small text under each order in the order menu. {order_number} is the order number, {total} the order total written with common.money_format, {status} the order's status name (checkout.status_label.<status>). | option_description (100) | optional | `{order_number}`, `{total}`, `{status}` |
+| ❌ | `problems.choose.order_placeholder` | Greyed-out text of the order menu in the private choice step. Needed when problems.eligible_statuses is not empty. | select_placeholder (150) | required |  |
+| ▫️ | `problems.choose.title` | Optional title of the private message in which the customer chooses the order the problem is about and/or the issue type. | title (256) | optional |  |
+| ▫️ | `problems.choose.type_placeholder` | Greyed-out text of the issue-type menu in the private choice step. Needed when more than one [[problems.types]] is configured. | select_placeholder (150) | optional |  |
+
+### Report a Problem: the report's private ticket
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ❌ | `problems.button.reject` | Reject button on the report panel (staff only; opens a form for the reason, required when problems.require_reason_on_reject = true). | button_label (80) | required |  |
+| ❌ | `problems.button.resolve` | Resolve button on the report panel (staff only; opens a form for an optional note to the customer). | button_label (80) | required |  |
+| ❌ | `problems.channel_prefix` | Channel-name prefix of problem-report tickets ({prefix} in tickets.channel_name_pattern). Discord lower-cases channel names and replaces spaces with dashes. | channel_prefix (60) | required |  |
+| ▫️ | `problems.channel_topic` | Optional topic of each problem-report ticket channel. {number} is the report's ticket number (zero-padded to tickets.number_padding digits). {user_name} is the customer's display name. | channel_topic (1024) | optional | `{number}`, `{user_name}` |
+| ▫️ | `problems.ticket.decided_by_field` | Optional field name under which the staff member who decided is mentioned on the report panel. If empty, it is not shown. | field_name (256) | optional |  |
+| ❌ | `problems.ticket.description` | Text of the report panel, for example that only the customer and authorized staff can see this ticket. {user_mention} mentions the customer, {user_name} is their display name. {number} is the report's ticket number (zero-padded to tickets.number_padding digits). {type_label} is the label of the chosen issue type (problems.type.<id>.label). You can link server channels with {channel_<key>} (for example {channel_faq}). The form answers are posted below the panel. | description (4096) | required | `{user_mention}`, `{user_name}`, `{number}`, `{type_label}`, `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
+| ❌ | `problems.ticket.order_field` | Field name of the order the report is about (report panel, staff alert, decision message; omitted when the report is not about an order). Needed when problems.eligible_statuses is not empty. | field_name (256) | required |  |
+| ❌ | `problems.ticket.order_value` | The order the report is about, shown under problems.ticket.order_field. {order_number} is the order number, {total} the order total written with common.money_format, {status} the order's status name (checkout.status_label.<status>). Needed when problems.eligible_statuses is not empty. | field_value (1024) | required | `{order_number}`, `{total}`, `{status}` |
+| ❌ | `problems.ticket.reason_field` | Field name of the reason (rejection) or note (resolution) staff gave, shown exactly as staff wrote it on the report panel and in the decision message (omitted when staff gave none). | field_name (256) | required |  |
+| ❌ | `problems.ticket.status_field` | Field name of the report status on the report panel. | field_name (256) | required |  |
+| ❌ | `problems.ticket.title` | Title of the report panel posted in the new ticket (the live message that shows the report and its status). {number} is the report's ticket number (zero-padded to tickets.number_padding digits). {type_label} is the label of the chosen issue type (problems.type.<id>.label). {user_name} is the customer's display name. | title (256) | required | `{number}`, `{type_label}`, `{user_name}` |
+| ❌ | `problems.ticket.type_field` | Field name of the issue type on the report panel. | field_name (256) | required |  |
+
+### Report a Problem: button on the #purchase panel
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ❌ | `problems.button.report` | Label of the Report a Problem button on the #purchase panel (next to the Start button). The button appears once the Report a Problem feature is fully configured (run /setup to update the panel). | button_label (80) | required |  |
+| ▫️ | `problems.button.report_emoji` | Optional emoji on the Report a Problem button. | emoji (100) | optional |  |
+
+### Report a Problem: private replies
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ❌ | `problems.created.description` | Private confirmation after the report's ticket was created. {channel_mention} links the ticket; {number} is the report's ticket number (zero-padded to tickets.number_padding digits). Also shown when the same report form is submitted again. | description (4096) | required | `{channel_mention}`, `{number}` |
+| ❌ | `problems.limit_reached.description` | Private reply when the customer already has problems.max_open_per_user undecided reports with an open ticket. {limit} is that number; {channel_mention} links the ticket of their newest open report. | description (4096) | required | `{limit}`, `{channel_mention}` |
+| ▫️ | `problems.no_orders.description` | Private reply when the customer has no order a report may refer to (statuses in problems.eligible_statuses). Needed when problems.allow_without_order = false. You can link server channels with {channel_<key>} (for example {channel_faq}). | description (4096) | optional | `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
+
+### Report a Problem: decision messages to the customer
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ❌ | `problems.notify.rejected.description` | Text of the private message telling the customer their report was rejected (staff's reason/note follows under problems.ticket.reason_field). Sent by direct message when features.dm_notifications is on; the report panel in the ticket always shows the decision, and this message is posted in the ticket when the panel cannot be updated. {channel_mention} links the ticket. {number} is the report's ticket number (zero-padded to tickets.number_padding digits). {type_label} is the label of the chosen issue type (problems.type.<id>.label). | description (4096) | required | `{number}`, `{type_label}`, `{channel_mention}` |
+| ▫️ | `problems.notify.rejected.title` | Optional title of the private message telling the customer their report was rejected. {number} is the report's ticket number (zero-padded to tickets.number_padding digits). {type_label} is the label of the chosen issue type (problems.type.<id>.label). | title (256) | optional | `{number}`, `{type_label}` |
+| ❌ | `problems.notify.resolved.description` | Text of the private message telling the customer their report was resolved (staff's reason/note follows under problems.ticket.reason_field). Sent by direct message when features.dm_notifications is on; the report panel in the ticket always shows the decision, and this message is posted in the ticket when the panel cannot be updated. {channel_mention} links the ticket. {number} is the report's ticket number (zero-padded to tickets.number_padding digits). {type_label} is the label of the chosen issue type (problems.type.<id>.label). | description (4096) | required | `{number}`, `{type_label}`, `{channel_mention}` |
+| ▫️ | `problems.notify.resolved.title` | Optional title of the private message telling the customer their report was resolved. {number} is the report's ticket number (zero-padded to tickets.number_padding digits). {type_label} is the label of the chosen issue type (problems.type.<id>.label). | title (256) | optional | `{number}`, `{type_label}` |
+
+### Report a Problem: staff alert
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ❌ | `problems.staff_alert.description` | Text of the new-report staff alert (the report details stay in the private ticket). {user_mention} mentions the customer, {channel_mention} links the ticket. {number} is the report's ticket number (zero-padded to tickets.number_padding digits). {type_label} is the label of the chosen issue type (problems.type.<id>.label). Needed when tickets.staff_alert_channel is set. | description (4096) | required | `{user_mention}`, `{channel_mention}`, `{number}`, `{type_label}` |
+| ❌ | `problems.staff_alert.title` | Title of the alert posted in the staff alert channel (tickets.staff_alert_channel) for each new report. {number} is the report's ticket number (zero-padded to tickets.number_padding digits). {type_label} is the label of the chosen issue type (problems.type.<id>.label). Needed when tickets.staff_alert_channel is set. | title (256) | required | `{number}`, `{type_label}` |
+
+### Report a Problem: report statuses and decisions
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ❌ | `problems.status.open` | Name of the report status 'open' (waiting for a staff decision), shown on the report panel. | field_value (1024) | required |  |
+| ❌ | `problems.status.rejected` | Name of the report status 'rejected' (staff rejected the report), shown on the report panel. | field_value (1024) | required |  |
+| ❌ | `problems.status.resolved` | Name of the report status 'resolved' (staff resolved the report), shown on the report panel. | field_value (1024) | required |  |
+
+### Report a Problem: issue type 'general'
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ▫️ | `problems.type.general.description` | Optional small text under the 'general' option in the issue-type menu (shown when several types exist). | option_description (100) | optional |  |
+| ▫️ | `problems.type.general.emoji` | Optional emoji of the 'general' option in the issue-type menu. | emoji (100) | optional |  |
+| ▫️ | `problems.type.general.form.details.description` | Optional help text under the label of the 'details' field. | input_description (100) | optional |  |
+| ❌ | `problems.type.general.form.details.label` | Label of the 'details' field of the 'general' form (also the field name of the answer on the report's ticket). | input_label (45) | required |  |
+| ▫️ | `problems.type.general.form.details.placeholder` | Optional greyed-out example text inside the empty 'details' field. | input_placeholder (100) | optional |  |
+| ❌ | `problems.type.general.form_title` | Title of the form in which the customer describes a 'general' problem, before the ticket is created (opened by the choice step's Continue button, or right away when there is nothing to choose). | modal_title (45) | required |  |
+| ❌ | `problems.type.general.label` | Name of the 'general' issue type: the option in the issue-type menu of the private report step, and {type_label} / the type shown on the report's ticket panel, in the staff alert and in the decision message. | option_label (100) | required |  |
+
 ## Business decisions and settings still open
 
 - **verification**: verification.rules is not set (the number of server rules shown on the welcome panel, 1-25; each rule then needs verification.rule.<n>.name and .value)
-- **tickets**: tickets.panel_channel: required (the channel that shows the ticket panel)
 
 ## Summary
 
-- Required keys (for the listed features): 233
-- Required keys still missing: 211
+- Required keys (for the listed features): 255
+- Required keys still missing: 233
 
 Legend: ✅ configured · ❌ required and missing · ▫️ optional and empty

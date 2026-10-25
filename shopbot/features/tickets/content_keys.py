@@ -110,6 +110,11 @@ def channel_name_length(pattern: str, *, prefix: int, number: int, user: int) ->
     )
 
 
+def panel_enabled(settings: Settings) -> bool:
+    """The standalone ticket panel is published only when tickets.panel_channel is set ("" = no panel)."""
+    return bool(settings.tickets.panel_channel)
+
+
 def auto_close_enabled(settings: Settings) -> bool:
     return settings.tickets.auto_close_inactive_minutes > 0
 
@@ -235,16 +240,32 @@ def content_keys(settings: Settings) -> list[ContentKey]:
     g_private = "Ticket private replies"
     g_alert = "New-ticket staff alert"
     g_transcript = "Ticket transcripts"
+    panel = panel_enabled(settings)
     keys = [
-        ck(PANEL_TITLE, Kind.TITLE, FEATURE, g_panel, "Title of the ticket panel (the message with the open buttons)."),
-        ck(PANEL_DESCRIPTION, Kind.DESCRIPTION, FEATURE, g_panel, "Text of the ticket panel."),
+        ck(
+            PANEL_TITLE,
+            Kind.TITLE,
+            FEATURE,
+            g_panel,
+            "Title of the ticket panel (the message with the open buttons). Needed when tickets.panel_channel is set.",
+            required=panel,
+        ),
+        ck(
+            PANEL_DESCRIPTION,
+            Kind.DESCRIPTION,
+            FEATURE,
+            g_panel,
+            "Text of the ticket panel. Needed when tickets.panel_channel is set.",
+            required=panel,
+        ),
         ck(
             PANEL_SELECT_PLACEHOLDER,
             Kind.SELECT_PLACEHOLDER,
             FEATURE,
             g_panel,
-            'Greyed-out text of the category selection menu (used when tickets.panel_style = "select").',
-            required=t.panel_style == "select",
+            'Greyed-out text of the category selection menu (used when tickets.panel_style = "select" and '
+            "tickets.panel_channel is set).",
+            required=panel and t.panel_style == "select",
         ),
         ck(BUTTON_CLOSE, Kind.BUTTON_LABEL, FEATURE, g_buttons, "Close button on the ticket welcome message."),
         ck(
@@ -519,10 +540,10 @@ def shared_keys(settings: Settings) -> list[str]:
 def settings_problems(settings: Settings) -> list[str]:
     t = settings.tickets
     problems: list[str] = []
-    if not t.panel_channel:
-        problems.append("tickets.panel_channel: required (the channel that shows the ticket panel)")
-    if not t.categories:
-        problems.append("tickets.categories: define at least one ticket category")
+    # The standalone ticket panel is optional (private tickets can also be opened by other features, e.g. Report a
+    # Problem); a panel needs at least one category to offer.
+    if t.panel_channel and not t.categories:
+        problems.append("tickets.categories: define at least one ticket category (tickets.panel_channel shows them)")
     channels = (
         ("tickets.panel_channel", t.panel_channel),
         ("tickets.transcript_channel", t.transcript_channel),

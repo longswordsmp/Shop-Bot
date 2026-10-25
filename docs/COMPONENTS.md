@@ -53,6 +53,15 @@ perform staff actions check staff status inside the handler, e.g. per-ticket-cat
 | component | `ct` | `remove_no` | catalog | staff | no | `shopbot.features.catalog.handlers.on_remove_cancel` |
 | component | `mo` | `page` | my_orders | any | no | `shopbot.features.my_orders.handlers.on_page` |
 | component | `na` | `toggle` | new_arrivals | any | no | `shopbot.features.new_arrivals.handlers.on_toggle` |
+| modal | `pr` | `form` | problems | any | no | `shopbot.features.problems.handlers.form_submit` |
+| component | `pr` | `go` | problems | any | no | `shopbot.features.problems.handlers.continue_button` |
+| component | `pr` | `order` | problems | any | no | `shopbot.features.problems.handlers.order_pick` |
+| component | `pr` | `reject` | problems | staff | no | `shopbot.features.problems.handlers.reject_button` |
+| modal | `pr` | `rejected` | problems | staff | no | `shopbot.features.problems.handlers.reject_submit` |
+| component | `pr` | `resolve` | problems | staff | no | `shopbot.features.problems.handlers.resolve_button` |
+| modal | `pr` | `resolved` | problems | staff | no | `shopbot.features.problems.handlers.resolve_submit` |
+| component | `pr` | `start` | problems | any | no | `shopbot.features.problems.handlers.start_button` |
+| component | `pr` | `type` | problems | any | no | `shopbot.features.problems.handlers.type_pick` |
 | modal | `rv` | `comment` | reviews | any | yes | `shopbot.features.reviews.handlers.on_comment` |
 | component | `rv` | `decline` | reviews | any | yes | `shopbot.features.reviews.handlers.on_decline` |
 | component | `rv` | `rate` | reviews | any | yes | `shopbot.features.reviews.handlers.on_rate` |
@@ -83,6 +92,8 @@ perform staff actions check staff status inside the handler, e.g. per-ticket-cat
 - `checkout.session_warning`
 - `checkout.ticket_check`
 - `new_arrivals.announce`
+- `problems.after_decision`
+- `problems.finish`
 - `reviews.prompt`
 - `reviews.publish`
 - `tickets.auto_close`
