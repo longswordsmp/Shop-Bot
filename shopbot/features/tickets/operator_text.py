@@ -65,4 +65,9 @@ OPERATOR_TEXT: dict[str, str] = {
     "tickets.publish.no_content_intent": (
         "Transcripts are enabled but bot.message_content_intent is false: transcripts will not contain message text."
     ),
+    "tickets.publish.ping_not_mentionable": (
+        "Ticket category '{category}': ping_staff is on, but {roles} cannot be mentioned by the bot (the role is "
+        "not mentionable and the bot lacks Mention @everyone, @here and All Roles), so staff get no notification. "
+        "Set mentionable = true for the role or grant the bot that permission."
+    ),
 }

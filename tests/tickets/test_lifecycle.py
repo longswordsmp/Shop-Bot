@@ -256,7 +256,7 @@ async def test_delete_generates_pending_transcript_first(tk: TestEnv) -> None:
     assert deleted.transcript_status == "done"
     assert ch.deleted
     transcripts = channel(tk, "transcripts").messages
-    assert len(transcripts) == 1 and transcripts[0].files[0].filename == f"transcript-{number(tk, 1)}.html"
+    assert len(transcripts) == 1 and transcripts[0].files[0].filename == f"{number(tk, 1)}.html"
     assert "tickets.deleted" in await audit_actions(tk)
     # The pending transcript task now has nothing to do.
     assert (await task(tk, service.dedupe_transcript(ticket.id))).status == "cancelled"
@@ -334,3 +334,56 @@ def _with(tenv: TestEnv, **ticket_settings: object):  # type: ignore[no-untyped-
     from dataclasses import replace
 
     return replace(tenv.app.settings, tickets=replace(tenv.app.settings.tickets, **ticket_settings))
+
+
+async def test_controls_are_kept_when_the_closed_message_cannot_be_posted(tk: TestEnv) -> None:
+    customer = tk.member()
+    _, ticket, ch = await open_ticket(tk, customer)
+    staff = tk.member(name="staff", staff=True)
+    ch.fail_send = http_error(discord.HTTPException, 400, 50035, "Invalid Form Body")
+    assert await service.close_ticket(tk.app, ticket.id, actor_id=staff.id, reason="spam") is not None
+    assert (await ticket_of(tk, ticket.id)).status == "closed"
+    assert [m for m in ch.messages if cid("tk", "delete", ticket.id) in m.custom_ids()] == []
+    # Staff are not left without controls: the welcome keeps its buttons.
+    assert control_message(ch, ticket).custom_ids() == [cid("tk", "close", ticket.id), cid("tk", "claim", ticket.id)]
+
+
+async def test_controls_are_kept_when_the_closed_message_text_is_missing(tk: TestEnv) -> None:
+    customer = tk.member()
+    _, ticket, ch = await open_ticket(tk, customer)
+    values = dict(tk.content)
+    del values[k.CLOSED_TITLE]
+    tk.app.content.replace(file_values=values)  # removed at runtime (readiness not recomputed yet)
+    await service.close_ticket(tk.app, ticket.id, actor_id=customer.id)
+    assert control_message(ch, ticket).view is not None
+
+
+def _thread_perms(overwrite: discord.PermissionOverwrite | None) -> tuple[object, object, object]:
+    assert overwrite is not None
+    return overwrite.create_public_threads, overwrite.create_private_threads, overwrite.send_messages_in_threads
+
+
+async def test_owner_and_participants_cannot_use_threads_to_bypass_the_lock(tk: TestEnv) -> None:
+    customer = tk.member()
+    _, ticket, ch = await open_ticket(tk, customer)
+    # Open: thread creation is denied (thread messages are not in the transcript).
+    assert _thread_perms(overwrite_for(ch, customer.id)) == (False, False, None)
+    helper = tk.member(name="helper")
+    assert await service.add_participant(tk.app, ticket, helper, actor_id=customer.id)
+    assert _thread_perms(overwrite_for(ch, helper.id)) == (False, False, None)
+
+    await service.close_ticket(tk.app, ticket.id, actor_id=customer.id)  # lock_on_close = true
+    for user_id in (customer.id, helper.id):
+        locked = overwrite_for(ch, user_id)
+        assert _thread_perms(locked) == (False, False, False)
+        assert locked is not None and locked.send_messages is False and locked.view_channel is True
+    late = tk.member(name="late")
+    closed = await ticket_of(tk, ticket.id)
+    assert await service.add_participant(tk.app, closed, late, actor_id=customer.id)
+    assert _thread_perms(overwrite_for(ch, late.id)) == (False, False, False)
+
+    await service.reopen_ticket(tk.app, ticket.id, actor_id=customer.id)
+    for user_id in (customer.id, helper.id, late.id):
+        unlocked = overwrite_for(ch, user_id)
+        assert unlocked is not None and unlocked.send_messages is True
+        assert _thread_perms(unlocked) == (False, False, None)  # posting restored, threads still denied

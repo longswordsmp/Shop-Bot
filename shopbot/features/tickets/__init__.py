@@ -30,6 +30,7 @@ MODULE = FeatureModule(
     content_keys=keys.content_keys,
     settings_problems=keys.settings_problems,
     shared_keys=keys.shared_keys,
+    content_problems=keys.content_problems,
     operator_text=OPERATOR_TEXT,
     register=_register,
     on_ready=events.on_ready,

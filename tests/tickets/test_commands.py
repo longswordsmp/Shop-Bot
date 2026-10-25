@@ -150,7 +150,7 @@ async def test_transcript_command_with_and_without_channel(tmp_path: Path) -> No
         message = interaction.last_sent
         assert message is not None and message.ephemeral  # type: ignore[attr-defined]
         assert message.embeds[0].title == tenv.app.op("tickets.cmd.transcript_attached", number=number(tenv, 1))
-        assert message.files[0].filename == f"transcript-{number(tenv, 1)}.html"
+        assert message.files[0].filename == f"{number(tenv, 1)}.html"
         assert (await ticket_of(tenv, ticket.id)).transcript_status == "none"
     finally:
         await tenv.close()

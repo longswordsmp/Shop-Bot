@@ -3,8 +3,10 @@ from __future__ import annotations
 import sqlite3
 from dataclasses import replace
 from pathlib import Path
+from typing import Any
 
 import discord
+import pytest
 
 from shopbot.features.tickets import MODULE, repo, service
 from shopbot.features.tickets import content_keys as k
@@ -291,3 +293,71 @@ async def test_auto_close_task_does_nothing_when_feature_is_switched_off(tmp_pat
         assert (await task(tenv, service.dedupe_auto_close(ticket.id))).status == "done"
     finally:
         await tenv.close()
+
+
+async def test_restart_recovery_skips_an_unavailable_guild(tmp_path: Path) -> None:
+    tenv = await make_env(tmp_path, {"tickets": {"delete_after_close_minutes": 30}})
+    try:
+        _, open_one, _ = await open_ticket(tenv, tenv.member())
+        _, closed_one, _ = await open_ticket(tenv, tenv.member(name="second"))
+        await service.close_ticket(tenv.app, closed_one.id, actor_id=None)
+        creating = await _insert_creating(tenv, tenv.member(name="third").id, None)
+        tenv.clock.advance(400)
+        # A guild stub from READY (GUILD_CREATE not received yet) has no channels in its cache.
+        tenv.guild.unavailable = True  # type: ignore[attr-defined]
+        tenv.guild._channels.clear()
+        assert MODULE.on_ready is not None
+        await MODULE.on_ready(tenv.app)
+        assert (await ticket_of(tenv, open_one.id)).status == "open"
+        assert (await ticket_of(tenv, closed_one.id)).status == "closed"
+        assert (await ticket_of(tenv, creating)).status == "creating"
+        assert "tickets.channel_deleted" not in await audit_actions(tenv)
+    finally:
+        await tenv.close()
+
+
+async def test_restart_recovery_confirms_missing_channels_with_discord(
+    tk: TestEnv, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _, cached_miss, cached_miss_channel = await open_ticket(tk, tk.member())
+    _, unknown, unknown_channel = await open_ticket(tk, tk.member(name="second"))
+    _, gone, gone_channel = await open_ticket(tk, tk.member(name="third"))
+    original_get = tk.guild.get_channel
+    hidden = {cached_miss_channel.id, unknown_channel.id}
+
+    def cache_without(channel_id: int | None) -> Any:  # not in the cache, but still on Discord
+        return None if channel_id in hidden else original_get(channel_id)
+
+    original_fetch = tk.bot.fetch_channel
+    fetched: list[int] = []
+
+    async def fetch(channel_id: int) -> Any:
+        fetched.append(channel_id)
+        if channel_id == unknown_channel.id:
+            raise http_error(discord.DiscordServerError, 503, 0, "Service Unavailable")
+        return await original_fetch(channel_id)
+
+    monkeypatch.setattr(tk.guild, "get_channel", cache_without)
+    monkeypatch.setattr(tk.bot, "fetch_channel", fetch)
+    tk.guild._channels.pop(gone_channel.id)  # really deleted while the bot was offline
+    assert MODULE.on_ready is not None
+    await MODULE.on_ready(tk.app)
+    assert sorted(fetched) == sorted([cached_miss_channel.id, unknown_channel.id, gone_channel.id])
+    assert (await ticket_of(tk, cached_miss.id)).status == "open"
+    assert (await ticket_of(tk, unknown.id)).status == "open"  # Discord could not tell: nothing changes
+    assert (await ticket_of(tk, gone.id)).status == "deleted"
+    assert (await audit_actions(tk)).count("tickets.channel_deleted") == 1
+
+
+async def test_restart_recovery_gives_young_creations_a_recovery_task(tk: TestEnv) -> None:
+    young = await _insert_creating(tk, tk.member().id, None)  # inserted without its task (older version)
+    assert await task(tk, service.dedupe_recover_creating(young)) is None
+    assert MODULE.on_ready is not None
+    await MODULE.on_ready(tk.app)
+    recovery = await task(tk, service.dedupe_recover_creating(young))
+    created = await ticket_of(tk, young)
+    assert recovery.status == "pending" and recovery.run_at == created.created_at + service.CREATING_STALE_SECONDS
+    assert created.status == "creating"
+    tk.clock.advance(service.CREATING_STALE_SECONDS)
+    await tk.app.scheduler.run_due()
+    assert (await ticket_of(tk, young)).status == "failed"

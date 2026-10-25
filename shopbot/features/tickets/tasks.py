@@ -10,14 +10,25 @@ from shopbot.config.content import MissingContent
 from shopbot.core.scheduler import PermanentTaskError, RescheduleTask
 from shopbot.db.repos.tasks import Task
 from shopbot.features.tickets import content_keys as k
-from shopbot.features.tickets import repo, service, views
-from shopbot.features.tickets.models import CLOSE_REASON_INACTIVE, CLOSED, TRANSCRIPT_FAILED, TRANSCRIPT_PENDING, Ticket
+from shopbot.features.tickets import events, repo, service, views
+from shopbot.features.tickets.models import (
+    CLOSE_REASON_INACTIVE,
+    CLOSED,
+    CREATING,
+    TRANSCRIPT_FAILED,
+    TRANSCRIPT_PENDING,
+    Ticket,
+)
 from shopbot.logging_setup import log_event
 
 if TYPE_CHECKING:
     from shopbot.context import App
 
 log = logging.getLogger(__name__)
+
+# While the tickets feature is not ready (content or settings being fixed), automatic closes wait this long
+# between checks; postponing never uses up retry attempts.
+NOT_READY_RETRY_SECONDS = 300
 
 
 def _ticket_id(task: Task) -> int:
@@ -86,12 +97,20 @@ async def auto_close_task(app: App, task: Task) -> None:
     ticket = _open_support(await service.get_ticket(app, _ticket_id(task)))
     if ticket is None or not app.settings.features.tickets or not k.auto_close_enabled(app.settings):
         return  # nothing to do: closed meanwhile, or automatic closing / the feature was switched off
-    due = ticket.last_activity_at + app.settings.tickets.auto_close_inactive_minutes * 60
-    if app.clock.now() < due:
+    inactive_seconds = app.settings.tickets.auto_close_inactive_minutes * 60
+    due = ticket.last_activity_at + inactive_seconds
+    now = app.clock.now()
+    if now < due:
         raise _rearm(due)
     if not app.ready(k.FEATURE):
-        raise RuntimeError("tickets feature is not ready; auto-close postponed")
+        log_event(log, logging.INFO, "tickets_auto_close_postponed", ticket_id=ticket.id, reason="feature_not_ready")
+        raise _rearm(now + NOT_READY_RETRY_SECONDS)
     await service.close_ticket(app, ticket.id, actor_id=None, reason=CLOSE_REASON_INACTIVE)
+    current = await service.get_ticket(app, ticket.id)
+    if current is not None and current.is_open:
+        # Reopened while this task was closing it: the reopen could not reschedule this (running) task,
+        # so it is kept for the reopened ticket's next inactivity deadline.
+        raise _rearm(current.last_activity_at + inactive_seconds)
 
 
 async def auto_close_warning_task(app: App, task: Task) -> None:
@@ -118,7 +137,31 @@ async def auto_close_warning_task(app: App, task: Task) -> None:
     )
 
 
+async def recover_creating_task(app: App, task: Task) -> None:
+    """Durable sweep of one creation (scheduled when its row was reserved): if the ticket is still
+    'creating' this long after, the creation was interrupted and is finished or failed now. A ticket that
+    is no longer 'creating' needs nothing."""
+    ticket = await service.get_ticket(app, _ticket_id(task))
+    if ticket is None or ticket.status != CREATING:
+        return
+    now = app.clock.now()
+    stale_at = ticket.created_at + service.CREATING_STALE_SECONDS
+    if now < stale_at:
+        raise _rearm(stale_at)
+    guild = app.guild
+    if guild is None or not events.guild_ready(guild):
+        raise _rearm(now + service.CREATING_STALE_SECONDS)
+    try:
+        result = await events.recover_creating(app, guild, ticket)
+    except events.RecoveryDeferred as exc:
+        log_event(log, logging.WARNING, "tickets_recovery_deferred", ticket_id=ticket.id, reason=str(exc))
+        raise _rearm(now + service.CREATING_STALE_SECONDS) from None
+    if result is not None:
+        log_event(log, logging.WARNING, "tickets_creation_recovered", ticket_id=ticket.id, result=result)
+
+
 def register(app: App) -> None:
+    app.scheduler.register(service.TASK_RECOVER_CREATING, recover_creating_task)
     app.scheduler.register(service.TASK_TRANSCRIPT, transcript_task)
     app.scheduler.register(service.TASK_DELETE, delete_task)
     app.scheduler.register(service.TASK_AUTO_CLOSE, auto_close_task)

@@ -20,6 +20,8 @@ TRANSCRIPT_PENDING = "pending"
 TRANSCRIPT_DONE = "done"
 TRANSCRIPT_FAILED = "failed"
 TRANSCRIPT_SKIPPED = "skipped"
+# A transcript that still has to be produced (a channel is never deleted by the bot while one is outstanding).
+TRANSCRIPT_OUTSTANDING = (TRANSCRIPT_PENDING, TRANSCRIPT_FAILED)
 
 CLOSE_REASON_INACTIVE = "inactive"
 CLOSE_REASON_CHANNEL_DELETED = "channel_deleted"

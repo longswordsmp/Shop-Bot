@@ -4,6 +4,10 @@ Routes are registered with ``access="any"`` because ticket staff may hold a cate
 role that the router does not know about; every handler re-loads the ticket by id, verifies it belongs
 to this guild and is a support ticket, checks the actor (owner and/or staff of that ticket's category)
 and the ticket state, and only then performs the action.
+
+The select-style panel keeps showing the option a member picked (Discord does not reset a select), so
+after every pick its menu is re-rendered on the panel message; otherwise the same category could not be
+picked again.
 """
 
 from __future__ import annotations
@@ -24,7 +28,7 @@ from shopbot.features.tickets import repo, service, views
 from shopbot.features.tickets.models import KIND_SUPPORT, Ticket
 from shopbot.features.tickets.runtime import runtime
 from shopbot.logging_setup import log_event
-from shopbot.ui.discord_render import RenderError
+from shopbot.ui.discord_render import RenderError, to_view
 from shopbot.ui.routing import Ctx, HandlerError
 from shopbot.ui.spec import MessageSpec
 
@@ -75,10 +79,18 @@ def _check_cooldown(ctx: Ctx) -> None:
 
 
 async def _check_limit(ctx: Ctx, category: TicketCategory) -> None:
-    limit = category.max_open_per_user or ctx.app.settings.tickets.max_open_per_user
-    count = await ctx.app.db.run(repo.count_active, ctx.app.env.guild_id, ctx.user_id, KIND_SUPPORT, category.id)
+    """Early answer before a form is shown; the limits are enforced again atomically on creation."""
+    app = ctx.app
+    limit = service.open_limit(app, category.id)
+    count = await app.db.run(repo.count_active, app.env.guild_id, ctx.user_id, KIND_SUPPORT, category.id)
     if count >= limit:
         raise HandlerError(k.LIMIT_REACHED, limit=limit)
+    daily = k.daily_creation_cap(app.settings)
+    if daily > 0:
+        since = app.clock.now() - repo.DAY_SECONDS
+        created = await app.db.run(repo.count_created_since, app.env.guild_id, ctx.user_id, KIND_SUPPORT, since)
+        if created >= daily:
+            raise HandlerError(k.LIMIT_REACHED, limit=daily)
 
 
 def _category(ctx: Ctx, category_id: str | None) -> TicketCategory:
@@ -98,21 +110,62 @@ def _member(ctx: Ctx) -> discord.Member:
 # -- opening ------------------------------------------------------------------------------------------------
 
 
-async def _start_open(ctx: Ctx, category_id: str | None) -> None:
+async def _open_checks(ctx: Ctx, category_id: str | None) -> TicketCategory:
     category = _category(ctx, category_id)
     _member(ctx)
     _check_cooldown(ctx)
     await _check_limit(ctx, category)
+    return category
+
+
+async def _start_open(ctx: Ctx, category_id: str | None) -> None:
+    category = await _open_checks(ctx, category_id)
     if category.form:
         await ctx.send_modal(views.form_modal(ctx.app.ui, category))
         return
     await _create(ctx, category, {})
 
 
-async def _create(ctx: Ctx, category: TicketCategory, answers: dict[str, str]) -> None:
+def _panel_view(ctx: Ctx) -> discord.ui.View | None:
+    """The select-style panel's components, freshly rendered (no option selected); None if not buildable."""
+    try:
+        spec = views.panel(ctx.app.ui, ctx.app.settings.tickets, style="select")
+    except MissingContent:
+        return None
+    return to_view(MessageSpec(rows=spec.rows))
+
+
+async def _reset_panel(ctx: Ctx) -> None:
+    """Best effort: re-render the panel's menu on the message the pick came from."""
+    message = ctx.interaction.message
+    view = _panel_view(ctx)
+    if message is None or view is None:
+        return
+    try:
+        await message.edit(view=view)
+    except discord.HTTPException as exc:
+        log_event(log, logging.INFO, "tickets_panel_reset_failed", status=exc.status)
+
+
+async def _ack_by_resetting_panel(ctx: Ctx) -> bool:
+    """Acknowledge a pick by re-rendering the panel's menu (the answer follows as a private followup).
+    False when that is not possible; the caller acknowledges differently then."""
+    view = _panel_view(ctx)
+    if view is None or ctx.interaction.message is None or ctx.responded:
+        return False
+    try:
+        await ctx.interaction.response.edit_message(view=view)
+    except discord.HTTPException as exc:
+        log_event(log, logging.INFO, "tickets_panel_reset_failed", status=exc.status)
+        return False
+    return True
+
+
+async def _create(ctx: Ctx, category: TicketCategory, answers: dict[str, str], *, from_select: bool = False) -> None:
     app = ctx.app
     member = _member(ctx)
-    await ctx.defer_reply(ephemeral=True)
+    if not (from_select and await _ack_by_resetting_panel(ctx)):
+        await ctx.defer_reply(ephemeral=True)
     try:
         created = await service.open_support_ticket(app, member=member, category=category, answers=answers)
     except service.TicketLimitReached as exc:
@@ -130,7 +183,18 @@ async def open_button(ctx: Ctx) -> None:
 
 
 async def pick_select(ctx: Ctx) -> None:
-    await _start_open(ctx, ctx.values[0] if ctx.values else None)
+    """A category picked in the select-style panel; the panel's menu is reset afterwards in every case."""
+    try:
+        category = await _open_checks(ctx, ctx.values[0] if ctx.values else None)
+    except HandlerError as exc:
+        await ctx.fail(exc.key, **exc.values)
+        await _reset_panel(ctx)
+        return
+    if category.form:
+        await ctx.send_modal(views.form_modal(ctx.app.ui, category))
+        await _reset_panel(ctx)
+        return
+    await _create(ctx, category, {}, from_select=True)
 
 
 async def form_submit(ctx: Ctx) -> None:
@@ -209,12 +273,19 @@ async def reopen_button(ctx: Ctx) -> None:
     t = ctx.app.settings.tickets
     if not t.allow_reopen:
         raise HandlerError(core.ERROR_UNAVAILABLE)
+    staff = _is_staff(ctx, ticket)
     owner_allowed = t.user_can_reopen and ticket.user_id == ctx.user_id
-    if not owner_allowed and not _is_staff(ctx, ticket):
+    if not owner_allowed and not staff:
         raise HandlerError(core.ERROR_PERMISSION)
     _require_status(ticket, "closed")
+    # The owner may not exceed the category's open-ticket limit by reopening; staff reopen without limit.
+    limit = None if staff else service.open_limit(ctx.app, ticket.category_id)
     await ctx.defer_update()
-    if await service.reopen_ticket(ctx.app, ticket.id, actor_id=ctx.user_id) is None:
+    try:
+        reopened = await service.reopen_ticket(ctx.app, ticket.id, actor_id=ctx.user_id, limit=limit)
+    except service.TicketLimitReached as exc:
+        raise HandlerError(k.LIMIT_REACHED, limit=exc.limit) from None
+    if reopened is None:
         raise HandlerError(k.NOT_OPEN)
 
 

@@ -11,7 +11,7 @@ from shopbot.config.content import MissingContent
 from shopbot.core.channels import CREATE_PRIVATE_REQUIRED
 from shopbot.core.panels import upsert_message
 from shopbot.core.permissions import CHANNEL_SEND_PERMISSIONS, missing_permissions
-from shopbot.features.tickets import views
+from shopbot.features.tickets import service, views
 from shopbot.logging_setup import log_event
 from shopbot.ui.discord_render import RenderError
 
@@ -65,6 +65,41 @@ def _diagnostics(app: App, guild: discord.Guild) -> list[str]:
             )
     if t.transcript_channel and not app.settings.bot.message_content_intent:
         lines.append(app.op("tickets.publish.no_content_intent"))
+    lines.extend(_ping_diagnostics(app, guild))
+    return lines
+
+
+def _ping_diagnostics(app: App, guild: discord.Guild) -> list[str]:
+    """ping_staff categories whose roles Discord would not notify (role not mentionable and the bot lacks
+    "Mention @everyone, @here and All Roles" where the ping is posted)."""
+    t = app.settings.tickets
+    alert_channel = app.resources.text_channel(guild, t.staff_alert_channel) if t.staff_alert_channel else None
+    lines: list[str] = []
+    for category in t.categories:
+        if not category.ping_staff:
+            continue
+        if t.staff_alert_channel:
+            where: discord.abc.GuildChannel | None = alert_channel  # pings go with the staff alert
+        else:  # pings go with the welcome message, in a channel created in the ticket category
+            where = app.resources.category(guild, category.discord_category) if category.discord_category else None
+        roles = service.unmentionable_ping_roles(app, category, where)
+        if not roles:
+            continue
+        log_event(
+            log,
+            logging.WARNING,
+            "tickets_ping_role_not_mentionable",
+            category=category.id,
+            path="publish",
+            role_ids=[role.id for role in roles],
+        )
+        lines.append(
+            app.op(
+                "tickets.publish.ping_not_mentionable",
+                category=category.id,
+                roles=", ".join(role.mention for role in roles),
+            )
+        )
     return lines
 
 

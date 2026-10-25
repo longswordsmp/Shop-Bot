@@ -42,7 +42,7 @@ async def test_transcript_contains_escaped_data_only(tk: TestEnv) -> None:
 
     [posted] = channel(tk, "transcripts").messages
     assert posted.embeds[0].title == render(tk, k.TRANSCRIPT_TITLE, number=number(tk, 1))
-    assert posted.files[0].filename == f"transcript-{number(tk, 1)}.html"
+    assert posted.files[0].filename == f"{number(tk, 1)}.html"
     document = _html(posted)
     assert "<script>" not in document
     assert "&lt;script&gt;alert(&#x27;x&#x27;)&lt;/script&gt; &amp; &quot;quotes&quot;" in document
@@ -87,7 +87,6 @@ def test_build_html_escapes_embed_fields_and_participants() -> None:
     ]
     document = build_html(
         number="0042",
-        category_id="general",
         created_at=1_700_000_000,
         closed_at=None,
         participants=participants_of(5, [6], messages, {5: 'owner"name'}),
@@ -114,7 +113,7 @@ async def test_transcript_task_and_dm_to_owner(tmp_path: Path) -> None:
         assert len(customer.dms) == 1
         dm = customer.dms[0]
         assert dm.embeds[0].title == render(tenv, k.TRANSCRIPT_DM_TITLE, number=number(tenv, 1))
-        assert dm.files[0].filename == f"transcript-{number(tenv, 1)}.html"
+        assert dm.files[0].filename == f"{number(tenv, 1)}.html"
         # A forced re-post (staff) never DMs the customer twice.
         staff = tenv.member(name="staff", staff=True)
         await click(tenv.app, user=staff, custom_id=cid("tk", "transcript", ticket.id))

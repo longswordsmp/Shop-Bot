@@ -1,7 +1,9 @@
 """Per-process, in-memory helpers of the ticket system (anti-spam cooldowns, per-ticket locks).
 
 Nothing here is business state: losing it on restart is harmless. Correctness (limits, single close,
-single deletion) is enforced in the database.
+single deletion, no deletion of a reopened ticket) is enforced in the database. The per-ticket lifecycle
+lock only keeps the Discord side effects of close, reopen, and delete of one ticket from interleaving in
+this process (e.g. a reopen restoring access while a close is still locking the channel).
 """
 
 from __future__ import annotations
@@ -23,6 +25,7 @@ ACTIVITY_THROTTLE_SECONDS = 60
 class TicketRuntime:
     cooldowns: Cooldowns
     transcript_locks: dict[int, asyncio.Lock] = field(default_factory=dict)
+    lifecycle_locks: dict[int, asyncio.Lock] = field(default_factory=dict)
     # Tickets whose channel this process is deleting (the channel-delete event must not re-handle them).
     deleting: set[int] = field(default_factory=set)
     # channel_id -> last time activity was recorded (in-memory throttle before touching the database).
@@ -34,6 +37,14 @@ class TicketRuntime:
         if lock is None:
             lock = asyncio.Lock()
             self.transcript_locks[ticket_id] = lock
+        return lock
+
+    def lifecycle_lock(self, ticket_id: int) -> asyncio.Lock:
+        """Serializes close / reopen / delete of one ticket (never held while taking another ticket's)."""
+        lock = self.lifecycle_locks.get(ticket_id)
+        if lock is None:
+            lock = asyncio.Lock()
+            self.lifecycle_locks[ticket_id] = lock
         return lock
 
     def should_touch(self, channel_id: int, now: int) -> bool:
