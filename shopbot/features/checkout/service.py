@@ -476,6 +476,20 @@ async def finish_activation(app: App, session_id: int) -> None:
             return
 
 
+async def _ensure_panel(app: App, session: m.Session, channel: discord.TextChannel) -> bool:
+    """The live panel of an active session exists: re-posted when it was never sent or was deleted. False when it is
+    missing and could not be sent."""
+    if session.message_id is not None:
+        try:
+            await channel.fetch_message(session.message_id)
+            return True
+        except discord.NotFound:
+            log_event(log, logging.INFO, "checkout_workflow_missing", session_id=session.id)
+        except discord.HTTPException:
+            return True  # cannot tell whether it exists: never risk a second panel
+    return await resend_workflow(app, session, channel)
+
+
 async def resend_workflow(app: App, session: m.Session, channel: discord.TextChannel) -> bool:
     """An active session without its workflow message (the process stopped, or sending failed, after the session
     was recorded): send it now, record it and open the ticket. False when it could not be sent."""
@@ -554,7 +568,7 @@ async def _start(app: App, member: discord.Member, product_id: int | None) -> Me
     if existing is not None:
         channel = await session_channel(app, existing)
         if channel is not None:
-            if existing.message_id is None and not await resend_workflow(app, existing, channel):
+            if not await _ensure_panel(app, existing, channel):
                 raise HandlerError(core.ERROR_GENERIC)
             if product is None:
                 return views.session_exists_reply(app.ui, channel.id, ticket_url(app, channel.id))
@@ -809,6 +823,11 @@ async def _edit_session_message(app: App, session: m.Session, spec: MessageSpec)
         return
     try:
         await edit_spec(channel.get_partial_message(session.message_id), spec)
+    except discord.NotFound:
+        # The live panel was deleted: an unfinished order must keep its controls, so post it again.
+        current = await app.db.run(repo.get_session, session.id)
+        if current is not None and current.status == m.ACTIVE and isinstance(channel, discord.TextChannel):
+            await resend_workflow(app, current, channel)
     except (discord.HTTPException, RenderError) as exc:
         log_event(
             log, logging.WARNING, "checkout_workflow_edit_failed", session_id=session.id, error=type(exc).__name__

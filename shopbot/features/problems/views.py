@@ -398,8 +398,8 @@ def panel_rows(ui: Ui, data: PanelData) -> tuple[tuple[Component, ...], ...]:
     if data.status == k.OPEN:
         buttons.append(_button(ui, k.BUTTON_RESOLVE, resolve_id(data.report_id), style="success"))
         buttons.append(_button(ui, k.BUTTON_REJECT, reject_id(data.report_id), style="danger"))
-    if data.ticket_open:
-        buttons.append(_button(ui, tk.BUTTON_CLOSE, close_id(data.ticket_id), style="secondary"))
+    # Always offered: the ticket's state is checked when clicked, and the panel is not re-rendered on a reopen.
+    buttons.append(_button(ui, tk.BUTTON_CLOSE, close_id(data.ticket_id), style="secondary"))
     return rows_of(*buttons)
 
 

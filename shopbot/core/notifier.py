@@ -79,7 +79,11 @@ class Notifier:
         fallback_channel_id: int | None = None,
         prefer_channel: bool = False,
         attachments: Sequence[Attachment] = (),
+        alert_on_failure: bool = True,
     ) -> Delivery:
+        """Deliver ``spec`` by DM, else in ``fallback_channel_id``. ``alert_on_failure=False``: the caller has another
+        way to reach the user (e.g. it posts in a channel itself), so "none" is not reported as a failed notification;
+        the caller reports the failure if that way fails too."""
         if await self._already(dedupe_key):
             return "duplicate"
         bot = self.app.bot
@@ -138,7 +142,8 @@ class Notifier:
             error=dm_error,
         )
         # Operations records it in the audit log and alerts staff (who the notification was for and its kind only).
-        await self.app.events.publish(FAILURE, kind="notification", source=kind, user_id=user_id)
+        if alert_on_failure:
+            await self.app.events.publish(FAILURE, kind="notification", source=kind, user_id=user_id)
         return "none"
 
     async def notify_channel(

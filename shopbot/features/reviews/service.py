@@ -39,6 +39,7 @@ from typing import TYPE_CHECKING
 import discord
 
 from shopbot.config.content import MissingContent
+from shopbot.core.events import FAILURE
 from shopbot.core.notifier import Delivery
 from shopbot.db.repos import notifications as notif_repo
 from shopbot.features.reviews import repo, views
@@ -167,13 +168,18 @@ async def deliver_prompt(app: App, review: repo.Review, order: repo.Order, *, de
     via = settings.prompt_via
     if via == "dm" or (via == "dm_then_channel" and app.settings.features.dm_notifications):
         delivery = await app.notifier.notify_user(
-            user_id=review.user_id, spec=spec, kind=PROMPT_KIND, dedupe_key=dedupe_key
+            user_id=review.user_id,
+            spec=spec,
+            kind=PROMPT_KIND,
+            dedupe_key=dedupe_key,
+            alert_on_failure=via == "dm",  # dm_then_channel: the order channel below is the fallback
         )
         if delivery != "none" or via == "dm":
             return delivery
     channel = _order_channel(app, order)
     if channel is None:
         log_event(log, logging.WARNING, "reviews_prompt_no_channel", review_id=review.id, order_id=order.id)
+        await app.events.publish(FAILURE, kind="notification", source=PROMPT_KIND, user_id=review.user_id)
         return "none"
     message = await app.notifier.notify_channel(
         channel_id=channel.id,
@@ -182,6 +188,7 @@ async def deliver_prompt(app: App, review: repo.Review, order: repo.Order, *, de
         dedupe_key=dedupe_key,
     )
     if message is None:
+        await app.events.publish(FAILURE, kind="notification", source=PROMPT_KIND, user_id=review.user_id)
         return "none"
     await app.db.transaction(
         repo.set_prompt_message, review.id, channel_id=channel.id, message_id=message.id, now=app.clock.now()

@@ -689,6 +689,7 @@ async def _notify_decision(app: App, report: Report, ticket: Ticket | None, *, p
         kind=f"problems.{report.status}",
         dedupe_key=notify_dedupe(report.id),
         fallback_channel_id=None if panel_ok else channel_id,
+        alert_on_failure=not panel_ok,  # the updated report panel already shows the decision
     )
     if delivery == "none" and not panel_ok:
         return "failed"

@@ -24,6 +24,7 @@ from shopbot.db.repos import tasks as task_repo
 from shopbot.features.checkout import handling_repo
 from shopbot.features.checkout import models as checkout_models
 from shopbot.features.checkout import repo as checkout_repo
+from shopbot.features.operations import repo as operations_repo
 from shopbot.features.problems.content_keys import OPEN, TICKET_CATEGORY
 from shopbot.features.problems.models import Report
 from shopbot.features.tickets import repo as tickets_repo
@@ -280,10 +281,14 @@ def _order_note(conn: sqlite3.Connection, report: Report, *, actor_id: int, note
     """An internal note on the related order: shown on its live #orders record (staff activity), never to customers."""
     if report.order_id is None or not note:
         return
-    # The order vanished or the note does not fit: the report itself must still be recorded.
+    # Internal staff note: shortened to the note limit if needed (the full reason stays on the report and its
+    # panel). The order may have vanished: the report itself must still be recorded.
+    text = note.strip()
+    if len(text) > handling_repo.NOTE_MAX:
+        text = text[: handling_repo.NOTE_MAX - 1].rstrip() + "…"
     with contextlib.suppress(handling_repo.HandlingError):
         handling_repo.add_note(
-            conn, guild_id=report.guild_id, order_id=report.order_id, actor_id=actor_id, text=note, now=now
+            conn, guild_id=report.guild_id, order_id=report.order_id, actor_id=actor_id, text=text, now=now
         )
 
 
@@ -356,6 +361,8 @@ def decide(
     decided = get(conn, report_id)
     assert decided is not None
     _order_note(conn, decided, actor_id=actor_id, note=order_note, now=now)
+    # A decision is the staff's answer: the ticket no longer waits for a staff reply (no more reminders).
+    operations_repo.record_staff_reply(conn, decided.ticket_id, now=now)
     task_repo.schedule(
         conn,
         kind=TASK_AFTER_DECISION,

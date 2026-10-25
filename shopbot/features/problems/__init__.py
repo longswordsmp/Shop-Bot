@@ -29,7 +29,12 @@ def _register(app: App) -> None:
     tasks.register(app)
     # Report tickets are support tickets of their own category: the ticket system's controls and /ticket commands
     # treat problems.staff_roles as staff of those tickets too.
-    tickets_service.register_external_category(app, keys.TICKET_CATEGORY, service.extra_ticket_staff_keys)
+    tickets_service.register_external_category(
+        app,
+        keys.TICKET_CATEGORY,
+        service.extra_ticket_staff_keys,
+        discord_category=lambda a: a.settings.problems.discord_category,
+    )
 
 
 MODULE = FeatureModule(

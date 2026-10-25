@@ -286,7 +286,40 @@ async def test_staff_can_decide_after_the_ticket_was_closed(pr: TestEnv) -> None
     decided = await report_of(pr, report.id)
     assert decided.status == k.REJECTED
     panel = await panel_message(pr, decided)
-    assert panel.custom_ids() == []  # the ticket is closed: no Close button either
+    # Close stays on the panel (its state is checked when clicked), so after a reopen the ticket can be closed again.
+    assert panel.custom_ids() == [cid("tk", "close", decided.ticket_id)]
+    await tickets_service.reopen_ticket(pr.app, decided.ticket_id, actor_id=staff.id)
+    closing = await click(pr.app, user=user, custom_id=cid("tk", "close", decided.ticket_id))
+    assert closing.last_sent is not None or closing.response_kinds()  # handled, not ignored
+
+
+async def test_a_decision_stops_unanswered_ticket_reminders(pr: TestEnv) -> None:
+    from shopbot.features.operations import repo as operations_repo
+
+    user, staff = pr.member(), pr.member(name="staff", staff=True)
+    report, _ = await report_without_order(pr, user)
+    now = pr.clock.now()
+    await pr.app.db.transaction(operations_repo.record_customer_message, report.ticket_id, opened_at=now, now=now)
+    await decide(pr, staff, report, "resolve", "fixed")
+    row = await pr.app.db.run(
+        lambda conn: conn.execute(
+            "SELECT awaiting_since FROM ticket_replies WHERE ticket_id = ?", (report.ticket_id,)
+        ).fetchone()
+    )
+    assert row is not None and row["awaiting_since"] is None
+
+
+async def test_a_long_reason_still_leaves_the_order_note(pr: TestEnv) -> None:
+    from tests.problems.util import order_notes
+
+    user, staff = pr.member(), pr.member(name="staff", staff=True)
+    from tests.problems.util import add_order, report_about_order
+
+    order_id = await add_order(pr, user, status="fulfilled")
+    report, _ = await report_about_order(pr, user, order_id)
+    await decide(pr, staff, report, "reject", "r" * k.REASON_MAX)
+    notes = await order_notes(pr, order_id)
+    assert notes and len(notes[-1]) <= 500 and notes[-1].endswith("…")
     assert len(user.dms) == 1
 
 
@@ -301,3 +334,25 @@ async def test_a_report_whose_type_was_removed_can_still_be_decided(pr: TestEnv)
     fields = _fields(await panel_message(pr, decided))
     assert pr.text(k.FIELD_TYPE) not in fields  # the type's label is no longer configured: omitted, never invented
     assert fields[pr.text(k.FIELD_STATUS)] == pr.text(k.status_key(k.RESOLVED))
+
+
+async def test_a_reopened_report_ticket_moves_back_to_the_report_category(tmp_path: Path) -> None:
+    from shopbot.features.tickets import service as tickets_service
+    from tests.problems.util import make_env
+
+    env = await make_env(tmp_path, {"tickets": {"closed_category": "staff"}})
+    try:
+        user, staff = env.member(), env.member(name="staff", staff=True)
+        report, _ = await report_without_order(env, user)
+        ticket = await tickets_service.get_ticket(env.app, report.ticket_id)
+        assert ticket is not None and ticket.channel_id is not None
+        channel = env.guild.get_channel(ticket.channel_id)
+        report_category = env.app.resources.category(env.guild, env.app.settings.problems.discord_category)
+        closed_category = env.app.resources.category(env.guild, "staff")
+        assert report_category is not None and closed_category is not None
+        await tickets_service.close_ticket(env.app, report.ticket_id, actor_id=staff.id)
+        assert channel.category_id == closed_category.id
+        await tickets_service.reopen_ticket(env.app, report.ticket_id, actor_id=staff.id)
+        assert channel.category_id == report_category.id
+    finally:
+        await env.close()

@@ -555,7 +555,8 @@ def lookup_specs(
         )
         for a in adjustments
     ]
-    fields += _blocks(op("checkout.lookup.refunds"), refund_lines)
+    # Free text (refund reasons, rejection reasons, notes) may be long: split, never cut.
+    fields += _blocks(op("checkout.lookup.refunds"), [piece for line in refund_lines for piece in _pieces(line)])
     event_lines = [
         op(
             "checkout.lookup.event",
@@ -567,7 +568,7 @@ def lookup_specs(
         )
         for e in history[-LOOKUP_EVENTS:]
     ]
-    fields += _blocks(op("checkout.lookup.history"), event_lines)
+    fields += _blocks(op("checkout.lookup.history"), [piece for line in event_lines for piece in _pieces(line)])
     if handling.tracking:
         fields += views.answer_fields(op("checkout.lookup.tracking"), handling.tracking)
     activity_lines = [

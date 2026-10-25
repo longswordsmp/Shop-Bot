@@ -35,6 +35,8 @@ class TicketRuntime:
     # Support-ticket categories created by other features (not in tickets.categories), e.g. problem reports:
     # category id -> extra staff role keys of its tickets (see service.register_external_category).
     external_categories: dict[str, Callable[[App], tuple[str, ...]]] = field(default_factory=dict)
+    # category id -> the Discord category key its open tickets live in (a reopened ticket moves back there).
+    external_discord_categories: dict[str, Callable[[App], str]] = field(default_factory=dict)
 
     def transcript_lock(self, ticket_id: int) -> asyncio.Lock:
         lock = self.transcript_locks.get(ticket_id)

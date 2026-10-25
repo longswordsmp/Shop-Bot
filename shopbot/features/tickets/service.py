@@ -207,12 +207,20 @@ def format_number(app: App, number: int) -> str:
     return views.number_text(app.settings.tickets, number)
 
 
-def register_external_category(app: App, category_id: str, staff_keys: Callable[[App], tuple[str, ...]]) -> None:
+def register_external_category(
+    app: App,
+    category_id: str,
+    staff_keys: Callable[[App], tuple[str, ...]],
+    discord_category: Callable[[App], str] | None = None,
+) -> None:
     """Declare a support-ticket category that another feature creates tickets in (it is not one of
     tickets.categories; e.g. problem reports). ``staff_keys(app)`` returns the extra staff role keys of its
     tickets, read at check time so configuration reloads apply. Ticket controls and /ticket commands then treat
-    those roles as staff of these tickets."""
+    those roles as staff of these tickets. ``discord_category(app)``: the category key its open tickets live in, so a
+    reopened ticket moves back there from ``tickets.closed_category``."""
     runtime(app).external_categories[category_id] = staff_keys
+    if discord_category is not None:
+        runtime(app).external_discord_categories[category_id] = discord_category
 
 
 def external_staff_keys(app: App) -> tuple[str, ...]:
@@ -1011,8 +1019,12 @@ async def reopen_ticket(app: App, ticket_id: int, *, actor_id: int, limit: int |
             await _set_access(app, channel, reopened, can_send=True)
             if reopened.is_support:
                 category = app.settings.tickets.category(reopened.category_id)
-                if category is not None and category.discord_category:
-                    await _move(app, channel, category.discord_category, ticket_id)
+                external = runtime(app).external_discord_categories.get(reopened.category_id)
+                open_category = (
+                    category.discord_category if category is not None else (external(app) if external else "")
+                )
+                if open_category:
+                    await _move(app, channel, open_category, ticket_id)
                 await _disable_closed_message(app, channel, ticket_id)
                 await _post_built(app, channel, reopened, lambda: views.reopened(app.ui, actor_id), "tickets.reopened")
                 rows = _open_controls(app, reopened)
