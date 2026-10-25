@@ -12,10 +12,12 @@ from shopbot.features import core_keys as ck
 from shopbot.features.reviews import content_keys as k
 from shopbot.features.reviews import repo, views
 from shopbot.ui.routing import Ctx
-from tests.fakes import FakeInteraction, FakeMessage, click, modal_input_ids, modal_of, submit_modal
+from tests.fakes import FakeInteraction, FakeMessage, click, http_error, modal_input_ids, modal_of, submit_modal
 from tests.helpers import TestEnv
 from tests.reviews.util import (
     audit_actions,
+    custom_ids,
+    is_ephemeral,
     make_env,
     make_order,
     number_text,
@@ -28,6 +30,7 @@ from tests.reviews.util import (
     restarted_app,
     review_of,
     reviews_channel,
+    select_of,
     set_order_status,
 )
 
@@ -209,11 +212,97 @@ async def test_comment_that_cannot_be_shown_is_refused(tmp_path: Path) -> None:
         order, review, dm = await prompted(tenv, customer)
         await _rate(tenv, customer, review, dm, "3")
         refused = await _comment(tenv, customer, review, dm, "*" * 3000)  # 6000 characters once escaped
+        assert refused.response_kinds() == ["edit_message"]  # the rating menu is reset, the error follows
         assert reply_embed(refused).description == tenv.text(ck.ERROR_INVALID_INPUT)
         assert (await review_of(tenv, order)).comment is None
         await _comment(tenv, customer, review, dm, "a" * 4000)
         (post,) = reviews_channel(tenv).messages
         assert only_embed(post).description == "a" * 4000
+    finally:
+        await tenv.close()
+
+
+# --------------------------------------------------------------------------------------------------
+# Rating menu reset (Discord keeps showing a picked option until the message is edited, and picking
+# the same option again sends nothing)
+# --------------------------------------------------------------------------------------------------
+
+
+def _fresh_menu(message: FakeMessage, review: repo.Review) -> bool:
+    """The request shows its rating menu with nothing selected, and the decline button."""
+    menu = select_of(message)
+    return custom_ids(message) == [views.rate_id(review.id), views.decline_id(review.id)] and not any(
+        option.default for option in menu.options
+    )
+
+
+async def test_opening_the_comment_form_resets_the_rating_menu(rv: TestEnv) -> None:
+    customer = rv.member()
+    order, review, dm = await prompted(rv, customer)
+    request = only_embed(dm).to_dict()
+    rated = await _rate(rv, customer, review, dm, "5")
+    assert rated.response_kinds() == ["send_modal"] and rated.sent == []
+    assert [set(edit) for edit in dm.edits] == [{"view"}]  # only the components are re-rendered
+    assert _fresh_menu(dm, review)
+    assert only_embed(dm).to_dict() == request
+    # the form was closed: picking the same rating again opens it again
+    again = await _rate(rv, customer, review, dm, "5")
+    assert modal_of(again) is not None and len(dm.edits) == 2
+    await _comment(rv, customer, review, dm, "[ok]")
+    assert (await review_of(rv, order)).status == repo.PUBLISHED
+
+
+async def test_rating_menu_reset_keeps_the_ping_in_the_order_channel(tmp_path: Path) -> None:
+    tenv = await make_env(tmp_path, {"reviews": {"prompt_via": "channel"}})
+    try:
+        customer = tenv.member()
+        order = await make_order(tenv, customer)
+        await prompt_now(tenv, order)
+        assert order.channel is not None
+        (request,) = order.channel.messages
+        review = await review_of(tenv, order)
+        await click(tenv.app, user=customer, custom_id=views.rate_id(review.id), message=request, values=["3"])
+        assert [set(edit) for edit in request.edits] == [{"view"}]
+        assert request.content == customer.mention
+        assert _fresh_menu(request, review)
+    finally:
+        await tenv.close()
+
+
+async def test_rating_menu_reset_failure_changes_nothing_else(rv: TestEnv) -> None:
+    customer = rv.member()
+    order, review, dm = await prompted(rv, customer)
+
+    async def gone(**kwargs: Any) -> FakeMessage:
+        raise http_error(discord.NotFound, 404, 10008, "Unknown Message")
+
+    dm.edit = gone  # type: ignore[method-assign]
+    rated = await _rate(rv, customer, review, dm, "4")
+    assert rated.response_kinds() == ["send_modal"] and rated.sent == []
+    assert (await review_of(rv, order)).rating == 4
+
+
+async def test_refused_comment_resets_the_rating_menu(tmp_path: Path) -> None:
+    tenv = await make_env(tmp_path, {"reviews": {"comment_required": True}})
+    try:
+        customer = tenv.member()
+        order, review, dm = await prompted(tenv, customer)
+        await _rate(tenv, customer, review, dm, "3")
+        refused = await _comment(tenv, customer, review, dm, "   ")
+        # the form submission is answered by re-rendering the menu; the configured error follows privately
+        assert refused.response_kinds() == ["edit_message"]
+        assert set(refused.response.calls[0][1]) == {"view"}
+        assert _fresh_menu(dm, review)
+        assert only_embed(dm).description == rendered(
+            tenv, k.PROMPT_DESCRIPTION, order_number=number_text(tenv, order.number)
+        )
+        assert reply_embed(refused).description == tenv.text(ck.ERROR_INVALID_INPUT)
+        assert is_ephemeral(refused)
+        # without the request message (form origin unknown) only the error is sent
+        private = await _comment(tenv, customer, review, None, "")
+        assert private.response_kinds() == ["send_message"]
+        assert reply_embed(private).description == tenv.text(ck.ERROR_INVALID_INPUT)
+        assert (await review_of(tenv, order)).comment is None
     finally:
         await tenv.close()
 

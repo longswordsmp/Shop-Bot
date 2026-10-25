@@ -4,18 +4,22 @@ from __future__ import annotations
 
 import asyncio
 import sqlite3
+from collections.abc import AsyncIterator
 from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
+import aiohttp
 import discord
 
+from shopbot.db.repos import state
 from shopbot.features.reviews import MODULE, repo, service, views
 from shopbot.features.reviews import content_keys as k
-from tests.fakes import FakeUser, click, http_error, submit_modal
+from tests.fakes import FakeMessage, FakeTextChannel, FakeUser, click, http_error, submit_modal
 from tests.helpers import TestEnv, make_test_env, provision_channels
 from tests.reviews.util import (
     audit_actions,
+    make_env,
     make_order,
     number_text,
     only_embed,
@@ -227,3 +231,146 @@ async def test_comment_after_declining_is_refused(rv: TestEnv) -> None:
     assert only_embed(dm).description == rendered(rv, k.EXPIRED, order_number=number_text(rv, order.number))
     assert (await review_of(rv, order)).status == repo.DECLINED
     assert reviews_channel(rv).messages == []
+
+
+# --------------------------------------------------------------------------------------------------
+# A post whose message was never recorded (lost answer, or a stop between the post and the record)
+# --------------------------------------------------------------------------------------------------
+
+
+def _lose_answers(channel: FakeTextChannel, *, post: bool = True, times: int = 1) -> None:
+    """The next ``times`` sends fail like a connection dropped mid-request: with ``post`` Discord still created the
+    message (only the answer was lost); without it, nothing was created."""
+    send = channel.send
+    left = [times]
+
+    async def flaky(content: str | None = None, **kwargs: Any) -> FakeMessage:
+        if left[0] <= 0:
+            return await send(content, **kwargs)
+        left[0] -= 1
+        if post:
+            await send(content, **kwargs)
+        raise aiohttp.ServerDisconnectedError()
+
+    channel.send = flaky  # type: ignore[method-assign]
+
+
+async def _claim(tenv: TestEnv, review_id: int) -> str | None:
+    return await tenv.app.db.run(state.kv_get, repo.publish_claim_key(review_id))
+
+
+async def test_lost_answer_is_adopted_instead_of_posting_twice(rv: TestEnv) -> None:
+    customer = rv.member()
+    order, review, dm = await prompted(rv, customer)
+    channel = reviews_channel(rv)
+    _lose_answers(channel)
+    await _submit(rv, customer, review, dm)
+    (post,) = channel.messages  # Discord created the message, but the bot never got its id
+    pending = await review_of(rv, order)
+    assert pending.submitted and pending.published_message_id is None
+    assert await _claim(rv, review.id) == str(channel.id)
+    rv.clock.advance(3600)
+    await rv.app.scheduler.run_due()  # the retry finds the post instead of posting again
+    assert channel.messages == [post]
+    published = await review_of(rv, order)
+    assert (published.status, published.published_message_id) == (repo.PUBLISHED, post.id)
+    assert await _claim(rv, review.id) is None
+    done = await task(rv, service.publish_dedupe(review.id))
+    assert done is not None and done.status == "done"
+    assert [e.action for e in await audit_actions(rv)].count("reviews.published") == 1
+
+
+async def test_restart_after_an_unrecorded_post_adopts_it(rv: TestEnv) -> None:
+    customer = rv.member()
+    order, review, dm = await prompted(rv, customer)
+    channel = reviews_channel(rv)
+    _lose_answers(channel)
+    await _submit(rv, customer, review, dm)
+
+    # the process stopped before anything was recorded or retried
+    def lose_retry(conn: sqlite3.Connection) -> None:
+        conn.execute("UPDATE scheduled_tasks SET status = 'failed' WHERE kind = 'reviews.publish'")
+
+    await rv.app.db.transaction(lose_retry)
+    (post,) = channel.messages
+    app = await restarted_app(rv)
+    await app.scheduler.run_due()
+    assert channel.messages == [post]
+    published = await review_of(rv, order, app)
+    assert (published.status, published.published_message_id) == (repo.PUBLISHED, post.id)
+    assert await _claim(rv, review.id) is None
+
+
+async def test_retry_posts_when_the_lost_request_created_nothing(rv: TestEnv) -> None:
+    customer = rv.member()
+    order, review, dm = await prompted(rv, customer)
+    channel = reviews_channel(rv)
+    _lose_answers(channel, post=False)
+    await _submit(rv, customer, review, dm)
+    assert channel.messages == [] and await _claim(rv, review.id) is not None
+    rv.clock.advance(3600)
+    await rv.app.scheduler.run_due()
+    (post,) = channel.messages
+    published = await review_of(rv, order)
+    assert (published.status, published.published_message_id) == (repo.PUBLISHED, post.id)
+    assert await _claim(rv, review.id) is None
+
+
+async def test_identical_post_of_another_review_is_never_adopted(tmp_path: Path) -> None:
+    # a title without placeholders and no comments: two reviews with the same rating look exactly alike
+    tenv = await make_env(tmp_path, {"reviews": {"allow_comment": False}}, content={k.PUBLISHED_TITLE: "[same]"})
+    try:
+        channel = reviews_channel(tenv)
+        first_customer, second_customer = tenv.member(name="first"), tenv.member(name="second")
+        first_order, first, first_dm = await prompted(tenv, first_customer)
+        await click(
+            tenv.app, user=first_customer, custom_id=views.rate_id(first.id), message=first_dm, values=["5"], dm=True
+        )
+        (first_post,) = channel.messages
+        second_order, second, second_dm = await prompted(tenv, second_customer)
+        _lose_answers(channel, post=False)
+        await click(
+            tenv.app, user=second_customer, custom_id=views.rate_id(second.id), message=second_dm, values=["5"], dm=True
+        )
+        assert channel.messages == [first_post]
+        tenv.clock.advance(3600)
+        await tenv.app.scheduler.run_due()
+        assert len(channel.messages) == 2
+        second_post = channel.messages[1]
+        assert [e.to_dict().get("title") for e in second_post.embeds] == ["[same]"]
+        assert (await review_of(tenv, first_order)).published_message_id == first_post.id
+        assert (await review_of(tenv, second_order)).published_message_id == second_post.id
+    finally:
+        await tenv.close()
+
+
+async def test_claimed_review_waits_while_the_channel_history_cannot_be_read(rv: TestEnv) -> None:
+    customer = rv.member()
+    order, review, dm = await prompted(rv, customer)
+    channel = reviews_channel(rv)
+    _lose_answers(channel)
+    await _submit(rv, customer, review, dm)
+    history = channel.history
+
+    async def forbidden(**kwargs: Any) -> AsyncIterator[FakeMessage]:
+        raise http_error(discord.Forbidden, 403, 50001, "Missing Access")
+        yield  # pragma: no cover - makes this an async generator like the real history
+
+    channel.history = forbidden  # type: ignore[method-assign]
+    assert await service.publish_review(rv.app, review.id) is service.Publish.FAILED
+    assert len(channel.messages) == 1 and (await review_of(rv, order)).submitted
+    channel.history = history  # type: ignore[method-assign]
+    assert await service.publish_review(rv.app, review.id) is service.Publish.PUBLISHED
+    assert len(channel.messages) == 1
+    assert (await review_of(rv, order)).published_message_id == channel.messages[0].id
+
+
+async def test_removing_a_claimed_review_clears_its_claim(rv: TestEnv) -> None:
+    customer = rv.member()
+    order, review, dm = await prompted(rv, customer)
+    _lose_answers(reviews_channel(rv), post=False)
+    await _submit(rv, customer, review, dm)
+    assert await _claim(rv, review.id) is not None
+    await service.remove_review(rv.app, order.number, actor_id=rv.member(staff=True).id)
+    assert await _claim(rv, review.id) is None
+    assert (await review_of(rv, order)).status == repo.DECLINED

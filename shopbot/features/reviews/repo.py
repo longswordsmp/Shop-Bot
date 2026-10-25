@@ -16,14 +16,23 @@ the customer may still pick another rating. Submitted reviews are never lost: th
 publication in the reviews channel succeeds.
 
 Orders are read directly from the ``orders`` table (owned by checkout); this module never writes them.
+
+Publication claim: before a review is posted in the reviews channel, ``claim_publication`` stores the kv_state key
+``reviews.publishing:<review_id>``; recording the posted message (``record_publication``/``adopt_publication``) or
+removing the review clears it. A claim that is still there on the next attempt means the earlier post may exist
+although its message was never recorded (the process stopped, or Discord created the message but the answer was
+lost).
 """
 
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any
+
+from shopbot.db.repos import state
 
 PROMPTED = "prompted"
 RATED = "rated"
@@ -293,6 +302,55 @@ def decline(conn: sqlite3.Connection, review_id: int, *, user_id: int, now: int)
     return Result(Outcome.OK, get_review(conn, review_id))
 
 
+def publish_claim_key(review_id: int) -> str:
+    return f"reviews.publishing:{review_id}"
+
+
+def claim_publication(conn: sqlite3.Connection, review_id: int, *, channel_id: int, now: int) -> bool | None:
+    """Before posting a submitted review: store its publication claim (the value is the channel it is posted in).
+
+    Returns None when the review is no longer waiting for publication (nothing stored), True when the claim of an
+    earlier attempt is still there (that post may exist), and False when this is a first attempt.
+    """
+    review = get_review(conn, review_id)
+    if review is None or not review.submitted:
+        return None
+    key = publish_claim_key(review_id)
+    if state.kv_get(conn, key) is not None:
+        return True
+    state.kv_set(conn, key, str(channel_id), now)
+    return False
+
+
+def recorded_message_ids(conn: sqlite3.Connection, message_ids: Sequence[int]) -> set[int]:
+    """Those of ``message_ids`` that are the recorded publication of some review."""
+    return {
+        message_id
+        for message_id in message_ids
+        if conn.execute("SELECT 1 FROM reviews WHERE published_message_id = ? LIMIT 1", (message_id,)).fetchone()
+    }
+
+
+def record_publication(conn: sqlite3.Connection, review_id: int, *, message_id: int, now: int) -> bool:
+    """``mark_published`` and clear the publication claim (in the caller's transaction)."""
+    stored = mark_published(conn, review_id, message_id=message_id, now=now)
+    state.kv_delete(conn, publish_claim_key(review_id))
+    return stored
+
+
+def adopt_publication(conn: sqlite3.Connection, review_id: int, *, message_ids: Sequence[int], now: int) -> int | None:
+    """Record the first of ``message_ids`` (posts showing exactly this review, newest first) that is not already the
+    publication of a review as this review's message. Returns its id, or None when none can be adopted."""
+    taken = recorded_message_ids(conn, message_ids)
+    for message_id in message_ids:
+        if message_id in taken:
+            continue
+        if record_publication(conn, review_id, message_id=message_id, now=now):
+            return message_id
+        return None  # pragma: no cover - the review changed meanwhile (removal also takes the review lock)
+    return None
+
+
 def mark_published(conn: sqlite3.Connection, review_id: int, *, message_id: int, now: int) -> bool:
     """Submitted -> published. False when the review changed meanwhile (e.g. staff removed it)."""
     return (
@@ -314,4 +372,7 @@ def remove(conn: sqlite3.Connection, review_id: int, *, now: int) -> Review | No
         "UPDATE reviews SET status = 'declined', updated_at = ? WHERE id = ? AND status = ?",
         (now, review_id, review.status),
     ).rowcount
-    return review if updated else None
+    if not updated:
+        return None
+    state.kv_delete(conn, publish_claim_key(review_id))  # a declined review is never published
+    return review
