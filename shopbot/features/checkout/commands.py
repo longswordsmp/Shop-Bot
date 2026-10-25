@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any, Literal
 import discord
 from discord import app_commands
 
-from shopbot.commands import app_of, reply, reply_operator, require_staff
+from shopbot.commands import app_of, reply, require_staff
 from shopbot.features.checkout import content_keys as k
 from shopbot.features.checkout import handling_repo as h
 from shopbot.features.checkout import models as m
@@ -42,7 +42,7 @@ async def _defer(interaction: discord.Interaction[Any]) -> None:
 async def _ready_app(interaction: discord.Interaction[Any]) -> App | None:
     app = app_of(interaction)
     if not app.ready(k.FEATURE):
-        await reply_operator(interaction, app.op("command.feature_disabled", feature=k.FEATURE), tone="warning")
+        await _send(interaction, app, staff.OpReply(app.op("command.feature_disabled", feature=k.FEATURE), "warning"))
         return None
     return app
 
@@ -50,11 +50,12 @@ async def _ready_app(interaction: discord.Interaction[Any]) -> App | None:
 async def _order(interaction: discord.Interaction[Any], app: App, number: int) -> m.Order | None:
     order = await service.get_order_by_number(app, number)
     if order is None:
-        await reply_operator(interaction, app.op("checkout.op.not_found", number=number), tone="warning")
+        await _send(interaction, app, staff.OpReply(app.op("checkout.op.not_found", number=number), "warning"))
     return order
 
 
 async def _send(interaction: discord.Interaction[Any], app: App, result: staff.OpReply) -> None:
+    """A private staff reply (``staff.reply_spec``: refusals show the error banner, the rest the general one)."""
     await reply(interaction, staff.reply_spec(app, result), ephemeral=True)
 
 

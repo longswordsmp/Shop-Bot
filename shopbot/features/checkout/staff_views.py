@@ -14,9 +14,10 @@ Like ``views``, nothing here calls Discord or the database. Missing required con
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
 
+from shopbot.config.banner_ids import BannerId
 from shopbot.config.content import MissingContent
 from shopbot.config.settings import Settings
 from shopbot.features.checkout import content_keys as k
@@ -60,6 +61,19 @@ STATUS_TONES = {
     m.REJECTED: "danger",
     m.EXPIRED: "neutral",
     m.REFUNDED: "neutral",
+}
+
+# The live record's banner follows the order's status (the same pictures as the customer's order view): a status
+# change swaps it, a claim, note or tracking change keeps it without uploading it again.
+RECORD_BANNERS: Mapping[str, BannerId] = {
+    m.PENDING: "pending-review",
+    m.PAID: "successful-confirmation",
+    m.PROCESSING: "submission-and-processing",
+    m.FULFILLED: "completed-or-dispatched",
+    m.CANCELLED: "cancellation",
+    m.EXPIRED: "cancellation",
+    m.REJECTED: "rejected-or-unsuccessful-submission",
+    m.REFUNDED: "resolution",
 }
 
 _STAGE_KEYS = {
@@ -320,8 +334,10 @@ def staff_messages(
 ) -> list[MessageSpec]:
     """The live order record in the staff channel (edited in place on every change), then - only when the order lines
     do not fit next to everything else - the lines as separate messages. Nothing configured is cut (a record whose
-    configured texts alone exceed Discord's limits fails the limits check and is reported, never sent cut)."""
+    configured texts alone exceed Discord's limits fails the limits check and is reported, never sent cut).
+    Only the record shows a banner (``RECORD_BANNERS``, by status); the separate line messages show none."""
     order = view.order
+    banner = ui.banner(RECORD_BANNERS.get(order.status, "order-status"))
     fmt = views.order_money(ui, settings, order.currency)
     status = status_label(ui, order.status)
     total = fmt(order.total_minor)
@@ -361,14 +377,15 @@ def staff_messages(
 
     complete = embeds(True, len(timeline), len(notes))
     if views._fits(complete):
-        return [MessageSpec(embeds=tuple(complete), rows=rows)]
+        return [MessageSpec(embeds=tuple(complete), rows=rows, banner=banner)]
     # Too much for one message: the order lines move to separate messages; if the rest still does not fit, the
     # oldest notes are left out first, then the oldest timeline entries (the latest stage is always kept).
     n_timeline, n_notes = len(timeline), len(notes)
     while True:
         candidate = embeds(False, n_timeline, n_notes)
         if views._fits(candidate) or (n_notes == 0 and n_timeline <= 1):
-            return [MessageSpec(embeds=tuple(candidate), rows=rows), *views._pack_fields(line_fields, head.color)]
+            record_spec = MessageSpec(embeds=tuple(candidate), rows=rows, banner=banner)
+            return [record_spec, *views._pack_fields(line_fields, head.color)]
         if n_notes > 0:
             n_notes -= 1
         else:

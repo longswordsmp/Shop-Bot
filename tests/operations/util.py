@@ -14,9 +14,19 @@ from shopbot.features.checkout import staff_views
 from shopbot.features.operations import alerts
 from tests.checkout.util import channel, make_env, order, press, staff_message
 from tests.fakes import FakeInteraction, FakeMember, FakeMessage, FakeRole, FakeTextChannel, submit_modal
-from tests.helpers import GUILD_ID, OWNER_ID, TestEnv, deep_merge, server_extension
+from tests.helpers import (
+    GUILD_ID,
+    OWNER_ID,
+    TestEnv,
+    deep_merge,
+    make_banner_env,
+    provision_channels,
+    server_extension,
+)
 
 STAFF_CHANNEL = "staff_alerts"
+# As ``tests.checkout.util.make_env``: many clicks by the same fake user happen within milliseconds.
+CHECKOUT_TEST_SETTINGS: dict[str, Any] = {"bot": {"rate_limit_per_10s": 100}}
 
 # Operations on: alerts in the base layout's staff_alerts channel, the staff role pinged, the Owner alerted, the
 # customer role given on fulfilment. Thresholds stay 0 unless a test switches them on.
@@ -31,6 +41,18 @@ OPS_SETTINGS: dict[str, Any] = deep_merge(
 
 async def make_ops(tmp_path: Path, overrides: dict[str, Any] | None = None, **kwargs: Any) -> TestEnv:
     tenv = await make_env(tmp_path, deep_merge(OPS_SETTINGS, overrides or {}), **kwargs)
+    return await _with_roles_and_owner(tenv)
+
+
+async def make_banner_ops(tmp_path: Path, overrides: dict[str, Any] | None = None, **kwargs: Any) -> TestEnv:
+    """``make_ops`` with banners switched on (``make_banner_env``: a tiny picture for every banner id)."""
+    settings = deep_merge(deep_merge(CHECKOUT_TEST_SETTINGS, OPS_SETTINGS), overrides or {})
+    tenv = await make_banner_env(tmp_path, settings, **kwargs)
+    await provision_channels(tenv)
+    return await _with_roles_and_owner(tenv)
+
+
+async def _with_roles_and_owner(tenv: TestEnv) -> TestEnv:
     role = tenv.guild.add_role(name="customer", position=5)
     await tenv.app.resources.remember("role", "customer", role.id)
     tenv.guild.add_member(id=OWNER_ID, name="owner")

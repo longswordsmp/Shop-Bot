@@ -10,11 +10,13 @@ staff members acting at once never apply anything twice; each one is audited and
 from __future__ import annotations
 
 import sqlite3
-from dataclasses import dataclass
+from collections.abc import Mapping
+from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING
 
 from discord.utils import escape_markdown
 
+from shopbot.config.banner_ids import BannerId
 from shopbot.core.money import MoneyError, currency_exponent, format_amount, parse_amount
 from shopbot.features.checkout import flow, repo, service, staff_keys, views
 from shopbot.features.checkout import handling_repo as h
@@ -30,6 +32,11 @@ LIST_PAGE_SIZE = 10
 LOOKUP_EVENTS = 10
 LOOKUP_ACTIVITY = 15
 
+# Banner of a staff reply by its tone: a refusal or warning shows the error banner, anything else the general one.
+REPLY_BANNERS: Mapping[str, BannerId] = {"warning": "error", "danger": "error"}
+# The full order record (details button, /order lookup and view, the /orders menu): on its first message only.
+RECORD_DETAILS_BANNER: BannerId = "staff-dashboard"
+
 
 @dataclass(frozen=True)
 class OpReply:
@@ -38,7 +45,8 @@ class OpReply:
 
 
 def reply_spec(app: App, reply: OpReply) -> MessageSpec:
-    return MessageSpec(embeds=(app.ui.operator_embed(reply.text, tone=reply.tone),))
+    banner = app.ui.banner(REPLY_BANNERS.get(reply.tone, "general-response"))
+    return MessageSpec(embeds=(app.ui.operator_embed(reply.text, tone=reply.tone),), banner=banner)
 
 
 # -- amounts (operator wording: separators from settings + the currency code) ----------------------------------------
@@ -428,7 +436,8 @@ def _blocks(name: str, lines: list[str]) -> list[EmbedField]:
 
 
 def _pack(app: App, title: str, fields: list[EmbedField]) -> list[MessageSpec]:
-    """Operator embeds holding every field, split into messages within Discord's limits (nothing is cut)."""
+    """Operator embeds holding every field, split into messages within Discord's limits (nothing is cut). The first
+    message shows the staff banner; the messages after it continue the same record and show none."""
     messages: list[MessageSpec] = []
     embeds: list[EmbedSpec] = []
     message_used = 0
@@ -451,6 +460,7 @@ def _pack(app: App, title: str, fields: list[EmbedField]) -> list[MessageSpec]:
         messages.append(MessageSpec(embeds=tuple(embeds)))
     if not messages:
         messages.append(MessageSpec(embeds=(app.ui.operator_embed(title),)))
+    messages[0] = replace(messages[0], banner=app.ui.banner(RECORD_DETAILS_BANNER))
     return messages
 
 
