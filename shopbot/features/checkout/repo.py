@@ -974,6 +974,8 @@ def submit_order(
     inputs = flow.form_inputs(c, option_id) + flow.submission_inputs(c)
     if not flow.details_complete(inputs, session.details):
         raise DetailsIncomplete()
+    if c.ask_address and flow.address_problem(settings.shipping, session.details) is not None:
+        raise DetailsIncomplete()  # e.g. we stopped shipping to the country after the address was entered
     totals, _ = session_totals(conn, guild_id, session, lines, c, credits_enabled)
     if totals.subtotal_minor < c.min_order_total_minor:
         raise MinimumNotMet(c.min_order_total_minor)
@@ -991,6 +993,8 @@ def submit_order(
 
     number = state.next_counter(conn, guild_id, m.ORDER_COUNTER)
     answers = flow.relevant_answers(inputs, session.details)
+    if c.ask_address:
+        answers.update(flow.address_answers(session.details))
     cursor = conn.execute(
         "INSERT INTO orders(guild_id, number, user_id, session_id, ticket_id, status, currency, subtotal_minor, "
         "fulfillment_fee_minor, fees_minor, credits_applied_minor, total_minor, fulfillment_option, details, "

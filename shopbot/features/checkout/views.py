@@ -158,6 +158,22 @@ def extra_id(session_id: int, extra: str) -> str:
     return cid(ROUTE, "extra", session_id, extra)
 
 
+def address_group_id(session_id: int) -> str:
+    return cid(ROUTE, "agroup", session_id)
+
+
+def address_country_id(session_id: int, menu: int) -> str:
+    return cid(ROUTE, "acountry", session_id, menu)
+
+
+def address_open_id(session_id: int) -> str:
+    return cid(ROUTE, "aopen", session_id)
+
+
+def address_form_id(session_id: int) -> str:
+    return cid(ROUTE, "aform", session_id)
+
+
 def details_id(session_id: int, part: int) -> str:
     return cid(ROUTE, "details", session_id, part)
 
@@ -877,8 +893,86 @@ def extra_buttons(ui: Ui, settings: Settings, session: m.Session) -> list[Button
     return buttons
 
 
+def address_text(ui: Ui, settings: Settings, details: Mapping[str, str]) -> str:
+    """The address section of the details step: the chosen country and whether the address was entered (never the
+    street: the channel only shows the name and city)."""
+    country = details.get(flow.ADDRESS_COUNTRY)
+    country_name = settings.shipping.country_name(country) if country else _text(ui, k.ADDRESS_COUNTRY_NONE)
+    lines = [heading(_text(ui, k.ADDRESS_HEADING)), _text(ui, k.ADDRESS_COUNTRY_LINE, country=escape(country_name))]
+    if country and all(details.get(f.answer_key) for f in flow.ADDRESS_FIELDS if f.required):
+        lines.append(_text(ui, k.ADDRESS_ADDED_LINE, **_address_values(details)))
+    else:
+        lines.append(_text(ui, k.ADDRESS_MISSING_LINE))
+    return "\n".join(lines)
+
+
+def _address_values(details: Mapping[str, str]) -> dict[str, str | int]:
+    return {f.id: escape(details.get(f.answer_key, "")) for f in flow.ADDRESS_FIELDS if f.id != "street"}
+
+
+def ship_to(ui: Ui, settings: Settings, details: Mapping[str, str]) -> str | None:
+    """The destination as shown on the review, the order and the staff record (no street), or None without one."""
+    country = details.get(flow.ADDRESS_COUNTRY)
+    if not country:
+        return None
+    return _text(
+        ui, k.ADDRESS_SHIP_TO, **_address_values(details), country=escape(settings.shipping.country_name(country))
+    )
+
+
+def address_rows(ui: Ui, settings: Settings, session: m.Session) -> list[tuple[Component, ...]]:
+    """The region menu, then the chosen region's country menus (at most 25 countries each)."""
+    shipping = settings.shipping
+    group_id = session.details.get(flow.ADDRESS_GROUP)
+    country = session.details.get(flow.ADDRESS_COUNTRY)
+    if group_id is None and country is not None:
+        group_id = next((g.id for g in shipping.groups if country in g.countries), None)
+    regions = SelectSpec(
+        custom_id=address_group_id(session.id),
+        options=tuple(
+            SelectOptionSpec(label=_text(ui, k.address_region_key(g.id)), value=g.id, default=g.id == group_id)
+            for g in shipping.groups
+        ),
+        placeholder=_text(ui, k.ADDRESS_REGION_PLACEHOLDER),
+    )
+    rows: list[tuple[Component, ...]] = [(regions,)]
+    for index, codes in enumerate(flow.country_menus(shipping, group_id)):
+        names = [shipping.country_name(code) for code in codes]
+        menu = SelectSpec(
+            custom_id=address_country_id(session.id, index),
+            options=tuple(
+                SelectOptionSpec(label=name, value=code, default=code == country)
+                for code, name in zip(codes, names, strict=True)
+            ),
+            placeholder=_text(ui, k.ADDRESS_COUNTRY_PLACEHOLDER, first=names[0], last=names[-1]),
+        )
+        rows.append((menu,))
+    return rows
+
+
+def address_modal(ui: Ui, settings: Settings, session: m.Session) -> ModalSpec:
+    """The private address form; earlier answers are filled in again (e.g. after an area we do not ship to)."""
+    country = session.details.get(flow.ADDRESS_COUNTRY)
+    inputs = tuple(
+        TextInputSpec(
+            custom_id=field.answer_key,
+            label=_text(ui, k.address_field_key(field.id, "label")),
+            style="paragraph" if field.style == "paragraph" else "short",
+            placeholder=ui.text(k.address_field_key(field.id, "placeholder")),
+            default=session.details.get(field.answer_key) or None,
+            required=flow.address_field_required(field, settings.shipping, country),
+            min_length=field.min_length or None,
+            max_length=field.max_length,
+        )
+        for field in flow.ADDRESS_FIELDS
+    )
+    return ModalSpec(custom_id=address_form_id(session.id), title=_text(ui, k.ADDRESS_MODAL_TITLE), inputs=inputs)
+
+
 def _details(ui: Ui, settings: Settings, data: m.WorkflowData) -> MessageSpec:
     session = data.session
+    if settings.checkout.ask_address:
+        return _address_step(ui, settings, data)
     inputs = flow.form_inputs(settings.checkout, session.fulfillment_option)
     header = _session_header(ui, settings, data)
     option_fields = _chosen_option_fields(ui, settings, session)
@@ -904,6 +998,37 @@ def _details(ui: Ui, settings: Settings, data: m.WorkflowData) -> MessageSpec:
     return MessageSpec(embeds=(embed,), rows=rows, banner=ui.banner("details-and-options"))
 
 
+def _address_step(ui: Ui, settings: Settings, data: m.WorkflowData) -> MessageSpec:
+    """The shipping address step: the cart so far, the address section, the region and country menus, the address
+    form button (plus the details form buttons, if any) and the navigation."""
+    session = data.session
+    header = _session_header(ui, settings, data)
+    footer = _footer(ui, settings, data, m.DETAILS)
+    embed = _step_embed(ui, k.DETAILS_TITLE, k.DETAILS_DESCRIPTION, header + _cart_fields(ui, data), footer)
+    if not _fits([embed]):
+        embed = _step_embed(ui, k.DETAILS_TITLE, k.DETAILS_DESCRIPTION, header + _compact_cart_fields(ui, data), footer)
+    embed = with_paragraph(embed, address_text(ui, settings, session.details))[0]
+    entered = bool(session.details.get(flow.ADDRESS_COUNTRY)) and any(
+        session.details.get(f.answer_key) for f in flow.ADDRESS_FIELDS
+    )
+    open_form = _button(
+        ui,
+        k.ADDRESS_BUTTON_CHANGE if entered else k.ADDRESS_BUTTON,
+        address_open_id(session.id),
+        style="secondary" if entered else "primary",
+        disabled=not session.details.get(flow.ADDRESS_COUNTRY),
+    )
+    inputs = flow.form_inputs(settings.checkout, None)
+    keys = (k.BUTTON_ENTER_DETAILS, k.BUTTON_ENTER_MORE_DETAILS)
+    form_buttons = [
+        _button(ui, keys[min(index, 1)], details_id(session.id, index)) for index in range(len(flow.form_parts(inputs)))
+    ]
+    complete = flow.details_step_complete(settings.checkout, settings.shipping, None, session.details)
+    navigation = _navigation(ui, settings, data, m.DETAILS, can_continue=complete)
+    rows = (*address_rows(ui, settings, session), *rows_of(open_form, *form_buttons, *navigation))
+    return MessageSpec(embeds=(embed,), rows=tuple(rows), banner=ui.banner("details-and-options"))
+
+
 def review_fields(ui: Ui, settings: Settings, data: m.WorkflowData) -> list[EmbedField]:
     session = data.session
     totals = data.totals
@@ -913,6 +1038,9 @@ def review_fields(ui: Ui, settings: Settings, data: m.WorkflowData) -> list[Embe
     )
     if chosen is not None:
         fields.append(_field(ui, k.FULFILLMENT_CHOSEN_FIELD, _text(ui, k.option_key(chosen.id, "label")), inline=True))
+    destination = ship_to(ui, settings, session.details) if settings.checkout.ask_address else None
+    if destination is not None:
+        fields.append(EmbedField(name=_text(ui, k.ADDRESS_HEADING), value=destination))
     if totals.fulfillment_fee_minor > 0:
         fields.append(_field(ui, k.FULFILLMENT_FEE_FIELD, money(ui, totals.fulfillment_fee_minor), inline=True))
     for fee in totals.fees:
@@ -1320,12 +1448,19 @@ def staff_buttons(ui: Ui, order: m.Order, *, staff_confirms_payment: bool, credi
 
 
 def ordered_answers(settings: Settings, order: m.Order) -> list[tuple[str, str]]:
-    """(answer key, answer) in form order (fields no longer configured last, by key)."""
+    """(answer key, answer as shown) in form order: the shipping address first (the country by name), then the
+    forms' answers; fields no longer configured last, by key."""
     c = settings.checkout
-    known = [i.answer_key for i in flow.form_inputs(c, order.fulfillment_option) + flow.submission_inputs(c)]
+    address = [flow.ADDRESS_COUNTRY, *(f.answer_key for f in flow.ADDRESS_FIELDS)]
+    known = address + [i.answer_key for i in flow.form_inputs(c, order.fulfillment_option) + flow.submission_inputs(c)]
     keys = [key for key in known if key in order.details]
     keys += sorted(key for key in order.details if key not in known)
-    return [(key, order.details[key]) for key in keys]
+    return [(key, answer_text(settings, key, order.details[key])) for key in keys]
+
+
+def answer_text(settings: Settings, answer_key: str, answer: str) -> str:
+    """An answer as staff read it: the address country by its name, everything else as entered."""
+    return settings.shipping.country_name(answer) if answer_key == flow.ADDRESS_COUNTRY else answer
 
 
 def staff_details_messages(ui: Ui, settings: Settings, order: m.Order) -> list[MessageSpec]:

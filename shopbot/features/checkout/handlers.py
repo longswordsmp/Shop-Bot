@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING
 import discord
 
 from shopbot.config.content import MissingContent
+from shopbot.core.countries import area_name
 from shopbot.features import core_keys as core
 from shopbot.features.catalog import repo as catalog_repo
 from shopbot.features.checkout import content_keys as k
@@ -227,6 +228,43 @@ async def on_extra(ctx: Ctx) -> None:
         raise HandlerError(core.ERROR_INVALID_INPUT)
     await service.toggle_extra(ctx.app, session, ctx.args[1])
     await _render(ctx, session.id)
+
+
+async def on_address_group(ctx: Ctx) -> None:
+    session = await _session(ctx)
+    if len(ctx.values) != 1:
+        raise HandlerError(core.ERROR_INVALID_INPUT)
+    await service.choose_address_group(ctx.app, session, ctx.values[0])
+    await _render(ctx, session.id)
+
+
+async def on_address_country(ctx: Ctx) -> None:
+    session = await _session(ctx)
+    if len(ctx.values) != 1:
+        raise HandlerError(core.ERROR_INVALID_INPUT)
+    await service.choose_address_country(ctx.app, session, ctx.values[0])
+    await _render(ctx, session.id)
+
+
+async def on_address_open(ctx: Ctx) -> None:
+    session = await _session(ctx)
+    country = session.details.get(flow.ADDRESS_COUNTRY)
+    if not ctx.app.settings.checkout.ask_address or not country or not ctx.app.settings.shipping.ships_to(country):
+        raise HandlerError(k.ERROR_COUNTRY_FIRST)
+    await ctx.send_modal(views.address_modal(ctx.app.ui, ctx.app.settings, session))
+
+
+async def on_address_form(ctx: Ctx) -> None:
+    session = await _session(ctx)
+    saved = await service.save_address(ctx.app, session, ctx.fields)
+    await _render(ctx, session.id)
+    if saved.excluded_area is not None:
+        country = saved.session.details.get(flow.ADDRESS_COUNTRY, "")
+        await ctx.fail(
+            k.ERROR_AREA_EXCLUDED,
+            area=area_name(country, saved.excluded_area),
+            country=ctx.app.settings.shipping.country_name(country),
+        )
 
 
 async def on_details(ctx: Ctx) -> None:
@@ -688,6 +726,9 @@ def register(app: App) -> None:
         "go": on_go,
         "ful": on_fulfillment,
         "extra": on_extra,
+        "agroup": on_address_group,
+        "acountry": on_address_country,
+        "aopen": on_address_open,
         "details": on_details,
         "credits": on_credits,
         "submit": on_submit,
@@ -702,6 +743,7 @@ def register(app: App) -> None:
         router.component(route, action, feature=feature)(handler)
     router.modal(route, "qty", feature=feature)(on_quantity)
     router.modal(route, "dform", feature=feature)(on_details_form)
+    router.modal(route, "aform", feature=feature)(on_address_form)
     router.modal(route, "sform", feature=feature)(on_submission_form)
     for action in views.STAFF_ACTION_TARGETS:
         router.component(staff_route, action, feature=feature, access="staff", staff_roles=staff_role_keys)(

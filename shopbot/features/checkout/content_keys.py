@@ -91,6 +91,22 @@ DETAILS_MODAL_TITLE = "checkout.details.modal_title"
 BUTTON_ENTER_DETAILS = "checkout.button.enter_details"
 BUTTON_ENTER_MORE_DETAILS = "checkout.button.enter_more_details"
 
+# -- workflow: shipping address (checkout.ask_address) -------------------------------------------------
+ADDRESS_REGION_PLACEHOLDER = "checkout.address.region_placeholder"
+ADDRESS_COUNTRY_PLACEHOLDER = "checkout.address.country_placeholder"
+ADDRESS_BUTTON = "checkout.address.button"
+ADDRESS_BUTTON_CHANGE = "checkout.address.button_change"
+ADDRESS_MODAL_TITLE = "checkout.address.modal_title"
+ADDRESS_HEADING = "checkout.address.heading"
+ADDRESS_COUNTRY_LINE = "checkout.address.country_line"
+ADDRESS_COUNTRY_NONE = "checkout.address.country_none"
+ADDRESS_ADDED_LINE = "checkout.address.added_line"
+ADDRESS_MISSING_LINE = "checkout.address.missing_line"
+ADDRESS_SHIP_TO = "checkout.address.ship_to"
+ADDRESS_COUNTRY_LABEL = "checkout.address.country_label"
+ERROR_AREA_EXCLUDED = "checkout.error.area_excluded"
+ERROR_COUNTRY_FIRST = "checkout.error.country_first"
+
 # -- workflow: review ---------------------------------------------------------------------------------
 REVIEW_TITLE = "checkout.review.title"
 REVIEW_DESCRIPTION = "checkout.review.description"
@@ -196,6 +212,16 @@ def fee_label_key(fee_id: str) -> str:
     if fee_id.startswith("x."):
         return extra_key(fee_id.removeprefix("x."), "label")
     return f"checkout.fee.{fee_id}.label"
+
+
+def address_region_key(group_id: str) -> str:
+    """Label of a region (``[[shipping.groups]]``) in the address step's region menu."""
+    return f"checkout.address.menu.{group_id}"
+
+
+def address_field_key(field_id: str, name: str) -> str:
+    """Key of a shipping address form field, e.g. ``checkout.address.street.label``."""
+    return f"checkout.address.{field_id}.{name}"
 
 
 def extra_key(extra_id: str, name: str) -> str:
@@ -1237,10 +1263,151 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             )
         )
     keys += _extra_keys(c)
+    keys += _address_keys(settings)
     provider = PROVIDERS.get(settings.payments.provider)
     if provider is not None:
         keys += provider.content_keys(settings)
     keys += staff_keys.content_keys(settings)  # staff side of orders (operations package)
+    return keys
+
+
+ADDRESS_FIELD_DOCS = {
+    "name": "the recipient's full name",
+    "street": "the street and house number (and apartment, if any)",
+    "city": "the city or town",
+    "region": "the state, province or region (required for a country with excluded areas, e.g. US states)",
+    "postal": "the postal or ZIP code",
+}
+
+
+def _address_keys(settings: Settings) -> list[ContentKey]:
+    c = settings.checkout
+    if not c.ask_address:
+        return []
+    group = "Checkout: shipping address (checkout.ask_address)"
+    where = "the shipping address step"
+    keys = [
+        ck(
+            ADDRESS_REGION_PLACEHOLDER,
+            Kind.SELECT_PLACEHOLDER,
+            FEATURE,
+            group,
+            f"Greyed-out text of the region menu on {where} (e.g. 'Choose your region').",
+        ),
+        ck(
+            ADDRESS_COUNTRY_PLACEHOLDER,
+            Kind.SELECT_PLACEHOLDER,
+            FEATURE,
+            group,
+            f"Greyed-out text of a country menu on {where}. {{first}} and {{last}} are the first and last country in "
+            "it (a region with more than 25 countries has several menus), e.g. 'Choose your country ({first} to "
+            "{last})'.",
+            placeholders=("first", "last"),
+        ),
+        ck(ADDRESS_BUTTON, Kind.BUTTON_LABEL, FEATURE, group, f"Button on {where} that opens the address form."),
+        ck(ADDRESS_BUTTON_CHANGE, Kind.BUTTON_LABEL, FEATURE, group, "The same button once an address was entered."),
+        ck(ADDRESS_MODAL_TITLE, Kind.MODAL_TITLE, FEATURE, group, "Title of the private address form."),
+        ck(
+            ADDRESS_HEADING,
+            Kind.TITLE,
+            FEATURE,
+            group,
+            f"Heading of the address section of {where}, shown in bold (it may start with an icon, e.g. "
+            "{icon_location}).",
+        ),
+        ck(
+            ADDRESS_COUNTRY_LINE,
+            Kind.FORMAT,
+            FEATURE,
+            group,
+            f"Line on {where} showing the chosen country, e.g. '**Country:** {{country}}'.",
+            placeholders=("country",),
+        ),
+        ck(
+            ADDRESS_COUNTRY_NONE,
+            Kind.FIELD_VALUE,
+            FEATURE,
+            group,
+            "Shown as {country} before a country is chosen, e.g. 'not chosen yet'.",
+        ),
+        ck(
+            ADDRESS_ADDED_LINE,
+            Kind.FORMAT,
+            FEATURE,
+            group,
+            f"Line on {where} once the address is entered, e.g. '**Address:** {{name}}, {{city}}'. The street is "
+            "never shown in the channel.",
+            placeholders=("name", "city", "region", "postal"),
+        ),
+        ck(
+            ADDRESS_MISSING_LINE,
+            Kind.FIELD_VALUE,
+            FEATURE,
+            group,
+            f"Line on {where} before the address is entered, e.g. '**Address:** not added yet'.",
+        ),
+        ck(
+            ADDRESS_SHIP_TO,
+            Kind.FORMAT,
+            FEATURE,
+            group,
+            "How the destination is written on the review, the order and the staff record, e.g. '{name}, {city}, "
+            "{country}' (the full address is shown to staff only).",
+            placeholders=("name", "city", "region", "postal", "country"),
+        ),
+        ck(
+            ADDRESS_COUNTRY_LABEL,
+            Kind.FIELD_NAME,
+            FEATURE,
+            group,
+            "Label of the country in the address shown to staff (e.g. 'Country').",
+        ),
+        ck(
+            ERROR_AREA_EXCLUDED,
+            Kind.DESCRIPTION,
+            FEATURE,
+            group,
+            "Private reply when the address is in an area we do not ship to (shipping.excluded_areas). {area} is its "
+            "name (e.g. Alaska), {country} the country. The answers are kept so the customer can correct them.",
+            placeholders=("area", "country"),
+        ),
+        ck(
+            ERROR_COUNTRY_FIRST,
+            Kind.DESCRIPTION,
+            FEATURE,
+            group,
+            "Private reply when the address form is opened before a country is chosen.",
+        ),
+    ]
+    for group_def in settings.shipping.groups:
+        keys.append(
+            ck(
+                address_region_key(group_def.id),
+                Kind.OPTION_LABEL,
+                FEATURE,
+                group,
+                f"Name of the region '{group_def.id}' ([[shipping.groups]]) in the address step's region menu (e.g. "
+                "North America).",
+            )
+        )
+    for field_id, doc in ADDRESS_FIELD_DOCS.items():
+        keys += [
+            ck(
+                address_field_key(field_id, "label"),
+                Kind.INPUT_LABEL,
+                FEATURE,
+                group,
+                f"Label of the address form field for {doc}; also its name in the address shown to staff.",
+            ),
+            ck(
+                address_field_key(field_id, "placeholder"),
+                Kind.INPUT_PLACEHOLDER,
+                FEATURE,
+                group,
+                f"Optional greyed-out example in the field for {doc}.",
+                required=False,
+            ),
+        ]
     return keys
 
 
@@ -1365,6 +1532,16 @@ def settings_problems(settings: Settings) -> list[str]:
     )
     # Staff order controls show customer details and payment actions: the channel must not be public.
     problems.extend(private_channel_problems(settings, (("checkout.staff_channel", c.staff_channel),)))
+    if c.ask_address:
+        if not settings.shipping.groups:
+            problems.append("checkout.ask_address: list the countries we ship to in [[shipping.groups]]")
+        if len(settings.shipping.groups) > 25:
+            problems.append("checkout.ask_address: at most 25 [[shipping.groups]] fit in the region menu")
+        if any(option.form for option in c.fulfillment_options):
+            problems.append(
+                "checkout.ask_address: delivery options with their own form are not supported with the address step "
+                "(the address is asked before the delivery option)"
+            )
     for fee in c.fees:
         if fee.kind == "percent" and fee.basis_points <= 0:
             problems.append(f"checkout.fees '{fee.id}': a percent fee needs basis_points > 0 (100 = 1%)")

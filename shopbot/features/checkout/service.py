@@ -742,8 +742,8 @@ async def go(app: App, session: m.Session, target: str) -> m.Session:
         and c.fulfillment(current.fulfillment_option) is None
     ):
         raise HandlerError(core.ERROR_INVALID_INPUT)
-    inputs = flow.form_inputs(c, current.fulfillment_option)
-    if target == m.REVIEW and m.DETAILS in steps and not flow.details_complete(inputs, current.details):
+    details_done = flow.details_step_complete(c, app.settings.shipping, current.fulfillment_option, current.details)
+    if m.DETAILS in steps and index > steps.index(m.DETAILS) and not details_done:
         raise HandlerError(core.ERROR_INVALID_INPUT)
     return await _update(app, current, step=target)
 
@@ -752,6 +752,49 @@ async def choose_fulfillment(app: App, session: m.Session, option_id: str) -> m.
     if app.settings.checkout.fulfillment(option_id) is None:
         raise HandlerError(core.ERROR_INVALID_INPUT)
     return await _update(app, session, fulfillment_option=option_id, step=m.FULFILLMENT)
+
+
+async def choose_address_group(app: App, session: m.Session, group_id: str) -> m.Session:
+    """The region menu: show that region's countries (the chosen country stays until another one is picked)."""
+    if not app.settings.checkout.ask_address or all(g.id != group_id for g in app.settings.shipping.groups):
+        raise HandlerError(core.ERROR_INVALID_INPUT)
+    return await _merge_answers(app, session, {flow.ADDRESS_GROUP: group_id})
+
+
+async def choose_address_country(app: App, session: m.Session, country: str) -> m.Session:
+    if not app.settings.checkout.ask_address or not app.settings.shipping.ships_to(country):
+        raise HandlerError(core.ERROR_INVALID_INPUT)
+    return await _merge_answers(app, session, {flow.ADDRESS_COUNTRY: country})
+
+
+@dataclass(frozen=True)
+class AddressSaved:
+    session: m.Session
+    # The excluded area the address is in (e.g. "AK"): the answers are kept so the customer can correct them.
+    excluded_area: str | None = None
+
+
+async def save_address(app: App, session: m.Session, fields: Mapping[str, str]) -> AddressSaved:
+    """Validate the address form server-side (lengths, required fields) and store it, even when it is in an area we
+    do not ship to: the form then opens with the answers again so they can be corrected."""
+    shipping = app.settings.shipping
+    country = session.details.get(flow.ADDRESS_COUNTRY)
+    if not app.settings.checkout.ask_address or country is None or not shipping.ships_to(country):
+        raise HandlerError(k.ERROR_COUNTRY_FIRST)
+    updates: dict[str, str | None] = {}
+    for item in flow.ADDRESS_FIELDS:
+        text = " ".join(fields.get(item.answer_key, "").split())  # one line: no stray line breaks or spaces
+        if not text:
+            if flow.address_field_required(item, shipping, country):
+                raise HandlerError(core.ERROR_INVALID_INPUT)
+            updates[item.answer_key] = None
+            continue
+        if not item.min_length <= len(text) <= item.max_length:
+            raise HandlerError(core.ERROR_INVALID_INPUT)
+        updates[item.answer_key] = text
+    saved = await _merge_answers(app, session, updates)
+    area = flow.excluded_area(shipping, country, updates.get(f"{flow.ADDRESS_PREFIX}region") or "")
+    return AddressSaved(saved, area)
 
 
 async def toggle_extra(app: App, session: m.Session, extra_id: str) -> m.Session:

@@ -485,6 +485,9 @@ class CheckoutSettings:
     details_form: tuple[FormField, ...] = ()
     # Optional form collected when the customer presses Submit (empty = submit directly).
     submission_form: tuple[FormField, ...] = ()
+    # The details step asks for the shipping address: a country we ship to ([shipping] groups) from menus, then a
+    # private address form (name, street, city, state/region, postal code), checked against excluded areas.
+    ask_address: bool = False
     fulfillment_options: tuple[FulfillmentOption, ...] = ()
     # Optional extras chosen with the delivery option (shown on the delivery step; added to the order as fees).
     extras: tuple[ExtraDef, ...] = ()
@@ -1055,6 +1058,7 @@ def parse_settings(data: dict[str, Any]) -> Settings:
         delete_channel_after_close_minutes=co.int_("delete_channel_after_close_minutes", 0, min_=0, max_=525_600),
         transcript_on_close=co.bool_("transcript_on_close", False),
         details_form=_form(co, "details_form"),
+        ask_address=co.bool_("ask_address", False),
         submission_form=_form(co, "submission_form"),
         fulfillment_options=tuple(options),
         fees=tuple(fees),

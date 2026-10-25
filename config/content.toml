@@ -426,45 +426,53 @@ how_to_buy.link.purchase.label = "Place an order"
 
 # --- How to buy guide: steps ---
 
-# Heading of step 1 of 5 in the step-by-step guide posted in the how_to_buy channel, shown in bold. Start it with a step-number icon if you want one shown, e.g. {icon_step_1} (channel links do not work in headings).
+# Heading of step 1 of 6 in the step-by-step guide posted in the how_to_buy channel, shown in bold. Start it with a step-number icon if you want one shown, e.g. {icon_step_1} (channel links do not work in headings).
 # field_name · max 256 characters · required
 how_to_buy.step.1.name = "{icon_step_1} Choose your items"
 
-# Explanation of step 1 of 5 in the step-by-step guide posted in the how_to_buy channel. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
+# Explanation of step 1 of 6 in the step-by-step guide posted in the how_to_buy channel. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
 how_to_buy.step.1.value = "Browse {channel_catalog} and press **Buy** on an item, or press **Start order** in {channel_purchase}. Your private order ticket opens."
 
-# Heading of step 2 of 5 in the step-by-step guide posted in the how_to_buy channel, shown in bold. Start it with a step-number icon if you want one shown, e.g. {icon_step_2} (channel links do not work in headings).
+# Heading of step 2 of 6 in the step-by-step guide posted in the how_to_buy channel, shown in bold. Start it with a step-number icon if you want one shown, e.g. {icon_step_2} (channel links do not work in headings).
 # field_name · max 256 characters · required
-how_to_buy.step.2.name = "{icon_step_2} Choose your delivery"
+how_to_buy.step.2.name = "{icon_step_2} Add your shipping address"
 
-# Explanation of step 2 of 5 in the step-by-step guide posted in the how_to_buy channel. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
+# Explanation of step 2 of 6 in the step-by-step guide posted in the how_to_buy channel. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-how_to_buy.step.2.value = "Pick Standard or Expedited shipping. Prices and the countries we ship to are listed in {channel_shipping}."
+how_to_buy.step.2.value = "Pick your country and fill in the address form. Only our team can see it."
 
-# Heading of step 3 of 5 in the step-by-step guide posted in the how_to_buy channel, shown in bold. Start it with a step-number icon if you want one shown, e.g. {icon_step_3} (channel links do not work in headings).
+# Heading of step 3 of 6 in the step-by-step guide posted in the how_to_buy channel, shown in bold. Start it with a step-number icon if you want one shown, e.g. {icon_step_3} (channel links do not work in headings).
 # field_name · max 256 characters · required
-how_to_buy.step.3.name = "{icon_step_3} Review and place your order"
+how_to_buy.step.3.name = "{icon_step_3} Choose delivery and extras"
 
-# Explanation of step 3 of 5 in the step-by-step guide posted in the how_to_buy channel. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
+# Explanation of step 3 of 6 in the step-by-step guide posted in the how_to_buy channel. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-how_to_buy.step.3.value = "Check every line and the total, then press **Submit order** and enter your shipping address in the private form."
+how_to_buy.step.3.value = "Standard or Expedited shipping, plus Shipping protection and Discreet packaging if you want them. Prices are listed in {channel_shipping}."
 
-# Heading of step 4 of 5 in the step-by-step guide posted in the how_to_buy channel, shown in bold. Start it with a step-number icon if you want one shown, e.g. {icon_step_4} (channel links do not work in headings).
+# Heading of step 4 of 6 in the step-by-step guide posted in the how_to_buy channel, shown in bold. Start it with a step-number icon if you want one shown, e.g. {icon_step_4} (channel links do not work in headings).
 # field_name · max 256 characters · required
-how_to_buy.step.4.name = "{icon_step_4} Pay with a DoorDash eGift card"
+how_to_buy.step.4.name = "{icon_step_4} Review and place your order"
 
-# Explanation of step 4 of 5 in the step-by-step guide posted in the how_to_buy channel. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
+# Explanation of step 4 of 6 in the step-by-step guide posted in the how_to_buy channel. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-how_to_buy.step.4.value = "Our team posts the payment steps in your ticket: a DoorDash eGift card for the exact order total."
+how_to_buy.step.4.value = "Check every line and the total, then press **Submit order**."
 
-# Heading of step 5 of 5 in the step-by-step guide posted in the how_to_buy channel, shown in bold. Start it with a step-number icon if you want one shown, e.g. {icon_step_5} (channel links do not work in headings).
+# Heading of step 5 of 6 in the step-by-step guide posted in the how_to_buy channel, shown in bold. Start it with a step-number icon if you want one shown, e.g. {icon_step_5} (channel links do not work in headings).
 # field_name · max 256 characters · required
-how_to_buy.step.5.name = "{icon_step_5} Track your package"
+how_to_buy.step.5.name = "{icon_step_5} Pay with a DoorDash eGift card"
 
-# Explanation of step 5 of 5 in the step-by-step guide posted in the how_to_buy channel. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
+# Explanation of step 5 of 6 in the step-by-step guide posted in the how_to_buy channel. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-how_to_buy.step.5.value = "Your tracking number is posted in your ticket as soon as your order ships. **/myorders** shows all your orders."
+how_to_buy.step.5.value = "Our team posts the payment steps in your ticket: a DoorDash eGift card for the exact order total."
+
+# Heading of step 6 of 6 in the step-by-step guide posted in the how_to_buy channel, shown in bold. Start it with a step-number icon if you want one shown, e.g. {icon_step_6} (channel links do not work in headings).
+# field_name · max 256 characters · required
+how_to_buy.step.6.name = "{icon_step_6} Track your package"
+
+# Explanation of step 6 of 6 in the step-by-step guide posted in the how_to_buy channel. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
+# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+how_to_buy.step.6.value = "Your tracking number is posted in your ticket as soon as your order ships. **/myorders** shows all your orders."
 
 # ==================================================================================================
 # Feature: faq
@@ -564,37 +572,53 @@ faq.section.problems.title = "{icon_alert} CANCELLATIONS AND PROBLEMS"
 
 # --- FAQ section 'shipping' ---
 
-# Answer to question 1 of 4 in the 'shipping' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
+# Answer to question 1 of 6 in the 'shipping' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
 faq.section.shipping.q.1.answer = "To the Americas and Europe; every country is listed in {channel_shipping}. In the United States we ship to every state except Alaska and North Dakota."
 
-# Question 1 of 4 in the 'shipping' section (channel links do not work in questions).
+# Question 1 of 6 in the 'shipping' section (channel links do not work in questions).
 # field_name · max 256 characters · required
 faq.section.shipping.q.1.question = "Where do you ship?"
 
-# Answer to question 2 of 4 in the 'shipping' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
+# Answer to question 2 of 6 in the 'shipping' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
 faq.section.shipping.q.2.answer = "You choose Standard or Expedited shipping while placing your order. The prices are listed in {channel_shipping} and shown in your order before you confirm it."
 
-# Question 2 of 4 in the 'shipping' section (channel links do not work in questions).
+# Question 2 of 6 in the 'shipping' section (channel links do not work in questions).
 # field_name · max 256 characters · required
 faq.section.shipping.q.2.question = "What does shipping cost?"
 
-# Answer to question 3 of 4 in the 'shipping' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
+# Answer to question 3 of 6 in the 'shipping' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
 faq.section.shipping.q.3.answer = "Orders ship once your payment is confirmed. Delivery time depends on your country and the carrier."
 
-# Question 3 of 4 in the 'shipping' section (channel links do not work in questions).
+# Question 3 of 6 in the 'shipping' section (channel links do not work in questions).
 # field_name · max 256 characters · required
 faq.section.shipping.q.3.question = "How long does delivery take?"
 
-# Answer to question 4 of 4 in the 'shipping' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
+# Answer to question 4 of 6 in the 'shipping' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
 faq.section.shipping.q.4.answer = "Only our team. You enter it in a private form, and it is never posted in a channel."
 
-# Question 4 of 4 in the 'shipping' section (channel links do not work in questions).
+# Question 4 of 6 in the 'shipping' section (channel links do not work in questions).
 # field_name · max 256 characters · required
 faq.section.shipping.q.4.question = "Who can see my address?"
+
+# Answer to question 5 of 6 in the 'shipping' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
+# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+faq.section.shipping.q.5.answer = "An optional extra you can add while ordering. If your package is lost or arrives damaged, we replace it or refund you in store credit."
+
+# Question 5 of 6 in the 'shipping' section (channel links do not work in questions).
+# field_name · max 256 characters · required
+faq.section.shipping.q.5.question = "What is Shipping protection?"
+
+# Answer to question 6 of 6 in the 'shipping' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
+# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+faq.section.shipping.q.6.answer = "An optional extra: your order ships in a plain outer box with no logos or product names."
+
+# Question 6 of 6 in the 'shipping' section (channel links do not work in questions).
+# field_name · max 256 characters · required
+faq.section.shipping.q.6.question = "What is Discreet packaging?"
 
 # Heading of the 'shipping' section of the FAQ posted in the faq channel, shown in bold (e.g. the topic: ordering, payment...). It may start with one of the bot's icons, e.g. {icon_cart}.
 # title · max 256 characters · required
@@ -1025,6 +1049,124 @@ new_arrivals.unsubscribed.title = "Restock Alerts is off"
 # Feature: checkout
 # ==================================================================================================
 
+# --- Checkout: shipping address (checkout.ask_address) ---
+
+# Line on the shipping address step once the address is entered, e.g. '**Address:** {name}, {city}'. The street is never shown in the channel.
+# format · max 100 characters · required · placeholders: {name}, {city}, {region}, {postal}
+checkout.address.added_line = "**Address:** {name}, {city}"
+
+# Button on the shipping address step that opens the address form.
+# button_label · max 80 characters · required
+checkout.address.button = "Enter address"
+
+# The same button once an address was entered.
+# button_label · max 80 characters · required
+checkout.address.button_change = "Change address"
+
+# Label of the address form field for the city or town; also its name in the address shown to staff.
+# input_label · max 45 characters · required
+checkout.address.city.label = "City"
+
+# Optional greyed-out example in the field for the city or town.
+# input_placeholder · max 100 characters · optional
+checkout.address.city.placeholder = ""
+
+# Label of the country in the address shown to staff (e.g. 'Country').
+# field_name · max 256 characters · required
+checkout.address.country_label = "Country"
+
+# Line on the shipping address step showing the chosen country, e.g. '**Country:** {country}'.
+# format · max 100 characters · required · placeholders: {country}
+checkout.address.country_line = "**Country:** {country}"
+
+# Shown as {country} before a country is chosen, e.g. 'not chosen yet'.
+# field_value · max 1024 characters · required
+checkout.address.country_none = "not chosen yet"
+
+# Greyed-out text of a country menu on the shipping address step. {first} and {last} are the first and last country in it (a region with more than 25 countries has several menus), e.g. 'Choose your country ({first} to {last})'.
+# select_placeholder · max 150 characters · required · placeholders: {first}, {last}
+checkout.address.country_placeholder = "Choose your country ({first} to {last})"
+
+# Heading of the address section of the shipping address step, shown in bold (it may start with an icon, e.g. {icon_location}).
+# title · max 256 characters · required
+checkout.address.heading = "{icon_location} SHIP TO"
+
+# Name of the region 'caribbean' ([[shipping.groups]]) in the address step's region menu (e.g. North America).
+# option_label · max 100 characters · required
+checkout.address.menu.caribbean = "Caribbean"
+
+# Name of the region 'central_america' ([[shipping.groups]]) in the address step's region menu (e.g. North America).
+# option_label · max 100 characters · required
+checkout.address.menu.central_america = "Central America"
+
+# Name of the region 'europe' ([[shipping.groups]]) in the address step's region menu (e.g. North America).
+# option_label · max 100 characters · required
+checkout.address.menu.europe = "Europe"
+
+# Name of the region 'north_america' ([[shipping.groups]]) in the address step's region menu (e.g. North America).
+# option_label · max 100 characters · required
+checkout.address.menu.north_america = "North America"
+
+# Name of the region 'south_america' ([[shipping.groups]]) in the address step's region menu (e.g. North America).
+# option_label · max 100 characters · required
+checkout.address.menu.south_america = "South America"
+
+# Line on the shipping address step before the address is entered, e.g. '**Address:** not added yet'.
+# field_value · max 1024 characters · required
+checkout.address.missing_line = "**Address:** not added yet"
+
+# Title of the private address form.
+# modal_title · max 45 characters · required
+checkout.address.modal_title = "Shipping address"
+
+# Label of the address form field for the recipient's full name; also its name in the address shown to staff.
+# input_label · max 45 characters · required
+checkout.address.name.label = "Full name"
+
+# Optional greyed-out example in the field for the recipient's full name.
+# input_placeholder · max 100 characters · optional
+checkout.address.name.placeholder = "First and last name"
+
+# Label of the address form field for the postal or ZIP code; also its name in the address shown to staff.
+# input_label · max 45 characters · required
+checkout.address.postal.label = "Postal code"
+
+# Optional greyed-out example in the field for the postal or ZIP code.
+# input_placeholder · max 100 characters · optional
+checkout.address.postal.placeholder = ""
+
+# Label of the address form field for the state, province or region (required for a country with excluded areas, e.g. US states); also its name in the address shown to staff.
+# input_label · max 45 characters · required
+checkout.address.region.label = "State, province or region"
+
+# Optional greyed-out example in the field for the state, province or region (required for a country with excluded areas, e.g. US states).
+# input_placeholder · max 100 characters · optional
+checkout.address.region.placeholder = "For example: Texas"
+
+# Greyed-out text of the region menu on the shipping address step (e.g. 'Choose your region').
+# select_placeholder · max 150 characters · required
+checkout.address.region_placeholder = "Choose your region"
+
+# How the destination is written on the review, the order and the staff record, e.g. '{name}, {city}, {country}' (the full address is shown to staff only).
+# format · max 100 characters · required · placeholders: {name}, {city}, {region}, {postal}, {country}
+checkout.address.ship_to = "{name}, {city}, {country}"
+
+# Label of the address form field for the street and house number (and apartment, if any); also its name in the address shown to staff.
+# input_label · max 45 characters · required
+checkout.address.street.label = "Street and number"
+
+# Optional greyed-out example in the field for the street and house number (and apartment, if any).
+# input_placeholder · max 100 characters · optional
+checkout.address.street.placeholder = "Street, house number, apartment"
+
+# Private reply when the address is in an area we do not ship to (shipping.excluded_areas). {area} is its name (e.g. Alaska), {country} the country. The answers are kept so the customer can correct them.
+# description · max 4096 characters · required · placeholders: {area}, {country}
+checkout.error.area_excluded = "We can't ship to {area}. Please use an address in another state. Press **Change address** to correct it: your answers are kept."
+
+# Private reply when the address form is opened before a country is chosen.
+# description · max 4096 characters · required
+checkout.error.country_first = "Choose your region and country first, then press **Enter address**."
+
 # --- Checkout: order workflow - choosing products ---
 
 # Optional text of the product-choosing step (e.g. how to pick products and quantities).
@@ -1164,7 +1306,7 @@ checkout.button.enter_more_details = "More details"
 
 # Optional text of the details step.
 # description · max 4096 characters · optional
-checkout.details.description = "Press **Enter details** and fill in the form. When everything is filled in, press **Continue**."
+checkout.details.description = "Choose your region and country, then press **Enter address**. Only our team can see your full address."
 
 # Title of the order details form. Needed when a form is defined.
 # modal_title · max 45 characters · optional
@@ -1172,7 +1314,7 @@ checkout.details.modal_title = "Order details"
 
 # Title of the step where the customer enters order details (checkout.details_form and the chosen option's form). The answers are shown below as fields named by the field labels. Needed when a form is defined.
 # title · max 256 characters · optional
-checkout.details.title = "Your order details"
+checkout.details.title = "Shipping address"
 
 # --- Checkout: shop panel ---
 
@@ -1187,8 +1329,8 @@ Press **Start order** to open your private order ticket. Only you and our team c
 
 **{icon_list} WHAT TO EXPECT**
 1. Choose your items and quantities
-2. Choose Standard or Expedited shipping
-3. Review the total and submit your order with your shipping address
+2. Add your shipping address and choose delivery
+3. Review the total and place your order
 4. Pay with a DoorDash eGift card for the exact total
 5. Get your tracking number in the ticket once it ships
 
@@ -1835,48 +1977,6 @@ checkout.status_label.refunded = "Refunded"
 # Name of the order status 'rejected' (staff rejected the order before payment), used as {status} in the staff order controls.
 # format · max 100 characters · required
 checkout.status_label.rejected = "Rejected"
-
-# --- Checkout: submission form (asked when the customer presses Submit) ---
-
-# Optional help text under the 'address' field label.
-# input_description · max 100 characters · optional
-checkout.submission.form.address.description = "We ship to the Americas and Europe (in the US, not to Alaska or North Dakota)."
-
-# Label of the 'address' field in the submission form (also the field name under which the answer is shown to the customer and to staff).
-# input_label · max 45 characters · required
-checkout.submission.form.address.label = "Shipping address"
-
-# Optional greyed-out example text inside the empty 'address' field.
-# input_placeholder · max 100 characters · optional
-checkout.submission.form.address.placeholder = "Street, city, state or region, postal code, country"
-
-# Optional help text under the 'full_name' field label.
-# input_description · max 100 characters · optional
-checkout.submission.form.full_name.description = "Only our team can see the details you enter here."
-
-# Label of the 'full_name' field in the submission form (also the field name under which the answer is shown to the customer and to staff).
-# input_label · max 45 characters · required
-checkout.submission.form.full_name.label = "Full name"
-
-# Optional greyed-out example text inside the empty 'full_name' field.
-# input_placeholder · max 100 characters · optional
-checkout.submission.form.full_name.placeholder = "First and last name"
-
-# Optional help text under the 'notes' field label.
-# input_description · max 100 characters · optional
-checkout.submission.form.notes.description = "Optional. Anything our team should know about your delivery."
-
-# Label of the 'notes' field in the submission form (also the field name under which the answer is shown to the customer and to staff).
-# input_label · max 45 characters · required
-checkout.submission.form.notes.label = "Delivery notes"
-
-# Optional greyed-out example text inside the empty 'notes' field.
-# input_placeholder · max 100 characters · optional
-checkout.submission.form.notes.placeholder = "For example: leave the package at the front desk"
-
-# Title of the form that opens when the customer presses Submit (checkout.submission_form). The answers are stored with the order and shown to staff.
-# modal_title · max 45 characters · required
-checkout.submission.modal_title = "Shipping details"
 
 # --- Checkout: submitted order (order channel) ---
 

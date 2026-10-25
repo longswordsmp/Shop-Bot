@@ -239,7 +239,7 @@ button_style = "success"             # color of the "I agree" button: primary, s
 
 [how_to_buy]
 channel = "how_to_buy"
-steps = 5                            # numbered steps (1-25), from choosing items to tracking the package.
+steps = 6                            # numbered steps (1-25), from choosing items to tracking the package.
                                      # Text: how_to_buy.step.<n>.name / .value
 link_channels = ["catalog", "purchase", "faq"]   # channel keys shown as link buttons under the guide (max 25);
                                      # button labels: how_to_buy.link.<channel>.label (+ optional .emoji)
@@ -259,7 +259,7 @@ questions = 3
 
 [[faq.sections]]
 id = "shipping"
-questions = 4
+questions = 6
 
 [[faq.sections]]
 id = "tracking"
@@ -486,30 +486,18 @@ transcript_on_close = true
 customer_role = "customer"           # role key given to members whose order reached customer_role_on ("" = off)
 customer_role_on = "fulfilled"       # "paid" (payment confirmed) or "fulfilled" (order completed)
 customer_role_remove_on_refund = true  # remove the role when an order is fully refunded and no other order qualifies
+# The shipping address is asked on its own step, before the delivery options: the customer picks a country we
+# ship to ([shipping] groups) from menus, then fills in a private form (name, street, city, state/region, postal
+# code). Addresses in [shipping.excluded_areas] (Alaska, North Dakota) are refused; only staff see the full address.
+ask_address = true
 # Optional submission form (max 5 fields), asked when the customer presses Submit (e.g. a reference the business
-# needs). The answers are stored with the order and shown to staff. Labels are content keys
-# checkout.submission.form.<id>.label / .description / .placeholder; the form title is checkout.submission.modal_title.
-# The shipping details below are shown to staff only (privately, see operations.answers_in_orders_channel).
-[[checkout.submission_form]]
-id = "full_name"
-style = "short"                      # "short" or "paragraph"
-required = true
-min_length = 2
-max_length = 100
-
-[[checkout.submission_form]]
-id = "address"
-style = "paragraph"
-required = true
-min_length = 10
-max_length = 400
-
-[[checkout.submission_form]]
-id = "notes"
-style = "paragraph"
-required = false
-min_length = 0
-max_length = 500
+# needs). Labels are content keys checkout.submission.form.<id>.label / .description / .placeholder. Example:
+# [[checkout.submission_form]]
+# id = "notes"
+# style = "paragraph"                # "short" or "paragraph"
+# required = false
+# min_length = 0
+# max_length = 500
 # Delivery options the customer chooses from (also listed with their prices on #shipping). fee_minor is in cents.
 # Labels live in content.toml checkout.fulfillment.<id>.label / .description.
 [[checkout.fulfillment_options]]

@@ -130,10 +130,10 @@ def test_excluded_areas_of_other_countries_are_names() -> None:
 
 def test_shipped_settings_configure_the_three_guides() -> None:
     settings = load_config(ROOT / "config").settings
-    assert settings.how_to_buy.channel == "how_to_buy" and settings.how_to_buy.steps == 5
+    assert settings.how_to_buy.channel == "how_to_buy" and settings.how_to_buy.steps == 6
     assert settings.how_to_buy.link_channels == ("catalog", "purchase", "faq")
     assert [s.id for s in settings.faq.sections] == ["ordering", "payment", "shipping", "tracking", "problems"]
-    assert [s.questions for s in settings.faq.sections] == [3, 3, 4, 2, 2]
+    assert [s.questions for s in settings.faq.sections] == [3, 3, 6, 2, 2]
     # The owner ships to every country in the Americas and to Europe; in the US not to Alaska or North Dakota.
     # Cuba, Russia and Belarus are listed as not available (sanctions; most carriers refuse parcels).
     s = settings.shipping

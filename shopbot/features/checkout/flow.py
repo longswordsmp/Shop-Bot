@@ -15,7 +15,8 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
-from shopbot.config.settings import CheckoutSettings, ExtraDef, FeeDef, FormField
+from shopbot.config.settings import CheckoutSettings, ExtraDef, FeeDef, FormField, ShippingSettings
+from shopbot.core.countries import matches_area
 from shopbot.features.checkout import content_keys as k
 from shopbot.features.checkout import models as m
 
@@ -81,7 +82,11 @@ def form_parts(inputs: Sequence[FormInput]) -> list[list[FormInput]]:
 
 def label_key_for_answer(answer_key: str) -> str | None:
     """The content key that labels a stored answer (None for an unrecognized key)."""
+    if answer_key == "a.country":
+        return k.ADDRESS_COUNTRY_LABEL
     parts = answer_key.split(".")
+    if len(parts) == 2 and parts[0] == "a":
+        return k.address_field_key(parts[1], "label")
     if len(parts) == 2 and parts[0] == "d":
         return k.form_field_key(parts[1], "label")
     if len(parts) == 2 and parts[0] == "s":
@@ -101,10 +106,15 @@ def relevant_answers(inputs: Sequence[FormInput], answers: Mapping[str, str]) ->
 
 
 def steps_for(settings: CheckoutSettings, option_id: str | None) -> tuple[str, ...]:
+    """browse, cart, [fulfillment], [details], review. With ``ask_address`` the details step is the shipping address
+    and comes before the delivery options (the destination is known when choosing how fast it ships); options
+    with their own forms are then not supported (settings problem)."""
     steps = [m.BROWSE, m.CART]
+    if settings.ask_address:
+        steps.append(m.DETAILS)
     if settings.fulfillment_options:
         steps.append(m.FULFILLMENT)
-    if form_inputs(settings, option_id):
+    if not settings.ask_address and form_inputs(settings, option_id):
         steps.append(m.DETAILS)
     steps.append(m.REVIEW)
     return tuple(steps)
@@ -155,3 +165,89 @@ def session_fees(settings: CheckoutSettings, details: Mapping[str, str]) -> tupl
 def extra_id_of_fee(fee_id: str) -> str | None:
     """The extra a fee stands for (None for a configured fee)."""
     return fee_id.removeprefix(EXTRA_PREFIX) if fee_id.startswith(EXTRA_PREFIX) else None
+
+
+# -- shipping address ----------------------------------------------------------------------------------------
+# With ``checkout.ask_address`` the details step asks for the shipping address. The country is chosen from menus
+# (``a.group`` remembers the region menu's choice; ``a.country`` is the country code) and the rest is typed in a
+# private form; every answer is stored under ``a.<field>``.
+
+ADDRESS_PREFIX = "a."
+ADDRESS_GROUP = "a.group"
+ADDRESS_COUNTRY = "a.country"
+
+
+@dataclass(frozen=True)
+class AddressField:
+    id: str
+    style: str
+    min_length: int
+    max_length: int
+    required: bool = True
+
+    @property
+    def answer_key(self) -> str:
+        return f"{ADDRESS_PREFIX}{self.id}"
+
+
+# The form holds at most 5 inputs: exactly these. ``region`` (state / province) is required only for a country with
+# excluded areas (the bot must check it).
+ADDRESS_FIELDS: tuple[AddressField, ...] = (
+    AddressField("name", "short", 2, 100),
+    AddressField("street", "paragraph", 3, 200),
+    AddressField("city", "short", 1, 100),
+    AddressField("region", "short", 0, 100, required=False),
+    AddressField("postal", "short", 2, 20),
+)
+COUNTRY_MENU_SIZE = 25  # options per Discord menu: a larger region is split into several country menus
+
+
+def address_field_required(field: AddressField, shipping: ShippingSettings, country: str | None) -> bool:
+    return field.required or (field.id == "region" and country is not None and country in shipping.excluded_areas)
+
+
+def excluded_area(shipping: ShippingSettings, country: str | None, region: str) -> str | None:
+    """The excluded area (e.g. "AK") the typed state/region names, or None when the address can be shipped to."""
+    if country is None:
+        return None
+    return next(
+        (area for area in shipping.excluded_areas.get(country, ()) if matches_area(country, area, region)), None
+    )
+
+
+def address_problem(shipping: ShippingSettings, details: Mapping[str, str]) -> str | None:
+    """Why the stored address cannot be used: "country" (none chosen, or no longer one we ship to), "missing" (a
+    required answer is empty) or "excluded" (an area we do not ship to); None when it is complete."""
+    country = details.get(ADDRESS_COUNTRY)
+    if not country or not shipping.ships_to(country):
+        return "country"
+    for field in ADDRESS_FIELDS:
+        if address_field_required(field, shipping, country) and not details.get(field.answer_key, "").strip():
+            return "missing"
+    if excluded_area(shipping, country, details.get(f"{ADDRESS_PREFIX}region", "")) is not None:
+        return "excluded"
+    return None
+
+
+def address_answers(details: Mapping[str, str]) -> dict[str, str]:
+    """The address as an order stores it (country code and the typed fields; the region menu's choice is not)."""
+    keys = [ADDRESS_COUNTRY, *(f.answer_key for f in ADDRESS_FIELDS)]
+    return {key: details[key] for key in keys if details.get(key, "").strip()}
+
+
+def country_menus(shipping: ShippingSettings, group_id: str | None) -> list[tuple[str, ...]]:
+    """The country codes of the chosen region, in menus of at most 25 (none before a region is chosen)."""
+    group = next((g for g in shipping.groups if g.id == group_id), None)
+    if group is None:
+        return []
+    codes = group.countries
+    return [codes[i : i + COUNTRY_MENU_SIZE] for i in range(0, len(codes), COUNTRY_MENU_SIZE)]
+
+
+def details_step_complete(
+    settings: CheckoutSettings, shipping: ShippingSettings, option_id: str | None, details: Mapping[str, str]
+) -> bool:
+    """The details step is done: the details forms answered and (with ``ask_address``) a usable address."""
+    if not details_complete(form_inputs(settings, option_id), details):
+        return False
+    return not settings.ask_address or address_problem(shipping, details) is None

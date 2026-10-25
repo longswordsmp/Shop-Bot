@@ -399,6 +399,31 @@ def preview(app: App) -> list[PreviewState]:
                     views.details_modal, ui, settings, _session(m.DETAILS, option=option_id, details=answers), part
                 ),
             )
+    if c.ask_address and settings.shipping.groups:
+        group = settings.shipping.groups[-1]  # the last region (shipped: Europe, more than 25 countries: two menus)
+        country = group.countries[0]
+        address = {
+            flow.ADDRESS_GROUP: group.id,
+            flow.ADDRESS_COUNTRY: country,
+            **{f.answer_key: f"[sample {f.id}]" for f in flow.ADDRESS_FIELDS},
+        }
+        add(
+            "workflow_address_empty",
+            "Workflow message: the shipping address step before a region is chosen (continue disabled).",
+            workflow(_session(m.DETAILS, option=option_id), lines),
+        )
+        add(
+            "workflow_address_entered",
+            "Workflow message: the shipping address step with a region, country and address (the street is never "
+            "shown in the channel).",
+            workflow(_session(m.DETAILS, option=option_id, details=address), lines),
+        )
+        add(
+            "address_form",
+            "The private shipping address form (answers of an earlier attempt are filled in again).",
+            partial(views.address_modal, ui, settings, _session(m.DETAILS, option=option_id, details=address)),
+        )
+        answers = {**answers, **address}
     review = _session(m.REVIEW, option=option_id, details=answers)
     add(
         "workflow_review",

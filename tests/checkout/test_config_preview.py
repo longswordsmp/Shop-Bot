@@ -213,8 +213,10 @@ def test_every_content_key_constant_is_declared() -> None:
         "submission_form": [{"id": "x"}],
         "fulfillment_options": [{"id": "s"}],
         "extras": [{"id": "e", "amount_minor": 100}],
+        "ask_address": True,
     }
-    declared = {key.key for key in k.content_keys(make_settings({"checkout": conditional}))}
+    settings = make_settings({"checkout": conditional, "shipping": {"groups": [{"id": "g", "countries": ["US"]}]}})
+    declared = {key.key for key in k.content_keys(settings)}
     assert constants <= declared, constants - declared
 
 
