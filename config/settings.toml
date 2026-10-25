@@ -262,7 +262,18 @@ info_position = "after"              # "before" or "after" the region list
 # status = "full"
 
 [announcements]
-channel = "announcements"
+channel = "announcements"            # channel key /announce posts to
+roles = []                           # extra role keys allowed to use /announce (staff_roles and admins always can)
+mention_roles = []                   # role keys staff may choose to ping with an announcement ([] = never ping);
+                                     # a role must be mentionable (server.roles mentionable = true) to be pinged
+allow_image = true                   # staff may attach one image (png, jpg, gif, webp) to an announcement
+# Optional extra inputs of the /announce form (at most 3), each posted as an embed field. The field's heading is
+# the content key announcements.field.<id>.name; staff type the value. Example:
+# [[announcements.fields]]
+# id = "details"
+# style = "short"                    # "short" (one line) or "paragraph"
+# required = false                   # true = staff must fill it in
+# max_length = 1024                  # 1-1024 characters
 
 [new_arrivals]
 channel = "new_arrivals"             # channel of the opt-in panel and the automatic product updates

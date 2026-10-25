@@ -562,11 +562,36 @@ class ShippingSettings:
     info_position: str = "after"
 
 
+ANNOUNCEMENT_MAX_FIELDS = 3  # the /announce form holds title + message + these fields (Discord: 5 inputs)
+ANNOUNCEMENT_FIELD_MAX_LENGTH = 1024  # an embed field value holds at most 1024 characters
+ANNOUNCEMENT_MAX_MENTION_ROLES = 25  # Discord shows at most 25 autocomplete choices
+
+
+@dataclass(frozen=True)
+class AnnouncementField:
+    """One optional extra input of the /announce form, posted as an embed field (name: content key
+    ``announcements.field.<id>.name``; value: what staff type)."""
+
+    id: str
+    style: str = "short"
+    required: bool = False
+    max_length: int = ANNOUNCEMENT_FIELD_MAX_LENGTH
+
+
 @dataclass(frozen=True)
 class AnnouncementSettings:
     """[announcements]: /announce and the channel it publishes to."""
 
     channel: str = ""
+    # Extra role keys allowed to use /announce besides permissions.staff_roles and admins.
+    roles: tuple[str, ...] = ()
+    # Role keys staff may choose to mention (ping) with an announcement; empty = announcements never mention.
+    mention_roles: tuple[str, ...] = ()
+    fields: tuple[AnnouncementField, ...] = ()
+    allow_image: bool = True
+
+    def field(self, field_id: str) -> AnnouncementField | None:
+        return next((f for f in self.fields if f.id == field_id), None)
 
 
 @dataclass(frozen=True)
@@ -1057,7 +1082,35 @@ def _parse_shipping(r: _Reader) -> ShippingSettings:
 
 
 def _parse_announcements(r: _Reader) -> AnnouncementSettings:
-    return _finish(r, AnnouncementSettings(channel=r.str_("channel", "", pattern=KEY_PATTERN)))
+    fields: list[AnnouncementField] = []
+    for f in r.tables("fields"):
+        item = AnnouncementField(
+            id=f.str_("id", "", pattern=KEY_PATTERN, allow_empty=False),
+            style=f.str_("style", "short", choices=("short", "paragraph")),
+            required=f.bool_("required", False),
+            max_length=f.int_("max_length", ANNOUNCEMENT_FIELD_MAX_LENGTH, min_=1, max_=ANNOUNCEMENT_FIELD_MAX_LENGTH),
+        )
+        if not item.id:
+            f.error("id", "is required")
+        f.finish()
+        fields.append(item)
+    if len(fields) > ANNOUNCEMENT_MAX_FIELDS:
+        r.error(
+            "fields",
+            f"at most {ANNOUNCEMENT_MAX_FIELDS} fields fit in the /announce form (with the title and the message)",
+        )
+    _unique(tuple(fields), lambda x: x.id, r._p("fields"), r._errors)
+    mention_roles = r.keys_("mention_roles")
+    if len(mention_roles) > ANNOUNCEMENT_MAX_MENTION_ROLES:
+        r.error("mention_roles", f"at most {ANNOUNCEMENT_MAX_MENTION_ROLES} roles can be offered")
+    settings = AnnouncementSettings(
+        channel=r.str_("channel", "", pattern=KEY_PATTERN),
+        roles=r.keys_("roles"),
+        mention_roles=mention_roles,
+        fields=tuple(fields),
+        allow_image=r.bool_("allow_image", True),
+    )
+    return _finish(r, settings)
 
 
 def _parse_problems(r: _Reader) -> ProblemSettings:
