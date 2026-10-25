@@ -13,7 +13,9 @@ step "Format check";          "${BIN}ruff" format --check shopbot tools tests
 step "Lint";                  "${BIN}ruff" check shopbot tools tests
 step "Type check";            "${BIN}mypy"
 step "Tests";                 "${BIN}pytest" -q -p no:cacheprovider
-step "Discord limits + handler coverage"; "${BIN}python" -m tools.check_limits --all-features
+step "Discord limits + handler coverage (configured text)"; "${BIN}python" -m tools.check_limits --all-features
+step "Discord limits + handler coverage (every state, synthetic text)"
+"${BIN}python" -m tools.check_limits --all-features --fixtures --strict
 step "Secret scan";           "${BIN}python" -m tools.secret_scan
 step "Generated docs are current"
 GENERATED="docs/COMMANDS.md docs/COMPONENTS.md docs/DATABASE.md docs/CONTENT_CHECKLIST.md"

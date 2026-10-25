@@ -18,6 +18,7 @@ from shopbot.config.settings import Settings
 from shopbot.core.audit import AuditLog
 from shopbot.core.clock import Clock
 from shopbot.core.notifier import Notifier
+from shopbot.core.panels import withdraw_and_audit
 from shopbot.core.permissions import Permissions
 from shopbot.core.resources import Resources
 from shopbot.core.scheduler import Scheduler
@@ -144,4 +145,6 @@ class App:
         log_event(
             log, logging.INFO, "config_reloaded", ready=[n for n, s in self.readiness.statuses.items() if s.ready]
         )
+        # A feature that is no longer ready must not keep a live panel.
+        await withdraw_and_audit(self, actor_id=None, reason="reload")
         return ReloadResult(ok=True)

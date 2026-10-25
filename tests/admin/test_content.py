@@ -69,7 +69,7 @@ async def test_set_opens_prefilled_form_with_short_token(tenv: TestEnv) -> None:
         (ck.ERROR_GENERIC, "  Leading and trailing spaces are kept.  "),
         (ck.ERROR_GENERIC, "Line one\n\nLine three 👋🏽 with emoji\n"),
         (ck.ERROR_GENERIC, "Quotes \"double\" 'single' and \\backslash\\ and ``` fences"),
-        (ck.ERROR_GENERIC, "Text with {braces} that are not placeholders"),
+        (ck.ERROR_NOT_FOUND, "Text with {braces} that are not placeholders"),
         (ck.ERROR_COOLDOWN, "Wait {retry_after} seconds."),
     ],
 )

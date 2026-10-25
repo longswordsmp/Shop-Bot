@@ -5,6 +5,8 @@ Usage:
     python -m tools.check_limits                 # check the current configuration (enabled features)
     python -m tools.check_limits --all-features  # also build states of disabled features
     python -m tools.check_limits --config-dir path/to/config
+    python -m tools.check_limits --all-features --fixtures   # build EVERY state, using synthetic tokens for
+                                                             # text that is not configured yet (CI uses this)
 
 Exit status: 0 when no violation was found, 1 when any limit violation or invalid value exists, 2 when the
 configuration cannot be loaded. States that cannot be built because text is not configured yet are listed
@@ -72,9 +74,11 @@ def unrouted_components(state: PreviewState, router: Router) -> list[str]:
     return missing
 
 
-async def run_checks(config_dir: Path, *, all_features: bool) -> Report:
+async def run_checks(config_dir: Path, *, all_features: bool, fixtures: bool = False) -> Report:
     report = Report()
-    app = await build_offline_app(config_dir, content_mode="actual", all_features=all_features)
+    app = await build_offline_app(
+        config_dir, content_mode="fixtures" if fixtures else "actual", all_features=all_features
+    )
     try:
         store = app.content
         assert isinstance(store, TrackingContentStore)
@@ -140,9 +144,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--config-dir", type=Path, default=ROOT / "config")
     parser.add_argument("--all-features", action="store_true", help="also check features that are disabled")
     parser.add_argument("--strict", action="store_true", help="fail when any state is incomplete")
+    parser.add_argument(
+        "--fixtures",
+        action="store_true",
+        help="fill text that is not configured yet with synthetic tokens (in memory only) so every state is built",
+    )
     args = parser.parse_args(argv)
     try:
-        report = asyncio.run(run_checks(args.config_dir, all_features=args.all_features))
+        report = asyncio.run(run_checks(args.config_dir, all_features=args.all_features, fixtures=args.fixtures))
     except (SettingsError, ContentFileError) as exc:
         print("Configuration cannot be loaded:")
         for error in exc.errors:

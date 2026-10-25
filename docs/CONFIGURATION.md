@@ -125,7 +125,7 @@ and leaves overwrites you added for other roles/members untouched.
 | `close_confirmation` | true | Ask for confirmation before closing. |
 | `lock_on_close` | true | The owner can no longer post after closing. |
 | `closed_category` | `""` | Move closed tickets to this category. |
-| `delete_after_close_minutes` | 0 | Delete closed ticket channels after N minutes (transcript first). 0 = never. |
+| `delete_after_close_minutes` | 0 | Delete closed ticket channels after N minutes (transcript first). 0 = never. Discord allows only 50 channels per category: on a busy server set this (or `closed_category`), otherwise the ticket category eventually fills up and new tickets are refused. |
 | `auto_close_inactive_minutes` | 0 | Close inactive tickets automatically. 0 = never. |
 | `auto_close_warning_minutes` | 0 | Warn N minutes of inactivity before auto-close (must be smaller). |
 | `channel_name_pattern` | `{prefix}-{number}` | `{prefix}` is the category's content prefix; `{number}` is required; `{user}` optional. |

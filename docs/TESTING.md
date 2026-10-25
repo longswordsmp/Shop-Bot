@@ -25,15 +25,21 @@ deployed.
 | Lint (incl. security rules `S`, async rules `ASYNC`) | `.venv/bin/ruff check shopbot tools tests` |
 | Types | `.venv/bin/mypy` |
 | Unit + integration tests | `.venv/bin/pytest -q` |
-| Configuration + Discord limits + handler coverage | `.venv/bin/python -m tools.check_limits --all-features` |
-| Content checklist | `.venv/bin/python -m tools.checklist --write` |
+| Configuration + Discord limits + handler coverage (your text) | `.venv/bin/python -m tools.check_limits --all-features` |
+| Every state built and checked (synthetic text for anything not configured) | `.venv/bin/python -m tools.check_limits --all-features --fixtures --strict` |
 | Secrets scan | `python -m tools.secret_scan` (scans tracked files for token-shaped strings and `.env` files) |
 | Syntax/import check | `python -m compileall -q shopbot tools tests` |
 | Generated docs current | `python -m tools.reference_docs` then no diff in `docs/` |
 
 `tools.check_limits` exits 1 on any Discord limit violation, invalid configured value, or a component that no
-handler would receive. States whose text is not configured yet are reported as *incomplete* (they are never
-shown to customers); add `--strict` to make those fail too, e.g. before going live.
+handler would receive. With your real text, states whose text is not configured yet are reported as *incomplete*
+(they are never shown to customers); add `--strict` to make those fail too, e.g. before going live. With
+`--fixtures`, text that is not configured yet is replaced in memory by short synthetic tokens so that every one of
+the ~120 states (customer and staff) is built and checked; CI runs this so a structural limit problem or a button
+without a handler cannot be merged even before any text exists.
+
+Not a gate, but useful: `python -m tools.checklist --write` (content checklist) and `python -m tools.build_preview`
+(HTML preview).
 
 ## What the automated tests cover
 

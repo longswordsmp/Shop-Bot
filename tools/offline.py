@@ -4,8 +4,11 @@ Used by the limits checker, the content checklist, and the HTML preview. The dat
 starts empty; nothing is read from or written to the production database, and no token is needed.
 
 Content modes:
-- ``actual``  - exactly what config/content.toml (plus nothing else) contains.
-- ``markers`` - unconfigured keys render as ``⟦key⟧`` so the preview shows where text is still missing.
+- ``actual``   - exactly what config/content.toml (plus nothing else) contains.
+- ``markers``  - unconfigured keys render as ``⟦key⟧`` so the preview shows where text is still missing.
+- ``fixtures`` - unconfigured keys get short synthetic tokens (``[t17]``) so the limits checker can build and
+  verify every state (structure, limits, handler coverage) before any real text exists. These tokens exist
+  only in memory for the check; they are never written anywhere and never sent to Discord.
 """
 
 from __future__ import annotations
@@ -26,7 +29,7 @@ from shopbot.env import Env
 from shopbot.features import all_modules
 
 ROOT = Path(__file__).resolve().parent.parent
-ContentMode = Literal["actual", "markers"]
+ContentMode = Literal["actual", "markers", "fixtures"]
 
 # Used only when previewing every feature regardless of the operator's flags. "XXX" is the ISO 4217 code
 # for "no currency", so the preview never implies a real currency or payment decision.
@@ -74,6 +77,29 @@ class TrackingContentStore(ContentStore):
         if value is None:
             self.missing.add(key)
         return value
+
+
+def fixture_values(registry: Registry, configured: dict[str, str]) -> dict[str, str]:
+    """Configured values plus short synthetic tokens for every unconfigured key (in-memory checks only)."""
+    from shopbot.config.content_keys import Kind
+
+    values = dict(configured)
+    for index, definition in enumerate(registry.all()):
+        if values.get(definition.key):
+            continue
+        token = f"[t{index}]"
+        if definition.kind is Kind.EMOJI:
+            value = "⭐"
+        elif definition.kind is Kind.URL:
+            value = f"https://example.com/t{index}.png"
+        elif definition.kind in (Kind.CHANNEL_NAME, Kind.CHANNEL_PREFIX):
+            value = f"t{index}"
+        elif definition.placeholders:
+            value = token + " " + " ".join("{" + p + "}" for p in definition.placeholders)
+        else:
+            value = token
+        values[definition.key] = value if len(value) <= definition.max_length else token[: definition.max_length]
+    return values
 
 
 class OfflineBot:
@@ -187,7 +213,10 @@ async def build_offline_app(
     )
     registry: Registry = app.content.registry
     store_cls = MarkerContentStore if content_mode == "markers" else TrackingContentStore
-    store = store_cls(registry, loaded.content_values, {})
+    file_values = (
+        fixture_values(registry, loaded.content_values) if content_mode == "fixtures" else loaded.content_values
+    )
+    store = store_cls(registry, file_values, {})
     app.content = store
     app.ui.content = store
     app.recompute_readiness()

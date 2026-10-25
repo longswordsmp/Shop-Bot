@@ -176,3 +176,34 @@ def test_disabled_settings_make_nothing_customer_facing_ready() -> None:
     store = ContentStore(registry, fixture_content(registry))
     readiness = compute_readiness(settings, store, modules)
     assert not any(s.ready for s in readiness.statuses.values() if s.name not in ("server", "admin"))
+
+
+RAILWAY = {
+    "DISCORD_TOKEN": VALID_TOKEN,
+    "GUILD_ID": "123456789012345678",
+    "RAILWAY_PROJECT_ID": "p",
+    "DB_PATH": "/data/bot.db",
+}
+
+
+def test_env_on_railway_without_a_volume_is_refused() -> None:
+    with pytest.raises(EnvError) as exc:
+        load_env(RAILWAY)
+    assert any("no Railway volume is attached" in p for p in exc.value.problems)
+
+
+def test_env_on_railway_with_db_outside_the_volume_is_refused() -> None:
+    with pytest.raises(EnvError) as exc:
+        load_env({**RAILWAY, "RAILWAY_VOLUME_MOUNT_PATH": "/data", "DB_PATH": "/app/data/bot.db"})
+    assert any("not inside the Railway volume mounted at /data" in p for p in exc.value.problems)
+
+
+def test_env_on_railway_with_db_on_the_volume_is_accepted() -> None:
+    assert load_env({**RAILWAY, "RAILWAY_VOLUME_MOUNT_PATH": "/data"}).db_path == Path("/data/bot.db")
+    assert load_env({**RAILWAY, "RAILWAY_VOLUME_MOUNT_PATH": "/data/", "DB_PATH": "/data/sub/bot.db"})
+
+
+def test_env_ephemeral_db_can_be_allowed_explicitly_and_offline_tools_are_not_checked() -> None:
+    assert load_env({**RAILWAY, "ALLOW_EPHEMERAL_DB": "true"}).db_path == Path("/data/bot.db")
+    assert load_env({"RAILWAY_PROJECT_ID": "p"}, require_token=False)
+    assert load_env({**RAILWAY, "RAILWAY_PROJECT_ID": ""}).db_path == Path("/data/bot.db")  # not on Railway

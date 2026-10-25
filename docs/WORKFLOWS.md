@@ -25,7 +25,8 @@ by a scheduled sweep.
 | Control | Who | Effect |
 |---|---|---|
 | Close | owner (if `allow_user_close`) or staff | optional confirmation → `closed`; owner can no longer post (`lock_on_close`); optional move to `closed_category`; transcript; optional scheduled deletion |
-| Claim / Unclaim | staff | assigns/unassigns the ticket to a staff member |
+| Claim | staff | assigns the ticket to the staff member who clicked |
+| Unclaim | the assigned staff member, or an admin | removes the assignment |
 | Reopen | staff (owner if `user_can_reopen`, within limits) | `closed` → `open`, restores access, cancels deletion |
 | Transcript | staff | generates and posts a transcript now |
 | Delete | staff, with confirmation | only closed tickets; transcript first; never deletes if the transcript cannot be produced |
@@ -38,7 +39,15 @@ activity before acting, so a message in the ticket postpones them.
 ticket `deleted`.
 
 **Transcripts:** self-contained HTML (all values escaped) with timestamps, authors, message text, attachment links,
-and embed text; posted to `tickets.transcript_channel`, optionally sent to the owner by DM.
+and embed text; posted to `tickets.transcript_channel`, optionally sent to the owner by DM. Attachment links point
+to Discord's CDN and expire after a while (Discord signs them); the transcript keeps the file names and links, not
+the files themselves.
+
+**Channel limits:** Discord allows at most 50 channels in a category and 500 in a server. Closed ticket and order
+channels stay until deleted, so set `tickets.delete_after_close_minutes` (and
+`checkout.delete_channel_after_close_minutes`) or a `tickets.closed_category`, or delete closed channels yourself.
+When a category is full, new tickets are refused with your generic error text and the bot logs
+`tickets_category_full` and records the failure in the audit log.
 
 ## Catalog
 
@@ -108,7 +117,10 @@ or credit change) shows the review again instead of placing the order.
 **Timers** (all off by default): cart expiry, payment reminder, payment expiry.
 
 **Payments:** provider `manual` — instructions you write; staff confirm receipt; refunds are recorded and returned
-outside the bot. No payment details are ever requested in Discord.
+outside the bot. No payment details are ever requested in Discord. Each order has a payment record that becomes
+`succeeded` when staff confirm payment and `cancelled` when the order is rejected, cancelled or expires before
+payment. The `failed` payment state exists for automated providers (a declined card, a failed payment link); the
+manual provider never produces it.
 
 ## Store credit
 

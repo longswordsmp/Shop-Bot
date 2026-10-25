@@ -16,6 +16,7 @@ Handlers then load records by ID and verify ownership/state themselves.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import math
 import uuid
@@ -241,6 +242,10 @@ class Router:
         self._limiter = SlidingWindowLimiter(settings.rate_limit_per_10s, 10.0)
         self._inflight = InFlight()
         self._spacing = Cooldowns()
+        self._active = 0
+        self._idle = asyncio.Event()
+        self._idle.set()
+        self._closing = False
 
     def add(self, route: Route) -> None:
         key = (route.kind, route.route, route.action)
@@ -287,6 +292,19 @@ class Router:
     def reset_limits(self) -> None:
         self._limiter = SlidingWindowLimiter(self.app.settings.bot.rate_limit_per_10s, 10.0)
 
+    async def drain(self, wait_seconds: float) -> bool:
+        """Stop starting new handlers and wait up to ``wait_seconds`` for the running ones (shutdown)."""
+        self._closing = True
+        if self._active == 0:
+            return True
+        log_event(log, logging.INFO, "router_draining", handlers=self._active, wait_seconds=wait_seconds)
+        try:
+            await asyncio.wait_for(self._idle.wait(), wait_seconds)
+        except TimeoutError:
+            log_event(log, logging.WARNING, "router_drain_timeout", handlers=self._active)
+            return False
+        return True
+
     async def dispatch(
         self,
         interaction: discord.Interaction[Any],
@@ -319,6 +337,11 @@ class Router:
             await ctx.ack()
             return
 
+        if self._closing:
+            # Shutting down: do not start work that the restart would cut off half-way.
+            await ctx.fail(ck.ERROR_UNAVAILABLE)
+            return
+
         retry_after = self._limiter.hit(user_id)
         if retry_after > 0:
             await ctx.fail(ck.ERROR_COOLDOWN, retry_after=math.ceil(retry_after))
@@ -339,6 +362,8 @@ class Router:
             else:
                 await ctx.ack()
             return
+        self._active += 1
+        self._idle.clear()
         try:
             if route.feature is not None and not self.app.readiness.is_ready(route.feature):
                 await ctx.fail(ck.ERROR_UNAVAILABLE)
@@ -355,6 +380,9 @@ class Router:
         finally:
             self._inflight.release(flight_key)
             self._spacing.mark(flight_key)
+            self._active -= 1
+            if self._active == 0:
+                self._idle.set()
 
     async def _run(self, ctx: Ctx) -> None:
         route = ctx.route
@@ -370,6 +398,7 @@ class Router:
             await ctx.fail(ck.ERROR_UNAVAILABLE)
             return
         except discord.Forbidden as exc:
+            error_id = uuid.uuid4().hex[:12]
             log_event(
                 log,
                 logging.ERROR,
@@ -378,8 +407,9 @@ class Router:
                 action=route.action,
                 code=exc.code,
                 error=str(exc.text)[:200],
+                error_id=error_id,
             )
-            await ctx.fail(ck.ERROR_GENERIC)
+            await ctx.fail(ck.ERROR_GENERIC, error_id=error_id)
             return
         except discord.NotFound as exc:
             log_event(log, logging.WARNING, "discord_not_found", route=route.route, action=route.action, code=exc.code)
@@ -397,7 +427,7 @@ class Router:
                 error=type(exc).__name__,
             )
             log.exception("handler failure %s", error_id)
-            await ctx.fail(ck.ERROR_GENERIC)
+            await ctx.fail(ck.ERROR_GENERIC, error_id=error_id)
             return
         if not ctx.responded:
             log_event(log, logging.DEBUG, "interaction_auto_ack", route=route.route, action=route.action)

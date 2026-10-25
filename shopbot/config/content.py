@@ -177,9 +177,11 @@ class ContentStore:
 
         def substitute(match: re.Match[str]) -> str:
             name = match.group(1)
-            if name in allowed and name in values:
-                return str(values[name])
-            return match.group(0)
+            if name not in allowed:
+                return match.group(0)  # not a placeholder of this key: the owner's text, kept verbatim
+            # A declared placeholder with no value in this situation (e.g. no error reference) renders as nothing,
+            # so a raw "{name}" never reaches a customer.
+            return str(values[name]) if name in values else ""
 
         return _PLACEHOLDER_RE.sub(substitute, text)
 

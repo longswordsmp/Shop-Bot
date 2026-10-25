@@ -77,6 +77,11 @@ def make_settings(overrides: dict[str, Any] | None = None, *, all_features: bool
     return parse_settings(data)
 
 
+# Placeholders that only add a reference to an existing message; fixtures leave them out so tests can compare the
+# rendered text with the fixture value exactly.
+OPTIONAL_REFERENCE_PLACEHOLDERS = frozenset({"error_id"})
+
+
 def fixture_content(registry: Registry) -> dict[str, str]:
     """Short, unique, limit-respecting fixture values for every registered key (tests only)."""
     values: dict[str, str] = {}
@@ -88,8 +93,8 @@ def fixture_content(registry: Registry) -> dict[str, str]:
             value = f"https://example.com/t{index}.png"
         elif definition.kind in (Kind.CHANNEL_NAME, Kind.CHANNEL_PREFIX):
             value = f"t{index}"
-        elif definition.placeholders:
-            value = token + " " + " ".join("{" + p + "}" for p in definition.placeholders)
+        elif placeholders := [p for p in definition.placeholders if p not in OPTIONAL_REFERENCE_PLACEHOLDERS]:
+            value = token + " " + " ".join("{" + p + "}" for p in placeholders)
         else:
             value = token
         if len(value) > definition.max_length:

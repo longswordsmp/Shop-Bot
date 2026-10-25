@@ -54,7 +54,8 @@
 
 - Product images are accepted only as `https://` URLs (optionally restricted to `catalog.image_hosts`).
   Discord attachment links expire, so they are not accepted as permanent product images.
-- Transcripts are generated as HTML with every value HTML-escaped.
+- Transcripts are generated as HTML with every value HTML-escaped. Attachments are referenced by their Discord CDN
+  links (never downloaded); Discord expires those links after some time.
 
 ## Data retention
 

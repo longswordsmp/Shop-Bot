@@ -102,6 +102,9 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
+DISCORD_CATEGORY_CHANNEL_LIMIT = 50  # Discord: channels per category
+DISCORD_GUILD_CHANNEL_LIMIT = 500  # Discord: channels per server
+
 TASK_TRANSCRIPT = "tickets.transcript"
 TASK_DELETE = "tickets.delete"
 TASK_AUTO_CLOSE = "tickets.auto_close"
@@ -501,6 +504,22 @@ async def create_ticket_channel(
         missing = missing_permissions(bot_member, category, CREATE_PRIVATE_REQUIRED)
         if missing:
             raise TicketCreateFailed("missing_permissions:" + ",".join(missing))
+        # Discord allows at most 50 channels per category and 500 per server. Refuse clearly (logged and
+        # audited with the reason) instead of failing inside Discord's API.
+        if category is not None and len(category.channels) >= DISCORD_CATEGORY_CHANNEL_LIMIT:
+            log_event(
+                log,
+                logging.ERROR,
+                "tickets_category_full",
+                key=discord_category_key,
+                channels=len(category.channels),
+                hint="enable tickets.delete_after_close_minutes / checkout.delete_channel_after_close_minutes, "
+                "set tickets.closed_category, or delete closed channels",
+            )
+            raise TicketCreateFailed("category_full")
+        if len(guild.channels) >= DISCORD_GUILD_CHANNEL_LIMIT:
+            log_event(log, logging.ERROR, "tickets_guild_channel_limit", channels=len(guild.channels))
+            raise TicketCreateFailed("guild_channel_limit")
         roles = await staff_role_ids(app, extra_staff_role_keys)
         overwrites = _private_overwrites(guild, owner_id=member.id, staff_roles=roles, bot_member=bot_member)
         if topic is not None and len(topic) > 1024:

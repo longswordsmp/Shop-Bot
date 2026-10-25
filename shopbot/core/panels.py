@@ -12,7 +12,7 @@ import contextlib
 import hashlib
 import json
 import logging
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 from typing import TYPE_CHECKING, Literal
 
 import discord
@@ -96,8 +96,10 @@ async def remove_message(app: App, key: str) -> bool:
     record = await app.db.run(state.published_get, guild_id, key)
     if record is None:
         return False
-    channel = app.bot.get_channel(record.channel_id) if app.bot is not None else None
-    if channel is None and app.bot is not None:
+    if app.bot is None:
+        raise RuntimeError("cannot remove a published message without a Discord connection")
+    channel = app.bot.get_channel(record.channel_id)
+    if channel is None:
         try:
             channel = await app.bot.fetch_channel(record.channel_id)
         except discord.NotFound:
@@ -110,3 +112,54 @@ async def remove_message(app: App, key: str) -> bool:
     await app.db.transaction(state.published_delete, guild_id, key)
     log_event(log, logging.INFO, "panel_removed", key=key)
     return True
+
+
+@dataclass(frozen=True)
+class Withdrawal:
+    feature: str
+    key: str
+    ok: bool
+
+
+async def withdraw_unready_panels(app: App, *, dry_run: bool = False) -> list[Withdrawal]:
+    """Remove the published panels of every feature that is disabled or not fully configured.
+
+    Customers must never see a panel whose feature is not ready (e.g. after required text was cleared, a
+    reload, or a redeploy). Called by /setup, after configuration changes, and at startup. With ``dry_run``
+    nothing is changed and the panels that would be removed are returned.
+    """
+    results: list[Withdrawal] = []
+    for module in app.modules:
+        if not module.panel_prefixes or app.ready(module.name):
+            continue
+        for prefix in module.panel_prefixes:
+            records = await app.db.run(state.published_with_prefix, app.env.guild_id, prefix)
+            for record in records:
+                if dry_run:
+                    results.append(Withdrawal(module.name, record.key, True))
+                    continue
+                try:
+                    await remove_message(app, record.key)
+                except Exception as exc:  # report and continue with the other panels
+                    log_event(log, logging.WARNING, "panel_withdraw_failed", key=record.key, error=type(exc).__name__)
+                    results.append(Withdrawal(module.name, record.key, False))
+                    continue
+                log_event(log, logging.INFO, "panel_withdrawn", feature=module.name, key=record.key)
+                results.append(Withdrawal(module.name, record.key, True))
+    return results
+
+
+async def withdraw_and_audit(app: App, *, actor_id: int | None, reason: str) -> list[Withdrawal]:
+    """``withdraw_unready_panels`` for automatic triggers; records an audit event when anything was removed."""
+    if app.bot is None or app.guild is None:
+        return []
+    results = await withdraw_unready_panels(app)
+    if results:
+        await app.audit.record(
+            "panels.withdrawn",
+            actor_id=actor_id,
+            target_type="panels",
+            target_id=reason,
+            details={"withdrawn": [r.key for r in results if r.ok], "failed": [r.key for r in results if not r.ok]},
+        )
+    return results

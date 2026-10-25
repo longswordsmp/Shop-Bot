@@ -21,6 +21,7 @@ from shopbot.config.content import validate_value
 from shopbot.config.content_keys import ContentKey
 from shopbot.config.readiness import FeatureStatus, Problem, Readiness
 from shopbot.config.settings import Settings
+from shopbot.core.panels import withdraw_and_audit
 from shopbot.core.permissions import BOT_PERMISSIONS, missing_permissions
 from shopbot.db.repos import state as state_repo
 from shopbot.db.repos import tasks as task_repo
@@ -360,6 +361,8 @@ async def clear_override(app: App, key: str, *, actor_id: int) -> ClearResult:
             target_id=key,
             details={"key": key},
         )
+        # Clearing required text can make a feature not ready: its live panels are withdrawn at once.
+        await withdraw_and_audit(app, actor_id=actor_id, reason="content_clear")
     return ClearResult(key=key, removed=removed, source_after=source_after, changes=tuple(changes))
 
 

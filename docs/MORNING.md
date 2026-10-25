@@ -35,8 +35,9 @@ Set `DISCORD_TOKEN`, `GUILD_ID`, `OWNER_ID`, `DB_PATH=./data/bot.db`, `LOG_FORMA
 | `GUILD_ID` | your server ID (step 3) |
 | `OWNER_ID` | your user ID (step 3) |
 | `DB_PATH` | `/data/bot.db` |
+| `RAILWAY_DEPLOYMENT_DRAINING_SECONDS` | `15` (lets in-progress clicks finish when Railway restarts the bot) |
 
-Check: Railway shows the four variables (values hidden).
+Check: Railway shows the five variables (token value hidden).
 
 ## 3. Get the Discord IDs
 
@@ -78,7 +79,8 @@ Check later: `/setup` reports any missing permission or role it cannot manage.
 ## 8. Persistent volume
 
 Railway service → **Volumes** (or right-click the service → Attach Volume) → mount path **`/data`**.
-Keep `DB_PATH=/data/bot.db`. Without a volume, every redeploy would start with an empty database.
+Keep `DB_PATH=/data/bot.db`. Without a volume, every redeploy would start with an empty database, so the bot
+refuses to start on Railway without one (the deploy log shows `env_invalid` … "not on persistent storage").
 
 ## 9. Deploy
 
@@ -163,8 +165,9 @@ Use a second (non-staff) Discord account as the "customer".
 **Admin**
 - [ ] `/status`, `/content show`, `/backup` (creates a file on the volume), `/audit` (shows your actions).
 
-Record what you tested and anything unexpected; logs in Railway include an error reference (`error_id`) that
-matches the bot's reply for any failure.
+Record what you tested and anything unexpected. Every unexpected failure is logged in Railway with an error
+reference (`error_id`). Staff see that reference in failed slash-command replies; customers see it only if you
+include `{error_id}` in your `common.error.generic` text.
 
 ---
 

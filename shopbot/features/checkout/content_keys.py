@@ -340,9 +340,8 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             Kind.SELECT_PLACEHOLDER,
             FEATURE,
             g_browse,
-            "Optional greyed-out text of the product selection menu. The options are the product names; the "
-            "small text under each is its price.",
-            required=False,
+            "Greyed-out text of the product selection menu (if empty, Discord would show its own default "
+            "text). The options are the product names; the small text under each is its price.",
         ),
         ck(
             CART_TITLE,
@@ -389,8 +388,8 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             Kind.SELECT_PLACEHOLDER,
             FEATURE,
             g_cart,
-            "Optional greyed-out text of the menu that picks a cart line to change its quantity.",
-            required=False,
+            "Greyed-out text of the menu that picks a cart line to change its quantity (if empty, Discord would "
+            "show its own default text).",
         ),
         ck(
             CART_EDIT_OPTION,
@@ -459,8 +458,9 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             Kind.SELECT_PLACEHOLDER,
             FEATURE,
             g_ful,
-            "Optional greyed-out text of the fulfillment option menu.",
-            required=False,
+            "Greyed-out text of the fulfillment option menu (if empty, Discord would show its own default text). "
+            "Needed when checkout.fulfillment_options are defined.",
+            required=options,
         ),
         ck(
             FULFILLMENT_CHOSEN_FIELD,

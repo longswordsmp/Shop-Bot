@@ -32,7 +32,9 @@ Features: `core` (shared text), `server` (/setup), `admin` (operator tools), `in
   with `/content set` (database override). The bot ships with every value empty.
 - **Readiness gate:** a feature is shown to customers only when it is enabled, its settings are valid, its
   dependencies are ready, and all its required keys are configured and valid. Otherwise its panels are not
-  published (and are withdrawn by `/setup`), and its controls answer with the configured "unavailable" message.
+  published, panels already published are withdrawn automatically (at startup, after `/reload`, after
+  `/content clear`, and by `/setup`), and its controls answer with the configured "unavailable" message. Text
+  *changes* to a ready feature's panels are applied by running `/setup` (it edits panels in place).
 - **Missing text at runtime:** never replaced by invented wording. Error replies fall back to a silent
   acknowledgement; messages that cannot be rendered are not sent.
 - **Exact text:** placeholders are substituted only for the names a key declares; everything else, including
@@ -59,8 +61,9 @@ Features: `core` (shared text), `server` (/setup), `admin` (operator tools), `in
 - **Router protections** (before any handler): configured guild only (DMs only for routes that allow them), per-user
   rate limit, anti-double-click spacing, in-flight duplicate guard, feature readiness, access level. Handlers then
   reload records by ID and re-check ownership/state; custom IDs are never trusted beyond the ID.
-- `tools.check_limits` fails if any component in any preview state has no registered handler, so a button that
-  "does nothing" cannot ship unnoticed.
+- `tools.check_limits --all-features --fixtures` builds every preview state (customer and staff, using in-memory
+  synthetic tokens for text that is not configured yet) and fails if any component has no registered handler or
+  any state breaks a Discord limit. CI runs it on every push, so a button that "does nothing" cannot ship unnoticed.
 
 ## 4. Data
 
@@ -85,6 +88,9 @@ Features: `core` (shared text), `server` (/setup), `admin` (operator tools), `in
   guild would otherwise look like every channel had been deleted).
 - One process per database: Railway does not overlap deployments with a volume, and the bot also holds an
   exclusive file lock next to the database.
+- Shutdown drains: on `SIGTERM` new clicks are refused with the "unavailable" text and running ones get up to
+  10 s to finish. A hard kill is still safe (atomic transactions + startup recovery). Slash commands are not
+  drained (they are short admin actions and can be repeated).
 
 ## 6. Tickets and orders share one channel model
 
@@ -111,6 +117,9 @@ cancelled or expires. Cancelling a *paid* order does not restock automatically; 
 ## 9. Deployment
 
 Railway worker started with `python -m shopbot`, persistent volume at `/data`, `DB_PATH=/data/bot.db`, one replica.
+On Railway the bot refuses to start when `DB_PATH` is not on the attached volume (`RAILWAY_VOLUME_MOUNT_PATH`),
+because running on the container's temporary disk would lose every order at the next redeploy
+(`ALLOW_EPHEMERAL_DB=true` overrides this for throwaway test services).
 `railway.json` is provided as requested; Railway documents config-as-code as deprecated (existing services until
 2026-12-01, not read by new services), so the equivalent dashboard settings are documented in `DEPLOYMENT.md`.
 
@@ -128,6 +137,33 @@ Railway worker started with `python -m shopbot`, persistent volume at `/data`, `
 | Scheduler retries | 5, backoff from 30 s | Survives transient Discord/network errors |
 | Message Content intent | on | Transcripts need message text |
 | Audit retention | forever | Owner decides when to purge |
+| Finished scheduled tasks kept | 30 days | Housekeeping (technical) |
+| `/backup` copies kept | 10 | Disk usage on the volume |
+
+### 10a. Behaviour defaults shipped in `settings.toml` — please review
+
+These are not technical necessities; they describe how features behave. They ship with the values below so the
+features work as soon as they are switched on. Each is one line in `config/settings.toml`. **Review and change
+any that do not match how you want to operate.**
+
+| Setting | Shipped value | Effect |
+|---|---|---|
+| `tickets.allow_user_close` | true | The ticket owner can close their own ticket |
+| `tickets.allow_reopen` / `user_can_reopen` | true / false | Staff can reopen; owners cannot |
+| `tickets.close_confirmation` | true | Closing asks for confirmation |
+| `tickets.lock_on_close` | true | Owner can no longer post after closing |
+| `tickets.transcript_channel` | `transcripts` | Transcripts are produced (set `""` to turn off) |
+| `tickets.staff_alert_channel` | `staff_alerts` | Staff are alerted about new tickets (set `""` to turn off) |
+| `tickets.panel_style` | `buttons` | One button per category (alternative: a dropdown) |
+| one ticket category `general` | – | A single "open a ticket" button; add/rename categories as needed |
+| `catalog.browse_enabled` | true | Customers can browse products privately |
+| `credits.allow_at_checkout` | true | Customers may apply store credit at checkout |
+| `reviews.allow_comment` / `comment_required` / `comment_max_length` | true / false / 1000 | Optional review comments |
+| `reviews.prompt_via` | `dm_then_channel` | Review requests by DM, falling back to the order channel |
+| `notifications.fallback_to_channel` | true | Undeliverable DMs fall back to the ticket/order channel |
+| `checkout.decimal_separator` / `thousands_separator` | `.` / `,` | How amounts are written in `{amount}` |
+| server layout (5 categories, 8 channels, 1 `staff` role) | – | The structure `/setup` creates; names come from you |
+| `audit.channel` | `audit_log` | Admin-only audit channel |
 
 ## 11. Business decisions left to the owner
 
@@ -154,3 +190,14 @@ server structure names; every word customers see. See `docs/CONTENT_CHECKLIST.md
   in `content.toml`.
 - A single bot instance per database (by design).
 - No automated payment provider (see §7).
+- Discord limits a category to 50 channels. Closed ticket/order channels are kept until deleted (auto-deletion is
+  off by default), so busy servers should enable deletion or a closed-tickets category; a full category makes new
+  tickets fail with the generic error (logged as `tickets_category_full`, audited).
+- A customer notification that cannot be delivered by DM *or* in the fallback channel is logged and recorded as
+  failed, but not retried automatically (the order/ticket state itself is never lost; staff see it in the channel).
+- Retention: audit events (configurable) and finished tasks (30 days) are purged automatically. Ticket/order
+  records with customers' form answers, notification records, and pre-migration backup files are kept until
+  deleted manually.
+- Transcripts link to Discord attachment URLs, which Discord expires after some time.
+- Text changes to panels of a ready feature appear after running `/setup`; panels of features that stop being
+  ready are withdrawn automatically.

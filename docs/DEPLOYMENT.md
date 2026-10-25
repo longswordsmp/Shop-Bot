@@ -50,12 +50,17 @@ dashboard settings above are equivalent.
 | `APP_ENV` | no | `production` (default). |
 | `CONFIG_DIR` | no | Defaults to `./config` inside the deployed source. |
 | `STARTUP_FAILURE_DELAY_SECONDS` | no | Delay before exiting on a fatal startup error (default 30) to avoid tight restart loops. |
+| `RAILWAY_DEPLOYMENT_DRAINING_SECONDS` | recommended | `15` – time Railway waits between `SIGTERM` and `SIGKILL`, so clicks being processed can finish (see "Stopping"). Railway's default is short (reported as 0–3 s). |
+| `ALLOW_EPHEMERAL_DB` | no | Leave unset. `true` lets the bot start on Railway without a volume – only for a throwaway test service. |
 
 Never put these values in the repository. `.env` is for local development only and is git-ignored.
 
 ## Persistent storage
 
 - Add a volume to the service and mount it at `/data`. Set `DB_PATH=/data/bot.db`.
+- On Railway the bot **refuses to start** (`env_invalid`, exit code 78) when no volume is attached or `DB_PATH` is
+  outside the volume (it compares with `RAILWAY_VOLUME_MOUNT_PATH`, which Railway sets when a volume is attached).
+  Without this check every redeploy would silently start with an empty database and lose all orders.
 - The bot creates the directory and database on first start, applies migrations, and never recreates a
   populated database. Before applying a new migration to a database that holds data, it writes a copy next to it
   (`bot.db.pre-vNNNN-<timestamp>.bak`).
@@ -72,8 +77,9 @@ exits. Keep replicas at 1.
 
 ## Startup sequence (what the logs show)
 
-1. `starting` – version, Python and discord.py versions (never the token).
-2. Environment validation – a missing/invalid variable logs `env_invalid` with the variable name only.
+1. Environment validation – a missing/invalid variable logs `env_invalid` with the variable name only (and the
+   process exits with code 78 after a short delay).
+2. `starting` – version, Python and discord.py versions (never the token).
 3. `instance_lock_acquired`.
 4. Configuration load – invalid settings log `config_invalid` with the exact setting path.
 5. `db_opened`, `db_migration_applied` (when needed), `db_ready`.
@@ -81,8 +87,17 @@ exits. Keep replicas at 1.
 7. `routes_registered`, `commands_synced`.
 8. `bot_ready` – lists ready and not-ready features.
 
-On `SIGTERM` (redeploy/stop) the bot stops the scheduler, closes the Discord connection, checkpoints and closes
-the database, releases the lock, and exits with code 0.
+## Stopping
+
+On `SIGTERM` (redeploy/stop) the bot stops accepting new clicks (they get your "unavailable" text), waits up to
+10 seconds for clicks already being processed to finish (`router_draining`, or `router_drain_timeout` if they did
+not), stops the scheduler, closes the Discord connection, checkpoints and closes the database, releases the lock,
+and exits with code 0. Railway sends `SIGKILL` after `RAILWAY_DEPLOYMENT_DRAINING_SECONDS`, so set it to 15.
+
+If the process is killed anyway (crash, `SIGKILL`), no data is half-written: every database change is a single
+transaction, and the startup recovery finishes or rolls back what was in progress (tickets being created,
+scheduled tasks being run). The customer of a click that was cut off may see Discord's "interaction failed" and
+can click again.
 
 ## Updating
 
@@ -110,6 +125,7 @@ data written since.
 | Symptom / log event | Cause | Fix |
 |---|---|---|
 | `env_invalid` | Variable missing or malformed | Set it in Railway Variables (the log names it). |
+| `env_invalid` "DB_PATH is not on persistent storage" / "not inside the Railway volume" | No volume, or `DB_PATH` outside it | Attach a volume at `/data` and set `DB_PATH=/data/bot.db`. |
 | `discord_login_failed` | Token wrong or reset | Reset the token in the Developer Portal and update `DISCORD_TOKEN`. |
 | `privileged_intents_required` | Message Content intent not enabled | Developer Portal → Bot → enable Message Content Intent (or set `bot.message_content_intent = false`, which makes transcripts contain no message text). |
 | `guild_not_available` | Bot not in the server | Invite it with `python -m tools.invite_url <APPLICATION_ID>`. |

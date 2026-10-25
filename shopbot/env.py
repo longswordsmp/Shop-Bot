@@ -14,6 +14,9 @@ from pathlib import Path
 _LOG_LEVELS = frozenset({"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"})
 _LOG_FORMATS = frozenset({"json", "text"})
 _APP_ENVS = frozenset({"production", "development", "test"})
+_TRUE = frozenset({"1", "true", "yes"})
+# Railway sets these on every deployment; RAILWAY_VOLUME_MOUNT_PATH is set only when a volume is attached.
+_RAILWAY_MARKERS = ("RAILWAY_PROJECT_ID", "RAILWAY_SERVICE_ID", "RAILWAY_ENVIRONMENT_ID")
 
 
 class EnvError(Exception):
@@ -56,6 +59,28 @@ def _parse_snowflake(name: str, raw: str | None, problems: list[str], *, require
     return int(value)
 
 
+def _volume_problem(env: Mapping[str, str], db_path: Path) -> str | None:
+    """On Railway, a database outside the attached volume is lost on every redeploy: refuse to start."""
+    if not any((env.get(name) or "").strip() for name in _RAILWAY_MARKERS):
+        return None
+    if (env.get("ALLOW_EPHEMERAL_DB") or "").strip().lower() in _TRUE:
+        return None
+    escape = "; set ALLOW_EPHEMERAL_DB=true only for a throwaway test service"
+    mount = (env.get("RAILWAY_VOLUME_MOUNT_PATH") or "").strip()
+    if not mount:
+        return (
+            "DB_PATH is not on persistent storage: no Railway volume is attached to this service, so every "
+            "redeploy would start with an empty database (attach a volume at /data and set DB_PATH=/data/bot.db)"
+            + escape
+        )
+    if not Path(os.path.abspath(db_path)).is_relative_to(os.path.abspath(mount)):
+        return (
+            f"DB_PATH is not inside the Railway volume mounted at {mount}, so every redeploy would start with an "
+            f"empty database (set DB_PATH={mount.rstrip('/')}/bot.db)" + escape
+        )
+    return None
+
+
 def load_env(environ: Mapping[str, str] | None = None, *, require_token: bool = True) -> Env:
     """Read and validate environment variables.
 
@@ -82,6 +107,8 @@ def load_env(environ: Mapping[str, str] | None = None, *, require_token: bool = 
     db_path = Path(db_raw)
     if db_path.exists() and db_path.is_dir():
         problems.append("DB_PATH points to a directory; it must be a file path such as /data/bot.db")
+    if require_token and (volume_problem := _volume_problem(env, db_path)):
+        problems.append(volume_problem)
 
     config_dir = Path((env.get("CONFIG_DIR") or "./config").strip())
 

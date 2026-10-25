@@ -57,7 +57,9 @@ def core_keys(settings: Settings) -> list[ContentKey]:
             Kind.DESCRIPTION,
             CORE,
             g_err,
-            "Shown when an action fails unexpectedly. Internal details are never shown.",
+            "Shown when an action fails unexpectedly. Internal details are never shown. You may include "
+            "{error_id}: a short reference that also appears in the bot's logs (empty when there is none).",
+            placeholders=("error_id",),
         ),
         ck(
             ERROR_PERMISSION,

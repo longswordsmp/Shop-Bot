@@ -27,10 +27,8 @@ from tests.checkout.util import (
 
 OPTIONAL_EMPTY = {
     k.BROWSE_DESCRIPTION: "",
-    k.BROWSE_SELECT_PLACEHOLDER: "",
     k.CART_DESCRIPTION: "",
     k.CART_EDIT_OPTION: "",
-    k.CART_EDIT_PLACEHOLDER: "",
     k.SUBMITTED_DESCRIPTION: "",
     "checkout.payment.manual.title": "",
     k.CHANNEL_TOPIC: "",
@@ -54,11 +52,12 @@ async def test_optional_text_is_omitted(tmp_path: Path) -> None:
         embed = message.embeds[0]
         assert embed.title == tenv.text(k.BROWSE_TITLE) and embed.description is None
         assert embed.footer.text is None and embed.author.name is None
-        assert component(message, views.pick_id(session.id, 0)).placeholder is None
+        # Menu placeholders are required: an empty one would make Discord show its own default wording.
+        assert component(message, views.pick_id(session.id, 0)).placeholder == tenv.text(k.BROWSE_SELECT_PLACEHOLDER)
         await set_qty(tenv, customer, message, session.id, p1.id, 1)
         await go(tenv, customer, message, session.id, m.CART)
         edit = component(message, views.edit_id(session.id))
-        assert edit.placeholder is None and edit.options[0].description is None
+        assert edit.placeholder == tenv.text(k.CART_EDIT_PLACEHOLDER) and edit.options[0].description is None
         placed, _, submitted = await place_order(tenv, tenv.member(name="b"), [(p1.id, 1)])
         assert submitted.embeds[0].description is None
         assert submitted.embeds[1].title is None

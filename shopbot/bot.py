@@ -12,6 +12,7 @@ import discord
 from discord import app_commands
 
 from shopbot.commands import on_tree_error
+from shopbot.core.panels import withdraw_and_audit
 from shopbot.logging_setup import log_event
 from shopbot.ui.routing import RoutedItem, parse_modal_fields
 
@@ -19,6 +20,8 @@ if TYPE_CHECKING:
     from shopbot.context import App
 
 log = logging.getLogger(__name__)
+
+SHUTDOWN_DRAIN_SECONDS = 10.0
 
 Listener = Callable[..., Awaitable[None]]
 
@@ -122,6 +125,12 @@ class ShopBot(discord.Client):
                         await module.on_ready(self.app)
                     except Exception:
                         log.exception("recovery for feature %s failed", module.name)
+                # After a redeploy that removed required text, panels of features that are no longer ready
+                # must not stay live.
+                try:
+                    await withdraw_and_audit(self.app, actor_id=None, reason="startup")
+                except Exception:
+                    log.exception("withdrawing panels of features that are not ready failed")
             except Exception:
                 log.exception("startup recovery failed; continuing with the scheduler running")
             finally:
@@ -178,5 +187,7 @@ class ShopBot(discord.Client):
 
     async def close(self) -> None:
         log_event(log, logging.INFO, "bot_closing")
+        # Let clicks already being processed finish (bounded) so customers get their reply; new ones are refused.
+        await self.app.router.drain(SHUTDOWN_DRAIN_SECONDS)
         await self.app.scheduler.stop()
         await super().close()

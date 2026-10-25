@@ -56,8 +56,8 @@ common.error.busy = ""
 # description · max 4096 characters · required · placeholders: {retry_after}
 common.error.cooldown = ""
 
-# Shown when an action fails unexpectedly. Internal details are never shown.
-# description · max 4096 characters · required
+# Shown when an action fails unexpectedly. Internal details are never shown. You may include {error_id}: a short reference that also appears in the bot's logs (empty when there is none).
+# description · max 4096 characters · required · placeholders: {error_id}
 common.error.generic = ""
 
 # Shown when a form entry is invalid (e.g. a quantity that is not a whole number).
@@ -438,8 +438,8 @@ checkout.browse.description = ""
 # description · max 4096 characters · required
 checkout.browse.empty_catalog = ""
 
-# Optional greyed-out text of the product selection menu. The options are the product names; the small text under each is its price.
-# select_placeholder · max 150 characters · optional
+# Greyed-out text of the product selection menu (if empty, Discord would show its own default text). The options are the product names; the small text under each is its price.
+# select_placeholder · max 150 characters · required
 checkout.browse.select_placeholder = ""
 
 # Title of the order workflow message while the customer chooses products (first step).
@@ -568,8 +568,8 @@ checkout.cart.description = ""
 # option_description · max 100 characters · optional · placeholders: {quantity}, {line_total}
 checkout.cart.edit_option = ""
 
-# Optional greyed-out text of the menu that picks a cart line to change its quantity.
-# select_placeholder · max 150 characters · optional
+# Greyed-out text of the menu that picks a cart line to change its quantity (if empty, Discord would show its own default text).
+# select_placeholder · max 150 characters · required
 checkout.cart.edit_placeholder = ""
 
 # Shown in the cart field while the cart is empty.
@@ -646,7 +646,7 @@ checkout.fulfillment_step.description = ""
 # field_name · max 256 characters · optional
 checkout.fulfillment_step.fee_field = ""
 
-# Optional greyed-out text of the fulfillment option menu.
+# Greyed-out text of the fulfillment option menu (if empty, Discord would show its own default text). Needed when checkout.fulfillment_options are defined.
 # select_placeholder · max 150 characters · optional
 checkout.fulfillment_step.select_placeholder = ""
 

@@ -35,7 +35,7 @@ Feature `core` — enabled.
 |---|---|---|---|---|---|
 | ▫️ | `common.error.busy` | Shown when someone clicks again while their previous click is still being processed. Optional: if empty, the duplicate click is silently ignored. | description (4096) | optional |  |
 | ❌ | `common.error.cooldown` | Shown when someone acts too quickly in a row. | description (4096) | required | `{retry_after}` |
-| ❌ | `common.error.generic` | Shown when an action fails unexpectedly. Internal details are never shown. | description (4096) | required |  |
+| ❌ | `common.error.generic` | Shown when an action fails unexpectedly. Internal details are never shown. You may include {error_id}: a short reference that also appears in the bot's logs (empty when there is none). | description (4096) | required | `{error_id}` |
 | ❌ | `common.error.invalid_input` | Shown when a form entry is invalid (e.g. a quantity that is not a whole number). | description (4096) | required |  |
 | ❌ | `common.error.not_found` | Shown when the ticket/order/item behind a control no longer exists. | description (4096) | required |  |
 | ❌ | `common.error.permission_denied` | Shown when someone uses a control they are not allowed to use (e.g. a staff-only button). | description (4096) | required |  |
@@ -219,7 +219,7 @@ Feature `checkout` — enabled.
 |---|---|---|---|---|---|
 | ▫️ | `checkout.browse.description` | Optional text of the product-choosing step (e.g. how to pick products and quantities). | description (4096) | optional |  |
 | ❌ | `checkout.browse.empty_catalog` | Shown in the product-choosing step when no product is offered right now. | description (4096) | required |  |
-| ▫️ | `checkout.browse.select_placeholder` | Optional greyed-out text of the product selection menu. The options are the product names; the small text under each is its price. | select_placeholder (150) | optional |  |
+| ❌ | `checkout.browse.select_placeholder` | Greyed-out text of the product selection menu (if empty, Discord would show its own default text). The options are the product names; the small text under each is its price. | select_placeholder (150) | required |  |
 | ❌ | `checkout.browse.title` | Title of the order workflow message while the customer chooses products (first step). | title (256) | required |  |
 
 ### Checkout: order workflow - review and submit
@@ -274,7 +274,7 @@ Feature `checkout` — enabled.
 |---|---|---|---|---|---|
 | ▫️ | `checkout.cart.description` | Optional text of the cart step. | description (4096) | optional |  |
 | ▫️ | `checkout.cart.edit_option` | Optional small text under each product in the change-quantity menu. {quantity} is the quantity in the cart, {line_total} the line price. | option_description (100) | optional | `{quantity}`, `{line_total}` |
-| ▫️ | `checkout.cart.edit_placeholder` | Optional greyed-out text of the menu that picks a cart line to change its quantity. | select_placeholder (150) | optional |  |
+| ❌ | `checkout.cart.edit_placeholder` | Greyed-out text of the menu that picks a cart line to change its quantity (if empty, Discord would show its own default text). | select_placeholder (150) | required |  |
 | ❌ | `checkout.cart.empty` | Shown in the cart field while the cart is empty. | field_value (1024) | required |  |
 | ❌ | `checkout.cart.field` | Name of the field listing the cart lines (product steps, cart, review, the submitted order and the staff order controls). Each line is written with checkout.cart.line. | field_name (256) | required |  |
 | ❌ | `checkout.cart.line` | How one cart/order line is written, e.g. '{quantity} x {name}: {line_total}'. {name} is the product name, {quantity} the quantity, {unit_price} the price of one unit and {line_total} the line price (both written with common.money_format). | format (100) | required | `{name}`, `{quantity}`, `{unit_price}`, `{line_total}` |
@@ -307,7 +307,7 @@ Feature `checkout` — enabled.
 | ▫️ | `checkout.fulfillment_step.chosen_field` | Name of the field showing the chosen fulfillment option (its label). Needed when checkout.fulfillment_options are defined. | field_name (256) | optional |  |
 | ▫️ | `checkout.fulfillment_step.description` | Optional text of the fulfillment step. | description (4096) | optional |  |
 | ▫️ | `checkout.fulfillment_step.fee_field` | Name of the field showing the chosen option's fee (fee_minor, written with common.money_format; shown only when that fee is above 0). Needed when an option has a fee. | field_name (256) | optional |  |
-| ▫️ | `checkout.fulfillment_step.select_placeholder` | Optional greyed-out text of the fulfillment option menu. | select_placeholder (150) | optional |  |
+| ▫️ | `checkout.fulfillment_step.select_placeholder` | Greyed-out text of the fulfillment option menu (if empty, Discord would show its own default text). Needed when checkout.fulfillment_options are defined. | select_placeholder (150) | optional |  |
 | ▫️ | `checkout.fulfillment_step.title` | Title of the step where the customer chooses a fulfillment option (delivery, pickup, ...). Needed when checkout.fulfillment_options are defined. | title (256) | optional |  |
 
 ### Checkout: private replies to the start button
@@ -502,7 +502,7 @@ Feature `reviews` — enabled.
 
 ## Summary
 
-- Required keys (for the listed features): 149
-- Required keys still missing: 149
+- Required keys (for the listed features): 151
+- Required keys still missing: 151
 
 Legend: ✅ configured · ❌ required and missing · ▫️ optional and empty
