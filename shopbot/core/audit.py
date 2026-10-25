@@ -19,7 +19,7 @@ from shopbot.config.banner_ids import BannerId
 from shopbot.db.repos import audit as audit_repo
 from shopbot.features.server_keys import PRIVATE_ACCESS, effective_access
 from shopbot.logging_setup import log_event, redact
-from shopbot.ui.discord_render import RenderError, send_kwargs
+from shopbot.ui.discord_render import send_kwargs
 from shopbot.ui.spec import EmbedField, MessageSpec
 
 if TYPE_CHECKING:
@@ -141,5 +141,5 @@ class AuditLog:
         )
         try:
             await channel.send(**send_kwargs(spec))
-        except (discord.HTTPException, RenderError) as exc:
+        except Exception as exc:  # the #bot-log copy is best effort: never let it abort the action it records
             log_event(log, logging.WARNING, "audit_post_failed", error=type(exc).__name__)

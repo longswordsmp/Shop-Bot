@@ -16,18 +16,38 @@ appears.
 from __future__ import annotations
 
 import re
+from collections import Counter
 from collections.abc import Iterable, Iterator, Mapping
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import discord
 
 from shopbot.config.content_keys import ContentKey, Kind
+from shopbot.ui import custom_ids
+
+if TYPE_CHECKING:
+    from shopbot.ui.routing import Router
 
 PLACEHOLDER_RE = re.compile(r"\{([a-z][a-z0-9_]*)\}")
 _BOLD_RE = re.compile(r"\*\*(.+?)\*\*")
 MIN_WHOLE_LITERAL = 2  # fixed characters a value needs to be recognised as a whole text
 MIN_SEARCH_LITERAL = 10  # fixed characters a value needs to be recognised inside a longer text
-SKIPPED_KINDS = frozenset({Kind.EMOJI, Kind.URL})  # not shown as text
+# Never message text: emojis and links, and the server's names, topics, forms and command descriptions. (Form input
+# labels stay: staff detail messages show them as field names.)
+SKIPPED_KINDS = frozenset(
+    {
+        Kind.EMOJI,
+        Kind.URL,
+        Kind.ROLE_NAME,
+        Kind.CATEGORY_NAME,
+        Kind.CHANNEL_NAME,
+        Kind.CHANNEL_TOPIC,
+        Kind.CHANNEL_PREFIX,
+        Kind.MODAL_TITLE,
+        Kind.COMMAND_DESCRIPTION,
+    }
+)
+SHARED_FEATURES = frozenset({"core"})  # shared texts (branding, buttons, errors) belong to every message
 
 
 def message_texts(message: discord.Message) -> list[str]:
@@ -75,9 +95,33 @@ def _pattern(value: str, placeholders: Iterable[str]) -> tuple[re.Pattern[str], 
     return re.compile("".join(parts)), literal
 
 
-def find_keys(texts: list[str], values: Mapping[str, str], definitions: Iterable[ContentKey]) -> list[str]:
-    """Content keys whose current value the message shows, in the order they appear in ``texts``."""
-    found: list[tuple[int, int, str]] = []
+def message_features(message: discord.Message, router: Router) -> frozenset[str]:
+    """The features whose buttons and menus the message carries (from their ``sb:<route>:...`` custom ids)."""
+    by_route = {route.route: route.feature for route in router.routes() if route.feature}
+    features: set[str] = set()
+    for row in message.components:
+        for child in getattr(row, "children", ()):
+            parsed = custom_ids.parse(getattr(child, "custom_id", None) or "")
+            feature = by_route.get(parsed[0]) if parsed is not None else None
+            if feature:
+                features.add(feature)
+    return frozenset(features)
+
+
+def find_keys(
+    texts: list[str],
+    values: Mapping[str, str],
+    definitions: Iterable[ContentKey],
+    *,
+    features: frozenset[str] = frozenset(),
+) -> list[str]:
+    """Content keys whose current value the message shows, in the order they appear in ``texts``.
+
+    Different features often use the same wording; when several keys match the same text, the keys of the message's
+    own features come first and the others follow after every other match, so the message's own texts are not
+    pushed out of the 25-option list. ``features``: the message's features (``message_features``); when unknown,
+    the feature with the most unambiguous matches is taken."""
+    found: list[tuple[int, int, str, str]] = []
     for definition in definitions:
         value = values.get(definition.key)
         if not value or definition.kind in SKIPPED_KINDS:
@@ -85,9 +129,29 @@ def find_keys(texts: list[str], values: Mapping[str, str], definitions: Iterable
         pattern, literal = _pattern(value, definition.placeholders)
         position = _first_position(texts, pattern, literal)
         if position is not None:
-            found.append((*position, definition.key))
-    found.sort()
-    return [key for _, _, key in found]
+            found.append((*position, definition.feature, definition.key))
+    if not features:
+        features = _likely_features(found)
+    own = features | SHARED_FEATURES
+
+    def rank(item: tuple[int, int, str, str]) -> tuple[int, int, bool, str]:
+        index, position, feature, key = item
+        return index, position, feature not in own, key
+
+    found.sort(key=rank)
+    owned_spots = {(index, position) for index, position, feature, _ in found if feature in own}
+    primary = [key for i, p, feature, key in found if feature in own or (i, p) not in owned_spots]
+    others = [key for i, p, feature, key in found if feature not in own and (i, p) in owned_spots]
+    return primary + others
+
+
+def _likely_features(found: list[tuple[int, int, str, str]]) -> frozenset[str]:
+    spots = Counter((index, position) for index, position, _, _ in found)
+    unique = Counter(feature for index, position, feature, _ in found if spots[(index, position)] == 1)
+    unique.pop("core", None)
+    if not unique:
+        return frozenset()
+    return frozenset({unique.most_common(1)[0][0]})
 
 
 def _parts(text: str) -> Iterator[tuple[int, str]]:

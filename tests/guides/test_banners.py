@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -78,3 +79,21 @@ async def test_deleted_first_message_is_reposted_with_its_banner(benv: TestEnv) 
     await how_to_buy.publish(benv.app)
     (reposted,) = messages(benv, "how_to_buy")
     assert banner_names(reposted) == [banner_file(benv, "how-it-works")]
+
+
+async def test_a_channel_where_the_bot_cannot_attach_files_is_reported_not_posted(benv: TestEnv) -> None:
+    import discord
+
+    from tests.guides.util import channel
+
+    target = channel(benv, "faq")
+    await target.set_permissions(
+        discord.Object(id=benv.guild.me.id), overwrite=discord.PermissionOverwrite(attach_files=False)
+    )
+    lines = await faq.publish(benv.app)
+    assert target.messages == [] and "attach_files" in lines[0]  # the banner upload would be refused
+    settings = benv.app.settings
+    benv.app.settings = replace(settings, banners=replace(settings.banners, enabled=False))
+    benv.app.banners = load_banners(benv.app.config_dir, benv.app.settings.banners)
+    await faq.publish(benv.app)  # without banners nothing is uploaded, so Attach Files is not needed
+    assert target.messages and all(banner_names(m) == [] for m in target.messages)

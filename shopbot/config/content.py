@@ -188,6 +188,9 @@ class ContentStore:
         text = self.get(key)
         if text is None:
             return None
+        return self._render_text(key, text, values)
+
+    def _render_text(self, key: str, text: str, values: Mapping[str, str | int]) -> str | None:
         definition = self._definition(key)
         if definition.kind is Kind.EMOJI:
             return self._emoji(text)
@@ -209,6 +212,22 @@ class ContentStore:
             return str(values[name]) if name in values else ""
 
         return _PLACEHOLDER_RE.sub(substitute, text)
+
+    def render_lines(self, key: str, /, **values: str | int) -> str | None:
+        """Like ``render``, but a line whose placeholders all have no value (data that does not apply, e.g. a close
+        reason of a ticket closed without one) is left out, so no label is shown without its value."""
+        text = self.get(key)
+        if text is None:
+            return None
+        kept = []
+        for line in text.split("\n"):
+            names = [name for name in _PLACEHOLDER_RE.findall(line) if not name.startswith("icon_")]
+            if names and all(str(values.get(name, "")) == "" for name in names):
+                continue
+            kept.append(line)
+        if not kept:
+            return None
+        return self._render_text(key, "\n".join(kept), values)
 
     def render_icons(self, text: str) -> str:
         """``text`` with every ``{icon_<name>}`` replaced by the icon (its fallback while it is not uploaded; nothing

@@ -84,6 +84,8 @@ async def run_checks(config_dir: Path, *, all_features: bool, fixtures: bool = F
         assert isinstance(store, TrackingContentStore)
         for problem in store.value_problems(check_icons=True):
             report.value_problems.append((problem.key, problem.message))
+        # A picture that cannot be used silently drops that banner or icon from every message: report it.
+        report.errors.extend(f"picture: {problem}" for problem in (*app.banners.problems, *app.icons.problems))
         for module in app.modules:
             if module.preview is None:
                 continue

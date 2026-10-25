@@ -859,6 +859,29 @@ class FakeFollowup:
         return message
 
 
+class MessageSnapshot:
+    """``interaction.message`` as discord.py gives it: parsed from the interaction payload at click time and never
+    updated by later edits. Its ``attachments`` stay as they were at the click; everything else (and every edit)
+    goes to the live message."""
+
+    def __init__(self, live: FakeMessage) -> None:
+        object.__setattr__(self, "_live", live)
+        object.__setattr__(self, "attachments", list(live.attachments))
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(object.__getattribute__(self, "_live"), name)
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        setattr(object.__getattribute__(self, "_live"), name, value)
+
+    def __eq__(self, other: object) -> bool:
+        live = object.__getattribute__(self, "_live")
+        return other is self or other is live or (isinstance(other, MessageSnapshot) and other._live is live)
+
+    def __hash__(self) -> int:
+        return hash(object.__getattribute__(self, "_live"))
+
+
 class FakeInteraction:
     def __init__(
         self,
@@ -877,7 +900,8 @@ class FakeInteraction:
         self.guild_id = guild.id if guild is not None else None
         self.channel = channel if channel is not None else (message.channel if message is not None else None)
         self.channel_id = self.channel.id if self.channel is not None else None
-        self.message = message
+        self._live_message = message
+        self.message: Any = MessageSnapshot(message) if message is not None else None
         self.type = type
         self.data = data or {}
         self.command = None
@@ -894,7 +918,7 @@ class FakeInteraction:
         if not self.response.is_done():
             raise AssertionError("edit_original_response before responding")
         self.original_edits.append(kwargs)
-        target = self._original if self._original is not None else self.message
+        target = self._original if self._original is not None else self._live_message
         if target is not None:
             await target.edit(**kwargs)
         return target
@@ -907,7 +931,7 @@ class FakeInteraction:
             self.sent.remove(self._original)
 
     async def original_response(self) -> Any:
-        return self._original if self._original is not None else self.message
+        return self._original if self._original is not None else self._live_message
 
     # assertion helpers ---------------------------------------------------------------------
     @property

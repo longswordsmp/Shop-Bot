@@ -35,7 +35,7 @@ from shopbot.config.content import MissingContent
 from shopbot.core.events import PRODUCT_CHANGED
 from shopbot.core.money import MoneyError, parse_amount
 from shopbot.core.panels import remove_message, upsert_message
-from shopbot.core.permissions import CHANNEL_SEND_PERMISSIONS, missing_permissions
+from shopbot.core.permissions import channel_send_permissions, missing_permissions
 from shopbot.db.repos import state
 from shopbot.features.catalog import images, repo, views
 from shopbot.features.catalog.content_keys import CATALOG
@@ -224,7 +224,11 @@ async def _refresh_listing(app: App, st: _RefreshState) -> RefreshReport:
     if channel is None:
         return await _failed(app, st, op("catalog.refresh.channel_missing", channel=channel_key), "channel_missing")
     me = guild.me
-    missing = missing_permissions(me, channel, CHANNEL_SEND_PERMISSIONS) if me is not None else []
+    missing = (
+        missing_permissions(me, channel, channel_send_permissions(uploads=app.banners.enabled))
+        if me is not None
+        else []
+    )
     if missing:
         line = op("catalog.refresh.missing_permissions", permissions=", ".join(missing), channel=channel.mention)
         return await _failed(app, st, line, "missing_permissions")

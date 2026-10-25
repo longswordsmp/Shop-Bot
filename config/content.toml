@@ -863,12 +863,12 @@ The full conversation is in the attached file.
 **Customer:** {user_mention}
 **Closed or requested by:** {closer_mention}
 **Closed on:** {closed_at}
-**Close reason (if any):** {close_reason}
-**Final order status (order tickets only):** {final_status}'''
+**Reason:** {close_reason}
+**Final status:** {final_status}'''
 
 # Title of the message (with the transcript file) posted in the transcript channel. {number} is the ticket number, zero-padded to tickets.number_padding digits. Needed when tickets.transcript_channel is set.
 # title · max 256 characters · required · placeholders: {number}
-tickets.transcript.title = "📄 Transcript of ticket #{number}"
+tickets.transcript.title = "Transcript · ticket #{number}"
 
 # Text of the direct message that sends the customer their transcript file. {number} is the ticket number, zero-padded to tickets.number_padding digits. Needed when tickets.transcript_dm_user = true and a transcript channel is set.
 # description · max 4096 characters · optional · placeholders: {number}
@@ -876,7 +876,7 @@ tickets.transcript_dm.description = "Here is a copy of the conversation in your 
 
 # Title of the direct message that sends the customer their transcript file. {number} is the ticket number, zero-padded to tickets.number_padding digits. Needed when tickets.transcript_dm_user = true and a transcript channel is set.
 # title · max 256 characters · optional · placeholders: {number}
-tickets.transcript_dm.title = "📄 Your ticket #{number} transcript"
+tickets.transcript_dm.title = "Your ticket #{number} transcript"
 
 # ==================================================================================================
 # Feature: catalog

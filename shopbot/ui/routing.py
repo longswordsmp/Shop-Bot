@@ -128,6 +128,11 @@ class Ctx:
         self.values = values
         self.fields = fields or {}
         self._deferred_update = False  # the response so far is ``defer_update`` (edits target the clicked message)
+        # The clicked message as this Ctx last edited it. discord.py's ``interaction.message`` is a snapshot taken at
+        # click time and never updated, so after an edit (ours, or one made through the channel while the click was
+        # deferred) its attachments are stale: they decide whether the banner is kept, so they must be current.
+        self._edited_attachments: list[discord.Attachment] | None = None
+        self._edited_by_response = False
 
     # -- identity ---------------------------------------------------------------------------------
 
@@ -194,16 +199,38 @@ class Ctx:
         # The clicked message's attachments are known (its banner can be kept) while the edit targets that message:
         # before any response, or after ``defer_update``. After another response the target is that response.
         message = self.interaction.message
-        targets_message = not self.interaction.response.is_done() or self._deferred_update
-        current = message.attachments if message is not None and targets_message else None
-        kwargs = edit_kwargs(spec, current)
+        kwargs = edit_kwargs(spec, await self._current_attachments())
         uploads = any(isinstance(item, discord.File) for item in kwargs.get("attachments", ()))
         if not self.interaction.response.is_done() and uploads and message is not None:
             await self.defer_update()
         if not self.interaction.response.is_done():
             await self.interaction.response.edit_message(**kwargs)
+            self._edited_by_response = True
+            self._edited_attachments = None
         else:
-            await self.interaction.edit_original_response(**kwargs)
+            edited = await self.interaction.edit_original_response(**kwargs)
+            attachments = getattr(edited, "attachments", None)
+            self._edited_attachments = list(attachments) if attachments is not None else None
+
+    async def _current_attachments(self) -> list[discord.Attachment] | None:
+        """The attachments the edited message has right now, or None when unknown (the edit then re-uploads).
+
+        Before any response the click-time snapshot is current. After ``defer_update`` or an earlier edit the
+        target is still the clicked message, but the snapshot may be stale: use what our last edit returned, else
+        read the message once."""
+        message = self.interaction.message
+        if message is None:
+            return None
+        if not self.interaction.response.is_done():
+            return list(message.attachments)
+        if not (self._deferred_update or self._edited_by_response):
+            return None  # the target is another response (e.g. a private reply), whose attachments are not known
+        if self._edited_attachments is not None:
+            return self._edited_attachments
+        try:
+            return list((await self.interaction.original_response()).attachments)
+        except discord.HTTPException:
+            return list(message.attachments)
 
     async def defer_update(self) -> None:
         """Acknowledge a component click without changing anything yet (allows a later ``update``)."""

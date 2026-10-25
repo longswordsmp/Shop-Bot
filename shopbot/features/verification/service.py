@@ -15,7 +15,7 @@ import discord
 
 from shopbot.config.content import MissingContent
 from shopbot.core.panels import upsert_message
-from shopbot.core.permissions import CHANNEL_SEND_PERMISSIONS, can_manage_role, missing_permissions
+from shopbot.core.permissions import can_manage_role, channel_send_permissions, missing_permissions
 from shopbot.features.server_keys import channel_mentions, channel_placeholders
 from shopbot.features.verification import views
 from shopbot.features.verification.content_keys import link_keys
@@ -80,7 +80,7 @@ async def publish(app: App) -> list[str]:
         spec = views.build_panel(app.ui, settings, links)
     except MissingContent as exc:
         return [op("verification.publish.missing_content", content_key=exc.key)]
-    missing = missing_permissions(guild.me, channel, CHANNEL_SEND_PERMISSIONS)
+    missing = missing_permissions(guild.me, channel, channel_send_permissions(uploads=app.banners.enabled))
     if missing:
         return [op("verification.publish.missing_permissions", permissions=", ".join(missing), channel=channel.mention)]
     try:

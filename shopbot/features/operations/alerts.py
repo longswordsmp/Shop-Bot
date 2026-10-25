@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any
 import discord
 
 from shopbot.config.content import MissingContent
-from shopbot.core.permissions import CHANNEL_SEND_PERMISSIONS, can_manage_role, missing_permissions
+from shopbot.core.permissions import can_manage_role, channel_send_permissions, missing_permissions
 from shopbot.core.scheduler import PermanentTaskError
 from shopbot.db.repos import notifications as notif_repo
 from shopbot.db.repos import state
@@ -309,7 +309,7 @@ async def publish(app: App) -> list[str]:
     if channel is None:
         lines.append(app.op("operations.publish.staff_channel_missing", name=o.staff_channel))
     else:
-        missing = missing_permissions(me, channel, CHANNEL_SEND_PERMISSIONS)
+        missing = missing_permissions(me, channel, channel_send_permissions(uploads=app.banners.enabled))
         if missing:
             lines.append(
                 app.op(

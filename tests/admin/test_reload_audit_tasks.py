@@ -150,3 +150,15 @@ async def test_tasks_lists_tasks_with_errors_of_failed_ones(tenv: TestEnv) -> No
 
     none = await run_command(tenv, "tasks", user=admin(tenv), status="cancelled")
     assert "No matching tasks." in sent(none).text()
+
+
+async def test_a_dropped_connection_while_posting_to_the_bot_log_never_aborts_the_action(tenv: TestEnv) -> None:
+    from tests.helpers import provision_channels
+
+    await provision_channels(tenv)
+    channel = tenv.app.resources.text_channel(tenv.guild, tenv.app.settings.audit.channel)  # type: ignore[arg-type]
+    assert channel is not None
+    channel.fail_send = ConnectionResetError("connection lost during the upload")  # type: ignore[attr-defined]
+    event_id = await tenv.app.audit.record("admin.test", actor_id=1)  # does not raise
+    assert event_id
+    assert "admin.test" in await audit_actions(tenv.app)

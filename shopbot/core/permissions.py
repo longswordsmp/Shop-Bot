@@ -19,7 +19,15 @@ from shopbot.core.resources import Resources
 
 # Permissions the bot needs, by capability. Used for diagnostics and the invite URL.
 BOT_PERMISSIONS: dict[str, tuple[str, ...]] = {
-    "base": ("view_channel", "send_messages", "embed_links", "read_message_history", "use_external_emojis"),
+    # attach_files: every message uploads its banner picture (shipped [banners] enabled).
+    "base": (
+        "view_channel",
+        "send_messages",
+        "embed_links",
+        "read_message_history",
+        "use_external_emojis",
+        "attach_files",
+    ),
     # /setup denies these on @everyone in read-only channels; Discord only lets a bot set permissions it holds.
     "setup": ("manage_roles", "manage_channels", "add_reactions", "create_public_threads", "create_private_threads"),
     # Ticket overwrites deny thread use to owners; Discord only lets a bot deny permissions it holds itself.
@@ -37,6 +45,12 @@ BOT_PERMISSIONS: dict[str, tuple[str, ...]] = {
 }
 
 CHANNEL_SEND_PERMISSIONS = ("view_channel", "send_messages", "embed_links", "read_message_history")
+
+
+def channel_send_permissions(*, uploads: bool) -> tuple[str, ...]:
+    """What the bot needs in a channel to post there; ``uploads``: its messages carry a file (the banner picture,
+    whenever ``[banners]`` is on), which Discord refuses without Attach Files."""
+    return (*CHANNEL_SEND_PERMISSIONS, "attach_files") if uploads else CHANNEL_SEND_PERMISSIONS
 
 
 class Permissions:

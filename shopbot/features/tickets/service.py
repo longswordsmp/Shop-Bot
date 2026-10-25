@@ -1281,6 +1281,7 @@ async def generate_transcript(
             closer_id = ticket.closed_by or _bot_user_id(app)
         else:
             closer_id = requested_by or _bot_user_id(app)
+        final_status = _final_status(app, ticket)
         try:
             spec = views.transcript_post(
                 app.ui,
@@ -1289,8 +1290,9 @@ async def generate_transcript(
                 user_id=ticket.user_id,
                 closer_id=closer_id,
                 closed_at=ticket.closed_at,
-                final_status=_final_status(app, ticket),
-                close_reason=ticket.close_reason,
+                final_status=final_status,
+                # An order ticket's close reason is its final order status (shown by name above), never raw.
+                close_reason=None if ticket.kind == KIND_ORDER else ticket.close_reason,
             )
             spec = replace(spec, banner=room_for_file(spec.banner, len(data)))
             kwargs = send_kwargs(spec)

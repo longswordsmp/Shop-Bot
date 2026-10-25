@@ -66,16 +66,17 @@ async def test_transcript_message_carries_closure_time_final_status_and_reason(t
         assert transcripts is not None and transcripts.messages  # type: ignore[attr-defined]
         ticket = await tickets_service.get_ticket(tenv.app, placed.ticket_id or 0)
         assert ticket is not None and ticket.closed_at is not None
-        expected = tenv.app.content.render(
+        expected = tenv.app.content.render_lines(
             tk.TRANSCRIPT_DESCRIPTION,
             number=tickets_service.format_number(tenv.app, ticket.number),
             user_mention=f"<@{placed.user_id}>",
             closer_mention=f"<@{staffer.id}>",
             closed_at=f"<t:{ticket.closed_at}:f>",
             final_status=tenv.text(checkout_keys.status_label_key(m.FULFILLED)),
-            close_reason=m.FULFILLED,
+            close_reason="",  # an order ticket's reason is its final status, shown by name (never "fulfilled")
         )
-        assert transcripts.messages[-1].embeds[0].description == expected  # type: ignore[attr-defined]
+        description = transcripts.messages[-1].embeds[0].description  # type: ignore[attr-defined]
+        assert description == expected and m.FULFILLED not in description
     finally:
         await tenv.close()
 
@@ -91,7 +92,7 @@ async def test_transcript_view_of_a_support_ticket_has_no_final_status(tenv: Tes
         final_status=None,
         close_reason="*resolved*",
     )
-    expected = tenv.app.content.render(
+    expected = tenv.app.content.render_lines(
         tk.TRANSCRIPT_DESCRIPTION,
         number=ticket_views.number_text(tenv.app.settings.tickets, 7),
         user_mention="<@1>",
@@ -101,6 +102,16 @@ async def test_transcript_view_of_a_support_ticket_has_no_final_status(tenv: Tes
         close_reason="\\*resolved\\*",
     )
     assert spec.embeds[0].description == expected
+
+
+def test_lines_whose_data_does_not_apply_are_left_out(tenv: TestEnv) -> None:
+    tenv.app.content.set_override(
+        tk.TRANSCRIPT_DESCRIPTION, "File attached.\n**Customer:** {user_mention}\n**Reason:** {close_reason}"
+    )
+    spec = ticket_views.transcript_post(
+        tenv.app.ui, tenv.app.settings.tickets, number=7, user_id=1, closer_id=2, final_status=None
+    )
+    assert spec.embeds[0].description == "File attached.\n**Customer:** <@1>"  # no empty "Reason:" label
 
 
 # -- migration 0003 ------------------------------------------------------------------------------------------------

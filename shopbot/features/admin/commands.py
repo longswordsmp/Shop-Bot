@@ -171,8 +171,14 @@ async def handle_edit_text(interaction: discord.Interaction[Any], message: disco
     if me is None or message.author.id != me.id:
         await _notice(interaction, app.op("admin.edit.not_bot"), tone="warning", banner="general-response")
         return
+    await _defer(interaction)  # matching every text against every key can take a moment (3-second deadline)
     values = app.content.effective_values()
-    keys = edit_text.find_keys(edit_text.message_texts(message), values, app.content.registry.all())
+    keys = edit_text.find_keys(
+        edit_text.message_texts(message),
+        values,
+        app.content.registry.all(),
+        features=edit_text.message_features(message, app.router),
+    )
     if not keys:
         title, text = app.op("admin.edit.none_title"), app.op("admin.edit.none")
         await _notice(interaction, title, text, tone="warning", banner="general-response")
@@ -209,7 +215,9 @@ async def handle_content_clear(interaction: discord.Interaction[Any], key: str) 
         return
     await _defer(interaction)  # clearing can withdraw many panels over Discord (3-second reply deadline)
     result = await service.clear_override(app, key, actor_id=interaction.user.id)
-    await reply(interaction, views.content_cleared(app.ui, app.op, result))
+    # The posted panels go back to the file's text right away (as after /content set), no /setup needed.
+    panels = views.panel_refresh_lines(app.op, await service.refresh_panels(app)) if result.removed else []
+    await reply(interaction, views.content_cleared(app.ui, app.op, result, panels))
 
 
 async def handle_content_missing(interaction: discord.Interaction[Any], feature: str | None) -> None:

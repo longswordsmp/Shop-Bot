@@ -261,3 +261,19 @@ async def test_replies_that_upload_a_banner_are_acknowledged_first(tmp_path: Pat
         assert interaction.response_kinds() == ["defer"] and banner_names(message) == [faq.filename]
     finally:
         await tenv.close()
+
+
+async def test_pictures_that_cannot_be_used_are_listed_by_status(tmp_path: Path) -> None:
+    from shopbot.features.admin import service, views
+
+    tenv = await make_banner_env(tmp_path)
+    try:
+        (tenv.app.config_dir / "banners" / "faq.png").write_bytes(b"not a picture")
+        tenv.app.banners = load_banners(tenv.app.config_dir, tenv.app.settings.banners)
+        snapshot = await service.status_snapshot(tenv.app)
+        assert any("faq" in problem for problem in snapshot.picture_problems)
+        overview = views.status_overview(tenv.app.ui, tenv.app.op, snapshot)
+        names = [field.name for field in overview.embeds[0].fields]
+        assert tenv.app.op("admin.status.pictures") in names
+    finally:
+        await tenv.close()

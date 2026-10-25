@@ -10,7 +10,7 @@ import discord
 from shopbot.config.content import MissingContent
 from shopbot.core.channels import CREATE_PRIVATE_REQUIRED
 from shopbot.core.panels import upsert_message
-from shopbot.core.permissions import CHANNEL_SEND_PERMISSIONS, missing_permissions
+from shopbot.core.permissions import channel_send_permissions, missing_permissions
 from shopbot.features.checkout import content_keys as k
 from shopbot.features.checkout import views
 from shopbot.features.credits import service as credits_service
@@ -53,7 +53,7 @@ def _diagnostics(app: App, guild: discord.Guild) -> list[str]:
     if staff is None:
         lines.append(app.op("checkout.publish.staff_channel_missing", name=c.staff_channel))
     else:
-        missing = missing_permissions(me, staff, CHANNEL_SEND_PERMISSIONS)
+        missing = missing_permissions(me, staff, channel_send_permissions(uploads=app.banners.enabled))
         if missing:
             lines.append(
                 app.op(
@@ -80,7 +80,7 @@ async def publish(app: App) -> list[str]:
     channel = app.resources.text_channel(guild, c.panel_channel)
     if channel is None:
         return [app.op("checkout.publish.no_channel", name=c.panel_channel)]
-    missing = missing_permissions(guild.me, channel, CHANNEL_SEND_PERMISSIONS)
+    missing = missing_permissions(guild.me, channel, channel_send_permissions(uploads=app.banners.enabled))
     if missing:
         return [app.op("checkout.publish.missing_permissions", permissions=", ".join(missing), channel=channel.mention)]
     lines: list[str] = []

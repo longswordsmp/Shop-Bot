@@ -68,6 +68,7 @@ SETUP_PERMISSIONS = (
     "add_reactions",
     "create_public_threads",
     "create_private_threads",
+    "attach_files",  # every panel uploads its banner picture
 )
 
 # At most this many unmanaged channels everyone can see are listed one by one in the report (the rest are counted).

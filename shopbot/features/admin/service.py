@@ -82,6 +82,9 @@ class StatusSnapshot:
     transcripts_need_intent: bool
     task_counts: Mapping[str, int]
     db_path: str
+    # Banner and icon pictures that could not be used (missing, unreadable, too large): that kind of message shows no
+    # banner, that icon shows nothing.
+    picture_problems: tuple[str, ...] = ()
 
 
 def transcripts_enabled(settings: Settings) -> bool:
@@ -133,6 +136,7 @@ async def status_snapshot(app: App) -> StatusSnapshot:
         transcripts_need_intent=transcripts_enabled(app.settings) and not bot.message_content_intent,
         task_counts=counts,
         db_path=str(app.env.db_path),
+        picture_problems=(*app.banners.problems, *app.icons.problems),
     )
 
 
@@ -255,7 +259,7 @@ def suggest_keys(app: App, query: str, *, limit: int = 25) -> list[str]:
     prefix = [k for k in keys if k.startswith(needle)]
     inside = [k for k in keys if needle in k and not k.startswith(needle)]
     named = set(prefix) | set(inside)
-    phrase = " ".join(needle.split())
+    phrase = _searchable(needle)  # words copied from a message: without the markdown the message showed
     texts = {k: _searchable(app.content.raw(k)) for k in keys if k not in named}
     exact = [k for k, text in texts.items() if phrase in text]
     words = [k for k, text in texts.items() if phrase not in text and all(w in text for w in phrase.split())]
@@ -270,26 +274,42 @@ async def _has_posted_panel(app: App, module: FeatureModule) -> bool:
 
 
 _PLACEHOLDER = re.compile(r"\{[a-z][a-z0-9_]*\}")
+_MARKDOWN_LINK = re.compile(r"\[([^\]]*)\]\([^)]*\)")
+_MARKDOWN = re.compile(r"[*_~|`>]")
 
 
 def _searchable(value: str | None) -> str:
-    """A value as searched by text: lower case, single spaces, without {placeholder} names."""
-    return " ".join(_PLACEHOLDER.sub(" ", value or "").lower().split())
+    """A value as searched by text: lower case, single spaces, without {placeholder} names (icons included) and
+    without markdown (``**bold**``, links, quotes), so words copied from the message as it is shown find it."""
+    text = _PLACEHOLDER.sub(" ", value or "")
+    text = _MARKDOWN.sub("", _MARKDOWN_LINK.sub(r"\1", text))
+    return " ".join(text.lower().split())
 
 
-async def refresh_panels(app: App) -> tuple[int, str | None]:
+@dataclass(frozen=True)
+class PanelRefresh:
+    """What refreshing the posted panels did: each refreshed feature's publish report lines (which also name a panel
+    that could not be posted, e.g. a missing permission), and the features whose refresh raised (logged with
+    ``error_id``)."""
+
+    lines: tuple[str, ...] = ()
+    failed: int = 0
+    error_id: str | None = None
+
+
+async def refresh_panels(app: App) -> PanelRefresh:
     """Update the posted panels of every ready feature (unchanged ones are left alone), e.g. after a text was edited.
 
     Only features that already have a posted panel are refreshed: posting new panels (and creating their channels)
-    stays the job of /setup. Returns the number of features whose panels failed and the reference logged for them
-    (None when all worked). One failure never stops the rest."""
+    stays the job of /setup. One failure never stops the rest."""
+    lines: list[str] = []
     failed = 0
     error_id: str | None = None
     for module in app.modules:
         if module.publish is None or not app.ready(module.name) or not await _has_posted_panel(app, module):
             continue
         try:
-            await module.publish(app)
+            lines += await module.publish(app)
         except Exception as exc:
             failed += 1
             error_id = error_id or uuid.uuid4().hex[:12]
@@ -302,7 +322,7 @@ async def refresh_panels(app: App) -> tuple[int, str | None]:
                 error=type(exc).__name__,
             )
             log.exception("panel refresh failed for %s (%s)", module.name, error_id)
-    return failed, error_id
+    return PanelRefresh(tuple(lines), failed, error_id)
 
 
 def close_keys(app: App, key: str, *, limit: int = 5) -> list[str]:

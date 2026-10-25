@@ -29,7 +29,7 @@ from shopbot.config.content import ContentStore, MissingContent
 from shopbot.config.content_keys import ContentKey
 from shopbot.config.settings import Settings
 from shopbot.core.panels import remove_message, upsert_message
-from shopbot.core.permissions import CHANNEL_SEND_PERMISSIONS, missing_permissions
+from shopbot.core.permissions import channel_send_permissions, missing_permissions
 from shopbot.db.repos import state
 from shopbot.features.server_keys import channel_mentions, channel_placeholder, channel_placeholders, channel_url
 from shopbot.logging_setup import log_event
@@ -278,7 +278,11 @@ async def _publish(app: App, *, feature: str, prefix: str, channel_key: str, bui
             text = "; ".join(str(v) for v in violations[:MAX_REPORTED_VIOLATIONS])
             return [op("guides.publish.limits", feature=feature, index=index, violations=text)]
     me = guild.me
-    missing = missing_permissions(me, channel, CHANNEL_SEND_PERMISSIONS) if me is not None else []
+    missing = (
+        missing_permissions(me, channel, channel_send_permissions(uploads=app.banners.enabled))
+        if me is not None
+        else []
+    )
     if missing:
         return [
             op(

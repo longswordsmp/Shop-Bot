@@ -95,8 +95,7 @@ async def content_set_submit(ctx: Ctx) -> None:
     else:
         log_event(log, logging.INFO, "admin_content_saved", key=key, length=len(value))
         # Show the new text on the posted panels right away (no /setup needed).
-        failed, error_id = await service.refresh_panels(app)
-        panels = views.panel_refresh_lines(app.op, failed, error_id)
+        panels = views.panel_refresh_lines(app.op, await service.refresh_panels(app))
         outcome = views.content_saved(app.ui, app.op, key, value, result.changes, panels)
     await send_view_reply(ctx.interaction, outcome)
 

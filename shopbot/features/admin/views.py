@@ -25,6 +25,7 @@ from shopbot.features.admin.service import (
     FeatureLine,
     KeyInfo,
     KeyRow,
+    PanelRefresh,
     ReadinessChange,
     ReloadReport,
     StatusSnapshot,
@@ -314,9 +315,10 @@ def status_overview(ui: Ui, op: OpFn, snap: StatusSnapshot) -> MessageSpec:
             ),
         ),
         EmbedField(op("admin.status.database"), inline_code(clip(snap.db_path, 1000))),
+        *list_field(op, op("admin.status.pictures"), [clip(p, 200) for p in snap.picture_problems]),
     ]
     healthy = len(ready) == len(enabled) and snap.guild_available and not snap.missing_permissions
-    tone = "success" if healthy and not snap.unknown_keys else "warning"
+    tone = "success" if healthy and not snap.unknown_keys and not snap.picture_problems else "warning"
     return MessageSpec(
         embeds=(_embed(ui, op("admin.status.title"), description, tone=tone, fields=fields),),
         banner=ui.banner("staff-dashboard"),
@@ -442,13 +444,13 @@ def content_saved(
     return _value_reply(ui, op, title, value, fields, "success", "successful-confirmation")
 
 
-def panel_refresh_lines(op: OpFn, failed: int, error_id: str | None) -> list[str]:
-    if failed:
-        return [
-            op("admin.content.panels_failed", count=failed, error_id=error_id or "-"),
-            op("admin.content.panels_hint"),
-        ]
-    return [op("admin.content.panels_refreshed"), op("admin.content.panels_hint")]
+def panel_refresh_lines(op: OpFn, refresh: PanelRefresh) -> list[str]:
+    """What happened to the posted panels: each refreshed feature's report line (posted, updated, up to date, or why
+    it could not be posted), the failures, then where else the new text appears."""
+    lines = list(refresh.lines) or [op("admin.content.panels_none")]
+    if refresh.failed:
+        lines.append(op("admin.content.panels_failed", count=refresh.failed, error_id=refresh.error_id or "-"))
+    return [*lines, op("admin.content.panels_hint")]
 
 
 # --------------------------------------------------------------------------------------------------
@@ -547,12 +549,14 @@ def content_show(ui: Ui, op: OpFn, info: KeyInfo) -> Reply:
     return _value_reply(ui, op, title, info.shown, fields, tone, "staff-dashboard")
 
 
-def content_cleared(ui: Ui, op: OpFn, result: ClearResult) -> MessageSpec:
+def content_cleared(ui: Ui, op: OpFn, result: ClearResult, panels: Sequence[str] = ()) -> MessageSpec:
+    """``panels``: lines about updating the posted panels after the change (empty when they were not refreshed)."""
     if not result.removed:
         no_override = op("admin.content.no_override", content_key=result.key)
         return simple(ui, op, no_override, tone="warning", banner="general-response")
     description = op("admin.content.cleared_now", source=_source_text(op, result.source_after, None))
     fields = list_field(op, op("admin.content.readiness"), [change_line(op, c) for c in result.changes])
+    fields += list_field(op, op("admin.content.panels"), panels)
     embed = _embed(
         ui,
         clip(op("admin.content.cleared_title", content_key=result.key), limits.EMBED_TITLE),

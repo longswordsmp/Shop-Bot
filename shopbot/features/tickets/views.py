@@ -511,12 +511,13 @@ def transcript_post(
         "final_status": final_status or "",
         "close_reason": escape(close_reason) if close_reason else "",
     }
-    embed = _embed(
-        ui,
-        k.TRANSCRIPT_TITLE,
-        k.TRANSCRIPT_DESCRIPTION,
-        required=(k.TRANSCRIPT_TITLE, k.TRANSCRIPT_DESCRIPTION),
-        values=values,
+    for key in (k.TRANSCRIPT_TITLE, k.TRANSCRIPT_DESCRIPTION):
+        if not ui.content.has(key):
+            raise MissingContent(key)
+    embed = ui.embed(
+        title=ui.text(k.TRANSCRIPT_TITLE, **values),
+        # A line whose value does not apply (no close reason, a support ticket's order status) is left out.
+        description=ui.content.render_lines(k.TRANSCRIPT_DESCRIPTION, **values),
         tone="neutral",
         timestamp=True,
     )

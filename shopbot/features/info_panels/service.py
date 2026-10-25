@@ -15,7 +15,7 @@ import discord
 from shopbot.config.content import MissingContent
 from shopbot.config.settings import InfoPanelDef
 from shopbot.core.panels import remove_message, upsert_message
-from shopbot.core.permissions import CHANNEL_SEND_PERMISSIONS, missing_permissions
+from shopbot.core.permissions import channel_send_permissions, missing_permissions
 from shopbot.db.repos import state
 from shopbot.features.info_panels.views import build_panel
 from shopbot.logging_setup import log_event
@@ -43,7 +43,7 @@ async def publish_panel(app: App, guild: discord.Guild, panel: InfoPanelDef) -> 
         spec = build_panel(app.ui, panel)
     except MissingContent as exc:
         return op("info_panels.publish.missing_content", panel=panel.key, content_key=exc.key)
-    missing = missing_permissions(guild.me, channel, CHANNEL_SEND_PERMISSIONS)
+    missing = missing_permissions(guild.me, channel, channel_send_permissions(uploads=app.banners.enabled))
     if missing:
         return op(
             "info_panels.publish.missing_permissions",

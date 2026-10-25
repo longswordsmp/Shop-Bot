@@ -40,6 +40,7 @@ OPERATOR_TEXT: dict[str, str] = {
     "admin.status.feature_not_ready": "⚠️ `{feature}` — enabled, not ready ({problems} problems)",
     "admin.status.feature_disabled": "▫️ `{feature}` — disabled ({problems} problems)",
     "admin.status.unknown_keys": "Unknown content keys (likely typos)",
+    "admin.status.pictures": "Banner and icon pictures that cannot be used (replace the file, then /reload)",
     "admin.status.permissions": "Bot permissions (server-wide)",
     "admin.status.permissions_ok": "All permissions needed by the enabled features are granted.",
     "admin.status.permissions_missing": "Missing for {capability}: {permissions}",
@@ -117,7 +118,7 @@ OPERATOR_TEXT: dict[str, str] = {
     ),
     "admin.content.export_failed": "The export could not be created",
     "admin.content.panels": "Posted panels",
-    "admin.content.panels_refreshed": "Posted panels were updated with the new text.",
+    "admin.content.panels_none": "No posted panel needed an update (run /setup to post the panels).",
     "admin.content.panels_failed": (
         "{count} panel(s) could not be updated (reference {error_id}); run /setup to post them again."
     ),

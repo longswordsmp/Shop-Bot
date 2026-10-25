@@ -19,7 +19,7 @@ from shopbot.features.core_keys import AUTHOR_NAME
 from shopbot.features.guides import how_to_buy
 from tests.admin.util import admin, customer, sent
 from tests.fakes import FakeInteraction, FakeMessage, click, submit_modal
-from tests.guides.util import guide_env, messages
+from tests.guides.util import channel, guide_env, messages
 from tests.helpers import TestEnv
 
 
@@ -84,8 +84,44 @@ async def test_lists_the_texts_of_a_panel_in_display_order_and_edits_one(genv: T
 
     saved = await submit_modal(genv.app, user=owner, custom_id=modal.custom_id, fields={"value": "New title"})
     assert await genv.app.db.run(state_repo.overrides_all) == {how_to_buy.TITLE: "New title"}
-    assert "Posted panels were updated with the new text." in sent(saved).text()
+    # The reply shows what really happened to each posted panel (here: the guide was updated in place).
+    assert f"`how_to_buy`: 1 message(s) in {channel(genv, 'how_to_buy').mention}" in sent(saved).text()
+    assert "1 updated" in sent(saved).text()
     assert messages(genv, "how_to_buy")[0].embeds[0].title == "New title"  # the posted panel follows at once
+
+
+async def test_clearing_an_override_puts_the_posted_panel_back_at_once(genv: TestEnv) -> None:
+    from shopbot.features.admin import commands
+
+    await how_to_buy.publish(genv.app)
+    genv.app.content.set_override(how_to_buy.TITLE, "[override]")
+    await genv.app.db.transaction(state_repo.override_set, how_to_buy.TITLE, "[override]", 1, 1)
+    await how_to_buy.publish(genv.app)
+    assert messages(genv, "how_to_buy")[0].embeds[0].title == "[override]"
+    interaction = FakeInteraction(client=genv.app.bot, user=admin(genv), guild=genv.guild)
+    await commands.handle_content_clear(interaction, how_to_buy.TITLE)  # type: ignore[arg-type]
+    assert messages(genv, "how_to_buy")[0].embeds[0].title == genv.text(how_to_buy.TITLE)
+    assert "1 updated" in sent(interaction).text()
+
+
+def test_the_messages_own_feature_comes_first_when_texts_are_shared() -> None:
+    shared = "Choose an option from the menu below"
+    own = ck("own.text", Kind.DESCRIPTION, "faq", "g", "doc")
+    other = ck("other.text", Kind.DESCRIPTION, "shipping", "g", "doc")
+    later = ck("own.later", Kind.DESCRIPTION, "faq", "g", "doc")
+    values = {"own.text": shared, "other.text": shared, "own.later": "A later text of this message"}
+    texts = [shared, "A later text of this message"]
+    keys = edit_text.find_keys(texts, values, [other, own, later], features=frozenset({"faq"}))
+    assert keys == ["own.text", "own.later", "other.text"]  # the other feature's twin goes last
+    # Without components the feature with the most unambiguous matches is taken.
+    assert edit_text.find_keys(texts, values, [other, own, later]) == keys
+
+
+def test_server_names_and_form_titles_are_never_offered() -> None:
+    role = ck("server.role.x.name", Kind.ROLE_NAME, "server", "g", "doc")
+    title = ck("x.modal_title", Kind.MODAL_TITLE, "faq", "g", "doc")
+    values = {"server.role.x.name": "Customer", "x.modal_title": "Customer"}
+    assert edit_text.find_keys(["Customer"], values, [role, title]) == []
 
 
 async def test_only_the_bots_own_messages(genv: TestEnv) -> None:
@@ -155,3 +191,11 @@ async def test_content_set_autocomplete_finds_keys_by_their_text(genv: TestEnv) 
     await service.save_override(genv.app, how_to_buy.TITLE, "How to shop with us", actor_id=1)
     assert service.suggest_keys(genv.app, "shop with")[0] == how_to_buy.TITLE
     assert service.suggest_keys(genv.app, "HOW TO SHOP")[0] == how_to_buy.TITLE
+
+
+async def test_text_search_ignores_markdown_and_icons(genv: TestEnv) -> None:
+    text = "{icon_cart} Press **Buy** on an [item](https://example.com) you like"
+    await service.save_override(genv.app, how_to_buy.INTRODUCTION, text, actor_id=1)
+    # Words copied from the message as Discord shows it (no stars, the link's label only).
+    assert service.suggest_keys(genv.app, "Press Buy on an item")[0] == how_to_buy.INTRODUCTION
+    assert service.suggest_keys(genv.app, "**Buy** on")[0] == how_to_buy.INTRODUCTION
