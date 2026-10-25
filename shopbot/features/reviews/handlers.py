@@ -266,7 +266,8 @@ async def _load_for_staff(ctx: Ctx) -> repo.Review:
 
 async def _staff_reply(ctx: Ctx, result: service.StaffResult) -> None:
     app = ctx.app
-    spec = views.operator_reply(app.ui, app.op("reviews.decision.title"), result.lines, tone=result.tone)
+    title = app.op("reviews.decision.title")
+    spec = views.operator_reply(app.ui, title, result.lines, tone=result.tone, banner_id=result.banner)
     await ctx.respond(spec, ephemeral=True)
 
 

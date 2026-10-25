@@ -16,8 +16,8 @@ from typing import Any, Literal
 import discord
 from discord import app_commands
 
-from shopbot.commands import app_of, reply, reply_operator, require_admin, require_staff
-from shopbot.features.credits import repo, service
+from shopbot.commands import app_of, reply, require_admin, require_staff
+from shopbot.features.credits import repo, service, views
 from shopbot.features.credits.content_keys import CREDITS
 from shopbot.features.credits.handlers import staff_role_keys
 
@@ -30,7 +30,8 @@ async def _ready(interaction: discord.Interaction[Any]) -> bool:
     app = app_of(interaction)
     if app.ready(CREDITS):
         return True
-    await reply_operator(interaction, app.op("command.feature_disabled", feature=CREDITS), tone="warning")
+    title = app.op("command.feature_disabled", feature=CREDITS)
+    await reply(interaction, views.operator_reply(app.ui, title, [], tone="warning", banner_id="error"), ephemeral=True)
     return False
 
 

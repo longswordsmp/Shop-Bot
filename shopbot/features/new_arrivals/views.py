@@ -5,6 +5,10 @@ renders. Wording comes only from content keys through ``Ui``; missing required t
 nothing incomplete is ever sent. Product names are staff-entered data and are markdown-escaped; product descriptions
 are business copy and are shown exactly as written (like the catalog cards). Price and availability fields are the
 catalog's own ``product_fields``, so a product reads the same in #catalog and in #new-arrivals.
+
+Banners: the panel and every update show ``new-arrivals``; the private confirmations show
+``successful-confirmation`` (notifications on) or ``general-response`` (off). A banner is an attachment shown above
+the embeds, so an update's first embed is still its product card (``service._find_unrecorded_post`` matches it).
 """
 
 from __future__ import annotations
@@ -62,18 +66,20 @@ def panel_message(ui: Ui, values: Values) -> MessageSpec:
     if button is None:  # pragma: no cover - the label is checked above
         raise MissingContent(keys.BUTTON_TOGGLE)
     embed = ui.embed(title=title, description=description, tone="primary", panel=True)
-    return MessageSpec(embeds=(embed,), rows=rows_of(button))
+    return MessageSpec(embeds=(embed,), rows=rows_of(button), banner=ui.banner("new-arrivals"))
 
 
 def confirmation(ui: Ui, *, subscribed: bool, values: Values) -> MessageSpec:
     """Private answer to a click: notifications are now on (``subscribed``) or off."""
     if subscribed:
         title_key, description_key, tone = keys.SUBSCRIBED_TITLE, keys.SUBSCRIBED_DESCRIPTION, "success"
+        banner = ui.banner("successful-confirmation")
     else:
         title_key, description_key, tone = keys.UNSUBSCRIBED_TITLE, keys.UNSUBSCRIBED_DESCRIPTION, "neutral"
+        banner = ui.banner("general-response")
     description = _require(ui, description_key, values)
     embed = ui.embed(title=ui.text(title_key), description=description, tone=tone, timestamp=True)
-    return MessageSpec(embeds=(embed,))
+    return MessageSpec(embeds=(embed,), banner=banner)
 
 
 # ---------------------------------------------------------------------------------------------------
@@ -125,4 +131,5 @@ def announcement(
         rows=rows_of(link),
         mention_role_ids=(role_id,) if role_id else (),
         files=tuple(files) or None,
+        banner=ui.banner("new-arrivals"),
     )

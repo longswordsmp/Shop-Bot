@@ -197,22 +197,38 @@ def preview(app: App) -> list[PreviewState]:
         (
             "reply_image_uploaded",
             "Staff-only reply to /product image with an uploaded file, with the listing refresh report.",
-            service.OpReply(op("catalog.cmd.image_set", product_id=sample_id), tone="success", fields=listing_field),
+            service.OpReply(
+                op("catalog.cmd.image_set", product_id=sample_id),
+                tone="success",
+                fields=listing_field,
+                banner=service.SAVED,
+            ),
         ),
         (
             "reply_image_rejected",
             "Staff-only reply to /product image when the uploaded file is not an accepted image.",
-            service.OpReply(op("catalog.cmd.invalid"), op("catalog.cmd.image_type"), tone="warning"),
+            service.OpReply(
+                op("catalog.cmd.invalid"), op("catalog.cmd.image_type"), tone="warning", banner=service.REFUSED
+            ),
         ),
         (
             "reply_removed",
             "Staff-only result of the confirmed /product remove.",
-            service.OpReply(op("catalog.cmd.removed", product_id=sample_id), tone="success", fields=listing_field),
+            service.OpReply(
+                op("catalog.cmd.removed", product_id=sample_id),
+                tone="success",
+                fields=listing_field,
+                banner=service.SAVED,
+            ),
         ),
         (
             "reply_remove_reserved",
             "Staff-only reply when a product to remove still has units held by pending orders.",
-            service.OpReply(op("catalog.cmd.remove_reserved", product_id=sample_id, reserved=2), tone="warning"),
+            service.OpReply(
+                op("catalog.cmd.remove_reserved", product_id=sample_id, reserved=2),
+                tone="warning",
+                banner=service.REFUSED,
+            ),
         ),
     )
     for name, note, reply in replies:

@@ -194,6 +194,7 @@ def preview(app: App) -> list[PreviewState]:
             app.op("reviews.decision.title"),
             [app.op("reviews.decision.approved", order_number=number), app.op("reviews.decision.published")],
             tone="success",
+            banner_id=service.StaffResult([], "success").banner,
         ),
     )
     member = f"<@{SAMPLE_MEMBER_ID}>"

@@ -4,7 +4,8 @@ The reply is one private message: a list card (title, optional text, page indica
 first) with its number, current stage, total and timeline, plus a link to its ticket while it is open and the
 tracking details staff recorded. Orders are split into pages of at most ``my_orders.orders_per_page`` cards that
 also fit Discord's limits (6000 characters and 10 cards per message); nothing is cut. Customer data (tracking text)
-is escaped; configured text is used exactly as written.
+is escaped; configured text is used exactly as written. Every page (and the empty reply) shows the
+``account-and-personal-records`` banner (paging edits the same message, so the banner stays).
 """
 
 from __future__ import annotations
@@ -12,6 +13,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass
 
+from shopbot.config.banner_ids import BannerId
 from shopbot.config.content import MissingContent
 from shopbot.config.settings import Settings
 from shopbot.features import core_keys as core
@@ -24,6 +26,7 @@ from shopbot.ui.spec import ButtonSpec, EmbedField, EmbedSpec, MessageSpec, rows
 from shopbot.ui.style import Ui, chunk_lines
 
 ROUTE = k.ROUTE
+BANNER: BannerId = "account-and-personal-records"
 
 
 def page_id(user_id: int, page: int) -> str:
@@ -128,7 +131,7 @@ def paginate(ui: Ui, settings: Settings, items: Sequence[CustomerOrder]) -> Page
 def empty_message(ui: Ui) -> MessageSpec:
     """The reply of a member without any order."""
     card = ui.embed(title=_text(ui, k.LIST_TITLE, count=0), description=_text(ui, k.EMPTY), tone="neutral")
-    return MessageSpec(embeds=(card,))
+    return MessageSpec(embeds=(card,), banner=ui.banner(BANNER))
 
 
 def my_orders_message(
@@ -144,9 +147,9 @@ def my_orders_message(
     indicator = ui.page_indicator(page + 1, count) if count > 1 else None
     embeds = [_list_card(ui, len(items), indicator), *(split.cards[i] for i in split.pages[page])]
     if count <= 1:
-        return MessageSpec(embeds=tuple(embeds))
+        return MessageSpec(embeds=tuple(embeds), banner=ui.banner(BANNER))
     rows = rows_of(
         _button(ui, core.BUTTON_PREV, page_id(user_id, max(0, page - 1)), disabled=page <= 0),
         _button(ui, core.BUTTON_NEXT, page_id(user_id, min(count - 1, page + 1)), disabled=page >= count - 1),
     )
-    return MessageSpec(embeds=tuple(embeds), rows=rows)
+    return MessageSpec(embeds=tuple(embeds), rows=rows, banner=ui.banner(BANNER))

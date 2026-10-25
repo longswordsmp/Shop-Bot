@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Any, Literal, TypeVar
 import discord
 from discord import app_commands
 
-from shopbot.commands import NotAuthorized, app_of, reply, reply_operator, require_staff
+from shopbot.commands import NotAuthorized, app_of, reply, require_staff
 from shopbot.features.catalog import repo, service, views
 from shopbot.features.catalog.content_keys import CATALOG
 from shopbot.ui.discord_render import check_modal, to_modal
@@ -61,7 +61,10 @@ async def _ready(interaction: discord.Interaction[Any]) -> bool:
     app = app_of(interaction)
     if app.ready(CATALOG):
         return True
-    await reply_operator(interaction, app.op("command.feature_disabled", feature=CATALOG), tone="warning")
+    disabled = service.OpReply(
+        app.op("command.feature_disabled", feature=CATALOG), tone="warning", banner=service.REFUSED
+    )
+    await reply(interaction, service.reply_spec(app, disabled), ephemeral=True)
     return False
 
 

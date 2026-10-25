@@ -77,7 +77,7 @@ async def on_remove(ctx: Ctx) -> None:
 async def on_remove_cancel(ctx: Ctx) -> None:
     _require_manager(ctx)
     product_id = ctx.arg_int(0)
-    reply = service.OpReply(ctx.app.op("catalog.cmd.remove_kept", product_id=product_id))
+    reply = service.OpReply(ctx.app.op("catalog.cmd.remove_kept", product_id=product_id), banner=service.NOTED)
     await ctx.update(service.reply_spec(ctx.app, reply))
 
 
