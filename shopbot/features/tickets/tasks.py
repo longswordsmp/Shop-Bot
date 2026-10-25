@@ -134,6 +134,7 @@ async def auto_close_warning_task(app: App, task: Task) -> None:
         spec=spec,
         kind="tickets.auto_close_warning",
         dedupe_key=f"tickets.autowarn:{ticket.id}:{ticket.last_activity_at}",
+        user_id=ticket.user_id,
     )
 
 

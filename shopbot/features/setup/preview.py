@@ -1,7 +1,8 @@
 """Preview of the /setup report (operator output) with obviously synthetic sample data.
 
 Covers a typical report, a dry-run plan, and a report long enough to be split across several messages,
-so the offline limits checker exercises the packer.
+so the offline limits checker exercises the packer. Every sample includes the entry-channel warning (unmanaged
+channels everyone can see).
 """
 
 from __future__ import annotations
@@ -39,6 +40,20 @@ def _sample_report(app: App, *, dry_run: bool, size: int) -> SetupReport:
     else:
         report.add("panels", app.op("server.setup.publish_failed", feature="sample_feature", error_id="0123456789ab"))
     report.add("problems", app.op("server.setup.missing_permissions", permissions="manage_roles"))
+    # Entry-channel safety: unmanaged channels everyone can see (e.g. Discord's default #general and General voice).
+    for index, kind in enumerate(("text", "voice", "category"), start=4):
+        report.add(
+            "problems",
+            app.op(
+                "server.setup.public_unmanaged",
+                kind=app.op(f"server.setup.channel_kind.{kind}"),
+                target=f"<#10000000000000000{index}>",
+                name=f"[sample unmanaged {kind}]",
+            ),
+        )
+    if size > 25:
+        report.add("problems", app.op("server.setup.public_unmanaged_more", count=size - 25))
+    report.add("problems", app.op("server.setup.public_unmanaged_hint"))
     report.add("problems", app.op("server.setup.feature_not_ready", feature="sample_feature", count=3))
     report.add("problems", app.op("server.setup.status_hint"))
     return report

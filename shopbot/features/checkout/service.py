@@ -1200,6 +1200,7 @@ async def post_order_extras(app: App, order_id: int, messages: views.OrderMessag
                 spec=spec,
                 kind=f"checkout.order_{part}",
                 dedupe_key=order_extra_key(order_id, part, index),
+                user_id=view.order.user_id,
             )
 
 

@@ -2102,11 +2102,11 @@ operations.failure.error.description = ""
 # title · max 256 characters · optional · placeholders: {source}, {error_id}, {error}
 operations.failure.error.title = ""
 
-# Staff alert when a private notification to a member could not be delivered, neither by direct message nor in the fallback channel. {user_mention} mentions the member (no ping), {notification} is the notification's internal name (e.g. checkout.paid).
+# Staff alert when a notification could not be delivered: a private notification to a member, neither by direct message nor in the fallback channel, or a message the bot posts in a channel (e.g. a ticket's staff alert or an order's details). {user_mention} mentions the member it was for (no ping; '-' when it was for staff), {notification} is the notification's internal name (e.g. checkout.paid).
 # description · max 4096 characters · required · placeholders: {user_mention}, {notification}
 operations.failure.notification.description = ""
 
-# Optional title of the Staff alert when a private notification to a member could not be delivered, neither by direct message nor in the fallback channel. {user_mention} mentions the member (no ping), {notification} is the notification's internal name (e.g. checkout.paid).
+# Optional title of the Staff alert when a notification could not be delivered: a private notification to a member, neither by direct message nor in the fallback channel, or a message the bot posts in a channel (e.g. a ticket's staff alert or an order's details). {user_mention} mentions the member it was for (no ping; '-' when it was for staff), {notification} is the notification's internal name (e.g. checkout.paid).
 # title · max 256 characters · optional · placeholders: {user_mention}, {notification}
 operations.failure.notification.title = ""
 

@@ -98,6 +98,12 @@ See `docs/DEPLOYMENT.md` → Troubleshooting if anything else appears.
 
 In your server, as the owner/admin: **`/setup dry_run:True`** first. It lists what it would create.
 
+Look at its **Problems** section: it lists every channel or category the bot does not manage that `@everyone` can
+see. In a new server that is Discord's default **#general** text channel and **General** voice channel (and their
+"Text Channels"/"Voice Channels" categories). Unverified users must see only 📌 START HERE, so **delete them** (or
+deny View Channel to `@everyone` on them); the bot never changes or deletes channels it does not manage, and every
+`/setup` run reports them until they are gone.
+
 The structure comes from your specification and is already named (content.toml): 📌 START HERE, 📦 CATALOG,
 🛒 PURCHASE and 🔒 STAFF with #welcome, #how-to-buy, #faq, #shipping, #announcements, #catalog, #new-arrivals,
 #reviews, #purchase, #orders, #staff-chat, #bot-log, #transcripts, and the roles Owner, Staff, Member, Customer and

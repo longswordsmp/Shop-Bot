@@ -83,9 +83,10 @@ _REMINDER_DOC = {
 }
 _FAILURE_DOC = {
     FAILURE_NOTIFICATION: (
-        "a private notification to a member could not be delivered, neither by direct message nor in the fallback "
-        "channel. {user_mention} mentions the member (no ping), {notification} is the notification's internal name "
-        "(e.g. checkout.paid)"
+        "a notification could not be delivered: a private notification to a member, neither by direct message nor in "
+        "the fallback channel, or a message the bot posts in a channel (e.g. a ticket's staff alert or an order's "
+        "details). {user_mention} mentions the member it was for (no ping; '-' when it was for staff), "
+        "{notification} is the notification's internal name (e.g. checkout.paid)"
     ),
     FAILURE_TASK: (
         "a scheduled task failed permanently after its retries (details are in the audit log). {task} is the task's "

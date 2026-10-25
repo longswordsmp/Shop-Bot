@@ -121,6 +121,7 @@ async def on_failure(
     attempts: int | None = None,
     user_id: int | None = None,
     role_id: int | None = None,
+    channel_id: int | None = None,
     **_: Any,
 ) -> None:
     """Audit the failure (the scheduler audits task failures itself) and schedule a grouped staff alert."""
@@ -145,11 +146,15 @@ async def on_failure(
         values = {"source": name, "error_id": error_id or "-", "error": error or "-"}
         dedupe = f"operations.alert:failure:{kind}:{name}:{window}"
     elif kind == "notification":
-        if name.startswith(OWN_PREFIX):
-            return  # operations' own messages are not sent through the notifier; never alert about alerts
-        await app.audit.record(
-            "notifications.failed", actor_id=None, target_type="user", target_id=user_id, details={"kind": name}
+        # Who it was for: the member (DMs, posts addressed to a member) or else the channel (posts for staff).
+        target_type, target_id = (
+            ("user", user_id) if user_id else ("channel", channel_id) if channel_id else (None, None)
         )
+        await app.audit.record(
+            "notifications.failed", actor_id=None, target_type=target_type, target_id=target_id, details={"kind": name}
+        )
+        if name.startswith(OWN_PREFIX):
+            return  # one of operations' own alerts/reminders failed: audited only; alerting about alerts could loop
         failure = k.FAILURE_NOTIFICATION
         values = {"user_mention": checkout_views.user_mention(user_id) if user_id else "-", "notification": name}
         dedupe = f"operations.alert:failure:notification:{name}:{user_id}:{window}"
