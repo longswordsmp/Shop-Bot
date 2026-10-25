@@ -208,7 +208,11 @@ access = "inherit"
 # -------------------------------------------------------------------------------------------------
 
 [verification]
-channel = "welcome"
+channel = "welcome"                  # entry channel for the rules panel; must be public (visible before accepting)
+rules = 0                            # REQUIRED: number of server rules on the panel (1-25). Each rule n gets the
+                                     # content keys verification.rule.<n>.name / .value (heading and text).
+dm_confirmation = false              # also confirm by direct message (only when features.dm_notifications = true)
+button_style = "success"             # color of the "I agree" button: primary, secondary, success or danger
 
 [how_to_buy]
 channel = "how_to_buy"

@@ -447,3 +447,19 @@ Constraints:
 | `created_at` | INTEGER | yes |  |  |
 
 Indexes: `idx_audit_target`, `idx_audit_guild_time`
+
+## `verification_acceptances`
+
+| Column | Type | Not null | Default | Key |
+|---|---|---|---|---|
+| `guild_id` | INTEGER | yes |  | PK |
+| `user_id` | INTEGER | yes |  | PK |
+| `first_accepted_at` | INTEGER | yes |  |  |
+| `last_accepted_at` | INTEGER | yes |  |  |
+| `acceptances` | INTEGER | yes | 1 |  |
+
+Constraints:
+
+- `first_accepted_at INTEGER NOT NULL CHECK (first_accepted_at >= 0)`
+- `last_accepted_at INTEGER NOT NULL CHECK (last_accepted_at >= first_accepted_at)`
+- `acceptances INTEGER NOT NULL DEFAULT 1 CHECK (acceptances >= 1)`

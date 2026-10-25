@@ -61,6 +61,7 @@ perform staff actions check staff status inside the handler, e.g. per-ticket-cat
 | component | `tk` | `reopen` | tickets | any | no | `shopbot.features.tickets.handlers.reopen_button` |
 | component | `tk` | `transcript` | tickets | any | no | `shopbot.features.tickets.handlers.transcript_button` |
 | component | `tk` | `unclaim` | tickets | any | no | `shopbot.features.tickets.handlers.unclaim_button` |
+| component | `verify` | `agree` | verification | any | no | `shopbot.features.verification.handlers.on_agree` |
 
 ## Scheduled task kinds
 

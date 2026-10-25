@@ -486,6 +486,12 @@ class VerificationSettings:
     """[verification]: the #welcome rules panel whose button grants ``permissions.member_role``."""
 
     channel: str = ""
+    # Number of server rules shown on the panel (content keys verification.rule.<n>.name/value); 0 = not set yet.
+    rules: int = 0
+    # Also confirm a successful verification by direct message (only when features.dm_notifications is on).
+    dm_confirmation: bool = False
+    # Color of the "I agree, enter the server" button.
+    button_style: str = "success"
 
 
 @dataclass(frozen=True)
@@ -918,8 +924,19 @@ def _perm_names(reader: _Reader) -> tuple[str, ...]:
 # -- Parsers for the server-specification sections (one per feature; each finishes its own table). -----------
 
 
+MAX_VERIFICATION_RULES = 25  # one embed field per rule; Discord allows 25 fields per embed
+
+
 def _parse_verification(r: _Reader) -> VerificationSettings:
-    return _finish(r, VerificationSettings(channel=r.str_("channel", "", pattern=KEY_PATTERN)))
+    return _finish(
+        r,
+        VerificationSettings(
+            channel=r.str_("channel", "", pattern=KEY_PATTERN),
+            rules=r.int_("rules", 0, min_=0, max_=MAX_VERIFICATION_RULES),
+            dm_confirmation=r.bool_("dm_confirmation", False),
+            button_style=r.str_("button_style", "success", choices=BUTTON_STYLES, allow_empty=False),
+        ),
+    )
 
 
 def _parse_new_arrivals(r: _Reader) -> NewArrivalsSettings:
