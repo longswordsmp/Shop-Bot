@@ -212,12 +212,50 @@ channel = "welcome"
 
 [how_to_buy]
 channel = "how_to_buy"
+steps = 4                            # numbered steps (1-25): finding items, starting a private ticket, completing the
+                                     # steps, checking the result. Text: how_to_buy.step.<n>.name / .value
+link_channels = ["catalog", "purchase", "faq"]   # channel keys shown as link buttons under the guide (max 25);
+                                     # button labels: how_to_buy.link.<channel>.label (+ optional .emoji)
 
 [faq]
 channel = "faq"
+# One [[faq.sections]] per topic, in display order. `id` is an internal key (never shown); the section title and
+# its questions/answers are content keys faq.section.<id>.title and faq.section.<id>.q.<n>.question / .answer.
+# `questions` = number of questions in the section (1-25). Long sections continue in further embeds/messages.
+[[faq.sections]]
+id = "general"
+questions = 1
+
+[[faq.sections]]
+id = "transactions"
+questions = 1
+
+[[faq.sections]]
+id = "order_status"
+questions = 1
+
+[[faq.sections]]
+id = "cancellations"
+questions = 1
+
+[[faq.sections]]
+id = "problems"
+questions = 1
 
 [shipping]
 channel = "shipping"
+statuses = ["full", "partial", "none"]   # enabled availability categories, in display order:
+                                     # full = fully supported, partial = partially supported, none = unsupported.
+                                     # Labels/indicators: shipping.status.<status>.label / .indicator / .description
+info_sections = 0                    # extra information fields (0-25), e.g. delivery or fulfillment options.
+                                     # Text: shipping.info.<n>.name / .value
+info_position = "after"              # "before" or "after" the region list
+# Regions are business information: add one [[shipping.regions]] per region (none are shipped). `id` is an internal
+# key; the visible name is shipping.region.<id>.name (optional note: shipping.region.<id>.note). `status` must be
+# listed in `statuses` above. Example:
+# [[shipping.regions]]
+# id = "region_a"
+# status = "full"
 
 [announcements]
 channel = "announcements"

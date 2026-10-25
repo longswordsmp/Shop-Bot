@@ -495,11 +495,32 @@ class NewArrivalsSettings:
     channel: str = ""
 
 
+MAX_GUIDE_STEPS = 25
+MAX_GUIDE_LINKS = 25
+MAX_FAQ_SECTIONS = 25
+MAX_FAQ_QUESTIONS = 25
+MAX_SHIPPING_REGIONS = 500
+MAX_SHIPPING_INFO_SECTIONS = 25
+# Availability categories of [shipping]: fully supported, partially supported, unsupported.
+SHIPPING_STATUSES = ("full", "partial", "none")
+SHIPPING_INFO_POSITIONS = ("before", "after")
+
+
 @dataclass(frozen=True)
 class HowToBuySettings:
     """[how_to_buy]: the step-by-step guide panel."""
 
     channel: str = ""
+    # Number of numbered steps (content keys how_to_buy.step.<n>.name/.value).
+    steps: int = 4
+    # Channel keys shown as link buttons under the guide (in this order).
+    link_channels: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class FaqSection:
+    id: str
+    questions: int = 1
 
 
 @dataclass(frozen=True)
@@ -507,6 +528,13 @@ class FaqSettings:
     """[faq]: the FAQ panels (sections of questions and answers)."""
 
     channel: str = ""
+    sections: tuple[FaqSection, ...] = ()
+
+
+@dataclass(frozen=True)
+class ShippingRegion:
+    id: str
+    status: str = ""
 
 
 @dataclass(frozen=True)
@@ -514,6 +542,12 @@ class ShippingSettings:
     """[shipping]: the fulfillment/regions panel."""
 
     channel: str = ""
+    # Enabled availability categories, in display order (subset of SHIPPING_STATUSES).
+    statuses: tuple[str, ...] = SHIPPING_STATUSES
+    regions: tuple[ShippingRegion, ...] = ()
+    # Extra information fields (content keys shipping.info.<n>.name/.value), shown before or after the regions.
+    info_sections: int = 0
+    info_position: str = "after"
 
 
 @dataclass(frozen=True)
@@ -927,15 +961,67 @@ def _parse_new_arrivals(r: _Reader) -> NewArrivalsSettings:
 
 
 def _parse_how_to_buy(r: _Reader) -> HowToBuySettings:
-    return _finish(r, HowToBuySettings(channel=r.str_("channel", "", pattern=KEY_PATTERN)))
+    value = HowToBuySettings(
+        channel=r.str_("channel", "", pattern=KEY_PATTERN),
+        steps=r.int_("steps", 4, min_=1, max_=MAX_GUIDE_STEPS),
+        link_channels=r.keys_("link_channels"),
+    )
+    if len(value.link_channels) > MAX_GUIDE_LINKS:
+        r.error("link_channels", f"at most {MAX_GUIDE_LINKS} link buttons fit under one message")
+    return _finish(r, value)
 
 
 def _parse_faq(r: _Reader) -> FaqSettings:
-    return _finish(r, FaqSettings(channel=r.str_("channel", "", pattern=KEY_PATTERN)))
+    sections = tuple(
+        _finish(
+            s,
+            FaqSection(
+                id=s.str_("id", "", pattern=KEY_PATTERN, allow_empty=False),
+                questions=s.int_("questions", 1, min_=1, max_=MAX_FAQ_QUESTIONS),
+            ),
+        )
+        for s in r.tables("sections")
+    )
+    for index, section in enumerate(sections):
+        if not section.id:
+            r.error(f"sections[{index}].id", "is required")
+    if len(sections) > MAX_FAQ_SECTIONS:
+        r.error("sections", f"at most {MAX_FAQ_SECTIONS} sections")
+    _unique(sections, lambda x: x.id, r._p("sections"), r._errors)
+    return _finish(r, FaqSettings(channel=r.str_("channel", "", pattern=KEY_PATTERN), sections=sections))
 
 
 def _parse_shipping(r: _Reader) -> ShippingSettings:
-    return _finish(r, ShippingSettings(channel=r.str_("channel", "", pattern=KEY_PATTERN)))
+    statuses = r.keys_("statuses") if "statuses" in r._data else SHIPPING_STATUSES
+    for status in statuses:
+        if status not in SHIPPING_STATUSES:
+            r.error("statuses", f"'{status}' is not one of {list(SHIPPING_STATUSES)}")
+    regions = tuple(
+        _finish(
+            g,
+            ShippingRegion(
+                id=g.str_("id", "", pattern=KEY_PATTERN, allow_empty=False),
+                status=g.str_("status", "", choices=SHIPPING_STATUSES, allow_empty=False),
+            ),
+        )
+        for g in r.tables("regions")
+    )
+    for index, region in enumerate(regions):
+        if not region.id:
+            r.error(f"regions[{index}].id", "is required")
+        if not region.status:
+            r.error(f"regions[{index}].status", f"is required (one of {list(SHIPPING_STATUSES)})")
+    if len(regions) > MAX_SHIPPING_REGIONS:
+        r.error("regions", f"at most {MAX_SHIPPING_REGIONS} regions")
+    _unique(regions, lambda x: x.id, r._p("regions"), r._errors)
+    value = ShippingSettings(
+        channel=r.str_("channel", "", pattern=KEY_PATTERN),
+        statuses=tuple(s for s in statuses if s in SHIPPING_STATUSES),
+        regions=regions,
+        info_sections=r.int_("info_sections", 0, min_=0, max_=MAX_SHIPPING_INFO_SECTIONS),
+        info_position=r.str_("info_position", "after", choices=SHIPPING_INFO_POSITIONS, allow_empty=False),
+    )
+    return _finish(r, value)
 
 
 def _parse_announcements(r: _Reader) -> AnnouncementSettings:
