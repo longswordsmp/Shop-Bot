@@ -106,7 +106,7 @@ None of its own. Staff use the report panel buttons and the ticket commands (`/t
 
 ## Data
 
-Table `problem_reports` (migration `0003_problems.sql`): one row per report with its order (nullable), type,
+Table `problem_reports` (migration `0007_problems.sql`): one row per report with its order (nullable), type,
 answers (JSON), ticket, report-panel message, status (`open`/`resolved`/`rejected`, CHECKed with the decision
 columns), reason, who decided and when. `UNIQUE(guild_id, user_id, nonce)` makes a repeated submission of the same
 flow impossible; the open-report limit, the order's eligibility, the report row, its ticket row and its finishing

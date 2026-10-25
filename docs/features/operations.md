@@ -59,7 +59,7 @@ notification even after a crash.
 | Details | the full record incl. the customer's form answers, privately to the clicking staff member (same as `/order view`) |
 | Refund / Refund to credit / Return credit | unchanged |
 
-Internal notes used to be `order_events` rows without a status change; migration `0003_operations` moves them to
+Internal notes used to be `order_events` rows without a status change; migration `0008_operations` moves them to
 `order_activity`, so `order_events` holds only status changes (customer-facing timelines are built from it).
 
 ## Alerts in `#staff-chat` and the Owner
@@ -68,7 +68,7 @@ Internal notes used to be `order_events` rows without a status change; migration
 |---|---|---|---|
 | New order | an order is submitted | yes | yes |
 | Paid order | an order's payment is confirmed (it waits to be completed) | yes | yes |
-| Notification failed | a private notification could not be delivered by DM nor in the fallback channel | yes | no |
+| Notification failed | a private notification reached nobody (neither DM nor the fallback channel), or a bot post to a channel failed (channel missing or a Discord error) | yes | no |
 | Task failed | a scheduled task failed permanently | yes | yes (critical) |
 | Error | a button, form or command failed unexpectedly (with the reference the member saw) | no | no |
 | Customer role | the customer role could not be given/removed | yes | no |

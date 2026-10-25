@@ -85,7 +85,7 @@ configured "unavailable" text. Optional keys are simply omitted.
 
 ## Database
 
-Migration `0003_catalog.sql`: `product_images(product_id PRIMARY KEY → products, guild_id, filename, content_type,
+Migration `0006_catalog_images.sql`: `product_images(product_id PRIMARY KEY → products, guild_id, filename, content_type,
 size, sha256, data BLOB, uploaded_by, created_at)` with CHECKs on the type list, the 8 MB size, the hex digest and
 `length(data) = size`. Products are never deleted (orders reference them); archiving removes the image row.
 
