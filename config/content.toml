@@ -315,6 +315,226 @@ verification.rules.description = ""
 verification.rules.title = ""
 
 # ==================================================================================================
+# Feature: how_to_buy
+# ==================================================================================================
+
+# --- How to buy guide ---
+
+# Introduction at the top of the step-by-step guide posted in the how_to_buy channel, above the steps. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
+# description · max 4096 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+how_to_buy.introduction = ""
+
+# Title of the step-by-step guide posted in the how_to_buy channel.
+# title · max 256 characters · required
+how_to_buy.title = ""
+
+# --- How to buy guide: channel link buttons ---
+
+# Optional emoji on the link button that opens the 'catalog' channel.
+# emoji · max 100 characters · optional
+how_to_buy.link.catalog.emoji = ""
+
+# Label of the link button under the step-by-step guide posted in the how_to_buy channel that opens the 'catalog' channel.
+# button_label · max 80 characters · required
+how_to_buy.link.catalog.label = ""
+
+# Optional emoji on the link button that opens the 'faq' channel.
+# emoji · max 100 characters · optional
+how_to_buy.link.faq.emoji = ""
+
+# Label of the link button under the step-by-step guide posted in the how_to_buy channel that opens the 'faq' channel.
+# button_label · max 80 characters · required
+how_to_buy.link.faq.label = ""
+
+# Optional emoji on the link button that opens the 'purchase' channel.
+# emoji · max 100 characters · optional
+how_to_buy.link.purchase.emoji = ""
+
+# Label of the link button under the step-by-step guide posted in the how_to_buy channel that opens the 'purchase' channel.
+# button_label · max 80 characters · required
+how_to_buy.link.purchase.label = ""
+
+# --- How to buy guide: steps ---
+
+# Heading of step 1 of 4 in the step-by-step guide posted in the how_to_buy channel (write the step number yourself if you want one shown; channel links do not work in headings).
+# field_name · max 256 characters · required
+how_to_buy.step.1.name = ""
+
+# Explanation of step 1 of 4 in the step-by-step guide posted in the how_to_buy channel. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
+# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+how_to_buy.step.1.value = ""
+
+# Heading of step 2 of 4 in the step-by-step guide posted in the how_to_buy channel (write the step number yourself if you want one shown; channel links do not work in headings).
+# field_name · max 256 characters · required
+how_to_buy.step.2.name = ""
+
+# Explanation of step 2 of 4 in the step-by-step guide posted in the how_to_buy channel. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
+# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+how_to_buy.step.2.value = ""
+
+# Heading of step 3 of 4 in the step-by-step guide posted in the how_to_buy channel (write the step number yourself if you want one shown; channel links do not work in headings).
+# field_name · max 256 characters · required
+how_to_buy.step.3.name = ""
+
+# Explanation of step 3 of 4 in the step-by-step guide posted in the how_to_buy channel. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
+# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+how_to_buy.step.3.value = ""
+
+# Heading of step 4 of 4 in the step-by-step guide posted in the how_to_buy channel (write the step number yourself if you want one shown; channel links do not work in headings).
+# field_name · max 256 characters · required
+how_to_buy.step.4.name = ""
+
+# Explanation of step 4 of 4 in the step-by-step guide posted in the how_to_buy channel. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
+# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+how_to_buy.step.4.value = ""
+
+# ==================================================================================================
+# Feature: faq
+# ==================================================================================================
+
+# --- FAQ header ---
+
+# Optional introduction at the top of the FAQ posted in the faq channel, above the first section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
+# description · max 4096 characters · optional · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+faq.introduction = ""
+
+# Optional title at the top of the FAQ posted in the faq channel.
+# title · max 256 characters · optional
+faq.title = ""
+
+# --- FAQ section 'cancellations' ---
+
+# Answer to question 1 of 1 in the 'cancellations' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
+# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+faq.section.cancellations.q.1.answer = ""
+
+# Question 1 of 1 in the 'cancellations' section (channel links do not work in questions).
+# field_name · max 256 characters · required
+faq.section.cancellations.q.1.question = ""
+
+# Title of the 'cancellations' section of the FAQ posted in the faq channel (e.g. the topic: general questions, order status...).
+# title · max 256 characters · required
+faq.section.cancellations.title = ""
+
+# --- FAQ section 'general' ---
+
+# Answer to question 1 of 1 in the 'general' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
+# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+faq.section.general.q.1.answer = ""
+
+# Question 1 of 1 in the 'general' section (channel links do not work in questions).
+# field_name · max 256 characters · required
+faq.section.general.q.1.question = ""
+
+# Title of the 'general' section of the FAQ posted in the faq channel (e.g. the topic: general questions, order status...).
+# title · max 256 characters · required
+faq.section.general.title = ""
+
+# --- FAQ section 'order_status' ---
+
+# Answer to question 1 of 1 in the 'order_status' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
+# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+faq.section.order_status.q.1.answer = ""
+
+# Question 1 of 1 in the 'order_status' section (channel links do not work in questions).
+# field_name · max 256 characters · required
+faq.section.order_status.q.1.question = ""
+
+# Title of the 'order_status' section of the FAQ posted in the faq channel (e.g. the topic: general questions, order status...).
+# title · max 256 characters · required
+faq.section.order_status.title = ""
+
+# --- FAQ section 'problems' ---
+
+# Answer to question 1 of 1 in the 'problems' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
+# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+faq.section.problems.q.1.answer = ""
+
+# Question 1 of 1 in the 'problems' section (channel links do not work in questions).
+# field_name · max 256 characters · required
+faq.section.problems.q.1.question = ""
+
+# Title of the 'problems' section of the FAQ posted in the faq channel (e.g. the topic: general questions, order status...).
+# title · max 256 characters · required
+faq.section.problems.title = ""
+
+# --- FAQ section 'transactions' ---
+
+# Answer to question 1 of 1 in the 'transactions' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
+# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+faq.section.transactions.q.1.answer = ""
+
+# Question 1 of 1 in the 'transactions' section (channel links do not work in questions).
+# field_name · max 256 characters · required
+faq.section.transactions.q.1.question = ""
+
+# Title of the 'transactions' section of the FAQ posted in the faq channel (e.g. the topic: general questions, order status...).
+# title · max 256 characters · required
+faq.section.transactions.title = ""
+
+# ==================================================================================================
+# Feature: shipping
+# ==================================================================================================
+
+# --- Shipping region lines ---
+
+# How one region line is written, e.g. '{indicator} {name}'. {indicator} is the status indicator, {name} the region name. Must contain {indicator} and {name}. Required once regions are configured.
+# format · max 100 characters · optional · placeholders: {indicator}, {name}
+shipping.format.region = ""
+
+# How a region line with a note is written, e.g. '{indicator} {name} ({note})'. Must contain {indicator}, {name} and {note}. Required once any region has a note.
+# format · max 100 characters · optional · placeholders: {indicator}, {name}, {note}
+shipping.format.region_with_note = ""
+
+# --- Shipping header ---
+
+# Introduction at the top of the shipping information posted in the shipping channel. You can link channels with {channel_<key>} (e.g. {channel_faq}); they become clickable #channel links.
+# description · max 4096 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+shipping.introduction = ""
+
+# Title of the shipping information posted in the shipping channel.
+# title · max 256 characters · required
+shipping.title = ""
+
+# --- Shipping availability statuses ---
+
+# Optional explanation at the top of the 'full' card (fully supported), above its regions. The card is shown when it has regions or this explanation. You can link channels with {channel_<key>} (e.g. {channel_faq}); they become clickable #channel links.
+# description · max 4096 characters · optional · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+shipping.status.full.description = ""
+
+# Indicator (emoji) of the 'full' status (fully supported), written at the start of each of its regions (as {indicator} in shipping.format.region).
+# emoji · max 100 characters · required
+shipping.status.full.indicator = ""
+
+# Title of the card listing the regions that are 'full' (fully supported). {indicator} is replaced with this status's indicator. Required while 'full' is listed in shipping.statuses.
+# title · max 256 characters · required · placeholders: {indicator}
+shipping.status.full.label = ""
+
+# Optional explanation at the top of the 'none' card (not supported), above its regions. The card is shown when it has regions or this explanation. You can link channels with {channel_<key>} (e.g. {channel_faq}); they become clickable #channel links.
+# description · max 4096 characters · optional · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+shipping.status.none.description = ""
+
+# Indicator (emoji) of the 'none' status (not supported), written at the start of each of its regions (as {indicator} in shipping.format.region).
+# emoji · max 100 characters · required
+shipping.status.none.indicator = ""
+
+# Title of the card listing the regions that are 'none' (not supported). {indicator} is replaced with this status's indicator. Required while 'none' is listed in shipping.statuses.
+# title · max 256 characters · required · placeholders: {indicator}
+shipping.status.none.label = ""
+
+# Optional explanation at the top of the 'partial' card (partially supported), above its regions. The card is shown when it has regions or this explanation. You can link channels with {channel_<key>} (e.g. {channel_faq}); they become clickable #channel links.
+# description · max 4096 characters · optional · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+shipping.status.partial.description = ""
+
+# Indicator (emoji) of the 'partial' status (partially supported), written at the start of each of its regions (as {indicator} in shipping.format.region).
+# emoji · max 100 characters · required
+shipping.status.partial.indicator = ""
+
+# Title of the card listing the regions that are 'partial' (partially supported). {indicator} is replaced with this status's indicator. Required while 'partial' is listed in shipping.statuses.
+# title · max 256 characters · required · placeholders: {indicator}
+shipping.status.partial.label = ""
+
+# ==================================================================================================
 # Feature: tickets
 # ==================================================================================================
 

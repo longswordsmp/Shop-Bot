@@ -147,6 +147,124 @@ Feature `verification` — enabled.
 | ▫️ | `verification.rules.description` | Optional text above the list of rules on the rules card. You may write {channel_<key>} (for example {channel_catalog}) for a clickable link to a channel from server.channels. | description (4096) | optional | `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
 | ▫️ | `verification.rules.title` | Optional heading of the rules card (the second card of the welcome panel that /setup posts in the 'welcome' channel). | title (256) | optional |  |
 
+## how_to_buy
+
+Feature `how_to_buy` — enabled.
+
+### How to buy guide
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ❌ | `how_to_buy.introduction` | Introduction at the top of the step-by-step guide posted in the how_to_buy channel, above the steps. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. | description (4096) | required | `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
+| ❌ | `how_to_buy.title` | Title of the step-by-step guide posted in the how_to_buy channel. | title (256) | required |  |
+
+### How to buy guide: channel link buttons
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ▫️ | `how_to_buy.link.catalog.emoji` | Optional emoji on the link button that opens the 'catalog' channel. | emoji (100) | optional |  |
+| ❌ | `how_to_buy.link.catalog.label` | Label of the link button under the step-by-step guide posted in the how_to_buy channel that opens the 'catalog' channel. | button_label (80) | required |  |
+| ▫️ | `how_to_buy.link.faq.emoji` | Optional emoji on the link button that opens the 'faq' channel. | emoji (100) | optional |  |
+| ❌ | `how_to_buy.link.faq.label` | Label of the link button under the step-by-step guide posted in the how_to_buy channel that opens the 'faq' channel. | button_label (80) | required |  |
+| ▫️ | `how_to_buy.link.purchase.emoji` | Optional emoji on the link button that opens the 'purchase' channel. | emoji (100) | optional |  |
+| ❌ | `how_to_buy.link.purchase.label` | Label of the link button under the step-by-step guide posted in the how_to_buy channel that opens the 'purchase' channel. | button_label (80) | required |  |
+
+### How to buy guide: steps
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ❌ | `how_to_buy.step.1.name` | Heading of step 1 of 4 in the step-by-step guide posted in the how_to_buy channel (write the step number yourself if you want one shown; channel links do not work in headings). | field_name (256) | required |  |
+| ❌ | `how_to_buy.step.1.value` | Explanation of step 1 of 4 in the step-by-step guide posted in the how_to_buy channel. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. | field_value (1024) | required | `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
+| ❌ | `how_to_buy.step.2.name` | Heading of step 2 of 4 in the step-by-step guide posted in the how_to_buy channel (write the step number yourself if you want one shown; channel links do not work in headings). | field_name (256) | required |  |
+| ❌ | `how_to_buy.step.2.value` | Explanation of step 2 of 4 in the step-by-step guide posted in the how_to_buy channel. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. | field_value (1024) | required | `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
+| ❌ | `how_to_buy.step.3.name` | Heading of step 3 of 4 in the step-by-step guide posted in the how_to_buy channel (write the step number yourself if you want one shown; channel links do not work in headings). | field_name (256) | required |  |
+| ❌ | `how_to_buy.step.3.value` | Explanation of step 3 of 4 in the step-by-step guide posted in the how_to_buy channel. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. | field_value (1024) | required | `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
+| ❌ | `how_to_buy.step.4.name` | Heading of step 4 of 4 in the step-by-step guide posted in the how_to_buy channel (write the step number yourself if you want one shown; channel links do not work in headings). | field_name (256) | required |  |
+| ❌ | `how_to_buy.step.4.value` | Explanation of step 4 of 4 in the step-by-step guide posted in the how_to_buy channel. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. | field_value (1024) | required | `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
+
+## faq
+
+Feature `faq` — enabled.
+
+### FAQ header
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ▫️ | `faq.introduction` | Optional introduction at the top of the FAQ posted in the faq channel, above the first section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. | description (4096) | optional | `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
+| ▫️ | `faq.title` | Optional title at the top of the FAQ posted in the faq channel. | title (256) | optional |  |
+
+### FAQ section 'cancellations'
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ❌ | `faq.section.cancellations.q.1.answer` | Answer to question 1 of 1 in the 'cancellations' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. | field_value (1024) | required | `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
+| ❌ | `faq.section.cancellations.q.1.question` | Question 1 of 1 in the 'cancellations' section (channel links do not work in questions). | field_name (256) | required |  |
+| ❌ | `faq.section.cancellations.title` | Title of the 'cancellations' section of the FAQ posted in the faq channel (e.g. the topic: general questions, order status...). | title (256) | required |  |
+
+### FAQ section 'general'
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ❌ | `faq.section.general.q.1.answer` | Answer to question 1 of 1 in the 'general' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. | field_value (1024) | required | `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
+| ❌ | `faq.section.general.q.1.question` | Question 1 of 1 in the 'general' section (channel links do not work in questions). | field_name (256) | required |  |
+| ❌ | `faq.section.general.title` | Title of the 'general' section of the FAQ posted in the faq channel (e.g. the topic: general questions, order status...). | title (256) | required |  |
+
+### FAQ section 'order_status'
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ❌ | `faq.section.order_status.q.1.answer` | Answer to question 1 of 1 in the 'order_status' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. | field_value (1024) | required | `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
+| ❌ | `faq.section.order_status.q.1.question` | Question 1 of 1 in the 'order_status' section (channel links do not work in questions). | field_name (256) | required |  |
+| ❌ | `faq.section.order_status.title` | Title of the 'order_status' section of the FAQ posted in the faq channel (e.g. the topic: general questions, order status...). | title (256) | required |  |
+
+### FAQ section 'problems'
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ❌ | `faq.section.problems.q.1.answer` | Answer to question 1 of 1 in the 'problems' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. | field_value (1024) | required | `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
+| ❌ | `faq.section.problems.q.1.question` | Question 1 of 1 in the 'problems' section (channel links do not work in questions). | field_name (256) | required |  |
+| ❌ | `faq.section.problems.title` | Title of the 'problems' section of the FAQ posted in the faq channel (e.g. the topic: general questions, order status...). | title (256) | required |  |
+
+### FAQ section 'transactions'
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ❌ | `faq.section.transactions.q.1.answer` | Answer to question 1 of 1 in the 'transactions' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. | field_value (1024) | required | `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
+| ❌ | `faq.section.transactions.q.1.question` | Question 1 of 1 in the 'transactions' section (channel links do not work in questions). | field_name (256) | required |  |
+| ❌ | `faq.section.transactions.title` | Title of the 'transactions' section of the FAQ posted in the faq channel (e.g. the topic: general questions, order status...). | title (256) | required |  |
+
+## shipping
+
+Feature `shipping` — enabled.
+
+### Shipping region lines
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ▫️ | `shipping.format.region` | How one region line is written, e.g. '{indicator} {name}'. {indicator} is the status indicator, {name} the region name. Must contain {indicator} and {name}. Required once regions are configured. | format (100) | optional | `{indicator}`, `{name}` |
+| ▫️ | `shipping.format.region_with_note` | How a region line with a note is written, e.g. '{indicator} {name} ({note})'. Must contain {indicator}, {name} and {note}. Required once any region has a note. | format (100) | optional | `{indicator}`, `{name}`, `{note}` |
+
+### Shipping header
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ❌ | `shipping.introduction` | Introduction at the top of the shipping information posted in the shipping channel. You can link channels with {channel_<key>} (e.g. {channel_faq}); they become clickable #channel links. | description (4096) | required | `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
+| ❌ | `shipping.title` | Title of the shipping information posted in the shipping channel. | title (256) | required |  |
+
+### Shipping availability statuses
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ▫️ | `shipping.status.full.description` | Optional explanation at the top of the 'full' card (fully supported), above its regions. The card is shown when it has regions or this explanation. You can link channels with {channel_<key>} (e.g. {channel_faq}); they become clickable #channel links. | description (4096) | optional | `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
+| ❌ | `shipping.status.full.indicator` | Indicator (emoji) of the 'full' status (fully supported), written at the start of each of its regions (as {indicator} in shipping.format.region). | emoji (100) | required |  |
+| ❌ | `shipping.status.full.label` | Title of the card listing the regions that are 'full' (fully supported). {indicator} is replaced with this status's indicator. Required while 'full' is listed in shipping.statuses. | title (256) | required | `{indicator}` |
+| ▫️ | `shipping.status.none.description` | Optional explanation at the top of the 'none' card (not supported), above its regions. The card is shown when it has regions or this explanation. You can link channels with {channel_<key>} (e.g. {channel_faq}); they become clickable #channel links. | description (4096) | optional | `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
+| ❌ | `shipping.status.none.indicator` | Indicator (emoji) of the 'none' status (not supported), written at the start of each of its regions (as {indicator} in shipping.format.region). | emoji (100) | required |  |
+| ❌ | `shipping.status.none.label` | Title of the card listing the regions that are 'none' (not supported). {indicator} is replaced with this status's indicator. Required while 'none' is listed in shipping.statuses. | title (256) | required | `{indicator}` |
+| ▫️ | `shipping.status.partial.description` | Optional explanation at the top of the 'partial' card (partially supported), above its regions. The card is shown when it has regions or this explanation. You can link channels with {channel_<key>} (e.g. {channel_faq}); they become clickable #channel links. | description (4096) | optional | `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
+| ❌ | `shipping.status.partial.indicator` | Indicator (emoji) of the 'partial' status (partially supported), written at the start of each of its regions (as {indicator} in shipping.format.region). | emoji (100) | required |  |
+| ❌ | `shipping.status.partial.label` | Title of the card listing the regions that are 'partial' (partially supported). {indicator} is replaced with this status's indicator. Required while 'partial' is listed in shipping.statuses. | title (256) | required | `{indicator}` |
+
 ## Tickets
 
 Feature `tickets` — enabled.
@@ -586,7 +704,7 @@ Feature `reviews` — enabled.
 
 ## Summary
 
-- Required keys (for the listed features): 170
-- Required keys still missing: 148
+- Required keys (for the listed features): 206
+- Required keys still missing: 184
 
 Legend: ✅ configured · ❌ required and missing · ▫️ optional and empty
