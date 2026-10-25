@@ -48,6 +48,8 @@ if TYPE_CHECKING:
 
     from shopbot.context import App
 
+
+CHECKOUT_FEATURE = "checkout"  # the buy buttons are handled by the checkout feature
 log = logging.getLogger(__name__)
 
 LISTING_PREFIX = "catalog:listing:"
@@ -229,7 +231,8 @@ async def _refresh_listing(app: App, st: _RefreshState) -> RefreshReport:
     # Image metadata only: the bytes are loaded (``images.load_files``) just for the messages that are sent or edited.
     image_refs = await images.refs_for(app, products)
     try:
-        specs = views.listing_messages(app.ui, app.settings, products, image_refs)
+        # Buy buttons only while ordering works: a click on one must never just answer 'unavailable'.
+        specs = views.listing_messages(app.ui, app.settings, products, image_refs, buy=app.ready(CHECKOUT_FEATURE))
     except MissingContent as exc:
         return await _failed(app, st, op("catalog.refresh.missing_content", content_key=exc.key), "missing_content")
     for index, spec in enumerate(specs):  # validate everything before changing anything
@@ -322,7 +325,7 @@ async def browse_view(
         page_custom_id=page_custom_id,
         extra_buttons=tuple(buttons),
         image=image,
-        buy=app.settings.features.checkout,
+        buy=app.ready(CHECKOUT_FEATURE),
         low_stock_threshold=app.settings.catalog.low_stock_threshold,
     )
 

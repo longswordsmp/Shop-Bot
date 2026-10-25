@@ -283,13 +283,16 @@ def listing_messages(
     settings: Settings,
     products: Sequence[Product],
     images: Mapping[int, ProductImage] | None = None,
+    *,
+    buy: bool | None = None,
 ) -> list[MessageSpec]:
     """Every message of the live listing, in channel order (see the module docstring).
 
     ``images`` are the products' uploaded images by product id; they may be references without bytes (the listing
     refresh loads the bytes only for messages it actually sends or edits). Every message manages its attachments
     (``files`` is a tuple), so an edit keeps, replaces or removes a product image. Without products: the header and
-    the "empty" card.
+    the "empty" card. ``buy``: show the buy buttons (the caller passes whether checkout is ready; None = whenever the
+    checkout feature is switched on, as in previews).
     """
     catalog = settings.catalog
     header = listing_header_embed(ui)
@@ -298,7 +301,8 @@ def listing_messages(
         return [MessageSpec(embeds=(header, empty_embed(ui)), files=())]
     head_rows = rows_of(browse_button(ui)) if catalog.browse_enabled else ()
     specs = [MessageSpec(embeds=(header,), rows=head_rows, files=())]
-    buy = settings.features.checkout
+    if buy is None:
+        buy = settings.features.checkout
     current: list[_Card] = []
     for product in products:
         image = (images or {}).get(product.id)

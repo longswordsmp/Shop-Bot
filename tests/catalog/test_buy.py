@@ -269,7 +269,8 @@ async def test_checkout_not_ready_answers_unavailable(tmp_path: Path) -> None:
         assert tenv.app.ready("catalog") and not tenv.app.ready("checkout")
         product = await add_product(tenv, "[p1]")
         _, card = await _listing(tenv)
-        assert buttons(card)[0][0] == f"sb:co:buy:{product.id}"  # still shown; checkout answers
+        assert buttons(card) == []  # no buy button while ordering does not work
+        # A button posted earlier (before checkout stopped being ready) answers with the configured text.
         denied = await _buy(tenv, tenv.member(), product.id, card)
         assert error_text(denied) == tenv.text(core.ERROR_UNAVAILABLE)
         assert await _session_count(tenv) == 0

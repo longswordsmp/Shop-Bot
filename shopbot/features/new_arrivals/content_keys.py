@@ -11,7 +11,13 @@ from shopbot.config.content_keys import ContentKey, Kind, ck
 from shopbot.config.settings import Settings
 from shopbot.features import core_keys
 from shopbot.features.catalog import content_keys as catalog_keys
-from shopbot.features.server_keys import PRIVATE_ACCESS, channel_placeholders, effective_access, reference_problems
+from shopbot.features.server_keys import (
+    PRIVATE_ACCESS,
+    channel_placeholders,
+    effective_access,
+    reference_problems,
+    staff_role_lists,
+)
 
 NEW_ARRIVALS = "new_arrivals"
 
@@ -187,12 +193,9 @@ def shared_keys(settings: Settings) -> list[str]:
 
 def _privileged_role_keys(settings: Settings) -> set[str]:
     """Role keys that grant access or staff powers anywhere (a self-assignable role must not be one of them)."""
-    perms = settings.permissions
-    keys = set(perms.admin_roles) | set(perms.staff_roles)
-    keys |= {key for key in (perms.owner_role, perms.member_role) if key}
-    keys |= set(settings.catalog.manager_roles) | set(settings.checkout.staff_roles) | set(settings.tickets.staff_roles)
-    for category in settings.tickets.categories:
-        keys |= set(category.staff_roles)
+    keys = {key for _, role_keys in staff_role_lists(settings) for key in role_keys}
+    if settings.permissions.member_role:
+        keys.add(settings.permissions.member_role)
     return keys
 
 

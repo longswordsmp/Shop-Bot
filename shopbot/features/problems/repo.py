@@ -13,6 +13,7 @@ Guarantees (each check runs in the same transaction as the write it guards, so c
 
 from __future__ import annotations
 
+import contextlib
 import json
 import sqlite3
 from collections.abc import Sequence
@@ -20,6 +21,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from shopbot.db.repos import tasks as task_repo
+from shopbot.features.checkout import handling_repo
 from shopbot.features.checkout import models as checkout_models
 from shopbot.features.checkout import repo as checkout_repo
 from shopbot.features.problems.content_keys import OPEN, TICKET_CATEGORY
@@ -275,9 +277,13 @@ def reserve(
 
 
 def _order_note(conn: sqlite3.Connection, report: Report, *, actor_id: int, note: str | None, now: int) -> None:
-    if report.order_id is not None and note:
-        checkout_repo.add_note(
-            conn, guild_id=report.guild_id, order_id=report.order_id, actor_id=actor_id, note=note, now=now
+    """An internal note on the related order: shown on its live #orders record (staff activity), never to customers."""
+    if report.order_id is None or not note:
+        return
+    # The order vanished or the note does not fit: the report itself must still be recorded.
+    with contextlib.suppress(handling_repo.HandlingError):
+        handling_repo.add_note(
+            conn, guild_id=report.guild_id, order_id=report.order_id, actor_id=actor_id, text=note, now=now
         )
 
 

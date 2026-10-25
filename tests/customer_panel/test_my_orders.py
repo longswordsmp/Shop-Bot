@@ -12,6 +12,7 @@ from discord import app_commands
 
 from shopbot.features import core_keys as core
 from shopbot.features.checkout import content_keys as ck
+from shopbot.features.checkout import handling_repo
 from shopbot.features.checkout import models as m
 from shopbot.features.checkout import views as checkout_views
 from shopbot.features.my_orders import MODULE, views
@@ -19,7 +20,17 @@ from shopbot.features.my_orders import commands as my_commands
 from shopbot.features.my_orders import content_keys as k
 from shopbot.features.my_orders import repo as my_repo
 from shopbot.ui.limits import validate_message
-from tests.checkout.util import add_product, error_text, money, order, place_order, press, render, restarted_app
+from tests.checkout.util import (
+    add_product,
+    error_text,
+    money,
+    order,
+    place_order,
+    press,
+    render,
+    restarted_app,
+    staff_message,
+)
 from tests.customer_panel.util import env, run_my_orders, stage, timeline_entry
 from tests.fakes import FakeMember, FakeMessage, click, http_error
 from tests.helpers import GUILD_ID, TestEnv, make_settings
@@ -170,10 +181,13 @@ async def test_tracking_details_are_shown_when_staff_recorded_them(cp: TestEnv) 
     customer = cp.member()
     p1 = await add_product(cp, "[p1]")
     placed, _, _ = await place_order(cp, customer, [(p1.id, 1)])
+    staffer = cp.member(name="staffer", staff=True)
+    await press(cp, staffer, staff_message(cp, placed), checkout_views.staff_action_id(m.PAID, placed.id))
 
     def add_tracking(conn: sqlite3.Connection) -> None:
-        conn.execute("ALTER TABLE orders ADD COLUMN tracking TEXT")
-        conn.execute("UPDATE orders SET tracking = ? WHERE id = ?", ("[track *123*]", placed.id))
+        handling_repo.set_tracking(
+            conn, guild_id=GUILD_ID, order_id=placed.id, actor_id=staffer.id, text="[track *123*]", now=1
+        )
 
     await cp.app.db.transaction(add_tracking)
     reply = _reply(await run_my_orders(cp, customer))

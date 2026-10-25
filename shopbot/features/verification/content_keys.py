@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from shopbot.config.content_keys import ContentKey, Kind, ck
 from shopbot.config.settings import Settings
-from shopbot.features.server_keys import channel_placeholders, effective_access, reference_problems
+from shopbot.features.server_keys import channel_placeholders, effective_access, reference_problems, staff_role_lists
 
 VERIFICATION = "verification"
 
@@ -259,18 +259,7 @@ def content_keys(settings: Settings) -> list[ContentKey]:
 
 def _staff_role_lists(settings: Settings) -> list[tuple[str, tuple[str, ...]]]:
     """Settings that give a role staff or admin powers somewhere (the Member role must not appear in any)."""
-    perms = settings.permissions
-    lists: list[tuple[str, tuple[str, ...]]] = [
-        ("permissions.admin_roles", perms.admin_roles),
-        ("permissions.staff_roles", perms.staff_roles),
-        ("permissions.owner_role", (perms.owner_role,) if perms.owner_role else ()),
-        ("tickets.staff_roles", settings.tickets.staff_roles),
-        ("checkout.staff_roles", settings.checkout.staff_roles),
-        ("catalog.manager_roles", settings.catalog.manager_roles),
-    ]
-    for category in settings.tickets.categories:
-        lists.append((f"tickets.categories '{category.id}' staff_roles", category.staff_roles))
-    return lists
+    return staff_role_lists(settings)
 
 
 def settings_problems(settings: Settings) -> list[str]:

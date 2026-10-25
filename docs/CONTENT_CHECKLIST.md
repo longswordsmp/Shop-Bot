@@ -109,7 +109,7 @@ Feature `server` — enabled.
 | ✅ | `server.role.restock_alerts.name` | Name of the 'restock_alerts' role. | role_name (100) | required |  |
 | ✅ | `server.role.staff.name` | Name of the 'staff' role. | role_name (100) | required |  |
 
-## verification
+## #welcome rules and the "I agree" button (Member role)
 
 Feature `verification` — enabled.
 
@@ -147,7 +147,7 @@ Feature `verification` — enabled.
 | ▫️ | `verification.rules.description` | Optional text above the list of rules on the rules card. You may write {channel_<key>} (for example {channel_catalog}) for a clickable link to a channel from server.channels. | description (4096) | optional | `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
 | ▫️ | `verification.rules.title` | Optional heading of the rules card (the second card of the welcome panel that /setup posts in the 'welcome' channel). | title (256) | optional |  |
 
-## how_to_buy
+## #how-to-buy guide
 
 Feature `how_to_buy` — enabled.
 
@@ -182,7 +182,7 @@ Feature `how_to_buy` — enabled.
 | ❌ | `how_to_buy.step.4.name` | Heading of step 4 of 4 in the step-by-step guide posted in the how_to_buy channel (write the step number yourself if you want one shown; channel links do not work in headings). | field_name (256) | required |  |
 | ❌ | `how_to_buy.step.4.value` | Explanation of step 4 of 4 in the step-by-step guide posted in the how_to_buy channel. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. | field_value (1024) | required | `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
 
-## faq
+## #faq
 
 Feature `faq` — enabled.
 
@@ -233,7 +233,7 @@ Feature `faq` — enabled.
 | ❌ | `faq.section.transactions.q.1.question` | Question 1 of 1 in the 'transactions' section (channel links do not work in questions). | field_name (256) | required |  |
 | ❌ | `faq.section.transactions.title` | Title of the 'transactions' section of the FAQ posted in the faq channel (e.g. the topic: general questions, order status...). | title (256) | required |  |
 
-## shipping
+## #shipping
 
 Feature `shipping` — enabled.
 
@@ -374,7 +374,7 @@ Feature `catalog` — enabled.
 | ❌ | `catalog.listing.empty` | Shown below the listing header, and in private browsing, when no product is currently offered. | description (4096) | required |  |
 | ❌ | `catalog.listing.title` | Title of the header card: the first message of the product listing channel (each product follows in its own message). | title (256) | required |  |
 
-## new_arrivals
+## #new-arrivals (Restock Alerts)
 
 Feature `new_arrivals` — enabled.
 
@@ -681,7 +681,7 @@ Feature `checkout` — enabled.
 | ❌ | `checkout.ticket.stage.refunded` | Name of the stage 'refunded' (the order was fully refunded) shown to the customer: the status field of the live panel, the order timeline and /myorders. | format (100) | required |  |
 | ❌ | `checkout.ticket.stage.rejected` | Name of the stage 'rejected' (staff rejected the order before payment) shown to the customer: the status field of the live panel, the order timeline and /myorders. | format (100) | required |  |
 
-## my_orders
+## /myorders
 
 Feature `my_orders` — enabled.
 
@@ -783,7 +783,7 @@ Feature `reviews` — enabled.
 | ▫️ | `reviews.rating.5.emoji` | Optional emoji shown next to the option for rating 5 of 5 in the rating selection menu. | emoji (100) | optional |  |
 | ❌ | `reviews.rating.5.label` | Option label for rating 5 of 5 in the rating selection menu of the review request (options are listed from the highest rating to the lowest). Also shown on the published review when reviews.rating.5.display is empty. | option_label (100) | required |  |
 
-## problems
+## Report a Problem
 
 Feature `problems` — enabled.
 
@@ -869,7 +869,7 @@ Feature `problems` — enabled.
 | ❌ | `problems.type.general.form_title` | Title of the form in which the customer describes a 'general' problem, before the ticket is created (opened by the choice step's Continue button, or right away when there is nothing to choose). | modal_title (45) | required |  |
 | ❌ | `problems.type.general.label` | Name of the 'general' issue type: the option in the issue-type menu of the private report step, and {type_label} / the type shown on the report's ticket panel, in the staff alert and in the decision message. | option_label (100) | required |  |
 
-## operations
+## Staff operations (#staff-chat alerts, reminders, Owner alerts, Customer role)
 
 Feature `operations` — enabled.
 

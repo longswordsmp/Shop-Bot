@@ -93,12 +93,11 @@ async def order_number(tenv: TestEnv, order_id: int) -> str:
 
 
 async def order_notes(tenv: TestEnv, order_id: int) -> list[str]:
-    rows = await tenv.app.db.run(
-        lambda conn: conn.execute(
-            "SELECT note FROM order_events WHERE order_id = ? AND note IS NOT NULL ORDER BY id", (order_id,)
-        ).fetchall()
-    )
-    return [str(r["note"]) for r in rows]
+    """Internal notes on the order (staff activity shown on its #orders record, never to customers)."""
+    from shopbot.features.checkout import handling_repo
+
+    found = await tenv.app.db.run(handling_repo.activity, order_id, (handling_repo.NOTE,))
+    return [a.text or "" for a in found]
 
 
 async def reports(tenv: TestEnv) -> list[Report]:

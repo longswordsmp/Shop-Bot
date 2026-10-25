@@ -35,6 +35,15 @@ FEATURE_TITLES = {
     "checkout": "Checkout, orders and payment",
     "credits": "Store credit",
     "reviews": "Reviews",
+    "verification": '#welcome rules and the "I agree" button (Member role)',
+    "how_to_buy": "#how-to-buy guide",
+    "faq": "#faq",
+    "shipping": "#shipping",
+    "announcements": "#announcements (/announce)",
+    "new_arrivals": "#new-arrivals (Restock Alerts)",
+    "my_orders": "/myorders",
+    "problems": "Report a Problem",
+    "operations": "Staff operations (#staff-chat alerts, reminders, Owner alerts, Customer role)",
 }
 
 

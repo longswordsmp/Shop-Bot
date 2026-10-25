@@ -173,3 +173,29 @@ async def test_channel_placeholders_render_clickable_links(tenv: TestEnv) -> Non
 @pytest.mark.parametrize("key", [core.ERROR_GENERIC])
 def test_shared_keys_still_resolve(key: str) -> None:
     assert key.startswith("common.")
+
+
+def test_self_assignable_roles_must_not_be_staff_roles_of_any_feature() -> None:
+    from shopbot.features.new_arrivals import content_keys as na_keys
+    from shopbot.features.verification import content_keys as verification_keys
+
+    overrides = deep_merge(
+        server_extension(
+            roles=[{"key": "member"}, {"key": "alerts"}],
+            channels=[
+                {"key": "welcome", "category": "support", "access": "inherit"},
+                {"key": "new_arrivals", "category": "support", "access": "inherit"},
+            ],
+        ),
+        {
+            "permissions": {"member_role": "member"},
+            "features": {"verification": True, "new_arrivals": True},
+            "verification": {"channel": "welcome", "rules": 1},
+            "new_arrivals": {"channel": "new_arrivals", "role": "alerts"},
+            "problems": {"staff_roles": ["member"]},
+            "announcements": {"roles": ["alerts"]},
+        },
+    )
+    settings = make_settings(overrides)
+    assert any("problems.staff_roles" in p for p in verification_keys.settings_problems(settings))
+    assert any("new_arrivals.role" in p for p in na_keys.settings_problems(settings))

@@ -180,3 +180,24 @@ def server_problems(settings: Settings) -> list[str]:
     problems.extend(reference_problems(settings, channels=(("audit.channel", settings.audit.channel),)))
     problems.extend(private_channel_problems(settings, (("audit.channel", settings.audit.channel),)))
     return problems
+
+
+def staff_role_lists(settings: Settings) -> list[tuple[str, tuple[str, ...]]]:
+    """Every setting that gives a role staff or admin powers somewhere, as (setting path, role keys).
+
+    A role members give themselves (the Member role, the new-arrivals notification role) must not appear in any.
+    """
+    perms = settings.permissions
+    lists: list[tuple[str, tuple[str, ...]]] = [
+        ("permissions.admin_roles", perms.admin_roles),
+        ("permissions.staff_roles", perms.staff_roles),
+        ("permissions.owner_role", (perms.owner_role,) if perms.owner_role else ()),
+        ("tickets.staff_roles", settings.tickets.staff_roles),
+        ("checkout.staff_roles", settings.checkout.staff_roles),
+        ("catalog.manager_roles", settings.catalog.manager_roles),
+        ("problems.staff_roles", settings.problems.staff_roles),
+        ("announcements.roles", settings.announcements.roles),
+    ]
+    for category in settings.tickets.categories:
+        lists.append((f"tickets.categories '{category.id}' staff_roles", category.staff_roles))
+    return lists

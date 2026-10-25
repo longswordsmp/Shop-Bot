@@ -96,7 +96,7 @@ id = 0
 permissions = []
 color = ""
 hoist = false
-mentionable = false
+mentionable = true                   # so #staff-chat alerts and reminders can notify staff (operations.ping_roles)
 
 [[server.roles]]
 key = "member"
