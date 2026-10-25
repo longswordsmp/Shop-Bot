@@ -26,6 +26,7 @@ from tests.checkout.util import (
     reject,
     render,
     restarted_app,
+    run_command,
     staff_message,
 )
 from tests.fakes import click, http_error, modal_input_ids, modal_of
@@ -493,6 +494,27 @@ async def test_tracking_after_completion_is_sent_to_the_customer(ops: TestEnv) -
     assert "checkout.order_tracking_set" in await audit_actions(ops)
     refused = await set_tracking(ops, staffer, placed.id, "x" * (h.TEXT_MAX + 1))
     assert op_text(refused) == ops.app.op("checkout.op.text_invalid", max=h.TEXT_MAX)
+
+
+async def test_tracking_after_shipping_is_sent_and_earlier_tracking_is_replaced_by_the_shipment(ops: TestEnv) -> None:
+    staffer = ops.member(name="staffer", staff=True)
+    placed, _, (customer, _) = await _placed(ops)
+    await mark(ops, staffer, placed.id, m.PAID)
+    await set_tracking(ops, staffer, placed.id, "[early tracking]")
+    await run_command(ops, "ship", user=staffer, number=placed.number, carrier="UPS", tracking_number="1Z999")
+    assert (await order(ops, placed.id)).status == m.SHIPPED
+    assert (await handling(ops, placed.id)).tracking == "UPS · 1Z999"
+    assert "[early tracking]" not in customer.dms[-1].text()  # the shipped notification carries the shipment
+    dms = len(customer.dms)
+    ops.clock.advance(5)
+    sent = await set_tracking(ops, staffer, placed.id, "[corrected tracking]")
+    assert op_text(sent) == ops.app.op(
+        "checkout.op.tracking_sent", number=1, delivery=ops.app.op("checkout.op.delivery.dm")
+    )
+    assert len(customer.dms) == dms + 1
+    assert [(f.name, f.value) for f in customer.dms[-1].embeds[0].fields] == [
+        (ops.text(staff_keys.TRACKING_DETAILS_FIELD), "[corrected tracking]")
+    ]
 
 
 # -- details (the full record, privately) --------------------------------------------------------------------------

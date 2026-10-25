@@ -30,6 +30,7 @@ from shopbot.ui.limits import EMBED_FIELD_VALUE
 from shopbot.ui.spec import (
     ButtonSpec,
     ButtonStyle,
+    Component,
     EmbedField,
     EmbedSpec,
     MessageSpec,
@@ -47,6 +48,9 @@ NOTE_INPUT = "note"
 MESSAGE_INPUT = "message"
 TRACKING_INPUT = "tracking"
 REASON_INPUT = "reason"
+CARRIER_INPUT = "carrier"
+TRACKING_NUMBER_INPUT = "number"
+TRACKING_URL_INPUT = "url"
 
 # At most this many timeline entries / internal notes are listed on the live record (latest first kept).
 TIMELINE_MAX = 20
@@ -54,8 +58,10 @@ NOTES_MAX = 5
 
 STATUS_TONES = {
     m.PENDING: "info",
+    m.PAYMENT_SUBMITTED: "warning",
     m.PAID: "success",
     m.PROCESSING: "info",
+    m.SHIPPED: "primary",
     m.FULFILLED: "success",
     m.CANCELLED: "neutral",
     m.REJECTED: "danger",
@@ -67,8 +73,10 @@ STATUS_TONES = {
 # change swaps it, a claim, note or tracking change keeps it without uploading it again.
 RECORD_BANNERS: Mapping[str, BannerId] = {
     m.PENDING: "pending-review",
+    m.PAYMENT_SUBMITTED: "pending-review",
     m.PAID: "successful-confirmation",
     m.PROCESSING: "submission-and-processing",
+    m.SHIPPED: "completed-or-dispatched",
     m.FULFILLED: "completed-or-dispatched",
     m.CANCELLED: "cancellation",
     m.EXPIRED: "cancellation",
@@ -121,6 +129,11 @@ def tracking_form_id(order_id: int) -> str:
 
 def record_details_id(order_id: int) -> str:
     return cid(STAFF_ROUTE, "details", order_id)
+
+
+def ship_form_id(order_id: int, status: str) -> str:
+    """The Mark shipped form; it carries the status the button was rendered for (a stale form changes nothing)."""
+    return cid(STAFF_ROUTE, "shipform", order_id, status)
 
 
 def reject_form_id(order_id: int, status: str) -> str:
@@ -533,6 +546,38 @@ def tracking_modal(op: OperatorText, order: m.Order, current: str | None) -> Mod
     )
 
 
+def ship_modal(op: OperatorText, order: m.Order, status: str) -> ModalSpec:
+    """Mark shipped: the carrier, the tracking number and an optional tracking link the customer receives."""
+    return ModalSpec(
+        custom_id=ship_form_id(order.id, status),
+        title=op("checkout.ship.title", number=order.number),
+        inputs=(
+            TextInputSpec(
+                custom_id=CARRIER_INPUT,
+                label=op("checkout.ship.carrier"),
+                placeholder=op("checkout.ship.carrier_hint"),
+                required=True,
+                min_length=1,
+                max_length=h.CARRIER_MAX,
+            ),
+            TextInputSpec(
+                custom_id=TRACKING_NUMBER_INPUT,
+                label=op("checkout.ship.number"),
+                required=True,
+                min_length=1,
+                max_length=h.TRACKING_NUMBER_MAX,
+            ),
+            TextInputSpec(
+                custom_id=TRACKING_URL_INPUT,
+                label=op("checkout.ship.url"),
+                description=op("checkout.ship.url_hint"),
+                required=False,
+                max_length=h.TRACKING_URL_MAX,
+            ),
+        ),
+    )
+
+
 def reject_modal(op: OperatorText, order: m.Order, status: str) -> ModalSpec:
     return ModalSpec(
         custom_id=reject_form_id(order.id, status),
@@ -552,9 +597,28 @@ def reject_modal(op: OperatorText, order: m.Order, status: str) -> ModalSpec:
 
 
 def notification_fields(ui: Ui, status: str, data: h.NotificationData) -> list[EmbedField]:
-    """Fields added to a status notification: the rejection reason, or the tracking details of a completed order."""
+    """Fields added to a status notification: the rejection reason, the shipment of a shipped order, or the tracking
+    details of a delivered one."""
     if status == m.REJECTED:
         return rejection_fields(ui, data.reason)
+    if status == m.SHIPPED:
+        return shipment_fields(ui, data.shipment) if data.shipment is not None else tracking_fields(ui, data.tracking)
     if status == m.FULFILLED:
         return tracking_fields(ui, data.tracking)
     return []
+
+
+def shipment_fields(ui: Ui, shipment: h.Shipment) -> list[EmbedField]:
+    """The carrier and tracking number (staff-entered data, escaped), side by side."""
+    return [
+        EmbedField(_text(ui, sk.SHIPMENT_CARRIER_FIELD), views.escape(shipment.carrier), inline=True),
+        EmbedField(_text(ui, sk.SHIPMENT_NUMBER_FIELD), views.escape(shipment.tracking_number), inline=True),
+    ]
+
+
+def notification_rows(ui: Ui, status: str, data: h.NotificationData) -> tuple[tuple[Component, ...], ...]:
+    """Buttons under a status notification: Track package (the carrier's page) once a shipped order has a link."""
+    shipment = data.shipment
+    if status != m.SHIPPED or shipment is None or not shipment.tracking_url:
+        return ()
+    return rows_of(ButtonSpec(label=_text(ui, sk.SHIPMENT_TRACK_BUTTON), style="link", url=shipment.tracking_url))

@@ -338,7 +338,7 @@ mention_role = true                  # mention the role in those updates (the ro
 # closing, staff alert channel).
 [problems]
 discord_category = "purchase"        # category key where report tickets are created (customer + staff only)
-eligible_statuses = ["paid", "processing", "fulfilled"]   # order statuses a report may refer to ([] = never an order)
+eligible_statuses = ["paid", "processing", "shipped", "fulfilled"]   # order statuses a report may refer to ([] = never an order)
 allow_without_order = true           # also offer "not about an order" (and allow reports without any order)
 max_open_per_user = 1                # undecided reports with an open ticket per customer
 staff_roles = []                     # extra role keys that may resolve/reject (permissions.staff_roles always can)
@@ -406,7 +406,7 @@ answers_in_orders_channel = false    # false = the customer's typed form answers
 # Reminders posted in staff_channel (minutes; 0 = off).
 unclaimed_order_minutes = 60         # an open order nobody claimed for this long
 unpaid_order_minutes = 1440          # an order still waiting for payment this long after it was submitted
-unfulfilled_order_minutes = 2880     # a paid order not completed this long after the payment was confirmed
+unfulfilled_order_minutes = 2880     # a paid order not shipped this long after the payment was confirmed
 unanswered_ticket_minutes = 240      # a support ticket whose customer has waited this long for a staff reply
 reminder_repeat_minutes = 0          # repeat a reminder this often while it still applies (0 = remind once)
 

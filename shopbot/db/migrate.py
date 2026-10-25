@@ -47,6 +47,10 @@ def discover(directory: Path = MIGRATIONS_DIR) -> list[Migration]:
     return found
 
 
+# First-lines marker of a migration that must run with foreign keys off (a table rebuild, see apply_migrations).
+FOREIGN_KEYS_OFF = "-- migrate: foreign_keys=off"
+
+
 def split_statements(sql: str) -> list[str]:
     """Split a script into complete statements (handles triggers with BEGIN ... END)."""
     statements: list[str] = []
@@ -114,7 +118,14 @@ def apply_migrations(
 
     applied: list[int] = []
     for migration in pending:
-        statements = split_statements(migration.path.read_text(encoding="utf-8"))
+        script = migration.path.read_text(encoding="utf-8")
+        statements = split_statements(script)
+        # A migration that rebuilds a table other tables refer to (SQLite cannot change a CHECK constraint in place)
+        # runs with foreign keys off, as SQLite's documented procedure requires: otherwise dropping the old table
+        # would cascade into the rows that refer to it. The check below proves every reference still resolves.
+        foreign_keys_off = FOREIGN_KEYS_OFF in script.splitlines()[:5]
+        if foreign_keys_off:
+            conn.execute("PRAGMA foreign_keys = OFF")  # only possible outside a transaction
         try:
             conn.execute("BEGIN IMMEDIATE")
             for statement in statements:
@@ -123,10 +134,15 @@ def apply_migrations(
                 "INSERT INTO schema_migrations(version, name, applied_at) VALUES (?, ?, ?)",
                 (migration.version, migration.name, int(time.time())),
             )
+            if foreign_keys_off and conn.execute("PRAGMA foreign_key_check").fetchall():
+                raise sqlite3.IntegrityError("the rebuilt tables left references that do not resolve")
             conn.execute("COMMIT")
         except sqlite3.Error as exc:
             conn.execute("ROLLBACK")
             raise MigrationError(f"migration {migration.version:04d}_{migration.name} failed: {exc}") from exc
+        finally:
+            if foreign_keys_off:
+                conn.execute("PRAGMA foreign_keys = ON")
         fk_problems = conn.execute("PRAGMA foreign_key_check").fetchall()
         if fk_problems:
             raise MigrationError(f"migration {migration.version:04d} left {len(fk_problems)} foreign key violations")

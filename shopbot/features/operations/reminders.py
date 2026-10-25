@@ -46,8 +46,8 @@ CHECKOUT_FEATURE = "checkout"
 TICKETS_FEATURE = "tickets"
 _ORDER_STATUSES = {
     repo.UNCLAIMED: checkout_models.OPEN_STATUSES,
-    repo.UNPAID: (checkout_models.PENDING,),
-    repo.UNFULFILLED: (checkout_models.PAID, checkout_models.PROCESSING),
+    repo.UNPAID: checkout_models.UNPAID_STATUSES,
+    repo.UNFULFILLED: checkout_models.AWAITING_SHIPMENT,
 }
 
 

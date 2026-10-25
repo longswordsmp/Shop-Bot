@@ -70,12 +70,12 @@ _ORDER_DOC = (
 )
 _ALERT_DOC = {
     NEW_ORDER: "a customer submitted a new order",
-    PAID_ORDER: "an order's payment was confirmed and it waits to be completed",
+    PAID_ORDER: "an order's payment was confirmed and it waits to be shipped",
 }
 _REMINDER_DOC = {
     repo.UNCLAIMED: ("an open order nobody claimed", "operations.unclaimed_order_minutes"),
     repo.UNPAID: ("an order still waiting for payment", "operations.unpaid_order_minutes"),
-    repo.UNFULFILLED: ("a paid order not completed yet", "operations.unfulfilled_order_minutes"),
+    repo.UNFULFILLED: ("a paid order not shipped yet", "operations.unfulfilled_order_minutes"),
     repo.UNANSWERED: (
         "a support ticket whose customer waits for a staff reply",
         "operations.unanswered_ticket_minutes",

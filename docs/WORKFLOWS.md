@@ -86,20 +86,29 @@ After submit: the customer sees your payment instructions; staff get a control m
 **Order states** (each change is one conditional update plus a history row, so concurrent clicks cannot double-apply):
 
 ```
-pending_payment -> paid | rejected | cancelled | expired
-paid            -> processing | fulfilled | cancelled | refunded
-processing      -> fulfilled | cancelled | refunded
-fulfilled       -> refunded
-cancelled       -> refunded   (only if it had been paid)
+pending_payment   -> payment_submitted | paid | rejected | cancelled | expired
+payment_submitted -> paid | rejected | cancelled         (the customer submitted their payment; staff verify it)
+paid              -> processing | shipped | fulfilled | cancelled | refunded
+processing        -> shipped | fulfilled | cancelled | refunded
+shipped           -> fulfilled | refunded                (carrier and tracking number recorded)
+fulfilled         -> refunded                            (shown to customers as "Delivered")
+cancelled         -> refunded   (only if it had been paid)
 ```
 
 | Change | Stock | Credits | Channel |
 |---|---|---|---|
 | → paid (staff confirms payment) | reserved stock is sold | – | stays open |
-| → rejected / cancelled / expired from pending | reservations released | debit returned | closed |
+| → rejected / cancelled / expired before payment | reservations released | debit returned | closed |
 | → cancelled after payment | not restocked automatically (staff decide) | not returned automatically: staff use the refund and "give back applied credit" controls | closed |
-| → fulfilled | – | – | closed; review prompt scheduled (reviews on) |
+| → shipped (Mark shipped or `/order ship`) | – | – | stays open; the customer gets the carrier, the tracking number and a Track package button when a link was entered |
+| → fulfilled (Mark delivered) | – | – | closed; review prompt scheduled (reviews on) |
 | refunds (partial or full) | – | optionally refunded as store credit | – |
+
+**Shipping:** an order with a shipping address (`checkout.ask_address`) is marked shipped before it is delivered:
+Mark shipped (or `/order ship`) asks for the carrier, the tracking number and an optional `https://` tracking link,
+and the order only becomes "shipped" together with them. An order without an address (a shop that asks for none)
+is completed directly. Tracking details changed after the order shipped are sent to the customer on their own.
+The "paid but not shipped" staff reminder (`operations.unfulfilled_order_minutes`) stops once the order ships.
 
 After every change the customer's workflow message and the staff message are updated, the customer is notified
 (DM, or a mention in the order channel when DMs are closed), and the change is audited. These follow-up steps are

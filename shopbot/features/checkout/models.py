@@ -6,11 +6,13 @@ Session statuses: ``active`` (the customer is building the order) -> ``submitted
 Order statuses and the only allowed transitions (``TRANSITIONS[to]`` lists the states ``to`` may be reached
 from)::
 
-    pending_payment -> paid | rejected | cancelled | expired
-    paid            -> processing | fulfilled | cancelled | refunded
-    processing      -> fulfilled | cancelled | refunded
-    fulfilled       -> refunded
-    cancelled       -> refunded        (only an order that was paid before it was cancelled)
+    pending_payment   -> payment_submitted | paid | rejected | cancelled | expired
+    payment_submitted -> paid | rejected | cancelled          (the customer submitted their payment; staff verify)
+    paid              -> processing | shipped | fulfilled | cancelled | refunded
+    processing        -> shipped | fulfilled | cancelled | refunded
+    shipped           -> fulfilled | refunded                 (carrier and tracking number in order_handling)
+    fulfilled         -> refunded                             (delivered)
+    cancelled         -> refunded        (only an order that was paid before it was cancelled)
 
 ``rejected``, ``expired`` and ``refunded`` are final. Every transition is one conditional UPDATE
 (``WHERE status IN allowed_from``) plus an ``order_events`` row, so a second concurrent request finds the
@@ -47,31 +49,52 @@ STEPS: Final = (BROWSE, CART, FULFILLMENT, DETAILS, REVIEW)
 # -- order statuses -----------------------------------------------------------------------------------------
 
 PENDING: Final = "pending_payment"
+PAYMENT_SUBMITTED: Final = "payment_submitted"
 PAID: Final = "paid"
 PROCESSING: Final = "processing"
-FULFILLED: Final = "fulfilled"
+SHIPPED: Final = "shipped"
+FULFILLED: Final = "fulfilled"  # delivered
 CANCELLED: Final = "cancelled"
 REJECTED: Final = "rejected"
 EXPIRED: Final = "expired"
 REFUNDED: Final = "refunded"
-ORDER_STATUSES: Final = (PENDING, PAID, PROCESSING, FULFILLED, CANCELLED, REJECTED, EXPIRED, REFUNDED)
-OPEN_STATUSES: Final = (PENDING, PAID, PROCESSING)
+ORDER_STATUSES: Final = (
+    PENDING,
+    PAYMENT_SUBMITTED,
+    PAID,
+    PROCESSING,
+    SHIPPED,
+    FULFILLED,
+    CANCELLED,
+    REJECTED,
+    EXPIRED,
+    REFUNDED,
+)
+OPEN_STATUSES: Final = (PENDING, PAYMENT_SUBMITTED, PAID, PROCESSING, SHIPPED)
+# Not paid yet: stock is held, the applied credit is returned and the payment cancelled if the order ends here.
+UNPAID_STATUSES: Final = (PENDING, PAYMENT_SUBMITTED)
+# Paid and waiting to be sent: what the "paid but not shipped" staff reminder watches.
+AWAITING_SHIPMENT: Final = (PAID, PROCESSING)
 # Statuses after which the order channel is closed.
 TERMINAL_STATUSES: Final = (FULFILLED, CANCELLED, REJECTED, EXPIRED, REFUNDED)
 # Statuses shown with their own customer view / staff view / notification (pending_payment uses the
 # submitted view with the payment instructions).
-STATUS_VIEWS: Final = (PAID, PROCESSING, FULFILLED, CANCELLED, REJECTED, EXPIRED, REFUNDED)
+STATUS_VIEWS: Final = (PAYMENT_SUBMITTED, PAID, PROCESSING, SHIPPED, FULFILLED, CANCELLED, REJECTED, EXPIRED, REFUNDED)
 
 TRANSITIONS: Final[dict[str, tuple[str, ...]]] = {
-    PAID: (PENDING,),
+    PAYMENT_SUBMITTED: (PENDING,),
+    PAID: (PENDING, PAYMENT_SUBMITTED),
     PROCESSING: (PAID,),
-    FULFILLED: (PAID, PROCESSING),
-    REJECTED: (PENDING,),
-    CANCELLED: (PENDING, PAID, PROCESSING),
+    SHIPPED: (PAID, PROCESSING),
+    FULFILLED: (PAID, PROCESSING, SHIPPED),
+    REJECTED: (PENDING, PAYMENT_SUBMITTED),
+    CANCELLED: (PENDING, PAYMENT_SUBMITTED, PAID, PROCESSING),
     EXPIRED: (PENDING,),
-    REFUNDED: (PAID, PROCESSING, FULFILLED, CANCELLED),
+    REFUNDED: (PAID, PROCESSING, SHIPPED, FULFILLED, CANCELLED),
 }
-# Statuses that staff may set directly (buttons and /order status); expiry and refunds have their own paths.
+# Statuses that staff may set directly (buttons and /order status). Expiry, refunds and the customer's payment
+# submission have their own paths, and so does shipped: it always comes with the carrier and tracking number (the
+# Mark shipped form or /order ship).
 STAFF_TARGETS: Final = (PAID, PROCESSING, FULFILLED, REJECTED, CANCELLED)
 # Statuses in which the store credit applied to a paid order can be given back. 'refunded' is included for orders
 # whose money was refunded in full before the applied credit counted toward a full refund.

@@ -508,7 +508,7 @@ faq.section.ordering.q.2.question = "Can I order several items at once?"
 
 # Answer to question 3 of 3 in the 'ordering' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-faq.section.ordering.q.3.answer = "One at a time. When your order is completed or closed, you can start the next one."
+faq.section.ordering.q.3.answer = "One at a time. When your order is delivered or closed, you can start the next one."
 
 # Question 3 of 3 in the 'ordering' section (channel links do not work in questions).
 # field_name · max 256 characters · required
@@ -636,7 +636,7 @@ faq.section.tracking.q.1.question = "Where is my tracking number?"
 
 # Answer to question 2 of 2 in the 'tracking' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-faq.section.tracking.q.2.answer = "**Pending payment**: placed, waiting for your payment. **Paid**: payment confirmed. **Processing**: being prepared. **Completed**: shipped. An order can also be **Cancelled**, **Rejected** or **Refunded**."
+faq.section.tracking.q.2.answer = "**Payment submitted**: we're verifying your payment. **Paid**: payment confirmed. **Processing**: being prepared. **Shipped**: on its way, with your tracking number. **Delivered**: it arrived. An order can also be **Cancelled**, **Rejected** or **Refunded**."
 
 # Question 2 of 2 in the 'tracking' section (channel links do not work in questions).
 # field_name · max 256 characters · required
@@ -1567,25 +1567,23 @@ You can place a new order at any time from the place-order channel.'''
 # title · max 256 characters · optional · placeholders: {order_number}, {total}, {channel_mention}
 checkout.notify.expired.title = "Order #{order_number} expired"
 
-# Notification sent to the customer when their order becomes 'fulfilled' (the order was delivered/completed). {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention.
+# Notification sent to the customer when their order becomes 'fulfilled' (the order was delivered). {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention.
 # description · max 4096 characters · required · placeholders: {order_number}, {total}, {channel_mention}
 checkout.notify.fulfilled.description = '''
-Your order **#{order_number}** has been completed and dispatched. Thank you for shopping with AmazonYaarts.
+Your package for order **#{order_number}** was delivered. Thank you for shopping with AmazonYaarts, we hope you enjoy it.
 
-Tracking details, when our team adds them, are shown below or sent to you in a separate message. In 7 days we will ask you to rate your order.
-
-Something wrong with your order? Press **Report a problem** in the place-order channel.'''
+In 7 days we will ask you to rate your order. Problem with it? Press **Report a problem** in the place-order channel within 14 days.'''
 
 # Optional title of the notification sent when an order becomes 'fulfilled'. {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention.
 # title · max 256 characters · optional · placeholders: {order_number}, {total}, {channel_mention}
-checkout.notify.fulfilled.title = "Order #{order_number} completed"
+checkout.notify.fulfilled.title = "Order #{order_number} delivered"
 
 # Notification sent to the customer when their order becomes 'paid' (staff confirmed the payment). {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention.
 # description · max 4096 characters · required · placeholders: {order_number}, {total}, {channel_mention}
 checkout.notify.paid.description = '''
-Your payment for order **#{order_number}** is confirmed. Thank you.
+Your payment for order **#{order_number}** is confirmed. We're preparing your order now.
 
-Our team will now prepare your order. You can follow it in {channel_mention} or with /myorders.'''
+Your tracking number will be posted in {channel_mention} as soon as it ships.'''
 
 # Optional title of the notification sent when an order becomes 'paid'. {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention.
 # title · max 256 characters · optional · placeholders: {order_number}, {total}, {channel_mention}
@@ -1602,6 +1600,18 @@ No longer want this order? Press **Cancel order** on your order in the ticket.''
 # title · max 256 characters · optional · placeholders: {order_number}, {total}, {channel_mention}
 checkout.notify.payment_reminder.title = "Reminder: order #{order_number} is waiting for payment"
 
+# Notification sent to the customer when their order becomes 'payment_submitted' (the customer submitted their payment; staff are verifying it). {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention.
+# description · max 4096 characters · required · placeholders: {order_number}, {total}, {channel_mention}
+checkout.notify.payment_submitted.description = '''
+Thank you. We've received your order **#{order_number}** ({total}) and your payment.
+
+**{icon_clock} WHAT HAPPENS NOW**
+Our team is verifying your payment. As soon as your order has been confirmed and shipped, your **tracking number will be sent in** {channel_mention}. You'll also get a DM.'''
+
+# Optional title of the notification sent when an order becomes 'payment_submitted'. {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention.
+# title · max 256 characters · optional · placeholders: {order_number}, {total}, {channel_mention}
+checkout.notify.payment_submitted.title = "Order #{order_number} placed"
+
 # 'Submission received' notification, sent once when the customer submitted the order (it now waits for payment). {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention.
 # description · max 4096 characters · required · placeholders: {order_number}, {total}, {channel_mention}
 checkout.notify.pending_payment.description = '''
@@ -1617,7 +1627,7 @@ checkout.notify.pending_payment.title = "Order #{order_number} received"
 
 # Notification sent to the customer when their order becomes 'processing' (staff are preparing the order). {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention.
 # description · max 4096 characters · required · placeholders: {order_number}, {total}, {channel_mention}
-checkout.notify.processing.description = "Our team has started preparing your order **#{order_number}**. We will message you again when it is completed. You can follow it in {channel_mention}."
+checkout.notify.processing.description = "Our team has started preparing your order **#{order_number}**. Your tracking number will be posted in {channel_mention} as soon as it ships."
 
 # Optional title of the notification sent when an order becomes 'processing'. {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention.
 # title · max 256 characters · optional · placeholders: {order_number}, {total}, {channel_mention}
@@ -1667,6 +1677,17 @@ To keep it, carry on in the order panel above: any change you make resets the ti
 # title · max 256 characters · optional · placeholders: {minutes}, {expires}
 checkout.notify.session_expiry_warning.title = "Your order will expire soon"
 
+# Notification sent to the customer when their order becomes 'shipped' (the order was shipped (carrier and tracking number entered with Mark shipped)). {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention.
+# description · max 4096 characters · required · placeholders: {order_number}, {total}, {channel_mention}
+checkout.notify.shipped.description = '''
+Your order **#{order_number}** is on its way.
+
+Track it on the carrier's website. Delivery times depend on your country and the carrier. **/myorders** shows your tracking number any time.'''
+
+# Optional title of the notification sent when an order becomes 'shipped'. {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention.
+# title · max 256 characters · optional · placeholders: {order_number}, {total}, {channel_mention}
+checkout.notify.shipped.title = "Order #{order_number} shipped"
+
 # --- Checkout: customer notifications sent by staff actions ---
 
 # Notification sent to the customer when staff ask them to correct information on an order waiting for payment (the staff message follows in a field). {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention.
@@ -1687,6 +1708,18 @@ checkout.notify.correction.title = "Action needed on order #{order_number}"
 # Name of the field in the customer's rejection notification (checkout.notify.rejected.*) that shows the reason staff entered when rejecting the order.
 # field_name · max 256 characters · required
 checkout.notify.rejected.reason_field = "Reason"
+
+# Name of the field showing the carrier in the shipped notification (Mark shipped), e.g. '{icon_truck} Carrier'.
+# field_name · max 256 characters · required
+checkout.notify.shipped.carrier_field = "{icon_truck} Carrier"
+
+# Name of the field showing the tracking number in the shipped notification, e.g. '{icon_location} Tracking number'.
+# field_name · max 256 characters · required
+checkout.notify.shipped.number_field = "{icon_location} Tracking number"
+
+# Label of the link button under the shipped notification that opens the carrier's tracking page (shown when staff entered a tracking link), e.g. 'Track package'.
+# button_label · max 80 characters · required
+checkout.notify.shipped.track_button = "Track package"
 
 # Notification sent to the customer when staff add or change tracking details of an order that is already completed (the details follow in a field). {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention. Needed when checkout.staff.button.tracking is configured.
 # description · max 4096 characters · optional · placeholders: {order_number}, {total}, {channel_mention}
@@ -1753,9 +1786,9 @@ checkout.staff.button.correction = "Request correction"
 # button_label · max 80 characters · required
 checkout.staff.button.details = "View details"
 
-# Staff button: the order was delivered/completed (the order channel is closed).
+# Staff button: a shipped order was delivered (the order ticket is closed).
 # button_label · max 80 characters · required
-checkout.staff.button.fulfilled = "Mark completed"
+checkout.staff.button.fulfilled = "Mark delivered"
 
 # Staff button: the payment was received (unpaid -> paid; stock is then taken).
 # button_label · max 80 characters · required
@@ -1784,6 +1817,10 @@ checkout.staff.button.reject = "Reject"
 # Staff button: give back the store credit the customer applied to a paid order (all of it at once; shown until it was given back, e.g. after cancelling a paid order). Cancelling a paid order returns neither money nor credit automatically. Needed when credits are enabled and credits.allow_at_checkout = true.
 # button_label · max 80 characters · required
 checkout.staff.button.return_credit = "Return applied credit"
+
+# Staff button: the order was shipped. Opens a form for the carrier, the tracking number and an optional tracking link, which the customer receives in the ticket and by direct message.
+# button_label · max 80 characters · required
+checkout.staff.button.shipped = "Mark shipped"
 
 # Optional staff button on a paid, in-progress or completed order: add or change tracking details (included in the customer's completion notification, or sent to them when the order is already completed). Leave empty if your workflow does not use tracking details.
 # button_label · max 80 characters · optional
@@ -1898,13 +1935,13 @@ checkout.status.expired.title = "Order #{order_number} expired"
 # Optional text of the order workflow message once the order is 'fulfilled'. {order_number} is the order number, {total} the order total written with common.money_format.
 # description · max 4096 characters · optional · placeholders: {order_number}, {total}
 checkout.status.fulfilled.description = '''
-Your order has been completed and dispatched. Thank you for your order.
+Your package was delivered. We hope you enjoy it.
 
-This ticket is now closed, but you can still read it. If something is wrong with your order, press **Report a problem** in the place-order channel.'''
+This ticket is now closed, but you can still read it. Problem with your order? Press **Report a problem** in the place-order channel within 14 days.'''
 
-# Title of the order workflow message once the order is 'fulfilled' (the order was delivered/completed). {order_number} is the order number, {total} the order total written with common.money_format.
+# Title of the order workflow message once the order is 'fulfilled' (the order was delivered). {order_number} is the order number, {total} the order total written with common.money_format.
 # title · max 256 characters · required · placeholders: {order_number}, {total}
-checkout.status.fulfilled.title = "Order #{order_number} completed"
+checkout.status.fulfilled.title = "Order #{order_number} delivered"
 
 # Optional text of the order workflow message once the order is 'paid'. {order_number} is the order number, {total} the order total written with common.money_format.
 # description · max 4096 characters · optional · placeholders: {order_number}, {total}
@@ -1914,9 +1951,21 @@ checkout.status.paid.description = "Thank you, your payment is confirmed. Our te
 # title · max 256 characters · required · placeholders: {order_number}, {total}
 checkout.status.paid.title = "Payment confirmed for order #{order_number}"
 
+# Optional text of the order workflow message once the order is 'payment_submitted'. {order_number} is the order number, {total} the order total written with common.money_format.
+# description · max 4096 characters · optional · placeholders: {order_number}, {total}
+checkout.status.payment_submitted.description = '''
+Thank you. We've received your order and your payment.
+
+**{icon_clock} WHAT HAPPENS NOW**
+Our team is verifying your payment. As soon as your order has been confirmed and shipped, your **tracking number will be sent in this ticket**. You'll also get a DM.'''
+
+# Title of the order workflow message once the order is 'payment_submitted' (the customer submitted their payment; staff are verifying it). {order_number} is the order number, {total} the order total written with common.money_format.
+# title · max 256 characters · required · placeholders: {order_number}, {total}
+checkout.status.payment_submitted.title = "Order #{order_number} placed"
+
 # Optional text of the order workflow message once the order is 'processing'. {order_number} is the order number, {total} the order total written with common.money_format.
 # description · max 4096 characters · optional · placeholders: {order_number}, {total}
-checkout.status.processing.description = "Our team is preparing your order. You will get a message as soon as it is completed and dispatched."
+checkout.status.processing.description = "Our team is preparing your order. Your tracking number will be posted here as soon as it ships."
 
 # Title of the order workflow message once the order is 'processing' (staff are preparing the order). {order_number} is the order number, {total} the order total written with common.money_format.
 # title · max 256 characters · required · placeholders: {order_number}, {total}
@@ -1944,6 +1993,17 @@ This ticket is now closed, but you can still read it. You can place a new order 
 # title · max 256 characters · required · placeholders: {order_number}, {total}
 checkout.status.rejected.title = "Order #{order_number} rejected"
 
+# Optional text of the order workflow message once the order is 'shipped'. {order_number} is the order number, {total} the order total written with common.money_format.
+# description · max 4096 characters · optional · placeholders: {order_number}, {total}
+checkout.status.shipped.description = '''
+Your order is on its way. The carrier and tracking number were sent to you by DM (or posted in this ticket) and **/myorders** shows them any time.
+
+Delivery times depend on your country and the carrier.'''
+
+# Title of the order workflow message once the order is 'shipped' (the order was shipped (carrier and tracking number entered with Mark shipped)). {order_number} is the order number, {total} the order total written with common.money_format.
+# title · max 256 characters · required · placeholders: {order_number}, {total}
+checkout.status.shipped.title = "Order #{order_number} shipped"
+
 # --- Checkout: order status names ---
 
 # Name of the order status 'cancelled' (the order was cancelled (by the customer before paying, or by staff)), used as {status} in the staff order controls.
@@ -1954,13 +2014,17 @@ checkout.status_label.cancelled = "Cancelled"
 # format · max 100 characters · required
 checkout.status_label.expired = "Expired"
 
-# Name of the order status 'fulfilled' (the order was delivered/completed), used as {status} in the staff order controls.
+# Name of the order status 'fulfilled' (the order was delivered), used as {status} in the staff order controls.
 # format · max 100 characters · required
-checkout.status_label.fulfilled = "Completed"
+checkout.status_label.fulfilled = "Delivered"
 
 # Name of the order status 'paid' (staff confirmed the payment), used as {status} in the staff order controls.
 # format · max 100 characters · required
 checkout.status_label.paid = "Paid"
+
+# Name of the order status 'payment_submitted' (the customer submitted their payment; staff are verifying it), used as {status} in the staff order controls.
+# format · max 100 characters · required
+checkout.status_label.payment_submitted = "Payment submitted"
 
 # Name of the order status 'pending_payment' (waiting for payment), used as {status} in the staff order controls.
 # format · max 100 characters · required
@@ -1977,6 +2041,10 @@ checkout.status_label.refunded = "Refunded"
 # Name of the order status 'rejected' (staff rejected the order before payment), used as {status} in the staff order controls.
 # format · max 100 characters · required
 checkout.status_label.rejected = "Rejected"
+
+# Name of the order status 'shipped' (the order was shipped (carrier and tracking number entered with Mark shipped)), used as {status} in the staff order controls.
+# format · max 100 characters · required
+checkout.status_label.shipped = "Shipped"
 
 # --- Checkout: submitted order (order channel) ---
 
@@ -2045,13 +2113,17 @@ checkout.ticket.stage.cancelled = "Cancelled"
 # format · max 100 characters · required
 checkout.ticket.stage.expired = "Expired"
 
-# Name of the stage 'fulfilled' (the order was delivered/completed) shown to the customer: the status field of the live panel, the order timeline and /myorders.
+# Name of the stage 'fulfilled' (the order was delivered) shown to the customer: the status field of the live panel, the order timeline and /myorders.
 # format · max 100 characters · required
-checkout.ticket.stage.fulfilled = "Completed"
+checkout.ticket.stage.fulfilled = "Delivered"
 
 # Name of the stage 'paid' (staff confirmed the payment) shown to the customer: the status field of the live panel, the order timeline and /myorders.
 # format · max 100 characters · required
 checkout.ticket.stage.paid = "Paid"
+
+# Name of the stage 'payment_submitted' (the customer submitted their payment; staff are verifying it) shown to the customer: the status field of the live panel, the order timeline and /myorders.
+# format · max 100 characters · required
+checkout.ticket.stage.payment_submitted = "Payment submitted"
 
 # Name of the stage 'pending_payment' (waiting for payment) shown to the customer: the status field of the live panel, the order timeline and /myorders.
 # format · max 100 characters · required
@@ -2068,6 +2140,10 @@ checkout.ticket.stage.refunded = "Refunded"
 # Name of the stage 'rejected' (staff rejected the order before payment) shown to the customer: the status field of the live panel, the order timeline and /myorders.
 # format · max 100 characters · required
 checkout.ticket.stage.rejected = "Rejected"
+
+# Name of the stage 'shipped' (the order was shipped (carrier and tracking number entered with Mark shipped)) shown to the customer: the status field of the live panel, the order timeline and /myorders.
+# format · max 100 characters · required
+checkout.ticket.stage.shipped = "Shipped"
 
 # ==================================================================================================
 # Feature: my_orders
@@ -2502,7 +2578,7 @@ problems.limit_reached.description = "You already have the maximum number of ope
 
 # Private reply when the customer has no order a report may refer to (statuses in problems.eligible_statuses). Needed when problems.allow_without_order = false. You can link server channels with {channel_<key>} (for example {channel_faq}).
 # description · max 4096 characters · optional · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-problems.no_orders.description = "You don't have a paid, processing or completed order to report a problem about. For an order that is still waiting for payment, please use its order ticket. For general questions, see {channel_faq}."
+problems.no_orders.description = "You don't have a paid, shipped or delivered order to report a problem about. For an order that is still waiting for payment, please use its order ticket. For general questions, see {channel_faq}."
 
 # --- Report a Problem: decision messages to the customer ---
 
@@ -2690,15 +2766,15 @@ Claim it on the order record, then post the payment instructions, including any 
 # title · max 256 characters · optional · placeholders: {order_number}, {customer_mention}, {total}, {status}, {order_channel}
 operations.alert.new_order.title = "New order #{order_number}"
 
-# Staff alert when an order's payment was confirmed and it waits to be completed (operations.ping_roles are mentioned). {order_number} is the order number, {customer_mention} mentions the customer (no ping), {total} is the order total, {status} the status name (checkout.status_label.*), {order_channel} links the customer's order channel.
+# Staff alert when an order's payment was confirmed and it waits to be shipped (operations.ping_roles are mentioned). {order_number} is the order number, {customer_mention} mentions the customer (no ping), {total} is the order total, {status} the status name (checkout.status_label.*), {order_channel} links the customer's order channel.
 # description · max 4096 characters · required · placeholders: {order_number}, {customer_mention}, {total}, {status}, {order_channel}
 operations.alert.paid_order.description = '''
 The payment for order **#{order_number}** ({total}) from {customer_mention} is confirmed.
 • Status: {status}
 • Order ticket: {order_channel}
-Prepare the order, add tracking details if you have them, and mark it completed once it has shipped.'''
+Prepare the order, then press **Mark shipped** on its record with the carrier and tracking number.'''
 
-# Optional title of the Staff alert when an order's payment was confirmed and it waits to be completed (operations.ping_roles are mentioned). {order_number} is the order number, {customer_mention} mentions the customer (no ping), {total} is the order total, {status} the status name (checkout.status_label.*), {order_channel} links the customer's order channel.
+# Optional title of the Staff alert when an order's payment was confirmed and it waits to be shipped (operations.ping_roles are mentioned). {order_number} is the order number, {customer_mention} mentions the customer (no ping), {total} is the order total, {status} the status name (checkout.status_label.*), {order_channel} links the customer's order channel.
 # title · max 256 characters · optional · placeholders: {order_number}, {customer_mention}, {total}, {status}, {order_channel}
 operations.alert.paid_order.title = "Payment confirmed for order #{order_number}"
 
@@ -2735,17 +2811,17 @@ Please claim it on the order record.'''
 # title · max 256 characters · optional · placeholders: {order_number}, {customer_mention}, {total}, {status}, {order_channel}, {waiting_since}, {minutes}
 operations.reminder.unclaimed.title = "Order #{order_number} is not claimed"
 
-# Staff reminder about a paid order not completed yet, posted once it waited operations.unfulfilled_order_minutes minutes (again every operations.reminder_repeat_minutes while it still waits, when set). {order_number} is the order number, {customer_mention} mentions the customer (no ping), {total} is the order total, {status} the status name (checkout.status_label.*), {order_channel} links the customer's order channel; {waiting_since} is when it started waiting (shown in each reader's time zone), {minutes} the threshold in minutes. Needed when operations.unfulfilled_order_minutes is above 0.
+# Staff reminder about a paid order not shipped yet, posted once it waited operations.unfulfilled_order_minutes minutes (again every operations.reminder_repeat_minutes while it still waits, when set). {order_number} is the order number, {customer_mention} mentions the customer (no ping), {total} is the order total, {status} the status name (checkout.status_label.*), {order_channel} links the customer's order channel; {waiting_since} is when it started waiting (shown in each reader's time zone), {minutes} the threshold in minutes. Needed when operations.unfulfilled_order_minutes is above 0.
 # description · max 4096 characters · required · placeholders: {order_number}, {customer_mention}, {total}, {status}, {order_channel}, {waiting_since}, {minutes}
 operations.reminder.unfulfilled.description = '''
-Order **#{order_number}** from {customer_mention} ({total}) was paid {waiting_since} and is not completed yet.
+Order **#{order_number}** from {customer_mention} ({total}) was paid {waiting_since} and has not shipped yet.
 • Status: {status}
 • Order ticket: {order_channel}
-Mark it completed once it has shipped, or add a note on the order record if it is delayed.'''
+Press **Mark shipped** on its record once it ships, or add a note on the record if it is delayed.'''
 
-# Optional title of the Staff reminder about a paid order not completed yet, posted once it waited operations.unfulfilled_order_minutes minutes (again every operations.reminder_repeat_minutes while it still waits, when set). {order_number} is the order number, {customer_mention} mentions the customer (no ping), {total} is the order total, {status} the status name (checkout.status_label.*), {order_channel} links the customer's order channel; {waiting_since} is when it started waiting (shown in each reader's time zone), {minutes} the threshold in minutes.
+# Optional title of the Staff reminder about a paid order not shipped yet, posted once it waited operations.unfulfilled_order_minutes minutes (again every operations.reminder_repeat_minutes while it still waits, when set). {order_number} is the order number, {customer_mention} mentions the customer (no ping), {total} is the order total, {status} the status name (checkout.status_label.*), {order_channel} links the customer's order channel; {waiting_since} is when it started waiting (shown in each reader's time zone), {minutes} the threshold in minutes.
 # title · max 256 characters · optional · placeholders: {order_number}, {customer_mention}, {total}, {status}, {order_channel}, {waiting_since}, {minutes}
-operations.reminder.unfulfilled.title = "Paid order #{order_number} is not completed"
+operations.reminder.unfulfilled.title = "Paid order #{order_number} has not shipped"
 
 # Staff reminder about an order still waiting for payment, posted once it waited operations.unpaid_order_minutes minutes (again every operations.reminder_repeat_minutes while it still waits, when set). {order_number} is the order number, {customer_mention} mentions the customer (no ping), {total} is the order total, {status} the status name (checkout.status_label.*), {order_channel} links the customer's order channel; {waiting_since} is when it started waiting (shown in each reader's time zone), {minutes} the threshold in minutes. Needed when operations.unpaid_order_minutes is above 0.
 # description · max 4096 characters · required · placeholders: {order_number}, {customer_mention}, {total}, {status}, {order_channel}, {waiting_since}, {minutes}
@@ -2820,10 +2896,10 @@ operations.owner.new_order.description = ""
 # title · max 256 characters · optional; falls back to operations.alert.new_order.title · placeholders: {order_number}, {customer_mention}, {total}, {status}, {order_channel}
 operations.owner.new_order.title = ""
 
-# Optional text of the Owner's private alert when an order's payment was confirmed and it waits to be completed (empty = the staff alert's text). Placeholders as in the staff alert.
+# Optional text of the Owner's private alert when an order's payment was confirmed and it waits to be shipped (empty = the staff alert's text). Placeholders as in the staff alert.
 # description · max 4096 characters · optional; falls back to operations.alert.paid_order.description · placeholders: {order_number}, {customer_mention}, {total}, {status}, {order_channel}
 operations.owner.paid_order.description = ""
 
-# Optional title of the Owner's private alert when an order's payment was confirmed and it waits to be completed (empty = the staff alert's title). Placeholders as in the staff alert.
+# Optional title of the Owner's private alert when an order's payment was confirmed and it waits to be shipped (empty = the staff alert's title). Placeholders as in the staff alert.
 # title · max 256 characters · optional; falls back to operations.alert.paid_order.title · placeholders: {order_number}, {customer_mention}, {total}, {status}, {order_channel}
 operations.owner.paid_order.title = ""

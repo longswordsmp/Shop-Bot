@@ -197,7 +197,7 @@ async def test_optional_keys_do_not_block_readiness(tmp_path: Path) -> None:
 def test_operator_text_keys_are_prefixed_and_all_used() -> None:
     assert all(key.startswith("checkout.") for key in OPERATOR_TEXT)
     source = "\n".join(path.read_text(encoding="utf-8") for path in PACKAGE.rglob("*.py") if path.name != "text.py")
-    prefixes = "op|refund|list|lookup|publish|amount|note|correction|tracking|reject"
+    prefixes = "op|refund|list|lookup|publish|amount|note|correction|tracking|reject|ship"
     used = set(re.findall(rf'"(checkout\.(?:{prefixes})[a-z_.]*)"', source))
     assert used <= set(OPERATOR_TEXT), used - set(OPERATOR_TEXT)
     assert set(OPERATOR_TEXT) <= used, set(OPERATOR_TEXT) - used
@@ -315,6 +315,7 @@ async def test_preview_without_content_has_only_operator_states(tmp_path: Path) 
             "staff_note_form",
             "staff_correction_form",
             "staff_reject_form",
+            "staff_ship_form",
             "staff_tracking_form",
             "staff_record_details_1",
         }

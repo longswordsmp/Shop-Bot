@@ -40,7 +40,7 @@ def sample_orders(settings: Settings, statuses: list[str], *, tracking: str | No
                 order=order,
                 timeline=checkout_preview.sample_timeline(status, order_id),
                 channel_id=SAMPLE_CHANNEL_ID if status in m.OPEN_STATUSES else None,
-                tracking=tracking if status in (m.FULFILLED, m.REFUNDED) else None,
+                tracking=tracking if status in (m.SHIPPED, m.FULFILLED, m.REFUNDED) else None,
             )
         )
     return items
@@ -61,11 +61,11 @@ def preview(app: App) -> list[PreviewState]:
         return lambda: views.my_orders_message(ui, settings, items, page=page, user_id=SAMPLE_USER_ID)
 
     add("my_orders_empty", "/myorders: the member has no order yet.", lambda: views.empty_message(ui))
-    few = sample_orders(settings, [m.PENDING, m.FULFILLED], tracking=SAMPLE_TRACKING)
+    few = sample_orders(settings, [m.SHIPPED, m.FULFILLED], tracking=SAMPLE_TRACKING)
     add(
         "my_orders_single_page",
-        "/myorders: a member with an order waiting for payment (its ticket linked) and a fulfilled order with "
-        "tracking details (one page, no paging buttons).",
+        "/myorders: a member with a shipped order (its ticket linked) and a delivered one, both with their tracking "
+        "number (one page, no paging buttons).",
         message(few),
     )
     per_page = settings.my_orders.orders_per_page

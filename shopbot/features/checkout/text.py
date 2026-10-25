@@ -94,7 +94,10 @@ OPERATOR_TEXT: dict[str, str] = {
     "checkout.op.correction_state": (
         "Order #{number} is {status}; a correction can only be requested while it waits for payment. Nothing was sent."
     ),
-    "checkout.op.tracking_saved": "Tracking details of order #{number} saved (sent with the completion notification).",
+    "checkout.op.tracking_saved": (
+        "Tracking details of order #{number} saved. The customer is not told yet: Mark shipped sends the carrier and "
+        "tracking number (an order without an address gets them with the completion notification)."
+    ),
     "checkout.op.tracking_sent": "Tracking details of order #{number} saved; the customer was notified {delivery}.",
     "checkout.op.tracking_state": (
         "Order #{number} is {status}; tracking details can be added once it is paid. Nothing was changed."
@@ -113,6 +116,15 @@ OPERATOR_TEXT: dict[str, str] = {
     "checkout.correction.label": "Message to the customer",
     "checkout.correction.hint": "Sent privately with your correction wording; the order keeps waiting for payment.",
     "checkout.tracking.title": "Tracking for order #{number}",
+    "checkout.ship.title": "Order #{number} shipped",
+    "checkout.ship.carrier": "Carrier",
+    "checkout.ship.carrier_hint": "For example: USPS, UPS, DHL",
+    "checkout.ship.number": "Tracking number",
+    "checkout.ship.url": "Tracking link (optional)",
+    "checkout.ship.url_hint": "An https:// link to the carrier's tracking page for this package.",
+    "checkout.op.tracking_url_invalid": (
+        "The tracking link must be an https:// address without spaces. Nothing changed."
+    ),
     "checkout.tracking.label": "Tracking details",
     "checkout.tracking.hint": "The customer sees them (completion notification, or right away if completed).",
     "checkout.reject.title": "Reject order #{number}",

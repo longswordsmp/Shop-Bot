@@ -12,6 +12,7 @@ waiting period, so a restart or a repeated sweep never sends a reminder twice.
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -95,8 +96,8 @@ def _order_waits(conn: sqlite3.Connection, guild_id: int) -> list[tuple[str, int
     rows = conn.execute(
         "SELECT o.id, o.status, o.created_at, o.paid_at, h.claimed_by, h.unclaimed_at FROM orders o "
         "LEFT JOIN order_handling h ON h.order_id = o.id "
-        "WHERE o.guild_id = ? AND o.status IN (?, ?, ?) ORDER BY o.id",
-        (guild_id, *checkout_models.OPEN_STATUSES),
+        "WHERE o.guild_id = ? AND o.status IN (SELECT value FROM json_each(?)) ORDER BY o.id",
+        (guild_id, json.dumps(list(checkout_models.OPEN_STATUSES))),
     )
     waits: list[tuple[str, int, int]] = []
     for r in rows:
@@ -104,9 +105,9 @@ def _order_waits(conn: sqlite3.Connection, guild_id: int) -> list[tuple[str, int
         if r["claimed_by"] is None:
             unclaimed_at = r["unclaimed_at"]
             waits.append((UNCLAIMED, order_id, int(unclaimed_at) if unclaimed_at is not None else created_at))
-        if status == checkout_models.PENDING:
+        if status in checkout_models.UNPAID_STATUSES:
             waits.append((UNPAID, order_id, created_at))
-        elif r["paid_at"] is not None:
+        elif status in checkout_models.AWAITING_SHIPMENT and r["paid_at"] is not None:
             waits.append((UNFULFILLED, order_id, int(r["paid_at"])))
     return waits
 
@@ -197,7 +198,7 @@ def mark_reminded(conn: sqlite3.Connection, waiting: Waiting, now: int) -> bool:
 def qualifying_statuses(trigger: str) -> tuple[str, ...]:
     """Order statuses that make a member a customer for ``checkout.customer_role_on``."""
     if trigger == checkout_models.PAID:
-        return (checkout_models.PAID, checkout_models.PROCESSING, checkout_models.FULFILLED)
+        return (*checkout_models.AWAITING_SHIPMENT, checkout_models.SHIPPED, checkout_models.FULFILLED)
     return (checkout_models.FULFILLED,)
 
 

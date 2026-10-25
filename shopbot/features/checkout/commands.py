@@ -23,7 +23,16 @@ if TYPE_CHECKING:
     from shopbot.context import App
 
 StatusChoice = Literal[
-    "pending_payment", "paid", "processing", "fulfilled", "cancelled", "rejected", "expired", "refunded"
+    "pending_payment",
+    "payment_submitted",
+    "paid",
+    "processing",
+    "shipped",
+    "fulfilled",
+    "cancelled",
+    "rejected",
+    "expired",
+    "refunded",
 ]
 TargetChoice = Literal["paid", "processing", "fulfilled", "rejected", "cancelled"]
 OrderNumber = app_commands.Range[int, 1, 2_000_000_000]
@@ -92,6 +101,28 @@ async def order_status(interaction: discord.Interaction[Any], number: int, new_s
         return
     await _defer(interaction)
     await _send(interaction, app, await staff.change_status(app, order, new_status, actor_id=interaction.user.id))
+
+
+async def order_ship(
+    interaction: discord.Interaction[Any], number: int, carrier: str, tracking_number: str, link: str | None = None
+) -> None:
+    app = await _ready_app(interaction)
+    if app is None:
+        return
+    order = await _order(interaction, app, number)
+    if order is None:
+        return
+    await _defer(interaction)
+    result = await staff.ship(
+        app,
+        order,
+        actor_id=interaction.user.id,
+        carrier=carrier,
+        tracking_number=tracking_number,
+        tracking_url=link,
+        rendered_status=None,
+    )
+    await _send(interaction, app, result)
 
 
 async def order_cancel(interaction: discord.Interaction[Any], number: int, reason: str | None = None) -> None:
@@ -188,6 +219,23 @@ def build_group() -> app_commands.Group:
     @require_staff(staff_role_keys)
     async def status(interaction: discord.Interaction[Any], number: OrderNumber, new_status: TargetChoice) -> None:
         await order_status(interaction, number, new_status)
+
+    @group.command(name="ship", description="Mark a paid order shipped and send the customer the tracking number.")
+    @app_commands.describe(
+        number="Order number",
+        carrier="Carrier, e.g. USPS",
+        tracking_number="Tracking number",
+        link="Optional tracking page (https://...)",
+    )
+    @require_staff(staff_role_keys)
+    async def ship(
+        interaction: discord.Interaction[Any],
+        number: OrderNumber,
+        carrier: app_commands.Range[str, 1, h.CARRIER_MAX],
+        tracking_number: app_commands.Range[str, 1, h.TRACKING_NUMBER_MAX],
+        link: app_commands.Range[str, 1, h.TRACKING_URL_MAX] | None = None,
+    ) -> None:
+        await order_ship(interaction, number, carrier, tracking_number, link)
 
     @group.command(name="refund", description="Record a (partial) refund of an order.")
     @app_commands.describe(

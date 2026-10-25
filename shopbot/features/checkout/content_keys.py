@@ -151,6 +151,7 @@ STAFF_BUTTON_REJECT = "checkout.staff.button.reject"
 STAFF_BUTTON_CANCEL = "checkout.staff.button.cancel"
 STAFF_BUTTON_PROCESSING = "checkout.staff.button.processing"
 STAFF_BUTTON_FULFILLED = "checkout.staff.button.fulfilled"
+STAFF_BUTTON_SHIPPED = "checkout.staff.button.shipped"
 STAFF_BUTTON_REFUND = "checkout.staff.button.refund"
 STAFF_BUTTON_REFUND_CREDIT = "checkout.staff.button.refund_credit"
 STAFF_BUTTON_RETURN_CREDIT = "checkout.staff.button.return_credit"
@@ -172,7 +173,17 @@ NOTIFY_SUBMITTED = m.PENDING
 # Warning in the order ticket before an unfinished order (cart) expires.
 NOTIFY_SESSION_WARNING = "session_expiry_warning"
 # Every status change notifies the customer (a partial refund, which changes no status, has its own notification).
-NOTIFIED_STATUSES = (m.PAID, m.PROCESSING, m.FULFILLED, m.CANCELLED, m.REJECTED, m.EXPIRED, m.REFUNDED)
+NOTIFIED_STATUSES = (
+    m.PAYMENT_SUBMITTED,
+    m.PAID,
+    m.PROCESSING,
+    m.SHIPPED,
+    m.FULFILLED,
+    m.CANCELLED,
+    m.REJECTED,
+    m.EXPIRED,
+    m.REFUNDED,
+)
 
 ORDER_PLACEHOLDERS = ("order_number", "total")
 NOTIFY_PLACEHOLDERS = ("order_number", "total", "channel_mention")
@@ -182,9 +193,11 @@ STAFF_PLACEHOLDERS = ("order_number", "user_mention", "channel_mention", "total"
 _ORDER_DOC = "{order_number} is the order number, {total} the order total written with common.money_format."
 _STATUS_DOC = {
     m.PENDING: "waiting for payment",
+    m.PAYMENT_SUBMITTED: "the customer submitted their payment; staff are verifying it",
     m.PAID: "staff confirmed the payment",
     m.PROCESSING: "staff are preparing the order",
-    m.FULFILLED: "the order was delivered/completed",
+    m.SHIPPED: "the order was shipped (carrier and tracking number entered with Mark shipped)",
+    m.FULFILLED: "the order was delivered",
     m.CANCELLED: "the order was cancelled (by the customer before paying, or by staff)",
     m.REJECTED: "staff rejected the order before payment",
     m.EXPIRED: "the order was not paid within checkout.payment_expiry_minutes",
@@ -1119,11 +1132,19 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             "Staff button: mark a paid order as being prepared (optional stage).",
         ),
         ck(
+            STAFF_BUTTON_SHIPPED,
+            Kind.BUTTON_LABEL,
+            FEATURE,
+            g_staff,
+            "Staff button: the order was shipped. Opens a form for the carrier, the tracking number and an optional "
+            "tracking link, which the customer receives in the ticket and by direct message.",
+        ),
+        ck(
             STAFF_BUTTON_FULFILLED,
             Kind.BUTTON_LABEL,
             FEATURE,
             g_staff,
-            "Staff button: the order was delivered/completed (the order channel is closed).",
+            "Staff button: a shipped order was delivered (the order ticket is closed).",
         ),
         ck(
             STAFF_BUTTON_REFUND,

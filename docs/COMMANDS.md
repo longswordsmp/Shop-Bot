@@ -87,6 +87,7 @@ Default visibility: manage_messages
 | `/order view` | staff | Show everything about an order (same as lookup). | `number`: Order number |
 | `/order list` | staff | List orders (newest first, 10 per page). | `status` (optional): Only orders with this status; `member` (optional): Only orders of this member |
 | `/order status` | staff | Change an order's status (only valid changes are applied). | `number`: Order number; `new_status`: The new status |
+| `/order ship` | staff | Mark a paid order shipped and send the customer the tracking number. | `number`: Order number; `carrier`: Carrier, e.g. USPS; `tracking_number`: Tracking number; `link` (optional): Optional tracking page (https://...) |
 | `/order refund` | staff | Record a (partial) refund of an order. | `number`: Order number; `amount`: Amount to refund, e.g. 12.50; `to_credit` (optional): Give the refund as store credit instead; `reason` (optional): Optional internal reason |
 | `/order cancel` | staff | Cancel an order. | `number`: Order number; `reason` (optional): Optional internal reason |
 | `/order note` | staff | Add an internal note to an order's history. | `number`: Order number; `text`: The note |

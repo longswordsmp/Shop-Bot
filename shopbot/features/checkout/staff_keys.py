@@ -50,6 +50,9 @@ CORRECTION_MESSAGE_FIELD = "checkout.notify.correction.message_field"
 TRACKING_TITLE = "checkout.notify.tracking.title"
 TRACKING_DESCRIPTION = "checkout.notify.tracking.description"
 TRACKING_DETAILS_FIELD = "checkout.notify.tracking.details_field"
+SHIPMENT_CARRIER_FIELD = "checkout.notify.shipped.carrier_field"
+SHIPMENT_NUMBER_FIELD = "checkout.notify.shipped.number_field"
+SHIPMENT_TRACK_BUTTON = "checkout.notify.shipped.track_button"
 
 TIMELINE_PLACEHOLDERS = ("time", "stage", "actor")
 NOTE_PLACEHOLDERS = ("time", "actor", "note")
@@ -284,6 +287,30 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             "configured.",
             required=False,
             placeholders=NOTIFY_PLACEHOLDERS,
+        ),
+        ck(
+            SHIPMENT_CARRIER_FIELD,
+            Kind.FIELD_NAME,
+            FEATURE,
+            _G_NOTIFY,
+            "Name of the field showing the carrier in the shipped notification (Mark shipped), e.g. "
+            "'{icon_truck} Carrier'.",
+        ),
+        ck(
+            SHIPMENT_NUMBER_FIELD,
+            Kind.FIELD_NAME,
+            FEATURE,
+            _G_NOTIFY,
+            "Name of the field showing the tracking number in the shipped notification, e.g. "
+            "'{icon_location} Tracking number'.",
+        ),
+        ck(
+            SHIPMENT_TRACK_BUTTON,
+            Kind.BUTTON_LABEL,
+            FEATURE,
+            _G_NOTIFY,
+            "Label of the link button under the shipped notification that opens the carrier's tracking page (shown "
+            "when staff entered a tracking link), e.g. 'Track package'.",
         ),
         ck(
             TRACKING_DETAILS_FIELD,

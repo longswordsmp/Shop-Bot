@@ -180,12 +180,12 @@ how you want to operate** (each is one line in `config/settings.toml`).
 | `checkout.panel_channel` / `order_category` / `staff_channel` | purchase / purchase / orders | |
 | `checkout.transcript_on_close` | true | Order tickets also get a transcript when they close |
 | `checkout.customer_role` / `customer_role_on` / `customer_role_remove_on_refund` | customer / fulfilled / true | |
-| `problems.eligible_statuses` | paid, processing, fulfilled | Orders a report may refer to |
+| `problems.eligible_statuses` | paid, processing, shipped, fulfilled (delivered) | Orders a report may refer to |
 | `problems.allow_without_order` / `require_reason_on_reject` | true / true | |
 | problem types | not received, damaged, wrong item, something else (one paragraph field each) | Add types and fields as needed |
 | `operations.ping_roles` / `owner_dm_alerts` | staff / true | Who is notified about orders and failures |
 | `operations.answers_in_orders_channel` | false | The customer's typed form answers are not posted in #orders; staff open them privately (Details button, `/order view`) |
-| `operations.*_minutes` reminders | unclaimed 60, unpaid 1440, unfulfilled 2880, unanswered ticket 240 | #staff-chat reminders (once each) |
+| `operations.*_minutes` reminders | unclaimed 60, unpaid 1440, paid but not shipped 2880, unanswered ticket 240 | #staff-chat reminders (once each) |
 | `checkout.currency` / `payments.provider` | `USD` / `manual` | Staff post payment instructions in the order ticket and confirm the payment |
 | `checkout.submission_form` | full name, shipping address, optional delivery notes | Asked at Submit; shown to staff only |
 | `checkout.session_expiry_minutes` / warning / `payment_reminder_minutes` | 1440 / 60 / 1440 | Unsubmitted carts expire after 24 h (warning 1 h before); unpaid orders get one reminder after 24 h; unpaid orders never expire automatically |

@@ -445,6 +445,9 @@ async def on_staff_action(ctx: Ctx) -> None:
     if target == m.REJECTED:
         await _open_reject_form(ctx)
         return
+    if target == m.SHIPPED:
+        await _open_ship_form(ctx)
+        return
     await ctx.defer_reply(ephemeral=True)
     order = await _staff_order(ctx)
     if order is None:
@@ -572,6 +575,38 @@ async def _open_reject_form(ctx: Ctx) -> None:
         )
         return
     await ctx.send_modal(staff_views.reject_modal(ctx.app.op, order, order.status))
+
+
+async def _open_ship_form(ctx: Ctx) -> None:
+    """Mark shipped: open the shipment form while the order is still in the status the button was rendered for."""
+    order = await _staff_order(ctx)
+    if order is None:
+        return
+    rendered = ctx.args[1] if len(ctx.args) > 1 else ""
+    refused = await staff.ship_refused(ctx.app, order, rendered)
+    if refused is not None:
+        await ctx.defer_reply(ephemeral=True)
+        await _staff_reply(ctx, refused)
+        return
+    await ctx.send_modal(staff_views.ship_modal(ctx.app.op, order, order.status))
+
+
+async def on_ship_form(ctx: Ctx) -> None:
+    _require_staff(ctx)
+    await ctx.defer_reply(ephemeral=True)
+    order = await _staff_order(ctx)
+    if order is None:
+        return
+    reply = await staff.ship(
+        ctx.app,
+        order,
+        actor_id=ctx.user_id,
+        carrier=ctx.fields.get(staff_views.CARRIER_INPUT, ""),
+        tracking_number=ctx.fields.get(staff_views.TRACKING_NUMBER_INPUT, ""),
+        tracking_url=ctx.fields.get(staff_views.TRACKING_URL_INPUT),
+        rendered_status=ctx.args[1] if len(ctx.args) > 1 else "",
+    )
+    await _staff_reply(ctx, reply)
 
 
 async def on_reject_form(ctx: Ctx) -> None:
@@ -777,6 +812,7 @@ def register(app: App) -> None:
         "correctform": on_correction_form,
         "trackform": on_tracking_form,
         "rejectform": on_reject_form,
+        "shipform": on_ship_form,
     }
     for action, handler in staff_forms.items():
         router.modal(staff_route, action, feature=feature, access="staff", staff_roles=staff_role_keys)(handler)

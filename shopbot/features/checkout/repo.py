@@ -739,8 +739,9 @@ def get_order_by_number(conn: sqlite3.Connection, guild_id: int, number: int) ->
 
 def count_open_orders(conn: sqlite3.Connection, guild_id: int, user_id: int) -> int:
     row = conn.execute(
-        "SELECT COUNT(*) AS n FROM orders WHERE guild_id = ? AND user_id = ? AND status IN (?, ?, ?)",
-        (guild_id, user_id, *m.OPEN_STATUSES),
+        "SELECT COUNT(*) AS n FROM orders WHERE guild_id = ? AND user_id = ? "
+        "AND status IN (SELECT value FROM json_each(?))",
+        (guild_id, user_id, json.dumps(list(m.OPEN_STATUSES))),
     ).fetchone()
     return int(row["n"])
 
@@ -1224,7 +1225,7 @@ def transition(
             "UPDATE payments SET status = 'succeeded', updated_at = ? WHERE order_id = ? AND status = 'pending'",
             (now, order_id),
         )
-    elif before.status == m.PENDING and to in (m.REJECTED, m.CANCELLED, m.EXPIRED):
+    elif before.status in m.UNPAID_STATUSES and to in (m.REJECTED, m.CANCELLED, m.EXPIRED):
         _settle_reservations(conn, order_id, m.RESERVATION_RELEASED, now)
         credits_repo.return_for_order(conn, guild_id=guild_id, order_id=order_id, actor_id=actor_id, now=now)
         conn.execute(

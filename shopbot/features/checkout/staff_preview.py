@@ -7,6 +7,7 @@ customer notifications staff actions send. Built by the runtime view functions f
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import replace
 from functools import partial
 from typing import TYPE_CHECKING, Protocol
 
@@ -24,6 +25,7 @@ SAMPLE_TIME = 1_700_000_000
 SAMPLE_REASON = "[sample reason]"
 SAMPLE_TRACKING = "[sample tracking details]"
 SAMPLE_MESSAGE = "[sample message to the customer]"
+SAMPLE_SHIPMENT = h.Shipment("[sample carrier]", "[sample tracking number]", "https://example.com/track")
 
 Add = Callable[[str, str, Callable[[], MessageSpec | ModalSpec | None]], None]
 
@@ -37,13 +39,15 @@ class OrderFactory(Protocol):
 # The stages an order went through to reach each status (submitted first).
 _PATHS: dict[str, tuple[str, ...]] = {
     m.PENDING: (m.PENDING,),
-    m.PAID: (m.PENDING, m.PAID),
-    m.PROCESSING: (m.PENDING, m.PAID, m.PROCESSING),
-    m.FULFILLED: (m.PENDING, m.PAID, m.PROCESSING, m.FULFILLED),
-    m.CANCELLED: (m.PENDING, m.PAID, m.CANCELLED),
-    m.REJECTED: (m.PENDING, m.REJECTED),
+    m.PAYMENT_SUBMITTED: (m.PENDING, m.PAYMENT_SUBMITTED),
+    m.PAID: (m.PENDING, m.PAYMENT_SUBMITTED, m.PAID),
+    m.PROCESSING: (m.PENDING, m.PAYMENT_SUBMITTED, m.PAID, m.PROCESSING),
+    m.SHIPPED: (m.PENDING, m.PAYMENT_SUBMITTED, m.PAID, m.PROCESSING, m.SHIPPED),
+    m.FULFILLED: (m.PENDING, m.PAYMENT_SUBMITTED, m.PAID, m.PROCESSING, m.SHIPPED, m.FULFILLED),
+    m.CANCELLED: (m.PENDING, m.PAYMENT_SUBMITTED, m.PAID, m.CANCELLED),
+    m.REJECTED: (m.PENDING, m.PAYMENT_SUBMITTED, m.REJECTED),
     m.EXPIRED: (m.PENDING, m.EXPIRED),
-    m.REFUNDED: (m.PENDING, m.PAID, m.FULFILLED, m.REFUNDED),
+    m.REFUNDED: (m.PENDING, m.PAYMENT_SUBMITTED, m.PAID, m.SHIPPED, m.FULFILLED, m.REFUNDED),
 }
 
 
@@ -208,6 +212,11 @@ def add_states(
         lambda: staff_views.reject_modal(op, pending.order, m.PENDING),
     )
     add(
+        "staff_ship_form",
+        "Staff only: Mark shipped form (carrier, tracking number and an optional tracking link for the customer).",
+        lambda: staff_views.ship_modal(op, paid.order, m.PAID),
+    )
+    add(
         "staff_tracking_form",
         "Staff only: tracking details form (prefilled with the current details).",
         lambda: staff_views.tracking_modal(op, paid.order, SAMPLE_TRACKING),
@@ -240,6 +249,20 @@ def add_states(
         lambda: staff_views.with_fields(
             _status_notification(app, fulfilled, m.FULFILLED),
             staff_views.notification_fields(ui, m.FULFILLED, h.NotificationData(tracking=SAMPLE_TRACKING)),
+        ),
+    )
+    shipped = make(m.SHIPPED, lines)
+    shipped_data = h.NotificationData(tracking=SAMPLE_TRACKING, shipment=SAMPLE_SHIPMENT)
+    add(
+        "notify_shipped_with_tracking",
+        "Customer notification: the order shipped, with the carrier, the tracking number and the Track package button "
+        "(shown when staff entered a tracking link).",
+        lambda: replace(
+            staff_views.with_fields(
+                _status_notification(app, shipped, m.SHIPPED),
+                staff_views.notification_fields(ui, m.SHIPPED, shipped_data),
+            ),
+            rows=staff_views.notification_rows(ui, m.SHIPPED, shipped_data),
         ),
     )
     add(

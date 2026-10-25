@@ -37,7 +37,10 @@ TEXT_MAX: Final = 1000
 NOTE_MAX: Final = 500
 # Order statuses in which staff may claim an order, add tracking details, request a correction.
 CLAIMABLE_STATUSES: Final = m.OPEN_STATUSES
-TRACKING_STATUSES: Final = (m.PAID, m.PROCESSING, m.FULFILLED)
+TRACKING_STATUSES: Final = (m.PAID, m.PROCESSING, m.SHIPPED, m.FULFILLED)
+CARRIER_MAX: Final = 100
+TRACKING_NUMBER_MAX: Final = 100
+TRACKING_URL_MAX: Final = 500
 CORRECTION_STATUSES: Final = (m.PENDING,)
 
 TASK_ACTIVITY_FOLLOWUP: Final = "checkout.activity_followup"
@@ -57,6 +60,24 @@ class Handling:
     tracking_by: int | None = None
     tracking_at: int | None = None
     version: int = 0
+    # The shipment (Mark shipped): carrier, tracking number, optional https:// tracking link, when it shipped.
+    carrier: str | None = None
+    tracking_number: str | None = None
+    tracking_url: str | None = None
+    shipped_at: int | None = None
+
+    @property
+    def shipment(self) -> Shipment | None:
+        if self.carrier is None or self.tracking_number is None:
+            return None
+        return Shipment(self.carrier, self.tracking_number, self.tracking_url)
+
+
+@dataclass(frozen=True)
+class Shipment:
+    carrier: str
+    tracking_number: str
+    tracking_url: str | None = None
 
 
 @dataclass(frozen=True)
@@ -84,7 +105,8 @@ class StaffData:
 
 class HandlingError(Exception):
     """reason: 'missing' | 'state' (the order's status does not allow it) | 'claimed' (someone holds the claim) |
-    'not_claimed' | 'not_claimer' (someone else holds the claim) | 'text' (empty or too long). Nothing was written."""
+    'not_claimed' | 'not_claimer' (someone else holds the claim) | 'text' (empty or too long) | 'url' (a tracking
+    link that is not an https:// address). Nothing was written."""
 
     def __init__(self, reason: str, *, order: m.Order | None = None, claimed_by: int | None = None) -> None:
         super().__init__(reason)
@@ -119,6 +141,10 @@ def _handling(r: sqlite3.Row) -> Handling:
         tracking_by=_opt(r["tracking_by"]),
         tracking_at=_opt(r["tracking_at"]),
         version=int(r["version"]),
+        carrier=None if r["carrier"] is None else str(r["carrier"]),
+        tracking_number=None if r["tracking_number"] is None else str(r["tracking_number"]),
+        tracking_url=None if r["tracking_url"] is None else str(r["tracking_url"]),
+        shipped_at=_opt(r["shipped_at"]),
     )
 
 
@@ -322,8 +348,8 @@ def set_tracking(
     now: int,
     task_attempts: int = repo.DEFAULT_TASK_ATTEMPTS,
 ) -> Change:
-    """Store (or replace) the tracking details of a paid, in-progress or completed order. Its follow-up tells the
-    customer when the order is already completed (otherwise the completion notification includes them)."""
+    """Store (or replace) the tracking details of a paid, in-progress, shipped or delivered order. Its follow-up tells
+    the customer once the order has shipped (``service.notify_activity``)."""
     order = _order(conn, guild_id, order_id)
     if order.status not in TRACKING_STATUSES:
         raise HandlingError("state", order=order)
@@ -335,6 +361,59 @@ def set_tracking(
         (order_id, tracking, actor_id, now, now),
     )
     return _change(conn, order_id, _record(conn, order_id, TRACKING, actor_id, tracking, now, task_attempts))
+
+
+def ship_order(
+    conn: sqlite3.Connection,
+    *,
+    guild_id: int,
+    order_id: int,
+    allowed_from: Sequence[str],
+    actor_id: int,
+    carrier: str,
+    tracking_number: str,
+    tracking_url: str | None,
+    now: int,
+    task_attempts: int = repo.DEFAULT_TASK_ATTEMPTS,
+) -> repo.Transition | None:
+    """Mark the order shipped with its shipment, in ONE transaction: the transition to 'shipped' and the carrier,
+    tracking number and link the shipped notification shows (also kept as the order's tracking details, which
+    /myorders and the order record show). None (nothing written) when the order is no longer in ``allowed_from``."""
+    carrier_text = _text(carrier, CARRIER_MAX)
+    number_text = _text(tracking_number, TRACKING_NUMBER_MAX)
+    url = (tracking_url or "").strip() or None
+    if url is not None and (
+        len(url) > TRACKING_URL_MAX or not url.startswith("https://") or any(c.isspace() for c in url)
+    ):
+        raise HandlingError("url")
+    moved = repo.transition(
+        conn,
+        guild_id=guild_id,
+        order_id=order_id,
+        allowed_from=tuple(s for s in m.TRANSITIONS[m.SHIPPED] if s in allowed_from),
+        to=m.SHIPPED,
+        actor_id=actor_id,
+        note=None,
+        now=now,
+        task_attempts=task_attempts,
+    )
+    if moved is None:
+        return None
+    tracking = f"{carrier_text} · {number_text}"
+    conn.execute(
+        "INSERT INTO order_handling(order_id, tracking, tracking_by, tracking_at, carrier, tracking_number, "
+        "tracking_url, shipped_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) "
+        "ON CONFLICT(order_id) DO UPDATE SET tracking = excluded.tracking, tracking_by = excluded.tracking_by, "
+        "tracking_at = excluded.tracking_at, carrier = excluded.carrier, tracking_number = excluded.tracking_number, "
+        "tracking_url = excluded.tracking_url, shipped_at = excluded.shipped_at, version = version + 1, "
+        "updated_at = excluded.updated_at",
+        (order_id, tracking, actor_id, now, carrier_text, number_text, url, now, now),
+    )
+    conn.execute(
+        "INSERT INTO order_activity(order_id, kind, actor_id, text, created_at) VALUES (?, ?, ?, ?, ?)",
+        (order_id, TRACKING, actor_id, tracking, now),
+    )
+    return moved
 
 
 def reject_with_reason(
@@ -376,16 +455,20 @@ def reject_with_reason(
 
 @dataclass(frozen=True)
 class NotificationData:
-    """Staff-entered data a status notification carries: the rejection reason, the tracking details."""
+    """Staff-entered data a status notification carries: the rejection reason, the tracking details, the shipment."""
 
     reason: str | None = None
     tracking: str | None = None
+    shipment: Shipment | None = None
 
 
 def notification_data(conn: sqlite3.Connection, order_id: int, status: str) -> NotificationData:
     if status == m.REJECTED:
         rejection = latest_activity(conn, order_id, REJECTION)
         return NotificationData(reason=rejection.text if rejection is not None else None)
+    if status == m.SHIPPED:
+        handling = get_handling(conn, order_id)
+        return NotificationData(tracking=handling.tracking, shipment=handling.shipment)
     if status == m.FULFILLED:
         return NotificationData(tracking=tracking_text(conn, order_id))
     return NotificationData()

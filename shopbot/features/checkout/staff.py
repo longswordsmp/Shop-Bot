@@ -178,6 +178,59 @@ async def reject(app: App, order: m.Order, *, actor_id: int, reason: str, render
     return OpReply(app.op("checkout.op.status_changed", number=number, status=m.REJECTED), "success")
 
 
+async def ship_refused(app: App, order: m.Order, rendered_status: str | None) -> OpReply | None:
+    """Why the order cannot be marked shipped now (None: it can). ``rendered_status``: the status the Mark shipped
+    button was rendered for (None from /order ship, which acts on the current status)."""
+    if rendered_status is not None and rendered_status != order.status:
+        return await _already_handled(app, order, order)
+    if order.status not in m.TRANSITIONS[m.SHIPPED]:
+        return OpReply(
+            app.op("checkout.op.invalid_transition", number=order.number, status=order.status, target=m.SHIPPED),
+            "warning",
+        )
+    return None
+
+
+async def ship(
+    app: App,
+    order: m.Order,
+    *,
+    actor_id: int,
+    carrier: str,
+    tracking_number: str,
+    tracking_url: str | None,
+    rendered_status: str | None,
+) -> OpReply:
+    """Mark a paid order shipped with its carrier, tracking number and optional tracking link (the Mark shipped form,
+    or /order ship with ``rendered_status`` None). The form acts only while the order is still in the status its
+    button was rendered for; the customer is told by direct message (or in the ticket), with the tracking details."""
+    number = order.number
+    refused = await ship_refused(app, order, rendered_status)
+    if refused is not None:
+        return refused
+    try:
+        moved = await app.db.transaction(
+            h.ship_order,
+            guild_id=app.env.guild_id,
+            order_id=order.id,
+            allowed_from=(order.status if rendered_status is None else rendered_status,),
+            actor_id=actor_id,
+            carrier=carrier,
+            tracking_number=tracking_number,
+            tracking_url=tracking_url,
+            now=app.clock.now(),
+            task_attempts=app.scheduler.max_attempts,
+        )
+    except h.HandlingError as exc:
+        if exc.reason == "url":
+            return OpReply(app.op("checkout.op.tracking_url_invalid"), "warning")
+        return _handling_refused(app, order, exc, state_key="checkout.op.tracking_state")
+    if moved is None:
+        return await _already_handled(app, order, await service.get_order(app, order.id))
+    await service.after_transition(app, moved, actor_id=actor_id)
+    return OpReply(app.op("checkout.op.status_changed", number=number, status=m.SHIPPED), "success")
+
+
 # -- claims, notes, correction requests, tracking details -----------------------------------------------------------
 
 
@@ -270,8 +323,8 @@ async def request_correction(app: App, order: m.Order, *, actor_id: int, text: s
 
 
 async def set_tracking(app: App, order: m.Order, *, actor_id: int, text: str) -> OpReply:
-    """Store tracking details; a completed order's customer is told right away, otherwise they are sent with the
-    completion notification."""
+    """Store tracking details; the customer of a shipped or delivered order is told right away (before that, Mark
+    shipped sends the shipment)."""
     if not staff_keys.tracking_enabled(app.content):
         return OpReply(app.op("checkout.op.tracking_unavailable"), "warning")
     try:
@@ -280,7 +333,7 @@ async def set_tracking(app: App, order: m.Order, *, actor_id: int, text: str) ->
         )
     except h.HandlingError as exc:
         return _handling_refused(app, order, exc, state_key="checkout.op.tracking_state")
-    if change.order.status != m.FULFILLED:
+    if change.order.status not in (m.SHIPPED, m.FULFILLED):
         return OpReply(app.op("checkout.op.tracking_saved", number=order.number), "success")
     delivery = await app.db.run(_delivery_of, service.notify_key(order.id, f"tracking:{change.activity.id}"))
     tone = "success" if delivery in ("dm", "channel") else "warning"

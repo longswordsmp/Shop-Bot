@@ -37,13 +37,15 @@ SAMPLE_TICKET_NUMBER = 42
 # The stages a sample order in each status went through (its timeline).
 SAMPLE_PATHS: dict[str, tuple[str, ...]] = {
     m.PENDING: (m.PENDING,),
-    m.PAID: (m.PENDING, m.PAID),
-    m.PROCESSING: (m.PENDING, m.PAID, m.PROCESSING),
-    m.FULFILLED: (m.PENDING, m.PAID, m.PROCESSING, m.FULFILLED),
-    m.CANCELLED: (m.PENDING, m.PAID, m.CANCELLED),
-    m.REJECTED: (m.PENDING, m.REJECTED),
+    m.PAYMENT_SUBMITTED: (m.PENDING, m.PAYMENT_SUBMITTED),
+    m.PAID: (m.PENDING, m.PAYMENT_SUBMITTED, m.PAID),
+    m.PROCESSING: (m.PENDING, m.PAYMENT_SUBMITTED, m.PAID, m.PROCESSING),
+    m.SHIPPED: (m.PENDING, m.PAYMENT_SUBMITTED, m.PAID, m.PROCESSING, m.SHIPPED),
+    m.FULFILLED: (m.PENDING, m.PAYMENT_SUBMITTED, m.PAID, m.PROCESSING, m.SHIPPED, m.FULFILLED),
+    m.CANCELLED: (m.PENDING, m.PAYMENT_SUBMITTED, m.PAID, m.CANCELLED),
+    m.REJECTED: (m.PENDING, m.PAYMENT_SUBMITTED, m.REJECTED),
     m.EXPIRED: (m.PENDING, m.EXPIRED),
-    m.REFUNDED: (m.PENDING, m.PAID, m.PROCESSING, m.FULFILLED, m.REFUNDED),
+    m.REFUNDED: (m.PENDING, m.PAYMENT_SUBMITTED, m.PAID, m.SHIPPED, m.FULFILLED, m.REFUNDED),
 }
 
 
@@ -191,7 +193,7 @@ def _order(
     inputs = flow.form_inputs(c, option.id if option is not None else None) + flow.submission_inputs(c)
     for index, item in enumerate(inputs, start=1):
         details[item.answer_key] = f"[sample answer {index}]"
-    paid = status not in (m.PENDING, m.REJECTED, m.EXPIRED)
+    paid = status not in (*m.UNPAID_STATUSES, m.REJECTED, m.EXPIRED)
     order = m.Order(
         id=SAMPLE_ORDER_ID,
         guild_id=0,

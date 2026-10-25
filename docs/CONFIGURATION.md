@@ -226,7 +226,7 @@ reports), and an optional
 | `delete_channel_after_close_minutes` | 0 | Delete finished order channels. 0 = never. |
 | `transcript_on_close` | true | Transcript of the order channel when it closes (uses the tickets transcript channel and text). |
 | `session_expiry_warning_minutes` | 0 | Warn in the ticket this long before an idle cart expires (0 = off). |
-| `customer_role` / `customer_role_on` / `customer_role_remove_on_refund` | `customer` / `fulfilled` / true | Role given when an order reaches `paid` or `fulfilled`; removed after a full refund unless another order qualifies. |
+| `customer_role` / `customer_role_on` / `customer_role_remove_on_refund` | `customer` / `fulfilled` / true | Role given when an order reaches `paid` (also counts later statuses, shipped included) or `fulfilled` (delivered); removed after a full refund unless another order qualifies. |
 
 Submission form (`[[checkout.submission_form]]`, up to 5 fields, asked when the customer presses Submit; answers are
 stored with the order and shown to staff). Fulfillment options: `id`, `fee_minor`, optional `[[...form]]`. Fees: `id`, `kind` = `flat` (`amount_minor`) or

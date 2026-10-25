@@ -196,53 +196,6 @@ Constraints:
 
 - `quantity INTEGER NOT NULL CHECK (quantity > 0)`
 
-## `orders`
-
-| Column | Type | Not null | Default | Key |
-|---|---|---|---|---|
-| `id` | INTEGER |  |  | PK |
-| `guild_id` | INTEGER | yes |  |  |
-| `number` | INTEGER | yes |  |  |
-| `user_id` | INTEGER | yes |  |  |
-| `session_id` | INTEGER |  |  |  |
-| `ticket_id` | INTEGER |  |  |  |
-| `status` | TEXT | yes |  |  |
-| `currency` | TEXT | yes |  |  |
-| `subtotal_minor` | INTEGER | yes |  |  |
-| `fulfillment_fee_minor` | INTEGER | yes | 0 |  |
-| `fees_minor` | INTEGER | yes | 0 |  |
-| `credits_applied_minor` | INTEGER | yes | 0 |  |
-| `total_minor` | INTEGER | yes |  |  |
-| `refunded_minor` | INTEGER | yes | 0 |  |
-| `fulfillment_option` | TEXT |  |  |  |
-| `details` | TEXT | yes | '{}' |  |
-| `payment_provider` | TEXT | yes |  |  |
-| `customer_message_id` | INTEGER |  |  |  |
-| `staff_channel_id` | INTEGER |  |  |  |
-| `staff_message_id` | INTEGER |  |  |  |
-| `version` | INTEGER | yes | 1 |  |
-| `created_at` | INTEGER | yes |  |  |
-| `updated_at` | INTEGER | yes |  |  |
-| `paid_at` | INTEGER |  |  |  |
-| `fulfilled_at` | INTEGER |  |  |  |
-| `closed_at` | INTEGER |  |  |  |
-
-Indexes: `idx_orders_status`, `idx_orders_user`
-
-Constraints:
-
-- `number INTEGER NOT NULL CHECK (number > 0)`
-- `status TEXT NOT NULL CHECK (status IN (`
-- `currency TEXT NOT NULL CHECK (length(currency) = 3)`
-- `subtotal_minor INTEGER NOT NULL CHECK (subtotal_minor >= 0)`
-- `fulfillment_fee_minor INTEGER NOT NULL DEFAULT 0 CHECK (fulfillment_fee_minor >= 0)`
-- `fees_minor INTEGER NOT NULL DEFAULT 0 CHECK (fees_minor >= 0)`
-- `credits_applied_minor INTEGER NOT NULL DEFAULT 0 CHECK (credits_applied_minor >= 0)`
-- `total_minor INTEGER NOT NULL CHECK (total_minor >= 0)`
-- `refunded_minor INTEGER NOT NULL DEFAULT 0 CHECK (refunded_minor >= 0)`
-- `CHECK (total_minor = subtotal_minor + fulfillment_fee_minor + fees_minor - credits_applied_minor)`
-- `CHECK (refunded_minor <= total_minor)`
-
 ## `order_items`
 
 | Column | Type | Not null | Default | Key |
@@ -574,11 +527,18 @@ Constraints:
 | `tracking_at` | INTEGER |  |  |  |
 | `version` | INTEGER | yes | 1 |  |
 | `updated_at` | INTEGER | yes |  |  |
+| `carrier` | TEXT |  |  |  |
+| `tracking_number` | TEXT |  |  |  |
+| `tracking_url` | TEXT |  |  |  |
+| `shipped_at` | INTEGER |  |  |  |
 
 Constraints:
 
 - `tracking TEXT CHECK (tracking IS NULL OR length(tracking) BETWEEN 1 AND 1000)`
 - `version INTEGER NOT NULL DEFAULT 1 CHECK (version >= 1)`
+- `updated_at INTEGER NOT NULL, carrier TEXT CHECK (carrier IS NULL OR length(carrier) BETWEEN 1 AND 100), tracking_number TEXT`
+- `CHECK (tracking_number IS NULL OR length(tracking_number) BETWEEN 1 AND 100), tracking_url TEXT`
+- `CHECK (tracking_url IS NULL OR (length(tracking_url) <= 500 AND tracking_url LIKE 'https://%')), shipped_at INTEGER`
 - `CHECK ((claimed_by IS NULL) = (claimed_at IS NULL))`
 - `CHECK ((tracking IS NULL) = (tracking_at IS NULL))`
 
@@ -680,3 +640,50 @@ Constraints:
 
 - `name TEXT NOT NULL PRIMARY KEY CHECK (length(name) BETWEEN 2 AND 32)`
 - `sha256 TEXT NOT NULL CHECK (length(sha256) = 64)`
+
+## `orders`
+
+| Column | Type | Not null | Default | Key |
+|---|---|---|---|---|
+| `id` | INTEGER |  |  | PK |
+| `guild_id` | INTEGER | yes |  |  |
+| `number` | INTEGER | yes |  |  |
+| `user_id` | INTEGER | yes |  |  |
+| `session_id` | INTEGER |  |  |  |
+| `ticket_id` | INTEGER |  |  |  |
+| `status` | TEXT | yes |  |  |
+| `currency` | TEXT | yes |  |  |
+| `subtotal_minor` | INTEGER | yes |  |  |
+| `fulfillment_fee_minor` | INTEGER | yes | 0 |  |
+| `fees_minor` | INTEGER | yes | 0 |  |
+| `credits_applied_minor` | INTEGER | yes | 0 |  |
+| `total_minor` | INTEGER | yes |  |  |
+| `refunded_minor` | INTEGER | yes | 0 |  |
+| `fulfillment_option` | TEXT |  |  |  |
+| `details` | TEXT | yes | '{}' |  |
+| `payment_provider` | TEXT | yes |  |  |
+| `customer_message_id` | INTEGER |  |  |  |
+| `staff_channel_id` | INTEGER |  |  |  |
+| `staff_message_id` | INTEGER |  |  |  |
+| `version` | INTEGER | yes | 1 |  |
+| `created_at` | INTEGER | yes |  |  |
+| `updated_at` | INTEGER | yes |  |  |
+| `paid_at` | INTEGER |  |  |  |
+| `fulfilled_at` | INTEGER |  |  |  |
+| `closed_at` | INTEGER |  |  |  |
+
+Indexes: `idx_orders_status`, `idx_orders_user`
+
+Constraints:
+
+- `number INTEGER NOT NULL CHECK (number > 0)`
+- `status TEXT NOT NULL CHECK (status IN (`
+- `currency TEXT NOT NULL CHECK (length(currency) = 3)`
+- `subtotal_minor INTEGER NOT NULL CHECK (subtotal_minor >= 0)`
+- `fulfillment_fee_minor INTEGER NOT NULL DEFAULT 0 CHECK (fulfillment_fee_minor >= 0)`
+- `fees_minor INTEGER NOT NULL DEFAULT 0 CHECK (fees_minor >= 0)`
+- `credits_applied_minor INTEGER NOT NULL DEFAULT 0 CHECK (credits_applied_minor >= 0)`
+- `total_minor INTEGER NOT NULL CHECK (total_minor >= 0)`
+- `refunded_minor INTEGER NOT NULL DEFAULT 0 CHECK (refunded_minor >= 0)`
+- `CHECK (total_minor = subtotal_minor + fulfillment_fee_minor + fees_minor - credits_applied_minor)`
+- `CHECK (refunded_minor <= total_minor)`

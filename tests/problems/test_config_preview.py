@@ -74,7 +74,7 @@ def test_settings_errors(override: dict[str, Any], fragment: str) -> None:
         ({"problems": {"discord_category": ""}}, "problems.discord_category: required"),
         ({"problems": {"discord_category": "nope"}}, "problems.discord_category: category 'nope'"),
         ({"problems": {"types": []}}, "problems.types: define at least one issue type"),
-        ({"problems": {"eligible_statuses": ["shipped"]}}, "unknown order statuses ['shipped']"),
+        ({"problems": {"eligible_statuses": ["dispatched"]}}, "unknown order statuses ['dispatched']"),
         ({"problems": {"staff_roles": ["ghost"]}}, "role 'ghost' is not defined"),
         (
             {"problems": {"eligible_statuses": [], "allow_without_order": False}},

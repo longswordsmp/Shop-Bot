@@ -52,7 +52,7 @@ import math
 import uuid
 import weakref
 from collections.abc import Awaitable, Callable, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING
 
 import discord
@@ -1589,9 +1589,12 @@ async def _notify_status(app: App, order_id: int, status: str) -> None:
         app,
         view,
         status,
-        lambda: staff_views.with_fields(
-            views.status_notification(app.ui, app.settings, view, status),
-            staff_views.notification_fields(app.ui, status, extras),
+        lambda: replace(
+            staff_views.with_fields(
+                views.status_notification(app.ui, app.settings, view, status),
+                staff_views.notification_fields(app.ui, status, extras),
+            ),
+            rows=staff_views.notification_rows(app.ui, status, extras),
         ),
     )
 
@@ -1834,7 +1837,7 @@ async def run_activity_followup(app: App, order_id: int, activity_id: int) -> bo
 
 async def notify_activity(app: App, activity: h.Activity) -> str:
     """The customer notification of a correction request (only while the order still waits for payment) or of
-    tracking details entered after the order was completed. Returns the delivery ('skipped' when not applicable)."""
+    tracking details entered after the order shipped. Returns the delivery ('skipped' when not applicable)."""
     view = await order_view(app, activity.order_id)
     if view is None or not activity.text:
         return "skipped"
@@ -1848,8 +1851,7 @@ async def notify_activity(app: App, activity: h.Activity) -> str:
             lambda: staff_views.correction_notification(app.ui, app.settings, view, text),
             dedupe_suffix=str(activity.id),
         )
-    completed_before = order.fulfilled_at is not None and order.fulfilled_at <= activity.created_at
-    if activity.kind == h.TRACKING and order.status == m.FULFILLED and completed_before:
+    if activity.kind == h.TRACKING and await _tracking_already_sent(app, order, activity):
         if not staff_keys.tracking_enabled(app.content):
             return "skipped"
         return await notify_customer(
@@ -1860,6 +1862,17 @@ async def notify_activity(app: App, activity: h.Activity) -> str:
             dedupe_suffix=str(activity.id),
         )
     return "skipped"
+
+
+async def _tracking_already_sent(app: App, order: m.Order, activity: h.Activity) -> bool:
+    """Tracking details entered after the customer was told the order shipped (or was delivered) are sent on their
+    own; earlier ones are replaced by the shipment Mark shipped records, or go out with the delivered notification."""
+    if order.status == m.FULFILLED:
+        return order.fulfilled_at is not None and order.fulfilled_at <= activity.created_at
+    if order.status == m.SHIPPED:
+        shipped_at = (await app.db.run(h.get_handling, order.id)).shipped_at
+        return shipped_at is not None and shipped_at <= activity.created_at
+    return False
 
 
 async def add_note(app: App, order_id: int, *, actor_id: int, note: str) -> m.Order | None:

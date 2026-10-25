@@ -91,8 +91,10 @@ ANSWER_CHUNK = 500
 
 _STATUS_TONES = {
     m.PENDING: "info",
+    m.PAYMENT_SUBMITTED: "warning",
     m.PAID: "success",
     m.PROCESSING: "info",
+    m.SHIPPED: "primary",
     m.FULFILLED: "success",
     m.CANCELLED: "neutral",
     m.REJECTED: "danger",
@@ -108,8 +110,10 @@ def status_tone(status: str) -> str:
 
 _STATUS_BANNERS: dict[str, BannerId] = {
     m.PENDING: "pending-review",
+    m.PAYMENT_SUBMITTED: "pending-review",
     m.PAID: "successful-confirmation",
     m.PROCESSING: "submission-and-processing",
+    m.SHIPPED: "completed-or-dispatched",
     m.FULFILLED: "completed-or-dispatched",
     m.CANCELLED: "cancellation",
     m.REJECTED: "rejected-or-unsuccessful-submission",
@@ -227,6 +231,7 @@ STAFF_ACTIONS: dict[str, str] = {
     m.REJECTED: "reject",
     m.CANCELLED: "cancel",
     m.PROCESSING: "process",
+    m.SHIPPED: "ship",
     m.FULFILLED: "fulfill",
 }
 STAFF_ACTION_TARGETS: dict[str, str] = {action: status for status, action in STAFF_ACTIONS.items()}
@@ -1425,13 +1430,20 @@ def staff_buttons(ui: Ui, order: m.Order, *, staff_confirms_payment: bool, credi
     def action(target: str, key: str, style: ButtonStyle) -> ButtonSpec:
         return _button(ui, key, staff_action_id(target, order.id, status), style=style)
 
-    if status == m.PENDING:
+    if status in m.UNPAID_STATUSES:
         if staff_confirms_payment:
             buttons.append(action(m.PAID, k.STAFF_BUTTON_MARK_PAID, "success"))
         buttons.append(action(m.REJECTED, k.STAFF_BUTTON_REJECT, "danger"))
     if status == m.PAID:
         buttons.append(action(m.PROCESSING, k.STAFF_BUTTON_PROCESSING, "primary"))
     if status in (m.PAID, m.PROCESSING):
+        # An order with a shipping address ships first (Mark shipped asks for the tracking number); one without (a
+        # shop whose checkout asks for no address) is completed directly.
+        if flow.ADDRESS_COUNTRY in order.details:
+            buttons.append(action(m.SHIPPED, k.STAFF_BUTTON_SHIPPED, "success"))
+        else:
+            buttons.append(action(m.FULFILLED, k.STAFF_BUTTON_FULFILLED, "success"))
+    if status == m.SHIPPED:
         buttons.append(action(m.FULFILLED, k.STAFF_BUTTON_FULFILLED, "success"))
     if order.can_refund:
         buttons.append(_button(ui, k.STAFF_BUTTON_REFUND, refund_id(order.id, MODE_MONEY)))
