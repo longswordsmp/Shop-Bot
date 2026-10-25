@@ -21,9 +21,13 @@ tools/                  offline limits checker, HTML preview, checklist, referen
 tests/                  pytest suites with discord.py-typed fakes
 ```
 
-Features: `core` (shared text), `server` (/setup), `admin` (operator tools), `info_panels`, `tickets`, `catalog`,
-`checkout` (cart, orders, payments), `credits`, `reviews`. Each implements the `FeatureModule` contract
-(`shopbot/features/base.py`), so adding a feature never requires touching the others.
+Features: `core` (shared text), `server` (/setup), `admin` (operator tools), `verification` (#welcome),
+`how_to_buy`, `faq`, `shipping` (the guides), `announcements` (/announce), `tickets`, `catalog`, `new_arrivals`,
+`checkout` (cart, orders, payments, the live order ticket, the #orders staff record), `my_orders` (/myorders),
+`problems` (Report a Problem), `operations` (staff alerts, reminders, Owner alerts, Customer role), `reviews`,
+`credits`, `info_panels`. Each implements the `FeatureModule` contract (`shopbot/features/base.py`); features talk
+to each other through the in-process event bus (`shopbot/core/events.py`) where possible. One page per
+specification feature lives in `docs/features/`.
 
 ## 2. Customer-facing text
 
@@ -146,62 +150,85 @@ because running on the container's temporary disk would lose every order at the 
 
 ### 10a. Behaviour defaults shipped in `settings.toml` — please review
 
-These are not technical necessities; they describe how features behave. They ship with the values below so the
-features work as soon as they are switched on. Each is one line in `config/settings.toml`. **Review and change
-any that do not match how you want to operate.**
+The shipped configuration follows the owner's server specification (layout, roles and channel names come from it).
+The values below are choices made where the specification leaves room. **Review and change any that do not match
+how you want to operate** (each is one line in `config/settings.toml`).
 
 | Setting | Shipped value | Effect |
 |---|---|---|
-| `tickets.allow_user_close` | true | The ticket owner can close their own ticket |
-| `tickets.allow_reopen` / `user_can_reopen` | true / false | Staff can reopen; owners cannot |
-| `tickets.close_confirmation` | true | Closing asks for confirmation |
-| `tickets.lock_on_close` | true | Owner can no longer post after closing |
-| `tickets.transcript_channel` | `transcripts` | Transcripts are produced (set `""` to turn off) |
-| `tickets.staff_alert_channel` | `staff_alerts` | Staff are alerted about new tickets (set `""` to turn off) |
-| `tickets.panel_style` | `buttons` | One button per category (alternative: a dropdown) |
-| one ticket category `general` | – | A single "open a ticket" button; add/rename categories as needed |
-| `catalog.browse_enabled` | true | Customers can browse products privately |
-| `credits.allow_at_checkout` | true | Customers may apply store credit at checkout |
-| `reviews.allow_comment` / `comment_required` / `comment_max_length` | true / false / 1000 | Optional review comments |
-| `reviews.prompt_via` | `dm_then_channel` | Review requests by DM, falling back to the order channel |
-| `notifications.fallback_to_channel` | true | Undeliverable DMs fall back to the ticket/order channel |
-| `checkout.decimal_separator` / `thousands_separator` | `.` / `,` | How amounts are written in `{amount}` |
-| server layout (5 categories, 8 channels, 1 `staff` role) | – | The structure `/setup` creates; names come from you |
-| `audit.channel` | `audit_log` | Admin-only audit channel |
+| server layout | 4 categories, 13 channels, 5 roles | Exactly the specification's structure; names in content.toml |
+| START HERE `public_readonly`; CATALOG/PURCHASE `members_readonly`; STAFF `staff` | – | Unverified users see only START HERE |
+| `permissions.admin_roles` / `owner_role` | `["owner"]` / `owner` | The Owner role is admin; `/setup` gives it to `OWNER_ID` |
+| Staff role `mentionable` / Restock Alerts `mentionable` | true / true | Alerts and #new-arrivals updates can notify those roles |
+| `verification.rules` | 0 (**you must set it**) | #welcome stays hidden until you say how many rules there are |
+| `verification.dm_confirmation` | false | Confirmation only privately in Discord, no DM |
+| `how_to_buy.steps` / `link_channels` | 4 / catalog, purchase, faq | Guide size and its link buttons |
+| `faq.sections` | general, transactions, order_status, cancellations, problems (1 question each) | Adjust counts |
+| `shipping.statuses` | full, partial, none (no regions yet) | Add `[[shipping.regions]]` |
+| `catalog.products_per_listing_message` | 1 | One #catalog message per item |
+| `catalog.browse_enabled` | false | No extra private browsing button (the spec only asks for per-item Buy buttons) |
+| `catalog.low_stock_threshold` | 0 | No "low stock" state |
+| `new_arrivals.announce_new_products` / `announce_restocks` / `mention_role` | true / true / true | Automatic updates ping Restock Alerts |
+| `tickets.panel_channel` | "" | No standalone ticket panel: support starts with Report a Problem in #purchase |
+| `tickets.channel_name_pattern` | `{prefix}-{number}-{user}` | Ticket names contain a unique number and the username |
+| `tickets.staff_alert_channel` / `transcript_channel` | staff_chat / transcripts | |
+| `checkout.panel_channel` / `order_category` / `staff_channel` | purchase / purchase / orders | |
+| `checkout.transcript_on_close` | true | Order tickets also get a transcript when they close |
+| `checkout.customer_role` / `customer_role_on` / `customer_role_remove_on_refund` | customer / fulfilled / true | |
+| `problems.eligible_statuses` | paid, processing, fulfilled | Orders a report may refer to |
+| `problems.allow_without_order` / `require_reason_on_reject` | true / true | |
+| one problem type `general` with one paragraph field | – | Add types and fields as needed |
+| `operations.ping_roles` / `owner_dm_alerts` | staff / true | Who is notified about orders and failures |
+| `operations.*_minutes` reminders | 0 (off) | Set thresholds to get #staff-chat reminders |
+| `announcements.allow_image` | true | |
+| `my_orders.orders_per_page` | 5 | |
+| `features.credits` / `info_panels` | false | Not part of the specification |
+| `audit.channel` | bot_log | Staff-only audit channel |
+| `checkout.decimal_separator` / `thousands_separator` | `.` / `,` | How amounts are written |
 
 ## 11. Business decisions left to the owner
 
-Currency; payment provider and instructions; fulfillment options and fees; minimum order; review timing and rating
-scale; every automation timer (auto-close, deletion, cart/payment expiry, reminders); ticket categories and forms;
-server structure names; every word customers see. See `docs/CONTENT_CHECKLIST.md` and `/status`.
+Currency and payment provider (checkout stays off until set); payment instructions; fulfillment options, fees and
+minimum order; review timing and rating scale; every automation timer (auto-close, deletion, cart/payment expiry,
+reminders); the number of rules, guide steps, FAQ questions, shipping regions and their statuses; problem types
+and their forms; who may announce and which roles may be pinged; every word customers see. `/status` and
+`docs/CONTENT_CHECKLIST.md` list what is still missing.
 
 ## 12. Assumptions
 
 - One Discord server per bot instance (`GUILD_ID`).
-- English technical operator text is acceptable for administrators (overridable).
+- English technical operator text is acceptable for administrators (every entry can be overridden with
+  `operator.<key>` in content.toml).
 - Staff confirm manual payments themselves; the bot does not verify bank transfers or other external payments.
-- Product images are referenced by `https://` URL (Discord attachment links expire).
+- Product images are either `https://` links or uploads stored in the database and attached to every message.
+- Slash-command names are the ones in the specification; `/myorders` (the only customer command) takes its
+  description from content (`my_orders.command.description`) and is registered at startup only when it is set.
 
 ## 13. Known limitations
 
-- Not yet verified against a live Discord server or Railway (no credentials were available while building). All
-  behaviour is verified with automated tests using faithful fakes and the offline preview — see `docs/MORNING.md`
-  for the live verification checklist.
+- Not yet verified against a live Discord server or Railway from here. All behaviour is verified with automated
+  tests using faithful fakes and the offline preview — see `docs/MORNING.md` for the live verification checklist.
 - Railway config-as-code deprecation (see §9).
 - Transcripts include message text only with the Message Content intent enabled; very large channels may exceed
-  Discord's upload size (the transcript is then retried and reported; deletion waits for it).
-- `/content set` accepts up to 4000 characters (Discord form limit); longer descriptions (up to 4096) must be set
-  in `content.toml`.
-- A single bot instance per database (by design).
-- No automated payment provider (see §7).
-- Discord limits a category to 50 channels. Closed ticket/order channels are kept until deleted (auto-deletion is
-  off by default), so busy servers should enable deletion or a closed-tickets category; a full category makes new
-  tickets fail with the generic error (logged as `tickets_category_full`, audited).
-- A customer notification that cannot be delivered by DM *or* in the fallback channel is logged and recorded as
-  failed, but not retried automatically (the order/ticket state itself is never lost; staff see it in the channel).
-- Retention: audit events (configurable) and finished tasks (30 days) are purged automatically. Ticket/order
-  records with customers' form answers, notification records, and pre-migration backup files are kept until
-  deleted manually.
-- Transcripts link to Discord attachment URLs, which Discord expires after some time.
-- Text changes to panels of a ready feature appear after running `/setup`; panels of features that stop being
-  ready are withdrawn automatically.
+  Discord's upload size (the transcript is then retried and reported; deletion waits for it). Attachment links in
+  transcripts are Discord CDN links, which Discord expires after some time.
+- `/content set` accepts up to 4000 characters (Discord form limit); longer descriptions must be set in content.toml.
+- `/reload` does not re-sync slash-command descriptions (`/myorders`); restart the bot after changing it.
+- Panels change appearance only when `/setup` republishes them (e.g. the #purchase Report a Problem button and the
+  #catalog Buy buttons appear after the features become ready and `/setup` runs). A button that was posted before
+  its feature stopped being ready answers with the configured "unavailable" text.
+- Discord limits a category to 50 channels: ticket and order channels share the PURCHASE category, so enable
+  automatic deletion of closed tickets on a busy server; a full category refuses new tickets with the generic error
+  (logged as `tickets_category_full`, audited, alerted in #staff-chat).
+- The #welcome panel must fit one Discord message (6000 characters); a longer rules text is reported by /setup and
+  the previous panel stays.
+- Restocks caused by released reservations (a cancelled or expired order) are not announced in #new-arrivals.
+- A problem report whose ticket was deleted before a decision stays open in the database (it no longer counts
+  toward the limit); there is no command to list reports.
+- Staff reminders run on a one-minute sweep (at most 10 per run).
+- A customer notification that cannot be delivered by DM *or* the fallback channel is recorded, audited and alerted
+  in #staff-chat, but not retried.
+- Retention: audit events (configurable) and finished tasks (30 days) are purged automatically. Order/ticket
+  records, problem reports, uploaded product images, notification records and pre-migration backups are kept
+  until deleted manually.
+- A single bot instance per database (by design). No automated payment provider (see §7).

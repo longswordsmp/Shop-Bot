@@ -25,6 +25,16 @@
 - Admin = `OWNER_ID`, members with Discord's Administrator permission, or roles in `permissions.admin_roles`.
   Staff = admins plus roles in `permissions.staff_roles` (and feature-specific staff roles).
 
+## Who can see what (server layout)
+
+- Users who have not pressed "I agree" in #welcome see only 📌 START HERE (read-only). 📦 CATALOG and 🛒 PURCHASE are
+  `members_readonly`: hidden from `@everyone`, readable by the Member role, writable only by staff and the bot.
+  🔒 STAFF is visible only to Staff and admin roles (Owner).
+- Roles members give themselves (Member via "I agree", Restock Alerts via #new-arrivals) are refused as settings
+  problems if they appear in any staff/admin role list or carry permissions, so a member can never self-assign power.
+- Ticket, order and problem-report channels are created with explicit overwrites (customer + staff + bot only); the
+  category's member access does not apply to them.
+
 ## Private data
 
 - Ticket and order channels are created with explicit overwrites: `@everyone` cannot view; only the owner,
@@ -33,7 +43,11 @@
   review text. Database files never leave the server through the bot (`/backup` writes to the volume only).
 - Form answers and other user-typed text are escaped before being shown in embeds; messages cannot ping
   `@everyone`/roles (mentions are disabled except for explicitly targeted users/roles).
-- Logs never include tokens or full form answers.
+- Logs never include tokens or full form answers. Audit details are sanitized before they are stored or posted in
+  #bot-log (sensitive keys masked, error text reduced to the exception type, token-shaped strings redacted).
+- Staff alerts in #staff-chat and Owner DMs carry identifiers and links, never customers' form answers.
+- Uploaded product images are stored in the database (and copied by `/backup`); announcement images are kept only
+  until the announcement is posted.
 
 ## Payments
 

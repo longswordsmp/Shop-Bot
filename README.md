@@ -11,21 +11,39 @@ policies) is a setting you choose. Features stay hidden until they are enabled a
 
 | Stage | State |
 |---|---|
-| Implemented | All features below, with persistence, permissions, recovery, and automation |
-| Tested locally | 780+ automated tests, type checks, lint, Discord-limit and handler-coverage checks, offline preview |
-| Deployed to Railway | Not yet — see `docs/MORNING.md` |
+| Implemented | The owner's server specification (layout, roles, every channel's messages, tickets, staff tools) |
+| Tested locally | 1,500+ automated tests, type checks, lint, Discord-limit and handler-coverage checks, offline preview |
+| Deployed to Railway | Not verified from here — see `docs/MORNING.md` |
 | Tested in Discord | Not yet — see the checklist in `docs/MORNING.md` step 12 |
+
+## Server layout (created by `/setup`)
+
+| Category | Channels | Who sees it |
+|---|---|---|
+| 📌 START HERE | #welcome, #how-to-buy, #faq, #shipping, #announcements | everyone (also before accepting the rules); only staff/bot post |
+| 📦 CATALOG | #catalog, #new-arrivals, #reviews | Member role (after "I agree") |
+| 🛒 PURCHASE | #purchase (+ private ticket/order channels) | Member role; each ticket only its customer + staff |
+| 🔒 STAFF | #orders, #staff-chat, #bot-log, #transcripts | Staff and Owner |
+
+Roles: **Owner** (given to `OWNER_ID`), **Staff**, **Member** (the #welcome "I agree" button), **Customer**
+(given automatically after a qualifying order), **Restock Alerts** (members turn it on/off in #new-arrivals).
 
 ## Features
 
-- **Server setup** — `/setup` creates or repairs roles, categories, channels, permissions, and panels; idempotent.
-- **Tickets** — panel, categories with optional forms, private channels, claim/close/reopen/delete, transcripts,
-  limits and cooldowns, inactivity automation, restart recovery.
-- **Catalog** — product management, inventory with reservations, live listing, private browsing.
-- **Checkout** — private order channel with one editable workflow message, fulfillment options, forms, fees,
-  store credit, atomic submit with no overselling, staff order controls, refunds, timers.
-- **Store credit**, **reviews**, **information panels**, and **admin tools** (`/status`, `/content`, `/reload`,
-  `/backup`, `/audit`, `/tasks`).
+- **Server setup** — `/setup` creates or repairs roles, categories, channels, permissions and every panel; idempotent.
+- **#welcome** — branding, introduction, rules and an "I agree, enter the server" button that grants Member.
+- **#how-to-buy / #faq / #shipping** — step guide with channel links; FAQ sections split across embeds as needed;
+  regions grouped by fully/partially/not supported.
+- **#announcements** — `/announce` (staff) with title, message, configured fields, image and optional role ping.
+- **#catalog** — one live embed per item with a Buy button (disabled when sold out), availability colors, uploaded
+  images that stay attached; `/product add|edit|remove|list|...`.
+- **#new-arrivals** — Restock Alerts opt-in button and automatic new-item / back-in-stock posts (each once).
+- **#purchase** — Start (private order ticket: one live panel with reference, steps, status, timeline) and Report a
+  Problem (private problem ticket with staff Resolve/Reject).
+- **#orders** — one live record per order: Claim, in progress, completed, tracking, notes, correction requests,
+  reject with reason, cancel, details; **#staff-chat** alerts and reminders; **#bot-log** audit; **#transcripts**.
+- **Customers** — `/myorders`, DMs for every status change (with channel fallback), reviews after completion.
+- **Admin tools** — `/status`, `/content`, `/reload`, `/backup`, `/audit`, `/tasks`, `/orders`, `/order view`.
 
 ## Quick start (local)
 
@@ -48,6 +66,7 @@ Production runs on Railway as a worker with a persistent volume at `/data` — s
 | `docs/COMMANDS.md` | Slash commands (generated) |
 | `docs/COMPONENTS.md` | Every button/menu/form route and handler (generated) |
 | `docs/WORKFLOWS.md` | How tickets, checkout, credits, reviews, panels behave |
+| `docs/features/*.md` | One page per specification feature (behaviour, settings, text keys, manual test steps) |
 | `docs/DATABASE.md` | Database schema (generated) |
 | `docs/DEPLOYMENT.md` | Railway, volume, variables, updates, backups, troubleshooting |
 | `docs/TESTING.md` | Quality gates and what tests do and do not prove |

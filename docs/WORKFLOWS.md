@@ -1,5 +1,7 @@
 # Workflows
 
+The specification features (#welcome, guides, /announce, #catalog Buy buttons, #new-arrivals, the live order ticket and /myorders, Report a Problem, staff operations) are described one per page in `docs/features/`. This page covers the shared ticket and checkout mechanics.
+
 How each customer-facing workflow behaves. Every visible word comes from content keys (`docs/CONTENT_CHECKLIST.md`);
 this document describes behaviour only.
 

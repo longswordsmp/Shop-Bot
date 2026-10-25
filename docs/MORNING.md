@@ -98,34 +98,40 @@ See `docs/DEPLOYMENT.md` → Troubleshooting if anything else appears.
 
 In your server, as the owner/admin: **`/setup dry_run:True`** first. It lists what it would create.
 
-The structure is defined in `config/settings.toml` (`[[server.roles]]`, `[[server.categories]]`,
-`[[server.channels]]`). Each needs a name — set them in step 11 (e.g. `server.channel.ticket_panel.name`), or set
-`id = <existing id>` in settings.toml to reuse a channel/role you already have.
+The structure comes from your specification and is already named (content.toml): 📌 START HERE, 📦 CATALOG,
+🛒 PURCHASE and 🔒 STAFF with #welcome, #how-to-buy, #faq, #shipping, #announcements, #catalog, #new-arrivals,
+#reviews, #purchase, #orders, #staff-chat, #bot-log, #transcripts, and the roles Owner, Staff, Member, Customer and
+Restock Alerts. Existing channels/roles with the same names are reused instead of duplicated.
 
-Then **`/setup`**. It creates or repairs roles, categories, channels, and permissions, and publishes the panels of
-every feature that is ready. It is safe to run again any time; it never duplicates or deletes anything except
-withdrawing panels of features you have switched off.
+Then **`/setup`**. It creates or repairs roles, categories, channels and permissions, gives the Owner role to
+`OWNER_ID`, and publishes the panels of every feature that is ready. It is safe to run again any time; it never
+duplicates or deletes anything except withdrawing panels of features that are not ready.
+
+Check: Server Settings → Roles shows the bot's role **above** Owner, Staff, Member, Customer and Restock Alerts
+(Discord only lets the bot give roles below its own). Give your staff the Staff role.
 
 ## 11. Enter your business configuration and exact text
 
-**Decisions in `config/settings.toml`** (edit on GitHub or locally, commit, push → Railway redeploys):
+**Decisions in `config/settings.toml`** (edit on GitHub, commit, push → Railway redeploys):
 
-- `[features]` — switch on what you use.
-- `checkout.currency` (e.g. `"USD"`), `payments.provider = "manual"` if you sell.
-- Ticket categories (`[[tickets.categories]]`), fulfillment options, fees, forms, timers, review timing and scale —
-  only if you want them. Every timer is off until you set it. Reference: `docs/CONFIGURATION.md`.
+- `checkout.currency` (e.g. `"USD"`) and `payments.provider = "manual"` — ordering stays off until both are set.
+- `verification.rules` — how many rules #welcome shows (required; #welcome stays hidden until set).
+- `how_to_buy.steps`, `[[faq.sections]]` question counts, `[[shipping.regions]]` with their status,
+  `[[problems.types]]` and their forms, fulfillment options, fees, review timing/scale, reminder thresholds — only
+  as you want them. Every timer is off until you set it. Reference: `docs/CONFIGURATION.md`, `docs/features/*.md`,
+  and the table of shipped defaults in `docs/DECISIONS.md` §10a.
 
 **Text in `config/content.toml`** — every key is listed there with what it is for, its Discord length limit, and
-its placeholders. Fill in your exact wording. Or set text from Discord without redeploying: **`/content set key:…`**
-(opens a form with the current value). Useful commands:
+its placeholders. Fill in your exact wording (text in descriptions can link channels with `{channel_catalog}`,
+`{channel_purchase}`, ...). Or set text from Discord without redeploying: **`/content set key:…`**.
 
 - **`/status`** — what is ready and what is missing, per feature.
 - **`/content missing`** — the exact keys still empty.
 - **`/content export`** — download everything entered so far as a `content.toml` (commit it to keep it).
-- **`/reload`** — re-read the files after a change without restarting.
+- **`/reload`** — re-read the files after a change without restarting (restart after changing
+  `my_orders.command.description`).
 
-Locally you can also run `python -m tools.checklist --write` (writes `docs/CONTENT_CHECKLIST.md`),
-`python -m tools.check_limits --strict` (fails if anything is missing or too long) and
+Locally you can also run `python -m tools.checklist --write`, `python -m tools.check_limits --strict` and
 `python -m tools.build_preview` (open `preview/out/index.html` to see every screen with your text).
 
 When `/status` shows the features you want as ready, run **`/setup`** again to publish their panels.
@@ -134,47 +140,45 @@ When `/status` shows the features you want as ready, run **`/setup`** again to p
 
 Use a second (non-staff) Discord account as the "customer".
 
-**Server & panels**
-- [ ] `/setup` twice: the second run reports nothing new to create.
-- [ ] Panels appear only for ready features; texts match exactly what you wrote.
+**Server & entry**
+- [ ] `/setup` twice: the second run reports nothing new to create; the Owner account has the Owner role.
+- [ ] Customer account before "I agree": sees only 📌 START HERE (read-only).
+- [ ] #welcome "I agree" → private confirmation; 📦 CATALOG and 🛒 PURCHASE appear; clicking again says already verified.
+- [ ] #how-to-buy link buttons open #catalog, #purchase, #faq; #faq and #shipping show your sections/regions.
 
-**Tickets**
-- [ ] Customer opens a ticket from the panel → private channel appears; only they and staff can see it.
-- [ ] Opening a second ticket in the same category is refused with your limit text.
-- [ ] Customer clicks Claim → refused (permission text). Staff Claim/Unclaim works.
-- [ ] Close (with confirmation) → closed message; customer can no longer post; Reopen restores access.
-- [ ] Transcript appears in the transcripts channel; Delete removes the channel only after the transcript.
-- [ ] Restart the service (Railway → Restart) → old ticket buttons still work.
+**Catalog & new arrivals**
+- [ ] `/product add` (staff) → its own message in #catalog with a Buy button; `/product stock 0` → button disabled, red.
+- [ ] `/product image file:` (upload) → image shows, still there after `/product edit` and a bot restart.
+- [ ] #new-arrivals button → Restock Alerts on, again → off. Restock a sold-out product → one update pinging the role.
 
-**Catalog**
-- [ ] `/product add` (staff) → product appears in the listing channel; `/product stock` updates it live.
-- [ ] Browse button shows products page by page.
+**Purchase (order ticket)**
+- [ ] #purchase Start → private ticket (only you + staff): intro message, then the live panel (reference, step,
+      status); add items, Back, review, Submit (and the submission form if configured).
+- [ ] Buy on a #catalog item while the ticket is open → the item is added to that ticket instead of a new one.
+- [ ] Start again with an open order → private link to the existing ticket.
+- [ ] Customer cannot press staff buttons; in #orders: Claim, Mark paid, in progress, tracking, note, completed →
+      the customer's panel timeline and DMs follow; the Customer role is given (on completion by default).
+- [ ] Reject with a reason and Request correction → the customer sees the reason/request.
+- [ ] Ticket closes → transcript in #transcripts with the final status; `/myorders` shows the order and timeline.
 
-**Checkout** (if enabled)
-- [ ] Start → private order channel with one workflow message; add items, change quantities, review totals.
-- [ ] Submit → payment instructions (your text); staff message appears in the order queue channel.
-- [ ] Customer cannot press staff buttons; staff Mark paid → customer notified; stock decreases.
-- [ ] Fulfill → order channel closes; (reviews on) the customer gets the review prompt.
-- [ ] Two customers try to buy the last unit at once → only one succeeds.
-- [ ] `/order refund` records a refund; `/order lookup` shows the history.
-
-**Credits / Reviews** (if enabled)
-- [ ] `/credits adjust` (admin) → balance button shows the new balance; credit applies at checkout.
-- [ ] Review: rate + comment → appears in the reviews channel; `/review remove` deletes it.
-
-**Admin**
-- [ ] `/status`, `/content show`, `/backup` (creates a file on the volume), `/audit` (shows your actions).
+**Problems, staff, admin**
+- [ ] #purchase Report a Problem → choose order and type → form → private problem ticket; staff Resolve/Reject.
+- [ ] #staff-chat gets new-order / paid alerts (staff pinged) and reminders once thresholds are set; the Owner gets DMs.
+- [ ] `/announce` (staff) → embed in #announcements; a customer cannot use it.
+- [ ] `/orders`, `/order view`, `/status`, `/content show`, `/backup`, `/audit`; #bot-log shows the actions.
+- [ ] Restart the service (Railway → Restart) → every old button still works.
 
 Record what you tested and anything unexpected. Every failure answered with the generic error text (a crash, or
 an expected failure such as a ticket channel that could not be created) is logged in Railway with an error
-reference (`error_id`). Staff see that reference in failed slash-command replies; customers see it only if you
-include `{error_id}` in your `common.error.generic` text (e.g. "Reference: {error_id}"), and can quote it to you.
+reference (`error_id`) and alerted in #staff-chat. Staff see that reference in failed slash-command replies;
+customers see it only if you include `{error_id}` in your `common.error.generic` text (e.g. "Reference:
+{error_id}"), and can quote it to you.
 
 ---
 
 ### What has and has not been verified so far
 
-- ✅ Implemented and tested locally and on GitHub Actions: 880+ automated tests (all features, failures, concurrency, restarts),
+- ✅ Implemented and tested locally and on GitHub Actions: 1,500+ automated tests (all features, failures, concurrency, restarts),
   type checks, lint, Discord-limit and handler-coverage checks, offline preview.
 - ❌ Not yet verified: running on Railway and in a real Discord server (no credentials were available while it was
   built). Steps 9–12 are that verification.
