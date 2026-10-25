@@ -235,15 +235,15 @@ async def to_review(
 async def submit(
     tenv: TestEnv, user: FakeMember, message: FakeMessage, session_id: int, total: int | None = None
 ) -> FakeInteraction:
-    if total is None:
-        from shopbot.features.credits import service as credits_service
+    """Press the submit button with the totals the review shows (``total``: override the total to pay)."""
+    from shopbot.features.credits import service as credits_service
 
-        data = await tenv.app.db.run(
-            repo.load_workflow, GUILD_ID, session_id, tenv.app.settings, credits_service.available_at_checkout(tenv.app)
-        )
-        assert data is not None
-        total = data.totals.total_minor
-    return await press(tenv, user, message, views.submit_id(session_id, total))
+    data = await tenv.app.db.run(
+        repo.load_workflow, GUILD_ID, session_id, tenv.app.settings, credits_service.available_at_checkout(tenv.app)
+    )
+    assert data is not None
+    shown = data.totals.total_minor if total is None else total
+    return await press(tenv, user, message, views.submit_id(session_id, shown, data.totals.gross_minor))
 
 
 async def place_order(

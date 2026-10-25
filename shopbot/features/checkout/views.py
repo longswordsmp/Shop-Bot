@@ -10,17 +10,27 @@ options show product names unescaped: Discord does not render markdown there, so
 backslashes (and could push a 100-character name over the option-label limit). Mentions inside embeds never ping;
 nothing here sets ``mention_user_ids``/``mention_role_ids`` (the notifier adds the customer's mention only when it
 falls back to the order channel).
+
+Amounts stored in an order are written in the ORDER's currency (``order_money``): the configured
+``checkout.currency_exponent`` applies only while that is still the configured shop currency. Amounts of an
+unsubmitted cart use the configured currency (``money``).
+
+Large orders: the order views (``order_messages``) and the staff controls (``staff_messages``) budget Discord's
+limits (6000 characters and 10 cards per message, 25 fields per card). When the order lines do not fit next to the
+configured text, the main message keeps the totals, the payment instructions and the buttons, and the lines are
+sent as separate messages; configured text is never cut.
 """
 
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import replace
+from dataclasses import dataclass, replace
 
 from discord.utils import escape_markdown
 
 from shopbot.config.content import MissingContent
 from shopbot.config.settings import Settings
+from shopbot.core.money import currency_exponent, format_amount
 from shopbot.features import core_keys as core
 from shopbot.features.catalog import content_keys as catalog_keys
 from shopbot.features.catalog import views as catalog_views
@@ -31,7 +41,13 @@ from shopbot.features.checkout import models as m
 from shopbot.features.checkout.payments import PaymentInstructions
 from shopbot.features.credits import repo as credits_repo
 from shopbot.ui.custom_ids import cid
-from shopbot.ui.limits import EMBED_FIELD_VALUE, EMBED_FIELDS, EMBED_TOTAL_CHARS, OPTION_DESCRIPTION
+from shopbot.ui.limits import (
+    EMBED_FIELD_VALUE,
+    EMBED_FIELDS,
+    EMBED_TOTAL_CHARS,
+    EMBEDS_PER_MESSAGE,
+    OPTION_DESCRIPTION,
+)
 from shopbot.ui.spec import (
     ButtonSpec,
     ButtonStyle,
@@ -49,6 +65,8 @@ from shopbot.ui.style import Ui, chunk_lines
 
 Rows = tuple[tuple[Component, ...], ...]
 OperatorText = Callable[..., str]
+# Writes an amount in minor units with common.money_format (raises MissingContent when that is not configured).
+Money = Callable[[int], str]
 
 ROUTE = k.ROUTE
 STAFF_ROUTE = k.STAFF_ROUTE
@@ -119,8 +137,10 @@ def credits_id(session_id: int, apply: bool) -> str:
     return cid(ROUTE, "credits", session_id, int(apply))
 
 
-def submit_id(session_id: int, total_minor: int) -> str:
-    return cid(ROUTE, "submit", session_id, total_minor)
+def submit_id(session_id: int, total_minor: int, gross_minor: int) -> str:
+    """The submit button carries the totals the customer was shown: the total to pay and the gross amount before
+    credits (with both, the applied credit is fixed too). Submission refuses anything else."""
+    return cid(ROUTE, "submit", session_id, total_minor, gross_minor)
 
 
 def cancel_id(session_id: int) -> str:
@@ -157,8 +177,12 @@ STAFF_ACTIONS: dict[str, str] = {
 STAFF_ACTION_TARGETS: dict[str, str] = {action: status for status, action in STAFF_ACTIONS.items()}
 
 
-def staff_action_id(target: str, order_id: int) -> str:
-    return cid(STAFF_ROUTE, STAFF_ACTIONS[target], order_id)
+def staff_action_id(target: str, order_id: int, status: str | None = None) -> str:
+    """A staff status button. ``status`` is the order status the controls are rendered for: a click acts only while
+    the order is still in it (a stale click changes nothing). Default: the first status ``target`` can be reached
+    from."""
+    rendered = status if status is not None else m.TRANSITIONS[target][0]
+    return cid(STAFF_ROUTE, STAFF_ACTIONS[target], order_id, rendered)
 
 
 def refund_id(order_id: int, mode: str) -> str:
@@ -167,6 +191,18 @@ def refund_id(order_id: int, mode: str) -> str:
 
 def refund_form_id(order_id: int, mode: str) -> str:
     return cid(STAFF_ROUTE, "refundform", order_id, mode)
+
+
+def credit_return_id(order_id: int) -> str:
+    return cid(STAFF_ROUTE, "creturn", order_id)
+
+
+def credit_return_form_id(order_id: int) -> str:
+    return cid(STAFF_ROUTE, "creturnform", order_id)
+
+
+# Staff-channel actions whose custom_id carries the order id as its first argument (the controls of an order).
+ORDER_CONTROL_ACTIONS = frozenset({*STAFF_ACTION_TARGETS, "refund", "creturn"})
 
 
 def list_page_id(page: int, status: str, user_id: int) -> str:
@@ -207,10 +243,32 @@ def _optional(ui: Ui, key: str | None, /, **values: str | int) -> str | None:
 
 
 def money(ui: Ui, minor: int) -> str:
+    """An amount in the configured shop currency (carts, prices, minimums)."""
     text = ui.money(minor)
     if text is None:
         raise MissingContent(core.MONEY_FORMAT)
     return text
+
+
+def currency_digits(settings: Settings, currency: str) -> int:
+    """Minor-unit digits of ``currency``: the configured override only applies to the configured shop currency."""
+    c = settings.checkout
+    return currency_exponent(currency, c.currency_exponent if currency == c.currency else -1)
+
+
+def order_money(ui: Ui, settings: Settings, currency: str) -> Money:
+    """Writes amounts stored in an order with the order's own currency (common.money_format)."""
+    c = settings.checkout
+    exponent = currency_digits(settings, currency)
+
+    def write(minor: int) -> str:
+        amount = format_amount(minor, exponent, c.decimal_separator, c.thousands_separator)
+        text = ui.text(core.MONEY_FORMAT, amount=amount, currency=currency)
+        if text is None:
+            raise MissingContent(core.MONEY_FORMAT)
+        return text
+
+    return write
 
 
 def _button(
@@ -284,6 +342,52 @@ def _fit_fields(base: Sequence[EmbedSpec], fields: Sequence[EmbedField], *, curr
     return taken
 
 
+def _spread(head: EmbedSpec, fields: Sequence[EmbedField]) -> list[EmbedSpec]:
+    """``head`` with ``fields``; fields beyond the 25 of one card continue on further cards of the same colour
+    (without the author line and footer)."""
+    embeds = [replace(head, fields=tuple(fields[:EMBED_FIELDS]))]
+    for start in range(EMBED_FIELDS, len(fields), EMBED_FIELDS):
+        embeds.append(EmbedSpec(color=head.color, fields=tuple(fields[start : start + EMBED_FIELDS])))
+    return embeds
+
+
+def _fits(embeds: Sequence[EmbedSpec]) -> bool:
+    """Whether the cards fit one message (10 cards, 6000 characters; each card holds at most 25 fields)."""
+    return (
+        len(embeds) <= EMBEDS_PER_MESSAGE
+        and sum(e.text_length() for e in embeds) <= EMBED_TOTAL_CHARS
+        and all(len(e.fields) <= EMBED_FIELDS for e in embeds)
+    )
+
+
+def _pack_fields(fields: Sequence[EmbedField], color: int | None) -> list[MessageSpec]:
+    """Data fields (each within the field limits) in as many messages as needed: 25 fields per card, 10 cards and
+    6000 characters per message. Nothing is cut."""
+    messages: list[MessageSpec] = []
+    embeds: list[EmbedSpec] = []
+    current: list[EmbedField] = []
+    used = 0
+    for item in fields:
+        size = len(item.name) + len(item.value)
+        if current and len(current) >= EMBED_FIELDS:
+            embeds.append(EmbedSpec(color=color, fields=tuple(current)))
+            current = []
+        if used + size > EMBED_TOTAL_CHARS or (not current and len(embeds) >= EMBEDS_PER_MESSAGE):
+            if current:
+                embeds.append(EmbedSpec(color=color, fields=tuple(current)))
+                current = []
+            if embeds:
+                messages.append(MessageSpec(embeds=tuple(embeds)))
+            embeds, used = [], 0
+        current.append(item)
+        used += size
+    if current:
+        embeds.append(EmbedSpec(color=color, fields=tuple(current)))
+    if embeds:
+        messages.append(MessageSpec(embeds=tuple(embeds)))
+    return messages
+
+
 def _chunks(text: str, size: int) -> list[str]:
     """Split ``text`` into pieces of at most ``size`` characters (line boundaries preferred); blank pieces are
     dropped because an embed field value cannot be blank."""
@@ -344,14 +448,18 @@ def channel_topic(ui: Ui, user_name: str) -> str | None:
 # -- cart lines and totals ------------------------------------------------------------------------------------
 
 
-def line_text(ui: Ui, name: str, quantity: int, unit_price_minor: int, line_total_minor: int) -> str:
+def line_text(
+    ui: Ui, name: str, quantity: int, unit_price_minor: int, line_total_minor: int, *, fmt: Money | None = None
+) -> str:
+    """One cart/order line; ``fmt`` writes the amounts (default: the configured shop currency)."""
+    write: Money = fmt if fmt is not None else (lambda minor: money(ui, minor))
     return _text(
         ui,
         k.CART_LINE,
         name=escape(name),
         quantity=quantity,
-        unit_price=money(ui, unit_price_minor),
-        line_total=money(ui, line_total_minor),
+        unit_price=write(unit_price_minor),
+        line_total=write(line_total_minor),
     )
 
 
@@ -379,10 +487,10 @@ def _option_label(ui: Ui, option_id: str | None) -> str | None:
     return _optional(ui, k.option_key(option_id, "label"))
 
 
-def _fee_fields(ui: Ui, fees: Sequence[tuple[str, int]]) -> list[EmbedField]:
+def _fee_fields(ui: Ui, fees: Sequence[tuple[str, int]], fmt: Money) -> list[EmbedField]:
     fields: list[EmbedField] = []
     for fee_id, amount in fees:
-        item = _optional_field(ui, k.fee_label_key(fee_id), money(ui, amount), inline=True)
+        item = _optional_field(ui, k.fee_label_key(fee_id), fmt(amount), inline=True)
         if item is not None:
             fields.append(item)
     return fields
@@ -419,6 +527,13 @@ def _step_embed(
     )
 
 
+def _step_embeds(
+    ui: Ui, title_key: str, description_key: str, fields: Sequence[EmbedField], footer: str | None
+) -> list[EmbedSpec]:
+    """A step card whose fields continue on further cards beyond Discord's 25 fields per card (many fees)."""
+    return _spread(_step_embed(ui, title_key, description_key, (), footer), fields)
+
+
 def _navigation(ui: Ui, settings: Settings, data: m.WorkflowData, step: str, *, can_continue: bool) -> list[ButtonSpec]:
     session = data.session
     option = session.fulfillment_option
@@ -446,11 +561,9 @@ def _product_option(ui: Ui, product: Product) -> SelectOptionSpec:
 
 def _browse(ui: Ui, settings: Settings, data: m.WorkflowData) -> MessageSpec:
     session = data.session
-    embeds = [
-        _step_embed(
-            ui, k.BROWSE_TITLE, k.BROWSE_DESCRIPTION, _cart_fields(ui, data), _footer(ui, settings, data, m.BROWSE)
-        )
-    ]
+    embeds = _step_embeds(
+        ui, k.BROWSE_TITLE, k.BROWSE_DESCRIPTION, _cart_fields(ui, data), _footer(ui, settings, data, m.BROWSE)
+    )
     rows: list[tuple[Component, ...]] = []
     browse = data.browse
     if browse is None or browse.total == 0 or not browse.products:
@@ -493,9 +606,9 @@ def minimum_met(settings: Settings, data: m.WorkflowData) -> bool:
 
 def _cart(ui: Ui, settings: Settings, data: m.WorkflowData) -> MessageSpec:
     session = data.session
-    embeds = [
-        _step_embed(ui, k.CART_TITLE, k.CART_DESCRIPTION, _cart_fields(ui, data), _footer(ui, settings, data, m.CART))
-    ]
+    embeds = _step_embeds(
+        ui, k.CART_TITLE, k.CART_DESCRIPTION, _cart_fields(ui, data), _footer(ui, settings, data, m.CART)
+    )
     met = minimum_met(settings, data)
     if data.lines and not met:
         minimum = money(ui, settings.checkout.min_order_total_minor)
@@ -589,14 +702,15 @@ def review_fields(ui: Ui, settings: Settings, data: m.WorkflowData) -> list[Embe
 
 def _review(ui: Ui, settings: Settings, data: m.WorkflowData, notice: EmbedSpec | None) -> MessageSpec:
     session = data.session
-    embed = _step_embed(
+    embeds = _step_embeds(
         ui,
         k.REVIEW_TITLE,
         k.REVIEW_DESCRIPTION,
         review_fields(ui, settings, data),
         _footer(ui, settings, data, m.REVIEW),
     )
-    embeds = [embed] if notice is None else [embed, notice]
+    if notice is not None:
+        embeds.append(notice)
     credit_buttons: list[ButtonSpec] = []
     if data.credits_enabled:
         if data.totals.credits_applied_minor > 0:
@@ -607,7 +721,10 @@ def _review(ui: Ui, settings: Settings, data: m.WorkflowData, notice: EmbedSpec 
     previous = flow.previous_step(settings.checkout, session.fulfillment_option, m.REVIEW)
     if previous is not None:
         navigation.append(_button(ui, core.BUTTON_BACK, go_id(session.id, previous)))
-    navigation.append(_button(ui, k.BUTTON_SUBMIT, submit_id(session.id, data.totals.total_minor), style="success"))
+    totals = data.totals
+    navigation.append(
+        _button(ui, k.BUTTON_SUBMIT, submit_id(session.id, totals.total_minor, totals.gross_minor), style="success")
+    )
     navigation.append(_button(ui, core.BUTTON_CANCEL, cancel_id(session.id), style="danger"))
     return MessageSpec(embeds=tuple(embeds), rows=rows_of(*credit_buttons) + rows_of(*navigation))
 
@@ -703,32 +820,41 @@ def details_modal(ui: Ui, settings: Settings, session: m.Session, part: int) -> 
 # -- submitted order and status views ------------------------------------------------------------------------------
 
 
-def order_values(ui: Ui, order: m.Order) -> dict[str, str | int]:
-    return {"order_number": str(order.number), "total": money(ui, order.total_minor)}
+def order_values(ui: Ui, settings: Settings, order: m.Order) -> dict[str, str | int]:
+    return {"order_number": str(order.number), "total": order_money(ui, settings, order.currency)(order.total_minor)}
 
 
-def order_fields(ui: Ui, view: m.OrderView) -> list[EmbedField]:
-    """Items, subtotal, fulfillment option and fee, fees, credits, total (as stored in the order)."""
+def _order_line_fields(ui: Ui, view: m.OrderView, fmt: Money) -> list[EmbedField]:
+    lines = [line_text(ui, i.name, i.quantity, i.unit_price_minor, i.line_total_minor, fmt=fmt) for i in view.items]
+    return _lines_fields(ui, lines)
+
+
+def _order_total_fields(ui: Ui, view: m.OrderView, fmt: Money) -> list[EmbedField]:
+    """Subtotal, fulfillment option and fee, fees, credits, total (as stored in the order)."""
     order = view.order
-    lines = [line_text(ui, i.name, i.quantity, i.unit_price_minor, i.line_total_minor) for i in view.items]
-    fields = _lines_fields(ui, lines)
-    fields.append(_field(ui, k.CART_SUBTOTAL_FIELD, money(ui, order.subtotal_minor), inline=True))
+    fields = [_field(ui, k.CART_SUBTOTAL_FIELD, fmt(order.subtotal_minor), inline=True)]
     label = _option_label(ui, order.fulfillment_option)
     if label:
         item = _optional_field(ui, k.FULFILLMENT_CHOSEN_FIELD, label, inline=True)
         if item is not None:
             fields.append(item)
     if order.fulfillment_fee_minor > 0:
-        item = _optional_field(ui, k.FULFILLMENT_FEE_FIELD, money(ui, order.fulfillment_fee_minor), inline=True)
+        item = _optional_field(ui, k.FULFILLMENT_FEE_FIELD, fmt(order.fulfillment_fee_minor), inline=True)
         if item is not None:
             fields.append(item)
-    fields += _fee_fields(ui, [(f.fee_id, f.amount_minor) for f in view.fees])
+    fields += _fee_fields(ui, [(f.fee_id, f.amount_minor) for f in view.fees], fmt)
     if order.credits_applied_minor > 0:
-        item = _optional_field(ui, k.REVIEW_CREDITS_FIELD, money(ui, order.credits_applied_minor), inline=True)
+        item = _optional_field(ui, k.REVIEW_CREDITS_FIELD, fmt(order.credits_applied_minor), inline=True)
         if item is not None:
             fields.append(item)
-    fields.append(_field(ui, k.REVIEW_TOTAL_FIELD, money(ui, order.total_minor), inline=True))
+    fields.append(_field(ui, k.REVIEW_TOTAL_FIELD, fmt(order.total_minor), inline=True))
     return fields
+
+
+def order_fields(ui: Ui, settings: Settings, view: m.OrderView) -> list[EmbedField]:
+    """Items, subtotal, fulfillment option and fee, fees, credits, total (as stored in the order, in its currency)."""
+    fmt = order_money(ui, settings, view.order.currency)
+    return _order_line_fields(ui, view, fmt) + _order_total_fields(ui, view, fmt)
 
 
 def instructions_embed(ui: Ui, instructions: PaymentInstructions, values: Mapping[str, str | int]) -> EmbedSpec:
@@ -746,41 +872,72 @@ def _instruction_link(ui: Ui, instructions: PaymentInstructions | None) -> Butto
     return ButtonSpec(label=label, style="link", url=instructions.link_url)
 
 
-def order_message(ui: Ui, view: m.OrderView, *, instructions: PaymentInstructions | None) -> MessageSpec:
+@dataclass(frozen=True)
+class OrderMessages:
+    """The workflow message of a submitted order, plus what did not fit into it (posted as separate messages in the
+    order channel, each at most once): the payment instructions (only when the configured texts alone fill the
+    message) and the order lines."""
+
+    main: MessageSpec
+    instructions: tuple[MessageSpec, ...] = ()
+    items: tuple[MessageSpec, ...] = ()
+
+
+def order_messages(
+    ui: Ui, settings: Settings, view: m.OrderView, *, instructions: PaymentInstructions | None
+) -> OrderMessages:
     """The workflow message of a submitted order: waiting for payment (with the payment instructions and the
-    customer's cancel button), or the view configured for its current status."""
+    customer's cancel button), or the view configured for its current status.
+
+    Budgeted for Discord's limits: everything in one message when it fits; otherwise the order lines move to
+    separate messages, and if the configured texts alone fill the message, the payment instructions too. The
+    payment instructions and the cancel button are always delivered; nothing is cut."""
     order = view.order
-    values = order_values(ui, order)
-    fields = order_fields(ui, view)
-    if order.status == m.PENDING:
-        embed = _content_embed(
+    fmt = order_money(ui, settings, order.currency)
+    values = order_values(ui, settings, order)
+    line_fields = _order_line_fields(ui, view, fmt)
+    total_fields = _order_total_fields(ui, view, fmt)
+    pending = order.status == m.PENDING
+    if pending:
+        head = _content_embed(
+            ui, k.SUBMITTED_TITLE, k.SUBMITTED_DESCRIPTION, required=(k.SUBMITTED_TITLE,), values=values, tone="success"
+        )
+    else:
+        title_key = k.status_title_key(order.status)
+        head = _content_embed(
             ui,
-            k.SUBMITTED_TITLE,
-            k.SUBMITTED_DESCRIPTION,
-            required=(k.SUBMITTED_TITLE,),
+            title_key,
+            k.status_description_key(order.status),
+            required=(title_key,),
             values=values,
-            fields=fields,
-            tone="success",
+            tone=_STATUS_TONES.get(order.status, "info"),
         )
-        embeds = [embed]
-        if instructions is not None:
-            embeds.append(instructions_embed(ui, instructions, values))
-        rows = rows_of(
-            _instruction_link(ui, instructions),
-            _button(ui, k.BUTTON_CANCEL_ORDER, order_cancel_id(order.id), style="danger"),
-        )
-        return MessageSpec(embeds=tuple(embeds), rows=rows)
-    title_key = k.status_title_key(order.status)
-    embed = _content_embed(
-        ui,
-        title_key,
-        k.status_description_key(order.status),
-        required=(title_key,),
-        values=values,
-        fields=fields,
-        tone=_STATUS_TONES.get(order.status, "info"),
+    tail = [instructions_embed(ui, instructions, values)] if pending and instructions is not None else []
+    link = _instruction_link(ui, instructions) if pending else None
+    cancel = _button(ui, k.BUTTON_CANCEL_ORDER, order_cancel_id(order.id), style="danger") if pending else None
+
+    def embeds_for(with_lines: bool, with_instructions: bool) -> list[EmbedSpec]:
+        fields = (line_fields if with_lines else []) + total_fields
+        return _spread(head, fields) + (tail if with_instructions else [])
+
+    # Most complete first: everything; the lines separately; the instructions separately; both separately.
+    layouts = ((True, True), (False, True), (True, False), (False, False))
+    with_lines, with_instructions = next((lo for lo in layouts if _fits(embeds_for(*lo))), layouts[-1])
+    return OrderMessages(
+        main=MessageSpec(
+            embeds=tuple(embeds_for(with_lines, with_instructions)),
+            rows=rows_of(link, cancel) if with_instructions else rows_of(cancel),
+        ),
+        instructions=() if with_instructions else tuple(MessageSpec(embeds=(e,), rows=rows_of(link)) for e in tail),
+        items=() if with_lines else tuple(_pack_fields(line_fields, head.color)),
     )
-    return MessageSpec(embeds=(embed,))
+
+
+def order_message(
+    ui: Ui, settings: Settings, view: m.OrderView, *, instructions: PaymentInstructions | None
+) -> MessageSpec:
+    """The workflow message of a submitted order (see ``order_messages``)."""
+    return order_messages(ui, settings, view, instructions=instructions).main
 
 
 def order_cancel_confirm(ui: Ui, order: m.Order) -> MessageSpec:
@@ -803,31 +960,45 @@ def order_cancel_confirm(ui: Ui, order: m.Order) -> MessageSpec:
 
 
 def staff_buttons(ui: Ui, order: m.Order, *, staff_confirms_payment: bool, credit_refunds: bool) -> list[ButtonSpec]:
+    """The controls for the order's current status. Status buttons carry that status (a click after the order
+    changed acts on nothing). ``credit_refunds``: refunds to store credit are possible for this order now."""
     buttons: list[ButtonSpec] = []
     status = order.status
+
+    def action(target: str, key: str, style: ButtonStyle) -> ButtonSpec:
+        return _button(ui, key, staff_action_id(target, order.id, status), style=style)
+
     if status == m.PENDING:
         if staff_confirms_payment:
-            buttons.append(_button(ui, k.STAFF_BUTTON_MARK_PAID, staff_action_id(m.PAID, order.id), style="success"))
-        buttons.append(_button(ui, k.STAFF_BUTTON_REJECT, staff_action_id(m.REJECTED, order.id), style="danger"))
+            buttons.append(action(m.PAID, k.STAFF_BUTTON_MARK_PAID, "success"))
+        buttons.append(action(m.REJECTED, k.STAFF_BUTTON_REJECT, "danger"))
     if status == m.PAID:
-        buttons.append(_button(ui, k.STAFF_BUTTON_PROCESSING, staff_action_id(m.PROCESSING, order.id), style="primary"))
+        buttons.append(action(m.PROCESSING, k.STAFF_BUTTON_PROCESSING, "primary"))
     if status in (m.PAID, m.PROCESSING):
-        buttons.append(_button(ui, k.STAFF_BUTTON_FULFILLED, staff_action_id(m.FULFILLED, order.id), style="success"))
+        buttons.append(action(m.FULFILLED, k.STAFF_BUTTON_FULFILLED, "success"))
     if order.can_refund:
         buttons.append(_button(ui, k.STAFF_BUTTON_REFUND, refund_id(order.id, MODE_MONEY)))
         if credit_refunds:
             buttons.append(_button(ui, k.STAFF_BUTTON_REFUND_CREDIT, refund_id(order.id, MODE_CREDIT)))
+    if order.can_return_credit:
+        # Optional while the credits feature is off (an order from before); omitted when not configured.
+        returning = ui.button(k.STAFF_BUTTON_RETURN_CREDIT, credit_return_id(order.id))
+        if returning is not None:
+            buttons.append(returning)
     if status in m.TRANSITIONS[m.CANCELLED]:
-        style: ButtonStyle = "secondary" if status == m.PENDING else "danger"
-        buttons.append(_button(ui, k.STAFF_BUTTON_CANCEL, staff_action_id(m.CANCELLED, order.id), style=style))
+        buttons.append(action(m.CANCELLED, k.STAFF_BUTTON_CANCEL, "secondary" if status == m.PENDING else "danger"))
     return buttons
 
 
-def staff_message(ui: Ui, view: m.OrderView, *, staff_confirms_payment: bool, credit_refunds: bool) -> MessageSpec:
-    """The order controls in the staff channel (edited in place on every status change)."""
+def staff_messages(
+    ui: Ui, settings: Settings, view: m.OrderView, *, staff_confirms_payment: bool, credit_refunds: bool
+) -> list[MessageSpec]:
+    """The order controls in the staff channel (edited in place on every status change), then - only when the order
+    lines do not fit next to the configured text - the lines as separate messages. Nothing is cut."""
     order = view.order
+    fmt = order_money(ui, settings, order.currency)
     status = _text(ui, k.status_label_key(order.status))
-    total = money(ui, order.total_minor)
+    total = fmt(order.total_minor)
     title = _text(ui, k.STAFF_TITLE, order_number=str(order.number), total=total, status=status)
     description = _text(
         ui,
@@ -838,18 +1009,31 @@ def staff_message(ui: Ui, view: m.OrderView, *, staff_confirms_payment: bool, cr
         total=total,
         status=status,
     )
-    fields = order_fields(ui, view)
+    line_fields = _order_line_fields(ui, view, fmt)
+    total_fields = _order_total_fields(ui, view, fmt)
     if order.refunded_minor > 0:
-        fields.append(_field(ui, k.STAFF_REFUNDED_FIELD, money(ui, order.refunded_minor), inline=True))
-    embed = ui.embed(
-        title=title,
-        description=description,
-        fields=fields,
-        tone=_STATUS_TONES.get(order.status, "info"),
-        timestamp=True,
-    )
+        total_fields.append(_field(ui, k.STAFF_REFUNDED_FIELD, fmt(order.refunded_minor), inline=True))
+    if order.credit_returned_minor > 0:
+        returned = _optional_field(ui, k.STAFF_CREDIT_RETURNED_FIELD, fmt(order.credit_returned_minor), inline=True)
+        if returned is not None:
+            total_fields.append(returned)
+    head = ui.embed(title=title, description=description, tone=_STATUS_TONES.get(order.status, "info"), timestamp=True)
     buttons = staff_buttons(ui, order, staff_confirms_payment=staff_confirms_payment, credit_refunds=credit_refunds)
-    return MessageSpec(embeds=(embed,), rows=rows_of(*buttons))
+    rows = rows_of(*buttons)
+    full = _spread(head, line_fields + total_fields)
+    if _fits(full):
+        return [MessageSpec(embeds=tuple(full), rows=rows)]
+    main = MessageSpec(embeds=tuple(_spread(head, total_fields)), rows=rows)
+    return [main, *_pack_fields(line_fields, head.color)]
+
+
+def staff_message(
+    ui: Ui, settings: Settings, view: m.OrderView, *, staff_confirms_payment: bool, credit_refunds: bool
+) -> MessageSpec:
+    """The order controls in the staff channel (see ``staff_messages``)."""
+    return staff_messages(
+        ui, settings, view, staff_confirms_payment=staff_confirms_payment, credit_refunds=credit_refunds
+    )[0]
 
 
 def ordered_answers(settings: Settings, order: m.Order) -> list[tuple[str, str]]:
@@ -897,26 +1081,28 @@ def staff_details_messages(ui: Ui, settings: Settings, order: m.Order) -> list[M
 # -- customer notifications ---------------------------------------------------------------------------------------
 
 
-def _notify_values(ui: Ui, view: m.OrderView) -> dict[str, str | int]:
-    return {**order_values(ui, view.order), "channel_mention": channel_mention(view.channel_id)}
+def _notify_values(ui: Ui, settings: Settings, view: m.OrderView) -> dict[str, str | int]:
+    return {**order_values(ui, settings, view.order), "channel_mention": channel_mention(view.channel_id)}
 
 
-def status_notification(ui: Ui, view: m.OrderView, status: str) -> MessageSpec:
+def status_notification(ui: Ui, settings: Settings, view: m.OrderView, status: str) -> MessageSpec:
     embed = _content_embed(
         ui,
         k.notify_title_key(status),
         k.notify_description_key(status),
         required=(k.notify_description_key(status),),
-        values=_notify_values(ui, view),
+        values=_notify_values(ui, settings, view),
         tone=_STATUS_TONES.get(status, "info"),
         timestamp=True,
     )
     return MessageSpec(embeds=(embed,))
 
 
-def reminder_notification(ui: Ui, view: m.OrderView, instructions: PaymentInstructions | None) -> MessageSpec:
+def reminder_notification(
+    ui: Ui, settings: Settings, view: m.OrderView, instructions: PaymentInstructions | None
+) -> MessageSpec:
     kind = k.NOTIFY_PAYMENT_REMINDER
-    values = _notify_values(ui, view)
+    values = _notify_values(ui, settings, view)
     embed = _content_embed(
         ui,
         k.notify_title_key(kind),
@@ -928,12 +1114,12 @@ def reminder_notification(ui: Ui, view: m.OrderView, instructions: PaymentInstru
     )
     embeds = [embed]
     if instructions is not None:
-        embeds.append(instructions_embed(ui, instructions, order_values(ui, view.order)))
+        embeds.append(instructions_embed(ui, instructions, order_values(ui, settings, view.order)))
     link = _instruction_link(ui, instructions)
     return MessageSpec(embeds=tuple(embeds), rows=rows_of(link))
 
 
-def refund_notification(ui: Ui, view: m.OrderView, amount_minor: int) -> MessageSpec:
+def refund_notification(ui: Ui, settings: Settings, view: m.OrderView, amount_minor: int) -> MessageSpec:
     kind = k.NOTIFY_REFUND
     embed = _content_embed(
         ui,
@@ -942,7 +1128,7 @@ def refund_notification(ui: Ui, view: m.OrderView, amount_minor: int) -> Message
         required=(k.notify_description_key(kind),),
         values={
             "order_number": str(view.order.number),
-            "amount": money(ui, amount_minor),
+            "amount": order_money(ui, settings, view.order.currency)(amount_minor),
             "channel_mention": channel_mention(view.channel_id),
         },
         tone="info",
@@ -974,6 +1160,24 @@ def refund_modal(op: OperatorText, order: m.Order, *, mode: str, max_text: str, 
                 label=op("checkout.refund.reason"),
                 style="paragraph",
                 description=op("checkout.refund.reason_hint"),
+                required=False,
+                max_length=REFUND_REASON_MAX,
+            ),
+        ),
+    )
+
+
+def credit_return_modal(op: OperatorText, order: m.Order, *, amount_text: str) -> ModalSpec:
+    """Staff only: confirm giving back the store credit applied to an order (all of it), with an optional reason."""
+    return ModalSpec(
+        custom_id=credit_return_form_id(order.id),
+        title=op("checkout.refund.title_return", number=order.number),
+        inputs=(
+            TextInputSpec(
+                custom_id=REFUND_REASON_INPUT,
+                label=op("checkout.refund.reason"),
+                style="paragraph",
+                description=op("checkout.refund.return_hint", amount=amount_text),
                 required=False,
                 max_length=REFUND_REASON_MAX,
             ),

@@ -37,7 +37,20 @@ OPERATOR_TEXT: dict[str, str] = {
         "Reference: {error_id}."
     ),
     "checkout.op.credits_unavailable": "Refunds to store credit need the credits feature to be enabled and configured.",
+    "checkout.op.refund_currency": (
+        "Order #{number} was paid in {currency}, but store credit is now kept in {shop_currency}; refund it as money "
+        "instead. Nothing was recorded."
+    ),
     "checkout.op.reason_too_long": "The reason must be at most {max} characters.",
+    # applied store credit (given back all at once)
+    "checkout.op.credit_returned": (
+        "The store credit applied to order #{number} ({amount}) was given back to the customer."
+    ),
+    "checkout.op.credit_return_not_allowed": (
+        "Order #{number} is {status}; it has no applied store credit that can be given back. Nothing was changed."
+    ),
+    "checkout.op.credit_returnable": "Applied store credit not given back yet: {amount}.",
+    "checkout.op.paid_cancel": "Order #{number} had been paid: nothing was refunded or given back automatically.",
     # refund form (staff only)
     "checkout.refund.title": "Refund order #{number}",
     "checkout.refund.title_credit": "Refund #{number} as store credit",
@@ -45,6 +58,8 @@ OPERATOR_TEXT: dict[str, str] = {
     "checkout.refund.amount_hint": "At most {max}. Example: {example}",
     "checkout.refund.reason": "Reason (optional, internal)",
     "checkout.refund.reason_hint": "Kept in the order history; the customer does not see it.",
+    "checkout.refund.title_return": "Return store credit of order #{number}",
+    "checkout.refund.return_hint": "Gives {amount} back to the customer's store credit.",
     # /order list
     "checkout.list.title": "Orders ({total})",
     "checkout.list.empty": "No orders match.",
@@ -67,6 +82,7 @@ OPERATOR_TEXT: dict[str, str] = {
     "checkout.lookup.credits": "Credits applied",
     "checkout.lookup.total": "Total",
     "checkout.lookup.refunded": "Refunded",
+    "checkout.lookup.credit_returned": "Credit given back",
     "checkout.lookup.payment": "Payment",
     "checkout.lookup.payment_value": "{provider} · {status} · reference {reference}",
     "checkout.lookup.items": "Items",
@@ -76,6 +92,7 @@ OPERATOR_TEXT: dict[str, str] = {
     "checkout.lookup.unlabelled": "Answer '{key}'",
     "checkout.lookup.refunds": "Refunds",
     "checkout.lookup.refund_line": "{amount} · {method} · {actor} · {when} · {reason}",
+    "checkout.lookup.credit_return_line": "{amount} · store credit given back · {actor} · {when} · {reason}",
     "checkout.lookup.history": "History (latest)",
     "checkout.lookup.event": "{when} · {old} → {new} · {actor} · {note}",
     "checkout.lookup.automatic": "automatic",

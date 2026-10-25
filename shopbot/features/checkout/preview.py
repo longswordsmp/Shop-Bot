@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING
 
 from shopbot.config.content import MissingContent
 from shopbot.config.settings import FulfillmentOption, Settings
-from shopbot.features.catalog.repo import Product
+from shopbot.features.catalog.repo import NAME_MAX, Product
 from shopbot.features.checkout import content_keys as k
 from shopbot.features.checkout import flow, panel, staff, views
 from shopbot.features.checkout import models as m
@@ -127,8 +127,26 @@ def _sample_option(settings: Settings) -> FulfillmentOption | None:
     return options[0] if options else None
 
 
+def _largest_cart(settings: Settings) -> tuple[m.CartLine, ...]:
+    """The largest cart a customer can build: ``max_cart_lines`` lines whose product names have the maximum length
+    (made of characters that markdown escaping doubles) and large prices - the worst case for message limits."""
+    lines: list[m.CartLine] = []
+    for index in range(1, settings.checkout.max_cart_lines + 1):
+        product = replace(
+            _product(index, price_minor=99_999_999 + index, stock=None),
+            name=f"[sample product {index}]".ljust(NAME_MAX, "_"),
+        )
+        lines.append(m.CartLine(product, 99))
+    return tuple(lines)
+
+
 def _order(
-    settings: Settings, status: str, lines: tuple[m.CartLine, ...], *, refunded: int | None = None
+    settings: Settings,
+    status: str,
+    lines: tuple[m.CartLine, ...],
+    *,
+    refunded: int | None = None,
+    credits: int = 0,
 ) -> m.OrderView:
     c = settings.checkout
     option = _sample_option(settings)
@@ -136,6 +154,8 @@ def _order(
         [(line.product.price_minor, line.quantity) for line in lines],
         fulfillment_fee_minor=option.fee_minor if option is not None else 0,
         fees=c.fees,
+        credits_available_minor=credits,
+        apply_credits=credits > 0,
     )
     details = {}
     for index, item in enumerate(flow.form_inputs(c, option.id if option is not None else None), start=1):
@@ -153,7 +173,7 @@ def _order(
         subtotal_minor=totals.subtotal_minor,
         fulfillment_fee_minor=totals.fulfillment_fee_minor,
         fees_minor=totals.fees_minor,
-        credits_applied_minor=0,
+        credits_applied_minor=totals.credits_applied_minor,
         total_minor=totals.total_minor,
         refunded_minor=(totals.total_minor if status == m.REFUNDED else 0) if refunded is None else refunded,
         fulfillment_option=option.id if option is not None else None,
@@ -328,6 +348,18 @@ def preview(app: App) -> list[PreviewState]:
             notice=views.price_changed_notice(ui, sum(line.line_total_minor for line in lines)),
         ),
     )
+    largest = _largest_cart(settings)
+    add(
+        "workflow_cart_largest",
+        "Workflow message: cart step with the largest possible cart (checkout.max_cart_lines lines, longest product "
+        "names, large prices). A limit violation here means a full cart cannot be shown with the configured text.",
+        workflow(_session(m.CART), largest),
+    )
+    add(
+        "workflow_review_largest",
+        "Workflow message: review step with the largest possible cart (see workflow_cart_largest).",
+        workflow(review, largest),
+    )
     add(
         "workflow_cancel_confirm",
         "Workflow message: confirm cancelling the unfinished order.",
@@ -361,8 +393,28 @@ def preview(app: App) -> list[PreviewState]:
     add(
         "order_submitted",
         "Workflow message after submission: waiting for payment, with the payment instructions.",
-        lambda: views.order_message(ui, pending, instructions=instructions),
+        lambda: views.order_message(ui, settings, pending, instructions=instructions),
     )
+    try:
+        largest_order = views.order_messages(
+            ui, settings, _order(settings, m.PENDING, largest), instructions=instructions
+        )
+    except MissingContent:
+        largest_order = None
+    if largest_order is not None:
+        add(
+            "order_submitted_largest",
+            "Workflow message after submitting the largest possible cart: when the lines do not fit next to the "
+            "configured text, they follow as separate messages (the instructions and the cancel button stay).",
+            partial(_same, largest_order.main),
+        )
+        extras = [*largest_order.instructions, *largest_order.items]
+        for index, spec in enumerate(extras, start=1):
+            add(
+                f"order_submitted_largest_part_{index}",
+                "Separate message after the largest order's workflow message (payment instructions or order lines).",
+                partial(_same, spec),
+            )
     add(
         "order_cancel_confirm",
         "Customer confirms cancelling an unpaid order.",
@@ -373,9 +425,10 @@ def preview(app: App) -> list[PreviewState]:
         add(
             f"order_{status}",
             f"Workflow message once the order is '{status}'.",
-            partial(views.order_message, ui, view, instructions=None),
+            partial(views.order_message, ui, settings, view, instructions=None),
         )
     staff_confirms = provider.requires_staff_confirmation if provider is not None else True
+    credit_refunds = settings.features.credits
     for status in m.ORDER_STATUSES:
         view = _order(settings, status, lines)
         add(
@@ -384,9 +437,10 @@ def preview(app: App) -> list[PreviewState]:
             partial(
                 views.staff_message,
                 ui,
+                settings,
                 view,
                 staff_confirms_payment=staff_confirms,
-                credit_refunds=settings.features.credits,
+                credit_refunds=credit_refunds,
             ),
         )
     partly_refunded = _order(settings, m.PAID, lines, refunded=1)
@@ -394,9 +448,35 @@ def preview(app: App) -> list[PreviewState]:
         "staff_paid_partially_refunded",
         "Staff order controls after a partial refund.",
         lambda: views.staff_message(
-            ui, partly_refunded, staff_confirms_payment=staff_confirms, credit_refunds=settings.features.credits
+            ui, settings, partly_refunded, staff_confirms_payment=staff_confirms, credit_refunds=credit_refunds
         ),
     )
+    with_credit = _order(settings, m.CANCELLED, lines, credits=SAMPLE_CREDITS_MINOR)
+    add(
+        "staff_cancelled_credit_applied",
+        "Staff order controls of a paid order that was cancelled and had store credit applied (refund buttons and "
+        "the button that gives the applied credit back).",
+        lambda: views.staff_message(
+            ui, settings, with_credit, staff_confirms_payment=staff_confirms, credit_refunds=credit_refunds
+        ),
+    )
+    try:
+        largest_staff = views.staff_messages(
+            ui,
+            settings,
+            _order(settings, m.PENDING, largest),
+            staff_confirms_payment=staff_confirms,
+            credit_refunds=credit_refunds,
+        )
+    except MissingContent:
+        largest_staff = []
+    for index, spec in enumerate(largest_staff):
+        add(
+            "staff_pending_largest" if index == 0 else f"staff_pending_largest_part_{index}",
+            "Staff order controls of the largest possible order (the lines follow as separate messages when they do "
+            "not fit next to the configured text).",
+            partial(_same, spec),
+        )
     try:
         details_messages = views.staff_details_messages(ui, settings, pending.order) if inputs else []
     except MissingContent:
@@ -408,17 +488,17 @@ def preview(app: App) -> list[PreviewState]:
         add(
             f"notify_{status}",
             f"Customer notification: the order is '{status}'.",
-            partial(views.status_notification, ui, view, status),
+            partial(views.status_notification, ui, settings, view, status),
         )
     add(
         "notify_payment_reminder",
         "Customer notification: payment reminder (with the payment instructions).",
-        lambda: views.reminder_notification(ui, pending, instructions),
+        lambda: views.reminder_notification(ui, settings, pending, instructions),
     )
     add(
         "notify_refund",
-        "Customer notification: a refund was recorded.",
-        lambda: views.refund_notification(ui, _order(settings, m.PAID, lines), 500),
+        "Customer notification: a refund was recorded (or applied store credit was given back).",
+        lambda: views.refund_notification(ui, settings, _order(settings, m.PAID, lines), 500),
     )
 
     # -- errors (private) -------------------------------------------------------------------------------------------
@@ -483,6 +563,11 @@ def preview(app: App) -> list[PreviewState]:
             max_text=staff.plain_amount(app, paid.total_minor, currency),
             example=staff.example_amount(app, currency),
         ),
+    )
+    add(
+        "staff_credit_return_form",
+        "Staff only: confirm giving back the store credit applied to an order.",
+        lambda: views.credit_return_modal(op, paid, amount_text=staff.amount(app, SAMPLE_CREDITS_MINOR, currency)),
     )
     sample_orders = [
         replace(_order(settings, s, lines).order, id=i, number=SAMPLE_ORDER_NUMBER + i)

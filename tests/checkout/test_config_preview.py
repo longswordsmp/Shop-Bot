@@ -296,7 +296,12 @@ async def test_preview_without_content_has_only_operator_states(tmp_path: Path) 
     try:
         assert MODULE.preview is not None
         names = {s.name for s in MODULE.preview(tenv.app)}
-        assert names == {"staff_refund_form", "staff_refund_credit_form", "staff_order_list"}
+        assert names == {
+            "staff_refund_form",
+            "staff_refund_credit_form",
+            "staff_credit_return_form",
+            "staff_order_list",
+        }
     finally:
         await tenv.close()
 

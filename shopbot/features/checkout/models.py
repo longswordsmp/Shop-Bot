@@ -15,6 +15,10 @@ from)::
 ``rejected``, ``expired`` and ``refunded`` are final. Every transition is one conditional UPDATE
 (``WHERE status IN allowed_from``) plus an ``order_events`` row, so a second concurrent request finds the
 state changed and applies nothing.
+
+Refunds of a paid order have two parts: money (``refunded_minor``, at most ``total_minor``) and the store credit
+the customer applied (``credits_applied_minor``, returned all at once; ``credit_returned_minor`` is read from the
+credit ledger). An order is fully refunded - and moves to ``refunded`` - once both are covered.
 """
 
 from __future__ import annotations
@@ -69,6 +73,9 @@ TRANSITIONS: Final[dict[str, tuple[str, ...]]] = {
 }
 # Statuses that staff may set directly (buttons and /order status); expiry and refunds have their own paths.
 STAFF_TARGETS: Final = (PAID, PROCESSING, FULFILLED, REJECTED, CANCELLED)
+# Statuses in which the store credit applied to a paid order can be given back. 'refunded' is included for orders
+# whose money was refunded in full before the applied credit counted toward a full refund.
+CREDIT_RETURN_STATUSES: Final = (*TRANSITIONS[REFUNDED], REFUNDED)
 
 RESERVATION_HELD: Final = "held"
 RESERVATION_COMMITTED: Final = "committed"
@@ -149,6 +156,8 @@ class Order:
     paid_at: int | None
     fulfilled_at: int | None
     closed_at: int | None
+    # Store credit given back to the customer for this order (its ``order_return`` ledger row; 0 when none).
+    credit_returned_minor: int = 0
 
     @property
     def refundable_minor(self) -> int:
@@ -156,15 +165,34 @@ class Order:
         return max(0, self.total_minor - self.refunded_minor)
 
     @property
+    def credit_returnable_minor(self) -> int:
+        """Applied store credit that was not given back yet."""
+        return max(0, self.credits_applied_minor - self.credit_returned_minor)
+
+    @property
     def is_open(self) -> bool:
         return self.status in OPEN_STATUSES
 
     @property
+    def refunds_allowed(self) -> bool:
+        """Paid at some point and in a state that allows refunds (money or the applied credit)."""
+        return self.paid_at is not None and self.status in TRANSITIONS[REFUNDED]
+
+    @property
     def can_refund(self) -> bool:
-        """Paid at some point, not fully refunded, and in a state that allows refunds."""
-        if self.refundable_minor <= 0 or self.paid_at is None:
-            return False
-        return self.status in TRANSITIONS[REFUNDED]
+        """Money can still be refunded: paid at some point, not fully refunded, and in a state that allows refunds."""
+        return self.refundable_minor > 0 and self.refunds_allowed
+
+    @property
+    def can_return_credit(self) -> bool:
+        """The store credit applied to this paid order can still be given back (all of it at once)."""
+        return self.credit_returnable_minor > 0 and self.paid_at is not None and self.status in CREDIT_RETURN_STATUSES
+
+    @property
+    def fully_refunded(self) -> bool:
+        """Money refunds plus returned credit cover everything the customer paid (total + applied credit)."""
+        paid = self.total_minor + self.credits_applied_minor
+        return self.refunded_minor + self.credit_returned_minor >= paid
 
 
 @dataclass(frozen=True)

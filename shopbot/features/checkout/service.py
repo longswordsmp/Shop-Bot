@@ -2,16 +2,38 @@
 
 Public API (also used by future payment webhooks)
 -------------------------------------------------
-- ``change_status(app, order_id, to, *, actor_id, note=None) -> Outcome``: the ONLY way an order changes
-  status (staff buttons, ``/order status``/``cancel``, the customer's cancel, expiry tasks, webhooks). A second
-  concurrent request finds the state changed (``Outcome.applied`` False) and changes nothing.
-- ``refund(app, order_id, *, amount_minor, to_credit, reason, actor_id) -> RefundOutcome``.
+- ``change_status(app, order_id, to, *, actor_id, note=None, allowed_from=None) -> Outcome``: the ONLY way an order
+  changes status (staff buttons, ``/order status``/``cancel``, the customer's cancel, expiry tasks, webhooks). A second
+  concurrent request finds the state changed (``Outcome.applied`` False) and changes nothing. ``allowed_from``
+  narrows the states the change may start from (the customer cancels only an unpaid order; a staff button acts only
+  on the status it was rendered for).
+- ``refund(app, order_id, *, amount_minor, to_credit, reason, actor_id) -> RefundOutcome``: a money refund (through
+  the payment provider when it supports refunds, else recorded for staff to return; or as store credit).
+- ``return_credit(app, order_id, *, reason, actor_id) -> RefundOutcome``: gives the store credit the customer applied
+  to a paid order back, all at once.
 - ``order_view(app, order_id)``, ``get_order(app, order_id)``, ``get_order_by_number(app, number)``.
 
+Refunds of a paid order
+-----------------------
+Cancelling a paid (or processing) order returns NOTHING automatically - neither money nor the store credit the
+customer applied: staff decide with the refund controls (money refund, refund to store credit, and the
+return-credit control, which gives the applied credit back through ``credits_repo.return_for_order`` with an
+``order_adjustments`` row of kind ``credit_return``, in one transaction). The order becomes ``refunded`` once money
+refunds cover its total AND the applied credit was given back; neither can exceed what was paid or applied, and a
+repeated request changes nothing (an order marked ``refunded`` by money alone before this rule can still get its
+applied credit back). An unpaid order that ends (rejected/cancelled/expired) gets its credit back
+automatically, in the transaction that ends it. Refunds to store credit need the order's currency to still be the
+shop currency (the credit ledger has no currency of its own).
+
+Durability
+----------
 Every database write is one ``app.db.transaction`` unit (see ``repo``). Discord side effects (editing the workflow
-message, the staff controls, notifications, closing the order channel) happen after the commit, are best effort
-and are logged when they fail; the database stays the source of truth and ``tasks.on_ready`` repairs what a crash
-left undone.
+message and the staff controls, notifications, closing the order channel, the review request) happen after the
+commit; every step is isolated (an error is logged and the other steps still run) and safe to repeat. The commit
+itself schedules a deduplicated follow-up task (``checkout.after_submit``, ``checkout.after_transition``,
+``checkout.ticket_check``; see ``repo``) that performs the same steps again unless the process completed them right
+away, so neither a crash nor an unexpected error after the commit loses them. ``tasks.on_ready`` additionally
+closes order channels that can no longer be used and re-posts missing staff controls.
 """
 
 from __future__ import annotations
@@ -22,7 +44,7 @@ import logging
 import math
 import uuid
 import weakref
-from collections.abc import Callable, Mapping
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
@@ -39,8 +61,9 @@ from shopbot.features.checkout.payments import PaymentInstructions, PaymentProvi
 from shopbot.features.checkout.totals import compute_totals
 from shopbot.features.credits import service as credits_service
 from shopbot.features.tickets import service as tickets_service
-from shopbot.features.tickets.models import KIND_ORDER
+from shopbot.features.tickets.models import CREATING, KIND_ORDER, OPEN
 from shopbot.logging_setup import log_event
+from shopbot.ui import custom_ids
 from shopbot.ui.discord_render import RenderError, check_message, edit_spec, send_spec
 from shopbot.ui.routing import HandlerError
 from shopbot.ui.spec import EmbedSpec, MessageSpec
@@ -50,9 +73,12 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-TASK_SESSION_EXPIRE = "checkout.session_expire"
-TASK_PAYMENT_REMINDER = "checkout.payment_reminder"
-TASK_PAYMENT_EXPIRE = "checkout.payment_expire"
+TASK_SESSION_EXPIRE = repo.TASK_SESSION_EXPIRE
+TASK_PAYMENT_REMINDER = repo.TASK_PAYMENT_REMINDER
+TASK_PAYMENT_EXPIRE = repo.TASK_PAYMENT_EXPIRE
+TASK_AFTER_SUBMIT = repo.TASK_AFTER_SUBMIT
+TASK_AFTER_TRANSITION = repo.TASK_AFTER_TRANSITION
+TASK_TICKET_CHECK = repo.TASK_TICKET_CHECK
 TICKET_CATEGORY = "checkout"
 CREDITS_FEATURE = "credits"
 REVIEWS_FEATURE = "reviews"
@@ -60,18 +86,12 @@ REVIEWS_FEATURE = "reviews"
 START_COOLDOWN_SECONDS = 10
 # Refund reasons are also stored as the store-credit note of a refund to credit.
 REFUND_REASON_MAX = views.REFUND_REASON_MAX
+# How many recent staff-channel messages are searched for an order's controls before posting them again.
+STAFF_SCAN_LIMIT = 50
 
-
-def session_task_key(session_id: int) -> str:
-    return f"checkout.session:{session_id}"
-
-
-def reminder_task_key(order_id: int) -> str:
-    return f"checkout.payment_reminder:{order_id}"
-
-
-def expiry_task_key(order_id: int) -> str:
-    return f"checkout.payment_expire:{order_id}"
+session_task_key = repo.session_task_key
+reminder_task_key = repo.reminder_task_key
+expiry_task_key = repo.expiry_task_key
 
 
 def notify_key(order_id: int, kind: str) -> str:
@@ -82,6 +102,18 @@ def staff_details_key(order_id: int, index: int) -> str:
     return f"checkout.staff_details:{order_id}:{index}"
 
 
+def staff_items_key(order_id: int, index: int) -> str:
+    return f"checkout.staff_items:{order_id}:{index}"
+
+
+def order_extra_key(order_id: int, part: str, index: int) -> str:
+    return f"checkout.order_{part}:{order_id}:{index}"
+
+
+class FollowupIncomplete(Exception):
+    """A follow-up step could not be completed (the follow-up task is retried)."""
+
+
 # -- per-process runtime (anti-spam and per-order locks; not business state) ----------------------------------
 
 
@@ -89,12 +121,21 @@ def staff_details_key(order_id: int, index: int) -> str:
 class CheckoutRuntime:
     cooldowns: Cooldowns
     refund_locks: dict[int, asyncio.Lock] = field(default_factory=dict)
+    followup_locks: dict[int, asyncio.Lock] = field(default_factory=dict)
 
     def refund_lock(self, order_id: int) -> asyncio.Lock:
         lock = self.refund_locks.get(order_id)
         if lock is None:
             lock = asyncio.Lock()
             self.refund_locks[order_id] = lock
+        return lock
+
+    def followup_lock(self, order_id: int) -> asyncio.Lock:
+        """Serializes the follow-up steps of one order (the in-process run and its durable task)."""
+        lock = self.followup_locks.get(order_id)
+        if lock is None:
+            lock = asyncio.Lock()
+            self.followup_locks[order_id] = lock
         return lock
 
 
@@ -122,12 +163,30 @@ def credit_refunds_enabled(app: App) -> bool:
     return app.ready(CREDITS_FEATURE)
 
 
+def credit_refunds_possible(app: App, order: m.Order) -> bool:
+    """Refunds of ``order`` can go to store credit: the credits feature is ready and the order was paid in the
+    current shop currency (the credit ledger is kept in the shop currency)."""
+    return credit_refunds_enabled(app) and order.currency == app.settings.checkout.currency
+
+
 def provider_for(order: m.Order) -> PaymentProvider | None:
     return get_provider(order.payment_provider)
 
 
 def _content_missing(exc: MissingContent, where: str) -> None:
     log_event(log, logging.ERROR, "content_missing_at_runtime", key=exc.key, where=where)
+
+
+async def _attempt(step: str, run: Callable[[], Awaitable[object]], **context: object) -> bool:
+    """Run one side effect after a commit. Any error is logged and reported as False; the caller goes on with the
+    other steps (a committed change is never undone, and the follow-up task repeats what failed)."""
+    try:
+        await run()
+    except Exception as exc:
+        log_event(log, logging.ERROR, "checkout_step_failed", step=step, error=type(exc).__name__, **context)
+        log.warning("checkout step %s failed", step, exc_info=True)
+        return False
+    return True
 
 
 def customer_error(app: App, exc: repo.CheckoutError) -> HandlerError:
@@ -184,7 +243,7 @@ async def workflow_spec(app: App, session_id: int, *, notice: EmbedSpec | None =
 
 async def session_channel(app: App, session: m.Session) -> discord.TextChannel | None:
     ticket = await tickets_service.get_ticket(app, session.ticket_id)
-    if ticket is None or ticket.status not in ("creating", "open"):
+    if ticket is None or ticket.status not in (CREATING, OPEN):
         return None
     return await tickets_service.ticket_channel(app, ticket)
 
@@ -202,15 +261,19 @@ async def _channel_confirmed_gone(app: App, channel_id: int) -> bool:
     return False
 
 
-async def retire_vanished_session(app: App, session: m.Session) -> None:
-    """The session's order channel is gone: expire the session and record the channel deletion (so the dead
-    channel no longer counts toward the member's open-channel limit)."""
-    await expire_session(app, session.id, reason="channel_missing", render=False, close=False)
+async def retire_vanished_session(app: App, session: m.Session) -> bool:
+    """The session's order channel could not be found. Expire the session only when that is certain - its ticket is
+    no longer active, or Discord answered that the channel does not exist (the deletion is then recorded, so the dead
+    channel no longer counts toward the member's limit). A transient lookup failure changes nothing (False)."""
     ticket = await tickets_service.get_ticket(app, session.ticket_id)
-    if ticket is None or ticket.channel_id is None or ticket.status not in ("creating", "open"):
-        return
-    if await _channel_confirmed_gone(app, ticket.channel_id):
-        await tickets_service.channel_deleted(app, ticket.channel_id)
+    channel_id = ticket.channel_id if ticket is not None and ticket.status in (CREATING, OPEN) else None
+    if channel_id is not None and not await _channel_confirmed_gone(app, channel_id):
+        log_event(log, logging.WARNING, "checkout_session_channel_unknown", session_id=session.id)
+        return False
+    await expire_session(app, session.id, reason="channel_missing", render=False, close=False)
+    if channel_id is not None:
+        await tickets_service.channel_deleted(app, channel_id)
+    return True
 
 
 async def order_channel(app: App, order: m.Order) -> discord.TextChannel | None:
@@ -267,6 +330,34 @@ def _preflight(app: App, page: m.ProductPage) -> None:
     views.started_reply(app.ui, 0)
 
 
+async def finish_activation(app: App, session_id: int) -> None:
+    """The session's workflow message exists but its ticket is still 'creating': open it."""
+    session = await app.db.run(repo.get_session, session_id)
+    if session is None or session.message_id is None:
+        return
+    ticket = await tickets_service.get_ticket(app, session.ticket_id)
+    if ticket is not None and ticket.status == CREATING:
+        try:
+            await tickets_service.activate_ticket(app, ticket.id, control_message_id=session.message_id)
+        except tickets_service.TicketStateError:
+            return
+
+
+async def resend_workflow(app: App, session: m.Session, channel: discord.TextChannel) -> bool:
+    """An active session without its workflow message (the process stopped, or sending failed, after the session
+    was recorded): send it now, record it and open the ticket. False when it could not be sent."""
+    try:
+        message = await send_spec(channel, await workflow_spec(app, session.id))
+    except Exception as exc:
+        log_event(
+            log, logging.WARNING, "checkout_workflow_resend_failed", session_id=session.id, error=type(exc).__name__
+        )
+        return False
+    await app.db.transaction(repo.set_session_message, session.id, message.id, app.clock.now())
+    await finish_activation(app, session.id)
+    return True
+
+
 async def start(app: App, member: discord.Member) -> MessageSpec:
     """The start button: reuse the member's unfinished session, refuse over the open-order limit, or create the
     private order channel with its workflow message. Returns the private reply."""
@@ -276,8 +367,11 @@ async def start(app: App, member: discord.Member) -> MessageSpec:
     if existing is not None:
         channel = await session_channel(app, existing)
         if channel is not None:
+            if existing.message_id is None and not await resend_workflow(app, existing, channel):
+                raise HandlerError(core.ERROR_GENERIC)
             return views.session_exists_reply(app.ui, channel.id)
-        await retire_vanished_session(app, existing)
+        if not await retire_vanished_session(app, existing):
+            raise HandlerError(core.ERROR_GENERIC)  # the channel may still exist: keep the session
     open_orders = await app.db.run(repo.count_open_orders, guild_id, member.id)
     if open_orders >= c.max_open_orders_per_user:
         return views.limit_reply(app.ui, c.max_open_orders_per_user)
@@ -305,35 +399,55 @@ async def start(app: App, member: discord.Member) -> MessageSpec:
         log_event(log, logging.ERROR, "checkout_channel_create_failed", user_id=member.id, reason=exc.reason)
         raise HandlerError(core.ERROR_GENERIC) from None
     rt.cooldowns.mark(("start", member.id))
-    now = app.clock.now()
-    session = await app.db.transaction(
-        repo.create_session,
-        guild_id=guild_id,
-        user_id=member.id,
-        ticket_id=created.ticket.id,
-        now=now,
-        expiry_seconds=c.session_expiry_minutes * 60,
-    )
+    attempts = app.scheduler.max_attempts
+    try:
+        session = await app.db.transaction(
+            repo.create_session,
+            guild_id=guild_id,
+            user_id=member.id,
+            ticket_id=created.ticket.id,
+            now=app.clock.now(),
+            expiry_seconds=c.session_expiry_minutes * 60,
+            task_attempts=attempts,
+        )
+    except Exception as exc:
+        log_event(log, logging.ERROR, "checkout_session_create_failed", user_id=member.id, error=type(exc).__name__)
+        reason = f"session_failed:{type(exc).__name__}"
+        await _attempt(
+            "abort_ticket",
+            lambda: tickets_service.abort_ticket(app, created.ticket.id, reason=reason, channel=created.channel),
+        )
+        raise HandlerError(core.ERROR_GENERIC) from None
     try:
         spec = await workflow_spec(app, session.id)
         message = await send_spec(created.channel, spec)
         await app.db.transaction(repo.set_session_message, session.id, message.id, app.clock.now())
         await tickets_service.activate_ticket(app, created.ticket.id, control_message_id=message.id)
-    except (MissingContent, RenderError, discord.HTTPException, tickets_service.TicketStateError) as exc:
-        await app.db.transaction(repo.end_session, session.id, m.SESSION_CANCELLED, app.clock.now())
-        await tickets_service.abort_ticket(
-            app, created.ticket.id, reason=f"workflow_failed:{type(exc).__name__}", channel=created.channel
+    except Exception as exc:  # incl. network errors that are not HTTPException: never leave a half-made channel
+        log_event(log, logging.ERROR, "checkout_workflow_send_failed", session_id=session.id, error=type(exc).__name__)
+        reason = f"workflow_failed:{type(exc).__name__}"
+        await _attempt(
+            "end_session",
+            lambda: app.db.transaction(
+                repo.end_session, session.id, m.SESSION_CANCELLED, app.clock.now(), task_attempts=attempts
+            ),
+        )
+        await _attempt(
+            "abort_ticket",
+            lambda: tickets_service.abort_ticket(app, created.ticket.id, reason=reason, channel=created.channel),
         )
         if isinstance(exc, MissingContent):
             raise
         raise HandlerError(core.ERROR_GENERIC) from None
-    await schedule_session_expiry(app, session)
-    await app.audit.record(
-        "checkout.session_started",
-        actor_id=member.id,
-        target_type="checkout_session",
-        target_id=session.id,
-        details={"ticket_id": created.ticket.id, "channel_id": created.channel.id},
+    await _attempt(
+        "audit",
+        lambda: app.audit.record(
+            "checkout.session_started",
+            actor_id=member.id,
+            target_type="checkout_session",
+            target_id=session.id,
+            details={"ticket_id": created.ticket.id, "channel_id": created.channel.id},
+        ),
     )
     return views.started_reply(app.ui, created.channel.id)
 
@@ -466,42 +580,74 @@ async def _edit_session_message(app: App, session: m.Session, spec: MessageSpec)
 
 
 async def cancel_session(app: App, session: m.Session) -> m.Session | None:
-    """The customer confirmed cancelling their unfinished order. None when it was no longer active."""
-    ended = await app.db.transaction(repo.end_session, session.id, m.SESSION_CANCELLED, app.clock.now())
-    return ended
+    """The customer confirmed cancelling their unfinished order. None when it was no longer active. The
+    cancellation also schedules the durable channel check (``checkout.ticket_check``)."""
+    return await app.db.transaction(
+        repo.end_session,
+        session.id,
+        m.SESSION_CANCELLED,
+        app.clock.now(),
+        task_attempts=app.scheduler.max_attempts,
+    )
+
+
+async def _close_session_channel(app: App, session: m.Session, *, actor_id: int | None, reason: str) -> bool:
+    """Close the order channel of an ended session; the durable channel check is no longer needed then."""
+    closed = await _attempt(
+        "close_channel",
+        lambda: tickets_service.close_ticket(app, session.ticket_id, actor_id=actor_id, reason=reason),
+        session_id=session.id,
+    )
+    if closed:
+        await _attempt("cancel_check", lambda: app.scheduler.cancel(repo.ticket_check_key(session.ticket_id)))
+    return closed
 
 
 async def after_session_cancelled(app: App, session: m.Session, *, actor_id: int) -> None:
-    await app.scheduler.cancel(session_task_key(session.id))
-    await tickets_service.close_ticket(app, session.ticket_id, actor_id=actor_id, reason="cancelled")
-    await app.audit.record(
-        "checkout.session_cancelled",
-        actor_id=actor_id,
-        target_type="checkout_session",
-        target_id=session.id,
-        details={"ticket_id": session.ticket_id},
+    """Close the cancelled session's order channel and audit it (each step runs even if another failed)."""
+    await _close_session_channel(app, session, actor_id=actor_id, reason="cancelled")
+    await _attempt(
+        "audit",
+        lambda: app.audit.record(
+            "checkout.session_cancelled",
+            actor_id=actor_id,
+            target_type="checkout_session",
+            target_id=session.id,
+            details={"ticket_id": session.ticket_id},
+        ),
     )
 
 
 async def expire_session(app: App, session_id: int, *, reason: str, render: bool = True, close: bool = True) -> bool:
-    """active -> expired (idle too long, or its channel disappeared). Returns False if it was not active."""
-    ended = await app.db.transaction(repo.end_session, session_id, m.SESSION_EXPIRED, app.clock.now())
+    """active -> expired (idle too long, or its channel disappeared). Returns False if it was not active. After the
+    commit the channel is closed and the expiry audited even when re-rendering the workflow message fails."""
+    ended = await app.db.transaction(
+        repo.end_session, session_id, m.SESSION_EXPIRED, app.clock.now(), task_attempts=app.scheduler.max_attempts
+    )
     if ended is None:
         return False
-    await app.scheduler.cancel(session_task_key(session_id))
-    if render:
+
+    async def show_expired() -> None:
         try:
-            await _edit_session_message(app, ended, views.session_ended(app.ui, m.SESSION_EXPIRED))
+            spec = views.session_ended(app.ui, m.SESSION_EXPIRED)
         except MissingContent as exc:
             _content_missing(exc, "checkout.session_expired")
+            return
+        await _edit_session_message(app, ended, spec)
+
+    if render:
+        await _attempt("render_expired", show_expired, session_id=session_id)
     if close:
-        await tickets_service.close_ticket(app, ended.ticket_id, actor_id=None, reason="expired")
-    await app.audit.record(
-        "checkout.session_expired",
-        actor_id=None,
-        target_type="checkout_session",
-        target_id=session_id,
-        details={"ticket_id": ended.ticket_id, "reason": reason},
+        await _close_session_channel(app, ended, actor_id=None, reason="expired")
+    await _attempt(
+        "audit",
+        lambda: app.audit.record(
+            "checkout.session_expired",
+            actor_id=None,
+            target_type="checkout_session",
+            target_id=session_id,
+            details={"ticket_id": ended.ticket_id, "reason": reason},
+        ),
     )
     return True
 
@@ -509,18 +655,23 @@ async def expire_session(app: App, session_id: int, *, reason: str, render: bool
 # -- submission ----------------------------------------------------------------------------------------------------
 
 
-async def submit(app: App, session: m.Session, expected_total_minor: int) -> m.Order:
-    """Create the order from the session (idempotent). Raises ``repo.CheckoutError`` (incl. ``PriceChanged``)."""
+async def submit(
+    app: App, session: m.Session, expected_total_minor: int, expected_gross_minor: int | None = None
+) -> m.Order:
+    """Create the order from the session (idempotent). ``expected_*``: the totals the customer was shown (a missing
+    gross amount counts as changed). Raises ``repo.CheckoutError`` (incl. ``PriceChanged``)."""
     result = await app.db.transaction(
         repo.submit_order,
         guild_id=app.env.guild_id,
         session_id=session.id,
         user_id=session.user_id,
         expected_total_minor=expected_total_minor,
+        expected_gross_minor=expected_gross_minor,
         settings=app.settings,
         credits_enabled=credits_enabled(app),
         provider_id=app.settings.payments.provider,
         now=app.clock.now(),
+        task_attempts=app.scheduler.max_attempts,
     )
     if result.created:
         await _after_submit(app, result.order)
@@ -528,35 +679,67 @@ async def submit(app: App, session: m.Session, expected_total_minor: int) -> m.O
 
 
 async def _after_submit(app: App, order: m.Order) -> None:
+    """Right after the commit (which already scheduled the payment tasks and the ``checkout.after_submit``
+    follow-up): the audit entry, then the Discord steps; the follow-up is cancelled when they all completed."""
     log_event(log, logging.INFO, "checkout_order_submitted", order_id=order.id, number=order.number)
-    if order.session_id is not None:
-        await app.scheduler.cancel(session_task_key(order.session_id))
-    await catalog_service.schedule_listing_refresh(app)
-    provider = provider_for(order)
-    if provider is not None:
-        try:
-            started = await provider.start(app, order)
-        except Exception as exc:  # the order exists; staff can still handle it manually
-            log_event(log, logging.ERROR, "checkout_payment_start_failed", order_id=order.id, error=type(exc).__name__)
-        else:
-            if started.external_ref:
-                await app.db.transaction(repo.set_payment_external_ref, order.id, started.external_ref, app.clock.now())
-    await post_staff_message(app, order.id)
-    await post_staff_details(app, order.id)
-    await schedule_payment_tasks(app, order)
-    await app.audit.record(
-        "checkout.order_submitted",
-        actor_id=order.user_id,
-        target_type="order",
-        target_id=order.id,
-        details={
-            "number": order.number,
-            "total_minor": order.total_minor,
-            "credits_applied_minor": order.credits_applied_minor,
-            "currency": order.currency,
-            "provider": order.payment_provider,
-        },
+    await _attempt(
+        "audit",
+        lambda: app.audit.record(
+            "checkout.order_submitted",
+            actor_id=order.user_id,
+            target_type="order",
+            target_id=order.id,
+            details={
+                "number": order.number,
+                "total_minor": order.total_minor,
+                "credits_applied_minor": order.credits_applied_minor,
+                "currency": order.currency,
+                "provider": order.payment_provider,
+            },
+        ),
+        order_id=order.id,
     )
+    if await run_submit_followups(app, order.id, adopt=False):
+        await _attempt("cancel_followup", lambda: app.scheduler.cancel(repo.after_submit_key(order.id)))
+
+
+async def run_submit_followups(app: App, order_id: int, *, adopt: bool) -> bool:
+    """The Discord side of a new order, safe to repeat: the catalog listing refresh, the payment provider's start
+    (only while the payment has no provider reference yet), the staff controls (posted once; ``adopt`` first looks
+    for controls that were posted but never recorded) and the customer's form answers for staff (deduplicated).
+    Returns True when every step completed."""
+    async with runtime(app).followup_lock(order_id):
+        order = await get_order(app, order_id)
+        if order is None:
+            return True
+        ok = await _attempt("listing_refresh", lambda: catalog_service.schedule_listing_refresh(app), order_id=order_id)
+        ok &= await _attempt("payment_start", lambda: _start_payment(app, order_id), order_id=order_id)
+        ok &= await _attempt(
+            "staff_message", lambda: _ensure_staff_message(app, order_id, adopt=adopt), order_id=order_id
+        )
+        ok &= await _attempt("staff_details", lambda: post_staff_details(app, order_id), order_id=order_id)
+        return ok
+
+
+async def _start_payment(app: App, order_id: int) -> None:
+    order = await get_order(app, order_id)
+    provider = provider_for(order) if order is not None else None
+    if order is None or provider is None or order.status != m.PENDING:
+        return
+    payment = await app.db.run(repo.payment_for, order.id)
+    if payment is not None and payment.external_ref:
+        return  # already started
+    started = await provider.start(app, order)
+    if started.external_ref:
+        await app.db.transaction(repo.set_payment_external_ref, order.id, started.external_ref, app.clock.now())
+
+
+async def _ensure_staff_message(app: App, order_id: int, *, adopt: bool) -> None:
+    order = await get_order(app, order_id)
+    if order is None or order.staff_message_id is not None:
+        return
+    if not await post_staff_message(app, order_id, adopt=adopt):
+        raise FollowupIncomplete("staff controls not posted")
 
 
 async def schedule_payment_tasks(app: App, order: m.Order) -> None:
@@ -592,11 +775,34 @@ async def payment_instructions(app: App, order: m.Order) -> PaymentInstructions 
     return instructions
 
 
-async def customer_order_spec(app: App, order_id: int) -> MessageSpec:
+async def customer_order_messages(app: App, order_id: int) -> views.OrderMessages:
+    """The order's workflow message and what did not fit into it (see ``views.order_messages``)."""
     view = await order_view(app, order_id)
     if view is None:
         raise HandlerError(core.ERROR_NOT_FOUND)
-    return views.order_message(app.ui, view, instructions=await payment_instructions(app, view.order))
+    return views.order_messages(app.ui, app.settings, view, instructions=await payment_instructions(app, view.order))
+
+
+async def customer_order_spec(app: App, order_id: int) -> MessageSpec:
+    return (await customer_order_messages(app, order_id)).main
+
+
+async def post_order_extras(app: App, order_id: int, messages: views.OrderMessages) -> None:
+    """Post what did not fit into the order's workflow message (payment instructions, order lines) in the order
+    channel, each part at most once."""
+    if not messages.instructions and not messages.items:
+        return
+    view = await order_view(app, order_id)
+    if view is None or view.channel_id is None:
+        return
+    for part, specs in (("instructions", messages.instructions), ("items", messages.items)):
+        for index, spec in enumerate(specs):
+            await app.notifier.notify_channel(
+                channel_id=view.channel_id,
+                spec=spec,
+                kind=f"checkout.order_{part}",
+                dedupe_key=order_extra_key(order_id, part, index),
+            )
 
 
 async def refresh_customer_message(app: App, order_id: int) -> bool:
@@ -608,28 +814,37 @@ async def refresh_customer_message(app: App, order_id: int) -> bool:
     if channel is None:
         return False
     try:
-        spec = views.order_message(app.ui, view, instructions=await payment_instructions(app, view.order))
-        await edit_spec(channel.get_partial_message(view.order.customer_message_id), spec)
+        messages = views.order_messages(
+            app.ui, app.settings, view, instructions=await payment_instructions(app, view.order)
+        )
+        await edit_spec(channel.get_partial_message(view.order.customer_message_id), messages.main)
     except MissingContent as exc:
         _content_missing(exc, "checkout.order_view")
         return False
     except (discord.HTTPException, RenderError) as exc:
         log_event(log, logging.WARNING, "checkout_order_view_edit_failed", order_id=order_id, error=type(exc).__name__)
         return False
+    await _attempt("order_extras", lambda: post_order_extras(app, order_id, messages), order_id=order_id)
     return True
 
 
 # -- staff order controls ------------------------------------------------------------------------------------------
 
 
-def staff_spec(app: App, view: m.OrderView) -> MessageSpec:
+def staff_specs(app: App, view: m.OrderView) -> list[MessageSpec]:
+    """The staff controls, then (large orders only) the order lines that did not fit into them."""
     provider = provider_for(view.order)
-    return views.staff_message(
+    return views.staff_messages(
         app.ui,
+        app.settings,
         view,
         staff_confirms_payment=provider.requires_staff_confirmation if provider is not None else True,
-        credit_refunds=credit_refunds_enabled(app),
+        credit_refunds=credit_refunds_possible(app, view.order),
     )
+
+
+def staff_spec(app: App, view: m.OrderView) -> MessageSpec:
+    return staff_specs(app, view)[0]
 
 
 def staff_channel(app: App) -> discord.TextChannel | None:
@@ -639,22 +854,90 @@ def staff_channel(app: App) -> discord.TextChannel | None:
     return app.resources.text_channel(guild, app.settings.checkout.staff_channel)
 
 
-async def post_staff_message(app: App, order_id: int) -> bool:
-    """Post the order controls in the staff channel and remember where they are."""
+def component_custom_ids(message: object) -> list[str]:
+    """custom_ids of a message's components (``discord.Message.components``: rows and their buttons/menus)."""
+    top = getattr(message, "components", None)
+    stack: list[object] = list(top) if isinstance(top, (list, tuple)) else []
+    found: list[str] = []
+    while stack:
+        component = stack.pop()
+        custom_id = getattr(component, "custom_id", None)
+        if isinstance(custom_id, str):
+            found.append(custom_id)
+        children = getattr(component, "children", None)
+        if isinstance(children, (list, tuple)):
+            stack.extend(children)
+        accessory = getattr(component, "accessory", None)
+        if accessory is not None:
+            stack.append(accessory)
+    return found
+
+
+def controls_order_id(custom_id: str) -> int | None:
+    """The order whose staff controls carry ``custom_id`` (the order id is the first argument), else None."""
+    parsed = custom_ids.parse(custom_id)
+    if parsed is None:
+        return None
+    route, action, args = parsed
+    if route != k.STAFF_ROUTE or action not in views.ORDER_CONTROL_ACTIONS or not args or not args[0].isdigit():
+        return None
+    return int(args[0])
+
+
+async def find_staff_message(app: App, channel: discord.TextChannel, order_id: int) -> discord.Message | None:
+    """The bot's controls of ``order_id`` among the recent messages of the staff channel - posted, but never
+    recorded (the response was lost or the process stopped) - recognized by the order id in their buttons."""
+    me = app.bot.user if app.bot is not None else None
+    if me is None:
+        return None
+    try:
+        async for message in channel.history(limit=STAFF_SCAN_LIMIT):
+            if message.author.id != me.id:
+                continue
+            if any(controls_order_id(custom_id) == order_id for custom_id in component_custom_ids(message)):
+                return message
+    except discord.HTTPException as exc:
+        log_event(log, logging.WARNING, "checkout_staff_scan_failed", order_id=order_id, status=exc.status)
+    return None
+
+
+async def _post_staff_extras(app: App, order_id: int, channel_id: int, specs: Sequence[MessageSpec]) -> None:
+    for index, spec in enumerate(specs):
+        await app.notifier.notify_channel(
+            channel_id=channel_id, spec=spec, kind="checkout.staff_items", dedupe_key=staff_items_key(order_id, index)
+        )
+
+
+async def post_staff_message(app: App, order_id: int, *, adopt: bool = False) -> bool:
+    """Post the order controls in the staff channel and remember where they are (with ``adopt``, controls already
+    posted for this order but never recorded are reused instead of posting a duplicate). The order lines of a large
+    order and the customer's form answers follow as separate messages (each at most once)."""
     view = await order_view(app, order_id)
     channel = staff_channel(app)
     if view is None or channel is None:
         log_event(log, logging.ERROR, "checkout_staff_channel_missing", order_id=order_id)
         return False
     try:
-        message = await send_spec(channel, staff_spec(app, view))
+        specs = staff_specs(app, view)
     except MissingContent as exc:
         _content_missing(exc, "checkout.staff_message")
         return False
-    except (discord.HTTPException, RenderError) as exc:
-        log_event(log, logging.ERROR, "checkout_staff_post_failed", order_id=order_id, error=type(exc).__name__)
-        return False
+    message = await find_staff_message(app, channel, order_id) if adopt else None
+    if message is not None:
+        log_event(log, logging.WARNING, "checkout_staff_message_adopted", order_id=order_id, message_id=message.id)
+        try:
+            await edit_spec(message, specs[0])
+        except (discord.HTTPException, RenderError) as exc:
+            log_event(log, logging.WARNING, "checkout_staff_edit_failed", order_id=order_id, error=type(exc).__name__)
+    else:
+        try:
+            message = await send_spec(channel, specs[0])
+        except (discord.HTTPException, RenderError) as exc:
+            log_event(log, logging.ERROR, "checkout_staff_post_failed", order_id=order_id, error=type(exc).__name__)
+            return False
     await app.db.transaction(repo.set_staff_message, order_id, channel.id, message.id, app.clock.now())
+    await _attempt("staff_items", lambda: _post_staff_extras(app, order_id, channel.id, specs[1:]), order_id=order_id)
+    await _attempt("staff_details", lambda: post_staff_details(app, order_id), order_id=order_id)
     return True
 
 
@@ -685,12 +968,13 @@ async def refresh_staff_message(app: App, order_id: int) -> bool:
         return False
     order = view.order
     if order.staff_message_id is None or order.staff_channel_id is None:
-        return await post_staff_message(app, order_id)
+        return await post_staff_message(app, order_id, adopt=True)
     channel = app.bot.get_channel(order.staff_channel_id) if app.bot is not None else None
     if not isinstance(channel, discord.TextChannel):
         return await post_staff_message(app, order_id)
     try:
-        await edit_spec(channel.get_partial_message(order.staff_message_id), staff_spec(app, view))
+        specs = staff_specs(app, view)
+        await edit_spec(channel.get_partial_message(order.staff_message_id), specs[0])
     except discord.NotFound:
         return await post_staff_message(app, order_id)
     except MissingContent as exc:
@@ -699,6 +983,7 @@ async def refresh_staff_message(app: App, order_id: int) -> bool:
     except (discord.HTTPException, RenderError) as exc:
         log_event(log, logging.WARNING, "checkout_staff_edit_failed", order_id=order_id, error=type(exc).__name__)
         return False
+    await _attempt("staff_items", lambda: _post_staff_extras(app, order_id, channel.id, specs[1:]), order_id=order_id)
     return True
 
 
@@ -740,11 +1025,22 @@ class Outcome:
     previous: str | None = None
 
 
-async def change_status(app: App, order_id: int, to: str, *, actor_id: int | None, note: str | None = None) -> Outcome:
-    """Move an order to ``to`` through the state machine (see ``models``) and apply every side effect."""
+async def change_status(
+    app: App,
+    order_id: int,
+    to: str,
+    *,
+    actor_id: int | None,
+    note: str | None = None,
+    allowed_from: Sequence[str] | None = None,
+) -> Outcome:
+    """Move an order to ``to`` through the state machine (see ``models``) and apply every side effect.
+    ``allowed_from`` (optional) narrows the statuses the change may start from; it never widens them."""
     allowed = m.TRANSITIONS.get(to)
     if allowed is None:
         raise ValueError(f"no transition leads to {to!r}")
+    if allowed_from is not None:
+        allowed = tuple(status for status in allowed if status in allowed_from)
     moved = await app.db.transaction(
         repo.transition,
         guild_id=app.env.guild_id,
@@ -754,6 +1050,7 @@ async def change_status(app: App, order_id: int, to: str, *, actor_id: int | Non
         actor_id=actor_id,
         note=note,
         now=app.clock.now(),
+        task_attempts=app.scheduler.max_attempts,
     )
     if moved is None:
         return Outcome(applied=False, order=await get_order(app, order_id))
@@ -762,6 +1059,8 @@ async def change_status(app: App, order_id: int, to: str, *, actor_id: int | Non
 
 
 async def after_transition(app: App, moved: repo.Transition, *, actor_id: int | None) -> None:
+    """Right after a committed status change: the audit entry, then the follow-up steps; the durable follow-up
+    (``checkout.after_transition``, scheduled by the commit) is cancelled when every step completed."""
     before, after = moved.before, moved.after
     log_event(
         log,
@@ -772,27 +1071,58 @@ async def after_transition(app: App, moved: repo.Transition, *, actor_id: int | 
         old=before.status,
         new=after.status,
     )
-    if before.status == m.PENDING:
-        await app.scheduler.cancel(reminder_task_key(after.id))
-        await app.scheduler.cancel(expiry_task_key(after.id))
-    if moved.released:
-        await catalog_service.schedule_listing_refresh(app)
-    await refresh_customer_message(app, after.id)
-    view = await order_view(app, after.id)
-    if view is not None and after.status in k.NOTIFIED_STATUSES:
-        await notify_customer(app, view, after.status, lambda: views.status_notification(app.ui, view, after.status))
-    if after.status in m.TERMINAL_STATUSES and after.ticket_id is not None:
-        await tickets_service.close_ticket(app, after.ticket_id, actor_id=actor_id, reason=after.status)
-    await refresh_staff_message(app, after.id)
-    if after.status == m.FULFILLED:
-        await _schedule_review(app, after.id)
-    await app.audit.record(
-        f"checkout.order_{after.status}",
-        actor_id=actor_id,
-        target_type="order",
-        target_id=after.id,
-        details={"number": after.number, "from": before.status, "to": after.status, "automatic": actor_id is None},
+    await _attempt(
+        "audit",
+        lambda: app.audit.record(
+            f"checkout.order_{after.status}",
+            actor_id=actor_id,
+            target_type="order",
+            target_id=after.id,
+            details={"number": after.number, "from": before.status, "to": after.status, "automatic": actor_id is None},
+        ),
+        order_id=after.id,
     )
+    done = await run_transition_followups(app, after.id, after.status, actor_id=actor_id, released=moved.released)
+    if done:
+        key = repo.after_transition_key(after.id, after.status)
+        await _attempt("cancel_followup", lambda: app.scheduler.cancel(key), order_id=after.id)
+
+
+async def run_transition_followups(
+    app: App, order_id: int, status: str, *, actor_id: int | None, released: bool = False
+) -> bool:
+    """Everything that follows a change to ``status``, each step isolated and safe to repeat: the catalog listing
+    (when held stock was released), the customer's order view, the status notification (once; only while the order
+    is still in ``status``), closing the order channel of a final order, the staff controls, and the review request
+    of a fulfilled order (deduplicated by reviews). Returns True when every step completed."""
+    async with runtime(app).followup_lock(order_id):
+        ok = True
+        if released:
+            ok &= await _attempt("listing_refresh", lambda: catalog_service.schedule_listing_refresh(app))
+        ok &= await _attempt("customer_message", lambda: refresh_customer_message(app, order_id), order_id=order_id)
+        ok &= await _attempt("notification", lambda: _notify_status(app, order_id, status), order_id=order_id)
+        ok &= await _attempt("close_channel", lambda: _close_final_channel(app, order_id, actor_id), order_id=order_id)
+        ok &= await _attempt("staff_message", lambda: refresh_staff_message(app, order_id), order_id=order_id)
+        if status == m.FULFILLED:
+            ok &= await _attempt("review", lambda: _schedule_review(app, order_id), order_id=order_id)
+        return ok
+
+
+async def _notify_status(app: App, order_id: int, status: str) -> None:
+    view = await order_view(app, order_id)
+    if view is None or view.order.status != status or status not in k.NOTIFIED_STATUSES:
+        return
+    await notify_customer(app, view, status, lambda: views.status_notification(app.ui, app.settings, view, status))
+
+
+async def _close_final_channel(app: App, order_id: int, actor_id: int | None) -> None:
+    order = await get_order(app, order_id)
+    if order is None or order.status not in m.TERMINAL_STATUSES or order.ticket_id is None:
+        return
+    ticket = await tickets_service.get_ticket(app, order.ticket_id)
+    if ticket is None or ticket.status != OPEN:
+        return
+    await tickets_service.close_ticket(app, ticket.id, actor_id=actor_id, reason=order.status)
 
 
 async def _schedule_review(app: App, order_id: int) -> None:
@@ -816,7 +1146,7 @@ async def _schedule_review(app: App, order_id: int) -> None:
 
 
 class RefundError(Exception):
-    """reason: 'missing' | 'state' | 'amount' | 'reason' | 'credits_unavailable' | 'provider_failed'."""
+    """reason: 'missing' | 'state' | 'amount' | 'reason' | 'credits_unavailable' | 'currency' | 'provider_failed'."""
 
     def __init__(self, reason: str, order: m.Order | None = None, error_id: str | None = None) -> None:
         super().__init__(reason)
@@ -828,13 +1158,13 @@ class RefundError(Exception):
 @dataclass(frozen=True)
 class RefundOutcome:
     record: repo.RefundRecord
-    result: RefundResult | None  # None for a refund to store credit
+    result: RefundResult | None  # None for a refund to store credit or a credit return
 
 
 async def refund(
     app: App, order_id: int, *, amount_minor: int, to_credit: bool, reason: str | None, actor_id: int
 ) -> RefundOutcome:
-    """Record a (partial) refund, through the payment provider when it supports refunds, or as store credit."""
+    """Record a (partial) money refund, through the payment provider when it supports refunds, or as store credit."""
     async with runtime(app).refund_lock(order_id):
         order = await get_order(app, order_id)
         if order is None:
@@ -845,6 +1175,8 @@ async def refund(
             raise RefundError("amount", order)
         if to_credit and not credit_refunds_enabled(app):
             raise RefundError("credits_unavailable", order)
+        if to_credit and order.currency != app.settings.checkout.currency:
+            raise RefundError("currency", order)
         if reason is not None and len(reason) > REFUND_REASON_MAX:
             raise RefundError("reason", order)
         result: RefundResult | None = None
@@ -879,38 +1211,87 @@ async def refund(
                 actor_id=actor_id,
                 external_ref=result.external_ref if result is not None else None,
                 now=app.clock.now(),
+                task_attempts=app.scheduler.max_attempts,
             )
         except repo.RefundNotAllowed as exc:
             raise RefundError(exc.reason, order) from None
-    if record.transition is not None:
-        # The full refund moved the order to 'refunded': its status notification tells the customer.
-        await after_transition(app, record.transition, actor_id=actor_id)
-    else:
-        await refresh_staff_message(app, order_id)
-        view = await order_view(app, order_id)
-        if view is not None:
-            await notify_customer(
-                app,
-                view,
-                k.NOTIFY_REFUND,
-                lambda: views.refund_notification(app.ui, view, amount_minor),
-                dedupe_suffix=str(record.adjustment.id),
-            )
-    await app.audit.record(
-        "checkout.order_refund",
-        actor_id=actor_id,
-        target_type="order",
-        target_id=order_id,
-        details={
-            "number": record.order.number,
-            "amount_minor": amount_minor,
-            "method": method,
-            "to_credit": to_credit,
-            "refunded_minor": record.order.refunded_minor,
-            "adjustment_id": record.adjustment.id,
-        },
+    await _after_refund(app, record, amount_minor=amount_minor, actor_id=actor_id)
+    await _attempt(
+        "audit",
+        lambda: app.audit.record(
+            "checkout.order_refund",
+            actor_id=actor_id,
+            target_type="order",
+            target_id=order_id,
+            details={
+                "number": record.order.number,
+                "amount_minor": amount_minor,
+                "method": method,
+                "to_credit": to_credit,
+                "refunded_minor": record.order.refunded_minor,
+                "adjustment_id": record.adjustment.id,
+            },
+        ),
+        order_id=order_id,
     )
     return RefundOutcome(record=record, result=result)
+
+
+async def return_credit(app: App, order_id: int, *, reason: str | None, actor_id: int) -> RefundOutcome:
+    """Give the store credit the customer applied to a paid order back to their balance, all at once (see the module
+    docstring). Raises ``RefundError`` ('missing', 'state' when there is nothing to give back, 'reason')."""
+    async with runtime(app).refund_lock(order_id):
+        order = await get_order(app, order_id)
+        if order is None:
+            raise RefundError("missing")
+        if not order.can_return_credit:
+            raise RefundError("state", order)
+        if reason is not None and len(reason) > REFUND_REASON_MAX:
+            raise RefundError("reason", order)
+        try:
+            record = await app.db.transaction(
+                repo.return_order_credit,
+                guild_id=app.env.guild_id,
+                order_id=order_id,
+                reason=reason or None,
+                actor_id=actor_id,
+                now=app.clock.now(),
+                task_attempts=app.scheduler.max_attempts,
+            )
+        except repo.RefundNotAllowed as exc:
+            raise RefundError(exc.reason, order) from None
+    amount = record.adjustment.amount_minor
+    await _after_refund(app, record, amount_minor=amount, actor_id=actor_id)
+    await _attempt(
+        "audit",
+        lambda: app.audit.record(
+            "checkout.order_credit_returned",
+            actor_id=actor_id,
+            target_type="order",
+            target_id=order_id,
+            details={"number": record.order.number, "amount_minor": amount, "adjustment_id": record.adjustment.id},
+        ),
+        order_id=order_id,
+    )
+    return RefundOutcome(record=record, result=None)
+
+
+async def _after_refund(app: App, record: repo.RefundRecord, *, amount_minor: int, actor_id: int) -> None:
+    order_id = record.order.id
+    if record.transition is not None:
+        # The order is now fully refunded: its 'refunded' status notification tells the customer.
+        await after_transition(app, record.transition, actor_id=actor_id)
+        return
+    await _attempt("staff_message", lambda: refresh_staff_message(app, order_id), order_id=order_id)
+    view = await order_view(app, order_id)
+    if view is not None:
+        await notify_customer(
+            app,
+            view,
+            k.NOTIFY_REFUND,
+            lambda: views.refund_notification(app.ui, app.settings, view, amount_minor),
+            dedupe_suffix=str(record.adjustment.id),
+        )
 
 
 async def add_note(app: App, order_id: int, *, actor_id: int, note: str) -> m.Order | None:

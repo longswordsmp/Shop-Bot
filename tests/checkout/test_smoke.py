@@ -47,8 +47,9 @@ async def test_full_lifecycle(co: TestEnv) -> None:
     stock = await product(co, p1.id)
     assert stock.stock_on_hand == 3 and stock.reserved == 0
 
-    await press(co, staff, staff_message(co, after), views.staff_action_id(m.PROCESSING, placed.id))
-    await press(co, staff, staff_message(co, after), views.staff_action_id(m.FULFILLED, placed.id))
+    await press(co, staff, staff_message(co, after), views.staff_action_id(m.PROCESSING, placed.id, m.PAID))
+    processing = await order(co, placed.id)
+    await press(co, staff, staff_message(co, processing), views.staff_action_id(m.FULFILLED, placed.id, m.PROCESSING))
     final = await order(co, placed.id)
     assert final.status == m.FULFILLED
     assert await ticket_status(co, placed.ticket_id or 0) == "closed"
