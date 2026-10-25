@@ -58,6 +58,8 @@ def _diagnostics(app: App, guild: discord.Guild) -> list[str]:
     missing = missing_permissions(me, category, CREATE_PRIVATE_REQUIRED)
     if missing:
         lines.append(app.op("checkout.publish.category_permissions", permissions=", ".join(missing)))
+    if c.transcript_on_close and (not app.settings.tickets.transcript_channel or not app.ready("tickets")):
+        lines.append(app.op("checkout.publish.transcripts_unavailable"))
     return lines
 
 

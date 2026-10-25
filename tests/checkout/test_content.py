@@ -113,3 +113,26 @@ async def test_reviews_hook_needs_a_ready_reviews_feature(tmp_path: Path, monkey
         assert calls == []
     finally:
         await tenv.close()
+
+
+async def test_orders_of_a_former_payment_provider_still_render(tmp_path: Path) -> None:
+    from dataclasses import replace
+
+    from shopbot.config.readiness import build_registry
+    from shopbot.features.checkout import service
+
+    tenv = await make_env(tmp_path)
+    try:
+        p1 = await add_product(tenv, "[p1]")
+        placed, _, _ = await place_order(tenv, tenv.member(), [(p1.id, 1)])
+        # The operator switched the payment provider off: the manual provider's text is no longer registered.
+        settings = tenv.app.settings
+        tenv.app.settings = replace(settings, payments=replace(settings.payments, provider=""))
+        tenv.app.content.replace(registry=build_registry(tenv.app.settings, tenv.app.modules))
+        assert await service.payment_instructions(tenv.app, await order(tenv, placed.id)) is None
+        spec = await service.customer_order_spec(tenv.app, placed.id)
+        assert len(spec.embeds) == 1  # the order still renders, without instructions
+        await tenv.app.db.run(lambda conn: conn.execute("UPDATE orders SET payment_provider = 'retired'"))
+        assert await service.payment_instructions(tenv.app, await order(tenv, placed.id)) is None
+    finally:
+        await tenv.close()

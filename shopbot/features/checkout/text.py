@@ -95,6 +95,10 @@ OPERATOR_TEXT: dict[str, str] = {
         "checkout.order_category: category '{name}' does not exist yet; order channels would be created outside "
         "any category."
     ),
+    "checkout.publish.transcripts_unavailable": (
+        "checkout.transcript_on_close is on, but order transcripts need tickets.transcript_channel and a ready "
+        "tickets feature (its transcript texts); order channels are closed without a transcript."
+    ),
     "checkout.publish.category_permissions": (
         "checkout.order_category: the bot lacks {permissions} where order channels are created."
     ),

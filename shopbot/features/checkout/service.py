@@ -585,7 +585,11 @@ async def payment_instructions(app: App, order: m.Order) -> PaymentInstructions 
     if provider is None or order.status != m.PENDING:
         return None
     payment = await app.db.run(repo.payment_for, order.id)
-    return provider.instructions(order, payment.external_ref if payment is not None else None)
+    instructions = provider.instructions(order, payment.external_ref if payment is not None else None)
+    # The provider's text is only registered while it is the configured provider.
+    if instructions.description_key not in app.content.registry:
+        return None
+    return instructions
 
 
 async def customer_order_spec(app: App, order_id: int) -> MessageSpec:

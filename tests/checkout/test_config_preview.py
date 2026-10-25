@@ -357,3 +357,13 @@ async def test_publish_reports_missing_channel(tmp_path: Path) -> None:
 async def test_panel_text_is_exact(co: TestEnv) -> None:
     started = views.started_reply(co.app.ui, 42)
     assert started.embeds[0].description == render(co, k.STARTED, channel_mention="<#42>")
+
+
+async def test_publish_reports_unavailable_transcripts(tmp_path: Path) -> None:
+    overrides = {"checkout": {"transcript_on_close": True}, "tickets": {"transcript_channel": ""}}
+    tenv = await make_env(tmp_path, overrides)
+    try:
+        lines = await panel.publish(tenv.app)
+        assert tenv.app.op("checkout.publish.transcripts_unavailable") in lines
+    finally:
+        await tenv.close()
