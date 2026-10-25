@@ -48,8 +48,10 @@ specification feature lives in `docs/features/`.
   use built-in technical English ("operator text"), shown only after an admin/staff check, ephemerally or in
   admin-only channels. Every entry can be overridden with `operator.<key>` in `content.toml`. This is necessary
   so the bot can tell an administrator what is missing *before* any content exists.
-- **Slash-command descriptions** are technical admin-facing text (Discord requires one). All slash commands are
-  staff/admin tools; customers use only panels (buttons, menus, forms), so no customer-facing command text exists.
+- **Slash commands** keep the names the specification gives (`/setup`, `/announce`, `/orders`, `/order view`,
+  `/myorders`, `/product ...`). Staff/admin command descriptions and option texts are technical English (Discord
+  requires them at registration, before any content can be read). The only customer command, `/myorders`, takes its
+  description from content (`my_orders.command.description`) and is not registered until it is set.
 - **Staff-facing business messages** that are part of operations (staff alerts, the staff order control message)
   are content keys, because they are notifications the owner should word.
 - **Test fixtures** (`[t17]`-style tokens) are generated at test time and never exist in configuration files.
