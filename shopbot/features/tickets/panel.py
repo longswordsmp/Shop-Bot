@@ -9,8 +9,9 @@ import discord
 
 from shopbot.config.content import MissingContent
 from shopbot.core.channels import CREATE_PRIVATE_REQUIRED
-from shopbot.core.panels import upsert_message
+from shopbot.core.panels import remove_message, upsert_message
 from shopbot.core.permissions import CHANNEL_SEND_PERMISSIONS, missing_permissions
+from shopbot.features.tickets import content_keys as k
 from shopbot.features.tickets import service, views
 from shopbot.logging_setup import log_event
 from shopbot.ui.discord_render import RenderError
@@ -109,6 +110,16 @@ async def publish(app: App) -> list[str]:
     if guild is None:
         return [app.op("tickets.publish.no_guild")]
     t = app.settings.tickets
+    if not k.panel_enabled(app.settings):
+        # No standalone panel (tickets are opened by other features): remove one published earlier, if any.
+        removed: list[str] = []
+        try:
+            if await remove_message(app, PANEL_KEY):
+                removed.append(app.op("tickets.publish.panel_removed"))
+        except discord.HTTPException as exc:
+            log_event(log, logging.WARNING, "tickets_panel_remove_failed", status=exc.status)
+            removed.append(app.op("tickets.publish.failed", status=exc.status))
+        return removed + _diagnostics(app, guild)
     channel = app.resources.text_channel(guild, t.panel_channel)
     if channel is None:
         return [app.op("tickets.publish.no_channel", name=t.panel_channel)]

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import weakref
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
@@ -31,6 +32,9 @@ class TicketRuntime:
     # channel_id -> last time activity was recorded (in-memory throttle before touching the database).
     activity_seen: dict[int, int] = field(default_factory=dict)
     warned_no_content_intent: bool = False
+    # Support-ticket categories created by other features (not in tickets.categories), e.g. problem reports:
+    # category id -> extra staff role keys of its tickets (see service.register_external_category).
+    external_categories: dict[str, Callable[[App], tuple[str, ...]]] = field(default_factory=dict)
 
     def transcript_lock(self, ticket_id: int) -> asyncio.Lock:
         lock = self.transcript_locks.get(ticket_id)

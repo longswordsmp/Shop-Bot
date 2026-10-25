@@ -43,8 +43,9 @@ def preview(app: App) -> list[PreviewState]:
             return
         states.append(PreviewState(feature=k.FEATURE, name=name, note=note, spec=spec))
 
-    add("panel.buttons", "Ticket panel with one button per category.", lambda: views.panel(ui, t, style="buttons"))
-    add("panel.select", "Ticket panel with a category selection menu.", lambda: views.panel(ui, t, style="select"))
+    if k.panel_enabled(app.settings):  # no standalone panel when tickets.panel_channel is empty
+        add("panel.buttons", "Ticket panel with one button per category.", lambda: views.panel(ui, t, style="buttons"))
+        add("panel.select", "Ticket panel with a category selection menu.", lambda: views.panel(ui, t, style="select"))
 
     for category in t.categories:
         _category_states(app, category, add)

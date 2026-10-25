@@ -53,6 +53,7 @@ OPERATOR_TEXT: dict[str, str] = {
     "tickets.publish.invalid": "Ticket panel violates Discord limits: {error}",
     "tickets.publish.failed": "Ticket panel could not be posted (HTTP {status}).",
     "tickets.publish.panel": "Ticket panel {action} in {channel}.",
+    "tickets.publish.panel_removed": "Ticket panel removed (tickets.panel_channel is empty).",
     "tickets.publish.category_missing": (
         "Ticket category '{category}': Discord category '{discord_category}' does not exist yet; tickets would "
         "be created outside any category."

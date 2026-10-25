@@ -71,7 +71,6 @@ def test_conditional_requiredness() -> None:
 @pytest.mark.parametrize(
     ("override", "fragment"),
     [
-        ({"tickets": {"panel_channel": ""}}, "tickets.panel_channel: required"),
         ({"tickets": {"transcript_channel": "nope"}}, "tickets.transcript_channel: channel 'nope'"),
         ({"tickets": {"staff_alert_channel": "nope"}}, "tickets.staff_alert_channel: channel 'nope'"),
         ({"tickets": {"closed_category": "nope"}}, "tickets.closed_category: category 'nope'"),
