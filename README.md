@@ -3,16 +3,18 @@
 A configurable Discord bot for running a business in a Discord server: support tickets, a product catalog,
 checkout with orders and staff payment confirmation, store credit, reviews, information panels, and server setup.
 
-**The bot contains no business content.** Every word customers see comes from your configuration
-(`config/content.toml` or `/content set`); every business decision (currency, payment method, fees, timers,
-policies) is a setting you choose. Features stay hidden until they are enabled and fully configured.
+**The code contains no business content.** Every word customers see comes from configuration: `config/content.toml`
+ships with a complete starting text pack, and `config/settings.toml` with a starting set of business decisions
+(USD, manual payment, shipping regions, timers), so `/setup` posts every panel right away. Change any text from
+Discord (right-click a bot message → Apps → **Edit text**, or `/content set`) or in the files. Each kind of message
+shows its banner picture from `config/banners/`.
 
 ## Status
 
 | Stage | State |
 |---|---|
 | Implemented | The owner's server specification (layout, roles, every channel's messages, tickets, staff tools) |
-| Tested locally | 1,500+ automated tests, type checks, lint, Discord-limit and handler-coverage checks, offline preview |
+| Tested locally | 1,700+ automated tests, type checks, lint, Discord-limit and handler-coverage checks, offline preview |
 | Deployed to Railway | Not verified from here — see `docs/MORNING.md` |
 | Tested in Discord | Not yet — see the checklist in `docs/MORNING.md` step 12 |
 

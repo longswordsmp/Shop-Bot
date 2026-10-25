@@ -5,30 +5,34 @@ The bot is configured by two files in `config/` (or `CONFIG_DIR`) plus environme
 | File | Contains | Who decides |
 |---|---|---|
 | `config/settings.toml` | Behaviour: feature flags, server structure, timers, limits, prices-related settings | You (business decisions) and technical defaults |
-| `config/content.toml` | Every piece of text customers can see, by content key | You only — the bot ships it empty |
+| `config/content.toml` | Every piece of text customers can see, by content key | You — it ships with a complete starting text pack you can change |
+| `config/banners/` | One banner picture per kind of message (`<id>.png`) | You — it ships with your 31 banners |
 | Environment variables | Secrets and deployment paths (`DISCORD_TOKEN`, `GUILD_ID`, `OWNER_ID`, `DB_PATH`, …) | You (see `docs/DEPLOYMENT.md`) |
 
 Changes to the files take effect after a redeploy, or immediately with `/reload` (the running configuration is
-kept if the new files are invalid). Text can also be changed in Discord with `/content set` (stored in the
-database; takes precedence over `content.toml`; `/content export` downloads everything as a `content.toml`).
+kept if the new files are invalid). Text can also be changed in Discord: right-click a bot message → **Apps → Edit
+text**, or `/content set` (stored in the database; takes precedence over `content.toml`; `/content export` downloads
+everything as a `content.toml`). After a change, the posted panels are updated at once.
 
 `settings.toml` is validated strictly at startup: unknown keys (typos) and wrong types stop the bot with the exact
 path in the log. Semantic problems (for example a feature that refers to a channel that is not defined, or a
 business decision that is not made yet) do **not** stop the bot; they keep only the affected feature disabled and
 are listed by `/status`, `/setup`, and `python -m tools.checklist`.
 
-## What the bot never decides for you
+## Decisions that keep a feature off until they are made
 
-These start unset; the dependent feature stays disabled until you set them:
+The shipped files make these for you (see `docs/DECISIONS.md` §10a); if you clear one, the dependent feature stays
+disabled (and `/status` says why) until you set it again:
 
 | Setting | Needed by |
 |---|---|
-| `checkout.currency` | catalog prices, checkout, credits |
-| `payments.provider` (`"manual"` is the implemented option) | checkout |
-| `reviews.prompt_delay_minutes`, `reviews.rating_scale` | reviews |
-| fulfillment options, fees (none by default) | checkout (optional) |
-| every automation timer (auto-close, deletion, expiry, reminders) | off (`0`) until you set a value |
-| every customer-facing text (content keys) | everything customers see |
+| `checkout.currency` (shipped: `USD`) | catalog prices, checkout, credits |
+| `payments.provider` (shipped: `manual`, the implemented option) | checkout |
+| `reviews.prompt_delay_minutes`, `reviews.rating_scale` (shipped: 10080 = 7 days, 5 stars) | reviews |
+| `verification.rules` (shipped: 6) | #welcome |
+| every required customer-facing text (content keys) | the message that shows it |
+
+Fulfillment options and fees are optional (none are configured). Automation timers are `0` (off) unless set.
 
 ## `[features]`
 
@@ -85,6 +89,28 @@ valid, its dependencies are ready, and all of its required content keys are conf
 | `show_timestamps` | Timestamps on workflow/status embeds. |
 | `progress_filled`, `progress_empty` | Symbols used by `{bar}` in `common.progress_format`. |
 | `colors.primary/info/success/warning/danger/neutral` | `#RRGGBB` embed colors per tone; empty = Discord's default. |
+
+## `[banners]`
+
+| Key | Default | Meaning |
+|---|---|---|
+| `enabled` | false (shipped: true) | Show a banner picture at the top of the bot's messages. |
+| `directory` | `banners` | Folder inside the config folder with one picture per banner id: `<id>.png` (or `.jpg`, `.gif`, `.webp`), at most 2 MB; 1500×500 recommended. |
+| `off` | `[]` | Banner ids not to show, e.g. `["activity-log"]` (the #bot-log entries). |
+
+Banner ids (the kind of message each is used for): `welcome` (#welcome rules), `how-it-works` (#how-to-buy), `faq`,
+`shipping`, `announcements`, `catalog` (first #catalog message), `new-arrivals`, `reviews` (review request and
+published reviews), `purchase-panel` (#purchase), `ticket-created` (ticket opened / introduction), `selection-and-cart`,
+`details-and-options` (details step; correction requests), `review-and-summary` (order review step),
+`submission-and-processing` (processing), `successful-confirmation` (confirmed / paid / saved), `pending-review`
+(submitted, awaiting payment or approval), `rejected-or-unsuccessful-submission`, `order-status` (tracking and other
+status updates), `completed-or-dispatched`, `staff-dashboard` (staff lists, records and /status), `staff-notifications`
+(#staff-chat alerts), `activity-log` (#bot-log), `transcripts`, `direct-message-notification` (the Owner's DM alerts),
+`reminder`, `support-request` (Report a Problem and report tickets), `resolution` (resolved / refunded / closed),
+`cancellation`, `account-and-personal-records` (/myorders), `error` (error replies), `general-response` (other replies
+and confirmation prompts). Messages spread over several Discord messages show the banner on the first one only; a
+live message (order ticket panel, #orders record) changes banner with its status. Replace a picture file and run
+`/reload` then `/setup` to update posted panels.
 
 ## `[[server.roles]]`, `[[server.categories]]`, `[[server.channels]]`
 

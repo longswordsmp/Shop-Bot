@@ -1,7 +1,8 @@
 # Morning checklist — from code to a working server
 
 Do these in order. Each step says what to do, where, and how to check it worked. Nothing here requires changing
-code. Expected time: about an hour, plus however long it takes to write your text.
+code. Expected time: about an hour. Every message, button and notification already has text (a starting text pack
+written for you) and every feature is set up, so `/setup` posts everything at once; change any wording later.
 
 ---
 
@@ -91,7 +92,8 @@ If the service does not pick up `railway.json` (Railway has deprecated config fi
 service **Settings**: Start command `python -m shopbot`, Restart policy **On Failure**, **1** replica.
 
 Check the deploy logs for, in order: `starting` → `instance_lock_acquired` → `db_ready` → `commands_synced` →
-`bot_ready`. The bot should show online. `feature_not_ready` warnings are expected until you add text.
+`bot_ready`. The bot should show online. A `banners_incomplete` warning means a picture in `config/banners/` is
+missing or unreadable (that kind of message then shows no banner).
 See `docs/DEPLOYMENT.md` → Troubleshooting if anything else appears.
 
 ## 10. Run `/setup`
@@ -110,8 +112,10 @@ The structure comes from your specification and is already named (content.toml):
 Restock Alerts. Existing channels/roles with the same names are reused instead of duplicated.
 
 Then **`/setup`**. It creates or repairs roles, categories, channels and permissions, gives the Owner role to
-`OWNER_ID`, and publishes the panels of every feature that is ready. It is safe to run again any time; it never
-duplicates or deletes anything except withdrawing panels of features that are not ready.
+`OWNER_ID`, and posts every panel: #welcome (rules + "I agree"), #how-to-buy, #faq, #shipping, #catalog,
+#new-arrivals and #purchase (Start + Report a Problem), each with its banner picture at the top. It is safe to run
+again any time; it never duplicates or deletes anything except withdrawing panels of features that are not ready.
+`/status` should show every enabled feature as **ready**.
 
 Check: Server Settings → Roles shows the bot's role **above** Owner, Staff, Member, Customer and Restock Alerts
 (Discord only lets the bot give roles below its own). Give your staff the Staff role.
@@ -126,33 +130,41 @@ add `"staff"` to `catalog.manager_roles` (do not give Staff Manage Server). Thes
 command; the bot checks the roles itself on every use.
 
 Check: with a staff account (Staff role only), typing `/` lists the staff commands; a customer account sees none of
-them (only `/myorders`, once its description is configured).
+them (only `/myorders`).
 
-## 11. Enter your business configuration and exact text
+## 11. Change any text or setting
 
-**Decisions in `config/settings.toml`** (edit on GitHub, commit, push → Railway redeploys):
+**Edit a message's text from Discord (easiest).** Right-click (on a phone: long-press) any message the bot posted →
+**Apps** → **Edit text**. The bot lists every text in that message; pick one, change it in the form (it opens with the
+current wording) and save. The posted panels update right away; other messages (tickets, notifications) use the new
+text the next time the bot sends them. Only administrators see **Edit text**.
 
-- `checkout.currency` (e.g. `"USD"`) and `payments.provider = "manual"` — ordering stays off until both are set.
-- `verification.rules` — how many rules #welcome shows (required; #welcome stays hidden until set).
-- `how_to_buy.steps`, `[[faq.sections]]` question counts, `[[shipping.regions]]` with their status,
-  `[[problems.types]]` and their forms, fulfillment options, fees, review timing/scale, reminder thresholds — only
-  as you want them. Every timer is off until you set it. Reference: `docs/CONFIGURATION.md`, `docs/features/*.md`,
-  and the table of shipped defaults in `docs/DECISIONS.md` §10a.
-
-**Text in `config/content.toml`** — every key is listed there with what it is for, its Discord length limit, and
-its placeholders. Fill in your exact wording (text in descriptions can link channels with `{channel_catalog}`,
-`{channel_purchase}`, ...). Or set text from Discord without redeploying: **`/content set key:…`**.
+For private replies (which cannot be right-clicked) and forms: **`/content set`** and type a few words of the text
+you saw: the suggestions show which text contains them.
 
 - **`/status`** — what is ready and what is missing, per feature.
-- **`/content missing`** — the exact keys still empty.
-- **`/content export`** — download everything entered so far as a `content.toml` (commit it to keep it).
-- **`/reload`** — re-read the files after a change without restarting (restart after changing
+- **`/content show`** / **`/content clear`** — see a text, or undo your Discord change (the file value applies again).
+- **`/content export`** — download every text as a `content.toml` (commit it to keep your Discord changes in GitHub).
+- **`/reload`** — re-read the files after you changed them on GitHub (restart after changing
   `my_orders.command.description`).
 
-Locally you can also run `python -m tools.checklist --write`, `python -m tools.check_limits --strict` and
-`python -m tools.build_preview` (open `preview/out/index.html` to see every screen with your text).
+**Text in `config/content.toml`** (edit on GitHub, commit, push → Railway redeploys): every key is listed with
+what it is for, its Discord length limit and its placeholders (`{channel_catalog}`, `{order_number}`, ... are filled
+in by the bot).
 
-When `/status` shows the features you want as ready, run **`/setup`** again to publish their panels.
+**Decisions in `config/settings.toml`** (chosen for you; change any): currency `USD`, manual payment (staff post
+payment instructions in the order ticket and confirm the payment), shipping to all of the US except Alaska and North
+Dakota and to Europe, 6 rules on #welcome, FAQ topics, four problem types, reviews 7 days after completion (1-5
+stars), a 24-hour unpaid-order reminder, cart expiry after 24 hours, the shipping-address form at Submit, staff
+reminders. The full list is in `docs/DECISIONS.md` §10a.
+
+**Banners:** `config/banners/` holds one picture per kind of message (`welcome.png`, `faq.png`,
+`selection-and-cart.png`, `error.png`, ...). Replace a file with your own picture of the same name (PNG/JPEG/GIF/WebP,
+at most 2 MB, 1500×500 recommended) to change it, then `/reload` and `/setup`. To hide one kind, add its name to
+`[banners] off` in `settings.toml`; `enabled = false` hides them all.
+
+Locally you can also run `python -m tools.checklist --write`, `python -m tools.check_limits --strict` and
+`python -m tools.build_preview` (open `preview/out/index.html` to see every screen with your text and banners).
 
 ## 12. Test the enabled workflows in Discord
 
@@ -201,7 +213,9 @@ customers see it only if you include `{error_id}` in your `common.error.generic`
 
 ### What has and has not been verified so far
 
-- ✅ Implemented and tested locally and on GitHub Actions: 1,500+ automated tests (all features, failures, concurrency, restarts),
-  type checks, lint, Discord-limit and handler-coverage checks, offline preview.
-- ❌ Not yet verified: running on Railway and in a real Discord server (no credentials were available while it was
-  built). Steps 9–12 are that verification.
+- ✅ Implemented and tested locally and on GitHub Actions: 1,700+ automated tests (all features, failures, concurrency,
+  restarts, banners kept/replaced on edits), type checks, lint, Discord-limit and handler-coverage checks with the
+  shipped text, offline preview.
+- ❌ Not yet verified by us: running in a real Discord server. In particular, check on desktop and phone that each
+  banner shows **above** its message (Discord places pictures that no embed uses above the embeds; this could not be
+  tested offline). Steps 9–12 are that verification.

@@ -163,14 +163,15 @@ how you want to operate** (each is one line in `config/settings.toml`).
 | `permissions.admin_roles` / `owner_role` | `["owner"]` / `owner` | The Owner role is admin; `/setup` gives it to `OWNER_ID` |
 | Staff role `mentionable` / Restock Alerts `mentionable` | true / true | Alerts and #new-arrivals updates can notify those roles |
 | Staff role `permissions` | `["manage_messages"]` | Staff see the staff slash commands (`/orders`, `/order`, `/ticket`, `/review`, `/announce`) in Discord's picker; it also lets them delete/pin messages. `/setup` adds it and keeps the role's other permissions (`permissions_mode = "add"`). Fine-tune per command under Server Settings → Integrations; the bot's staff checks stay authoritative |
-| `verification.rules` | 0 (**you must set it**) | #welcome stays hidden until you say how many rules there are |
+| `verification.rules` | 6 | Six general community rules on #welcome (text in content.toml) |
 | `verification.dm_confirmation` | false | Confirmation only privately in Discord, no DM |
 | `how_to_buy.steps` / `link_channels` | 4 / catalog, purchase, faq | Guide size and its link buttons |
-| `faq.sections` | general, transactions, order_status, cancellations, problems (1 question each) | Adjust counts |
-| `shipping.statuses` | full, partial, none (no regions yet) | Add `[[shipping.regions]]` |
+| `faq.sections` | general, transactions, order_status, cancellations, problems (3/3/3/2/2 questions) | Adjust counts |
+| `shipping.statuses` / regions | full, none / United States (all states except Alaska and North Dakota) and Europe fully supported; Alaska, North Dakota and the rest of the world not supported | The owner's delivery area |
+| `shipping.info_sections` | 2 | How shipping works; where to ask |
 | `catalog.products_per_listing_message` | 1 | One #catalog message per item |
 | `catalog.browse_enabled` | false | No extra private browsing button (the spec only asks for per-item Buy buttons) |
-| `catalog.low_stock_threshold` | 0 | No "low stock" state |
+| `catalog.low_stock_threshold` | 3 | 1-3 units left shows "low stock" |
 | `new_arrivals.announce_new_products` / `announce_restocks` / `mention_role` | true / true / true | Automatic updates ping Restock Alerts |
 | `tickets.panel_channel` | "" | No standalone ticket panel: support starts with Report a Problem in #purchase |
 | `tickets.channel_name_pattern` | `{prefix}-{number}-{user}` | Ticket names contain a unique number and the username |
@@ -180,23 +181,53 @@ how you want to operate** (each is one line in `config/settings.toml`).
 | `checkout.customer_role` / `customer_role_on` / `customer_role_remove_on_refund` | customer / fulfilled / true | |
 | `problems.eligible_statuses` | paid, processing, fulfilled | Orders a report may refer to |
 | `problems.allow_without_order` / `require_reason_on_reject` | true / true | |
-| one problem type `general` with one paragraph field | – | Add types and fields as needed |
+| problem types | not received, damaged, wrong item, something else (one paragraph field each) | Add types and fields as needed |
 | `operations.ping_roles` / `owner_dm_alerts` | staff / true | Who is notified about orders and failures |
 | `operations.answers_in_orders_channel` | false | The customer's typed form answers are not posted in #orders; staff open them privately (Details button, `/order view`) |
-| `operations.*_minutes` reminders | 0 (off) | Set thresholds to get #staff-chat reminders |
+| `operations.*_minutes` reminders | unclaimed 60, unpaid 1440, unfulfilled 2880, unanswered ticket 240 | #staff-chat reminders (once each) |
+| `checkout.currency` / `payments.provider` | `USD` / `manual` | Staff post payment instructions in the order ticket and confirm the payment |
+| `checkout.submission_form` | full name, shipping address, optional delivery notes | Asked at Submit; shown to staff only |
+| `checkout.session_expiry_minutes` / warning / `payment_reminder_minutes` | 1440 / 60 / 1440 | Unsubmitted carts expire after 24 h (warning 1 h before); unpaid orders get one reminder after 24 h; unpaid orders never expire automatically |
+| `reviews.rating_scale` / `prompt_delay_minutes` | 5 / 10080 | 1-5 stars, asked 7 days after the order is completed |
+| `announcements.mention_roles` | restock_alerts | Staff may choose to ping Restock Alerts with an announcement |
+| `branding.progress_filled` / `progress_empty` | 🟧 / ⬜ | Step indicator in the order ticket |
+| `[banners]` | enabled, all 31 pictures in `config/banners/` | One banner picture at the top of every kind of message (§13) |
 | `announcements.allow_image` | true | |
 | `my_orders.orders_per_page` | 5 | |
 | `features.credits` / `info_panels` | false | Not part of the specification |
 | `audit.channel` | bot_log | Staff-only audit channel |
 | `checkout.decimal_separator` / `thousands_separator` | `.` / `,` | How amounts are written |
 
-## 11. Business decisions left to the owner
+## 11. Business decisions and text
 
-Currency and payment provider (checkout stays off until set); payment instructions; fulfillment options, fees and
-minimum order; review timing and rating scale; every automation timer (auto-close, deletion, cart/payment expiry,
-reminders); the number of rules, guide steps, FAQ questions, shipping regions and their statuses; problem types
-and their forms; who may announce and which roles may be pinged; every word customers see. `/status` and
-`docs/CONTENT_CHECKLIST.md` list what is still missing.
+The specification asked that all wording come from the owner. The owner later asked us to write everything and set
+everything up so `/setup` posts every panel ("just make it up and then I'll fix it"). So the shipped
+`config/content.toml` holds a complete text pack (every key, in a short professional voice) and `settings.toml` holds
+the decisions in §10a. The text describes only what the bot does; it invents no prices, shipping costs, delivery
+times, refund windows, guarantees or payment methods: where customers need those, it says staff confirm them in the
+order ticket. Everything stays configurable: the owner changes any text from Discord with **Edit text**
+(right-click a bot message → Apps) or `/content set`, or in the files. Still the owner's: payment instructions beyond
+"staff post them in your ticket", fulfillment options and fees (none are configured), the minimum order, auto-close
+and deletion timers, and of course the products themselves (`/product add`).
+
+## 11a. Banner pictures and the "Edit text" tool
+
+- **Banners.** The owner supplied 31 banner pictures (1500×500), one per kind of message. Each message names its
+  banner id in its builder (`ui.banner("faq")`, ids in `shopbot/config/banner_ids.py`); the picture is uploaded with
+  the message as its first attachment and never referenced by an embed, because Discord shows such pictures above the
+  embeds at full width (an embed image would sit at the bottom, smaller; an image-only first embed would use one of
+  the ten embed slots). Edits keep an unchanged banner without uploading it again (the attachment name contains the
+  picture's hash), and replace or remove it when it changed; a `PartialMessage` is fetched once before such an edit so
+  this is decided from its real attachments. Multi-message panels show the banner on their first message only; live
+  messages (the order ticket panel, the #orders record, report and review-approval messages) change banner with their
+  state. The banner counts toward the per-message file limits and the panel hash; transcripts leave the bot's
+  banners out. Pictures live in `config/banners/` (≤ 2 MB each) and are read at startup and on `/reload`; a missing or
+  invalid picture only means that kind of message shows none (listed in the logs and by the checker).
+- **Edit text.** A message command (right-click a bot message → Apps → Edit text, administrators only) finds the
+  texts the message shows by comparing every text of the message with every content value (placeholders match any
+  data), lists them in display order, and opens the `/content set` form for the one picked. After a save, the panels
+  that are already posted are refreshed at once (`/setup` is still what posts new panels). Private (ephemeral) replies
+  cannot be right-clicked in Discord, so `/content set` suggestions also match a few words of the current text.
 
 ## 12. Assumptions
 
@@ -210,6 +241,9 @@ and their forms; who may announce and which roles may be pinged; every word cust
 
 ## 13. Known limitations
 
+- Banner placement (above the embeds) follows Discord's documented message layout and community reports; it could not
+  be seen in a real client from here. Each banner upload adds 0.5-1.1 MB to the message (mainly #bot-log entries,
+  one per audited action: switch them off with `[banners] off = ["activity-log"]` if that matters).
 - Not yet verified against a live Discord server or Railway from here. All behaviour is verified with automated
   tests using faithful fakes and the offline preview — see `docs/MORNING.md` for the live verification checklist.
 - Railway config-as-code deprecation (see §9).
