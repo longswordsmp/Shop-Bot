@@ -447,3 +447,29 @@ Constraints:
 | `created_at` | INTEGER | yes |  |  |
 
 Indexes: `idx_audit_target`, `idx_audit_guild_time`
+
+## `new_arrival_announcements`
+
+| Column | Type | Not null | Default | Key |
+|---|---|---|---|---|
+| `id` | INTEGER |  |  | PK |
+| `guild_id` | INTEGER | yes |  |  |
+| `product_id` | INTEGER | yes |  |  |
+| `event` | TEXT | yes |  |  |
+| `product_version` | INTEGER | yes |  |  |
+| `status` | TEXT | yes |  |  |
+| `channel_id` | INTEGER |  |  |  |
+| `message_id` | INTEGER |  |  |  |
+| `mentioned` | INTEGER | yes | 0 |  |
+| `created_at` | INTEGER | yes |  |  |
+| `updated_at` | INTEGER | yes |  |  |
+
+Indexes: `idx_new_arrival_announcements_product`
+
+Constraints:
+
+- `event TEXT NOT NULL CHECK (event IN ('new', 'restock'))`
+- `product_version INTEGER NOT NULL CHECK (product_version >= 1)`
+- `status TEXT NOT NULL CHECK (status IN ('claimed', 'posted'))`
+- `mentioned INTEGER NOT NULL DEFAULT 0 CHECK (mentioned IN (0, 1))`
+- `CHECK ((status = 'posted') = (message_id IS NOT NULL AND channel_id IS NOT NULL))`

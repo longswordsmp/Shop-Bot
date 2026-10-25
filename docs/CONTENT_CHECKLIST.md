@@ -222,6 +222,38 @@ Feature `catalog` — enabled.
 | ❌ | `catalog.listing.empty` | Shown below the listing header, and in private browsing, when no product is currently offered. | description (4096) | required |  |
 | ❌ | `catalog.listing.title` | Title of the header card at the top of the product listing channel. | title (256) | required |  |
 
+## new_arrivals
+
+Feature `new_arrivals` — enabled.
+
+### New arrivals: notification panel (posted by /setup in the new-arrivals channel)
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ❌ | `new_arrivals.button.toggle` | Label of the panel's single button. A click gives the member the notification role, or removes it when they already have it (so the label should describe both, e.g. turning notifications on or off). | button_label (80) | required |  |
+| ▫️ | `new_arrivals.button.toggle_emoji` | Optional emoji shown on the panel's button. | emoji (100) | optional |  |
+| ❌ | `new_arrivals.panel.description` | Text of the notification panel: what members receive when they turn notifications on, and that the same button turns them off again. {role} shows the notification role as a mention (it displays the role's name and pings nobody). Channel links such as {channel_catalog} become clickable #channel links once /setup created the channel. | description (4096) | required | `{role}`, `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
+| ❌ | `new_arrivals.panel.title` | Title of the persistent panel in the new-arrivals channel that lets members turn product notifications on or off. | title (256) | required |  |
+
+### New arrivals: automatic product updates (posted in the new-arrivals channel)
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ▫️ | `new_arrivals.button.view_catalog` | Optional label of a link button under each product update that opens the catalog listing channel (catalog.listing_channel). If empty, the updates have no button. | button_label (80) | optional |  |
+| ▫️ | `new_arrivals.new_product.footer` | Optional small text at the bottom of a new-product update. | footer (2048) | optional |  |
+| ❌ | `new_arrivals.new_product.title` | Title of the update posted automatically when a product is added to the catalog or switched back on (new_arrivals.announce_new_products). {name} is the product name. Below it the update shows the product's description, image, price and availability exactly like its catalog card. | title (256) | required | `{name}` |
+| ▫️ | `new_arrivals.restock.footer` | Optional small text at the bottom of a restock update. | footer (2048) | optional |  |
+| ❌ | `new_arrivals.restock.title` | Title of the update posted automatically when a sold-out product can be ordered again (new_arrivals.announce_restocks). {name} is the product name. Below it the update shows the product's description, image, price and availability exactly like its catalog card. | title (256) | required | `{name}` |
+
+### New arrivals: private confirmations (shown only to the member who clicked)
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ❌ | `new_arrivals.subscribed.description` | Private confirmation shown after a member turned notifications on (they now have the notification role and are mentioned in product updates). {role} shows the notification role as a mention (it displays the role's name and pings nobody). Channel links such as {channel_catalog} become clickable #channel links once /setup created the channel. | description (4096) | required | `{role}`, `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
+| ▫️ | `new_arrivals.subscribed.title` | Optional title of the private confirmation shown after a member turned notifications on. | title (256) | optional |  |
+| ❌ | `new_arrivals.unsubscribed.description` | Private confirmation shown after a member turned notifications off (the notification role was removed; clicking the button again turns them back on). {role} shows the notification role as a mention (it displays the role's name and pings nobody). Channel links such as {channel_catalog} become clickable #channel links once /setup created the channel. | description (4096) | required | `{role}`, `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
+| ▫️ | `new_arrivals.unsubscribed.title` | Optional title of the private confirmation shown after a member turned notifications off. | title (256) | optional |  |
+
 ## Checkout, orders and payment
 
 Feature `checkout` — enabled.
@@ -515,7 +547,7 @@ Feature `reviews` — enabled.
 
 ## Summary
 
-- Required keys (for the listed features): 158
-- Required keys still missing: 136
+- Required keys (for the listed features): 165
+- Required keys still missing: 143
 
 Legend: ✅ configured · ❌ required and missing · ▫️ optional and empty

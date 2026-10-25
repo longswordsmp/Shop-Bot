@@ -477,6 +477,68 @@ catalog.listing.empty = ""
 catalog.listing.title = ""
 
 # ==================================================================================================
+# Feature: new_arrivals
+# ==================================================================================================
+
+# --- New arrivals: notification panel (posted by /setup in the new-arrivals channel) ---
+
+# Label of the panel's single button. A click gives the member the notification role, or removes it when they already have it (so the label should describe both, e.g. turning notifications on or off).
+# button_label · max 80 characters · required
+new_arrivals.button.toggle = ""
+
+# Optional emoji shown on the panel's button.
+# emoji · max 100 characters · optional
+new_arrivals.button.toggle_emoji = ""
+
+# Text of the notification panel: what members receive when they turn notifications on, and that the same button turns them off again. {role} shows the notification role as a mention (it displays the role's name and pings nobody). Channel links such as {channel_catalog} become clickable #channel links once /setup created the channel.
+# description · max 4096 characters · required · placeholders: {role}, {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+new_arrivals.panel.description = ""
+
+# Title of the persistent panel in the new-arrivals channel that lets members turn product notifications on or off.
+# title · max 256 characters · required
+new_arrivals.panel.title = ""
+
+# --- New arrivals: automatic product updates (posted in the new-arrivals channel) ---
+
+# Optional label of a link button under each product update that opens the catalog listing channel (catalog.listing_channel). If empty, the updates have no button.
+# button_label · max 80 characters · optional
+new_arrivals.button.view_catalog = ""
+
+# Optional small text at the bottom of a new-product update.
+# footer · max 2048 characters · optional
+new_arrivals.new_product.footer = ""
+
+# Title of the update posted automatically when a product is added to the catalog or switched back on (new_arrivals.announce_new_products). {name} is the product name. Below it the update shows the product's description, image, price and availability exactly like its catalog card.
+# title · max 256 characters · required · placeholders: {name}
+new_arrivals.new_product.title = ""
+
+# Optional small text at the bottom of a restock update.
+# footer · max 2048 characters · optional
+new_arrivals.restock.footer = ""
+
+# Title of the update posted automatically when a sold-out product can be ordered again (new_arrivals.announce_restocks). {name} is the product name. Below it the update shows the product's description, image, price and availability exactly like its catalog card.
+# title · max 256 characters · required · placeholders: {name}
+new_arrivals.restock.title = ""
+
+# --- New arrivals: private confirmations (shown only to the member who clicked) ---
+
+# Private confirmation shown after a member turned notifications on (they now have the notification role and are mentioned in product updates). {role} shows the notification role as a mention (it displays the role's name and pings nobody). Channel links such as {channel_catalog} become clickable #channel links once /setup created the channel.
+# description · max 4096 characters · required · placeholders: {role}, {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+new_arrivals.subscribed.description = ""
+
+# Optional title of the private confirmation shown after a member turned notifications on.
+# title · max 256 characters · optional
+new_arrivals.subscribed.title = ""
+
+# Private confirmation shown after a member turned notifications off (the notification role was removed; clicking the button again turns them back on). {role} shows the notification role as a mention (it displays the role's name and pings nobody). Channel links such as {channel_catalog} become clickable #channel links once /setup created the channel.
+# description · max 4096 characters · required · placeholders: {role}, {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+new_arrivals.unsubscribed.description = ""
+
+# Optional title of the private confirmation shown after a member turned notifications off.
+# title · max 256 characters · optional
+new_arrivals.unsubscribed.title = ""
+
+# ==================================================================================================
 # Feature: checkout
 # ==================================================================================================
 

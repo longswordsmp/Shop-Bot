@@ -493,6 +493,12 @@ class NewArrivalsSettings:
     """[new_arrivals]: the #new-arrivals opt-in panel and automatic product announcements."""
 
     channel: str = ""
+    # Role key (server.roles) of the opt-in notification role the panel button adds/removes.
+    role: str = ""
+    announce_new_products: bool = True
+    announce_restocks: bool = True
+    # Mention the notification role in automatic product updates.
+    mention_role: bool = True
 
 
 @dataclass(frozen=True)
@@ -923,7 +929,16 @@ def _parse_verification(r: _Reader) -> VerificationSettings:
 
 
 def _parse_new_arrivals(r: _Reader) -> NewArrivalsSettings:
-    return _finish(r, NewArrivalsSettings(channel=r.str_("channel", "", pattern=KEY_PATTERN)))
+    return _finish(
+        r,
+        NewArrivalsSettings(
+            channel=r.str_("channel", "", pattern=KEY_PATTERN),
+            role=r.str_("role", "", pattern=KEY_PATTERN),
+            announce_new_products=r.bool_("announce_new_products", True),
+            announce_restocks=r.bool_("announce_restocks", True),
+            mention_role=r.bool_("mention_role", True),
+        ),
+    )
 
 
 def _parse_how_to_buy(r: _Reader) -> HowToBuySettings:
