@@ -407,6 +407,7 @@ document.addEventListener('keydown',e=>{if(e.key==='ArrowDown'||e.key==='j')step
 const toast=document.getElementById('toast');let tt;
 document.addEventListener('click',e=>{const t=e.target.closest('[data-route]');if(!t||!t.dataset.route)return;
 toast.textContent='Simulation only. '+t.dataset.route;toast.style.display='block';clearTimeout(tt);tt=setTimeout(()=>toast.style.display='none',4000);});
+window.addEventListener('hashchange',()=>{const id=location.hash.slice(1)||'overview';if(!document.getElementById(id))return;states.forEach(s=>s.classList.toggle('active',s.id===id));links.forEach(a=>a.classList.toggle('active',a.dataset.target===id));});
 show(location.hash?location.hash.slice(1):'overview');
 """
 
