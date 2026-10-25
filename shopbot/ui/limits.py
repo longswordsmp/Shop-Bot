@@ -12,7 +12,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from shopbot.ui.spec import ButtonSpec, EmbedSpec, MessageSpec, ModalSpec, SelectSpec
+from shopbot.ui.spec import ButtonSpec, EmbedSpec, FileSpec, MessageSpec, ModalSpec, SelectSpec
 
 EMBEDS_PER_MESSAGE = 10
 EMBED_TOTAL_CHARS = 6000
@@ -172,9 +172,15 @@ def validate_message(spec: MessageSpec) -> list[Violation]:
     return out
 
 
+def message_files(spec: MessageSpec) -> tuple[FileSpec, ...]:
+    """Every file uploaded with the message, in upload order: the banner first, then ``spec.files``."""
+    return ((spec.banner,) if spec.banner is not None else ()) + (spec.files or ())
+
+
 def _validate_files(spec: MessageSpec, out: list[Violation]) -> None:
-    """Uploaded files: count, total size, names, and every ``attachment://`` image refers to one of them."""
-    files = spec.files or ()
+    """Uploaded files (banner included): count, total size, names, and every ``attachment://`` image refers to one
+    of ``spec.files`` (never to the banner, which must stay a separate picture above the embeds)."""
+    files = message_files(spec)
     if len(files) > FILES_PER_MESSAGE:
         out.append(Violation("message.files", f"{len(files)} files exceeds {FILES_PER_MESSAGE}"))
     total = sum(f.size for f in files)
@@ -197,7 +203,10 @@ def _validate_files(spec: MessageSpec, out: list[Violation]) -> None:
             value = getattr(embed, attr)
             if value is None or not value.startswith(ATTACHMENT_SCHEME):
                 continue
-            if value[len(ATTACHMENT_SCHEME) :] not in names:
+            name = value[len(ATTACHMENT_SCHEME) :]
+            if spec.banner is not None and name == spec.banner.filename:
+                out.append(Violation(f"embeds[{index}].{attr}", "an embed must not show the banner"))
+            elif name not in names:
                 out.append(Violation(f"embeds[{index}].{attr}", f"{value!r} is not a file of this message"))
 
 

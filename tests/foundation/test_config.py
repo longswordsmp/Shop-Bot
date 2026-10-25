@@ -86,8 +86,8 @@ SPEC_NAMES = {
 def test_shipped_settings_follow_the_specification() -> None:
     loaded = load_config(ROOT / "config")
     assert set(loaded.settings.features.enabled()) == SPEC_FEATURES
-    assert loaded.settings.checkout.currency == ""  # business decision left unset
-    assert loaded.settings.payments.provider == ""  # business decision left unset
+    assert loaded.settings.checkout.currency == "USD"  # the owner's currency
+    assert loaded.settings.payments.provider == "manual"
     server = loaded.settings.server
     assert {r.key for r in server.roles} == {"owner", "staff", "member", "customer", "restock_alerts"}
     assert [c.key for c in server.categories] == ["start_here", "catalog", "purchase", "staff"]
@@ -97,7 +97,7 @@ def test_shipped_settings_follow_the_specification() -> None:
     assert server_problems(loaded.settings) == []
 
 
-def test_shipped_content_has_only_the_specification_names() -> None:
+def test_shipped_content_keeps_the_specification_names() -> None:
     path = ROOT / "config" / "content.toml"
     if not path.exists():
         pytest.skip("content template not generated yet")
@@ -114,7 +114,7 @@ def test_shipped_content_has_only_the_specification_names() -> None:
             flat[prefix] = node
 
     flatten(data, "")
-    assert flat == SPEC_NAMES, "content.toml ships only the names given in the server specification"
+    assert {key: flat.get(key) for key in SPEC_NAMES} == SPEC_NAMES, "the names given in the server specification"
 
 
 def test_settings_unknown_key_is_rejected() -> None:
@@ -225,13 +225,19 @@ def test_readiness_with_fixture_content_makes_core_ready() -> None:
     assert readiness.is_ready("core"), readiness.statuses["core"].problems
 
 
-def test_shipped_configuration_shows_customers_nothing_until_text_exists() -> None:
+def test_shipped_configuration_makes_every_enabled_feature_ready() -> None:
+    """The shipped settings and text are complete: /setup can post every panel and /status shows all ready."""
     loaded = load_config(ROOT / "config")
     modules = all_modules()
     registry = build_registry(loaded.settings, modules)
     store = ContentStore(registry, loaded.content_values)
     readiness = compute_readiness(loaded.settings, store, modules)
-    assert not any(s.ready for s in readiness.statuses.values() if s.name not in ("server", "admin"))
+    not_ready = {
+        s.name: [p.message for p in s.problems] for s in readiness.statuses.values() if s.enabled and not s.ready
+    }
+    assert not_ready == {}
+    assert {s.name for s in readiness.statuses.values() if s.enabled} >= SPEC_FEATURES - {"dm_notifications"}
+    assert store.value_problems() == []
 
 
 def test_disabled_settings_make_nothing_customer_facing_ready() -> None:

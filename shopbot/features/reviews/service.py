@@ -853,7 +853,7 @@ async def _edit_prompt(app: App, review: repo.Review, spec: MessageSpec) -> None
         return
     try:
         message = await channel.fetch_message(review.prompt_message_id)
-        await message.edit(**edit_kwargs(spec))
+        await message.edit(**edit_kwargs(spec, message.attachments))
     except (discord.HTTPException, RenderError) as exc:
         log_event(log, logging.INFO, "reviews_prompt_edit_failed", review_id=review.id, error=type(exc).__name__)
 

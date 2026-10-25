@@ -1283,7 +1283,10 @@ async def generate_transcript(
                 final_status=_final_status(app, ticket),
                 close_reason=ticket.close_reason,
             )
-            message = await target.send(file=discord.File(io.BytesIO(data), filename=filename), **send_kwargs(spec))
+            kwargs = send_kwargs(spec)
+            # The transcript file goes after the message's own files (its banner shows first).
+            kwargs["files"] = [*kwargs.get("files", ()), discord.File(io.BytesIO(data), filename=filename)]
+            message = await target.send(**kwargs)
         except MissingContent as exc:
             log_event(log, logging.ERROR, "content_missing_at_runtime", key=exc.key, where="tickets.transcript")
             return False

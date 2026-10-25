@@ -127,6 +127,7 @@ class Ctx:
         self.args = args
         self.values = values
         self.fields = fields or {}
+        self._deferred_update = False  # the response so far is ``defer_update`` (edits target the clicked message)
 
     # -- identity ---------------------------------------------------------------------------------
 
@@ -183,7 +184,12 @@ class Ctx:
 
     async def update(self, spec: MessageSpec) -> None:
         """Replace the message that holds the clicked component (single editable workflow message)."""
-        kwargs = edit_kwargs(spec)
+        # The clicked message's attachments are known (its banner can be kept) while the edit targets that message:
+        # before any response, or after ``defer_update``. After another response the target is that response.
+        message = self.interaction.message
+        targets_message = not self.interaction.response.is_done() or self._deferred_update
+        current = message.attachments if message is not None and targets_message else None
+        kwargs = edit_kwargs(spec, current)
         if not self.interaction.response.is_done():
             await self.interaction.response.edit_message(**kwargs)
         else:
@@ -193,6 +199,7 @@ class Ctx:
         """Acknowledge a component click without changing anything yet (allows a later ``update``)."""
         if not self.interaction.response.is_done():
             await self.interaction.response.defer()
+            self._deferred_update = True
 
     async def defer_reply(self, *, ephemeral: bool = True) -> None:
         """Acknowledge with a 'thinking' state; the answer follows via ``respond``."""

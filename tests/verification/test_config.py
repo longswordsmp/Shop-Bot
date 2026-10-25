@@ -92,14 +92,13 @@ def test_complete_settings_have_no_problems() -> None:
     assert k.settings_problems(verification_settings()) == []
 
 
-def test_shipped_settings_only_miss_the_number_of_rules() -> None:
+def test_shipped_settings_show_six_rules() -> None:
     settings = parse_settings(shipped_settings_dict())
     assert settings.features.verification is True
     assert settings.verification.channel == "welcome"
-    assert settings.verification.rules == 0  # the owner decides how many rules there are
+    assert settings.verification.rules == 6
     assert settings.verification.dm_confirmation is False
-    problems = k.settings_problems(settings)
-    assert len(problems) == 1 and problems[0].startswith("verification.rules is not set")
+    assert k.settings_problems(settings) == []
 
 
 def _problems(extra: dict[str, Any], *, rules: int = 3) -> list[str]:

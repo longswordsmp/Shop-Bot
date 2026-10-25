@@ -66,7 +66,8 @@ class MarkerContentStore(ContentStore):
 
 
 class TrackingContentStore(ContentStore):
-    """Records which keys were requested but not configured (limits checker)."""
+    """Records which required keys were requested but not configured (limits checker). Optional keys left empty
+    (an optional footer, image link or note) are simply not shown and do not make a message incomplete."""
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
@@ -74,7 +75,7 @@ class TrackingContentStore(ContentStore):
 
     def get(self, key: str) -> str | None:
         value = super().get(key)
-        if value is None:
+        if value is None and self._definition(key).required:
             self.missing.add(key)
         return value
 

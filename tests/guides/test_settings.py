@@ -120,10 +120,18 @@ def test_shipped_settings_configure_the_three_guides() -> None:
         "cancellations",
         "problems",
     ]
-    assert all(s.questions == 1 for s in settings.faq.sections)
-    assert settings.shipping.statuses == ("full", "partial", "none")
-    assert settings.shipping.regions == () and settings.shipping.info_sections == 0
-    # The shipped structure itself is consistent: only text is missing.
+    assert [s.questions for s in settings.faq.sections] == [3, 3, 3, 2, 2]
+    assert settings.shipping.statuses == ("full", "none")
+    # The owner ships to all of the US and Europe, except Alaska and North Dakota.
+    assert [(r.id, r.status) for r in settings.shipping.regions] == [
+        ("united_states", "full"),
+        ("europe", "full"),
+        ("alaska", "none"),
+        ("north_dakota", "none"),
+        ("rest_of_world", "none"),
+    ]
+    assert settings.shipping.info_sections == 2
+    # The shipped structure itself is consistent.
     assert how_to_buy.settings_problems(settings) == []
     assert faq.settings_problems(settings) == []
     assert shipping.settings_problems(settings) == []

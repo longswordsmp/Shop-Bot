@@ -21,9 +21,13 @@ from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from typing import Any, TypeVar
 
+from shopbot.config.banner_ids import BANNER_IDS
+
 T = TypeVar("T")
 
 KEY_PATTERN = re.compile(r"^[a-z][a-z0-9_]{0,31}$")
+# A folder inside the config folder: letters, digits, "-", "_" and "/" between names (no "..", no absolute path).
+_FOLDER_PATTERN = re.compile(r"^[A-Za-z0-9_-]+(/[A-Za-z0-9_-]+)*$")
 ACCESS_LEVELS = (
     "public_readonly",
     "public_interactive",
@@ -273,6 +277,15 @@ class BrandingSettings:
     show_timestamps: bool = True
     progress_filled: str = ""
     progress_empty: str = ""
+
+
+@dataclass(frozen=True)
+class BannerSettings:
+    """Banner pictures shown at the top of messages (``shopbot.ui.banners``)."""
+
+    enabled: bool = False
+    directory: str = "banners"  # folder (relative to the config folder) with one picture per banner id
+    off: tuple[str, ...] = ()  # banner ids not shown
 
 
 @dataclass(frozen=True)
@@ -689,6 +702,7 @@ class Settings:
     bot: BotSettings = field(default_factory=BotSettings)
     permissions: PermissionSettings = field(default_factory=PermissionSettings)
     branding: BrandingSettings = field(default_factory=BrandingSettings)
+    banners: BannerSettings = field(default_factory=BannerSettings)
     features: FeatureFlags = field(default_factory=FeatureFlags)
     server: ServerSettings = field(default_factory=ServerSettings)
     info_panels: tuple[InfoPanelDef, ...] = ()
@@ -794,6 +808,17 @@ def parse_settings(data: dict[str, Any]) -> Settings:
         progress_empty=br.str_("progress_empty", "", max_len=8),
     )
     br.finish()
+
+    bn = root.table("banners")
+    banners = BannerSettings(
+        enabled=bn.bool_("enabled", False),
+        directory=bn.str_("directory", "banners", pattern=_FOLDER_PATTERN, allow_empty=False),
+        off=bn.strs_("off"),
+    )
+    for banner_id in banners.off:
+        if banner_id not in BANNER_IDS:
+            bn.error("off", f"unknown banner '{banner_id}' (known: {', '.join(BANNER_IDS)})")
+    bn.finish()
 
     fl = root.table("features")
     features = FeatureFlags(**{name: fl.bool_(name, False) for name in FeatureFlags.__dataclass_fields__})
@@ -1034,6 +1059,7 @@ def parse_settings(data: dict[str, Any]) -> Settings:
         bot=bot,
         permissions=permissions,
         branding=branding,
+        banners=banners,
         features=features,
         server=server,
         info_panels=info_panels,

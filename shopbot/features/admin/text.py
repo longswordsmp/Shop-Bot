@@ -116,6 +116,26 @@ OPERATOR_TEXT: dict[str, str] = {
         "Unset keys are written as empty strings."
     ),
     "admin.content.export_failed": "The export could not be created",
+    "admin.content.panels": "Posted panels",
+    "admin.content.panels_refreshed": "Posted panels were updated with the new text.",
+    "admin.content.panels_failed": (
+        "{count} panel(s) could not be updated (reference {error_id}); run /setup to post them again."
+    ),
+    "admin.content.panels_hint": "Other messages show the new text the next time the bot sends or updates them.",
+    # -- Edit text (message command) -----------------------------------------------------------------
+    "admin.edit.title": "Edit text in this message",
+    "admin.edit.description": (
+        "Pick the text to change. A form opens with its current wording; when you save, the posted panels are "
+        "updated. Product names, descriptions and prices are changed with /product edit."
+    ),
+    "admin.edit.placeholder": "Choose the text to edit",
+    "admin.edit.more": "{count} more texts are in this message: use /content set and type a few words of the text.",
+    "admin.edit.not_bot": "Only messages sent by this bot can be edited here.",
+    "admin.edit.none_title": "No editable text found",
+    "admin.edit.none": (
+        "This message shows no configured text (e.g. it only shows products or what staff typed). To change any "
+        "text, use /content set and type a few words of it."
+    ),
     # -- /reload -------------------------------------------------------------------------------------
     "admin.reload.ok_title": "Configuration reloaded",
     "admin.reload.failed_title": "Reload failed; the previous configuration is still active",

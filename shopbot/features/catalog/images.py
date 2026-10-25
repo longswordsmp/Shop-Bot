@@ -29,6 +29,7 @@ from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING, Protocol
 
+from shopbot.ui.image_types import CONTENT_TYPES, sniff
 from shopbot.ui.limits import ATTACHMENT_SCHEME
 from shopbot.ui.spec import FileSpec, MessageSpec
 
@@ -38,8 +39,6 @@ if TYPE_CHECKING:
 
 # Largest accepted upload (one image always fits Discord's 10 MiB per-message upload limit with room to spare).
 MAX_IMAGE_BYTES = 8 * 1024 * 1024
-# Accepted image types and the file extension used in the attachment name.
-CONTENT_TYPES: dict[str, str] = {"image/png": "png", "image/jpeg": "jpg", "image/gif": "gif", "image/webp": "webp"}
 ORIGINAL_NAME_MAX = 255
 
 
@@ -120,19 +119,6 @@ class UploadedImage:
     @property
     def size(self) -> int:
         return len(self.data)
-
-
-def sniff(data: bytes) -> str | None:
-    """The image type from the file's first bytes (the declared type is not trusted), or None."""
-    if data.startswith(b"\x89PNG\r\n\x1a\n"):
-        return "image/png"
-    if data.startswith(b"\xff\xd8\xff"):
-        return "image/jpeg"
-    if data[:6] in (b"GIF87a", b"GIF89a"):
-        return "image/gif"
-    if len(data) >= 12 and data[:4] == b"RIFF" and data[8:12] == b"WEBP":
-        return "image/webp"
-    return None
 
 
 def _declared_type(value: str | None) -> str | None:

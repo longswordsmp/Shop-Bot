@@ -3,7 +3,8 @@
 - ``sb:ad:status:<feature>:<page>``  page through a feature's problems (from ``/status feature:``)
 - ``sb:ad:miss:<feature|->:<page>``  page through missing/invalid content (``/content missing``)
 - ``sb:ad:keys:<feature|->:<page>``  page through content keys (``/content keys``)
-- ``sb:ad:cset:<token>``             the ``/content set`` form submission
+- ``sb:ad:cset:<token>``             the ``/content set`` form submission (then posted panels are refreshed)
+- ``sb:ad:etext``                    the text picked in the "Edit text" message command's list (opens that form)
 
 The router enforces guild and administrator access before these run; each handler re-checks
 administrator rights, re-reads the current state (readiness, registry), and only then acts.
@@ -17,7 +18,7 @@ from typing import TYPE_CHECKING
 from shopbot.commands import reply
 from shopbot.features import core_keys as ck
 from shopbot.features.admin import service, views
-from shopbot.features.admin.commands import send_view_reply
+from shopbot.features.admin.commands import open_content_form, send_view_reply
 from shopbot.features.admin.state import state_for
 from shopbot.logging_setup import log_event
 from shopbot.ui.routing import Ctx, HandlerError
@@ -92,8 +93,20 @@ async def content_set_submit(ctx: Ctx) -> None:
         outcome = views.content_invalid(app.ui, app.op, key, value, result.problems)
     else:
         log_event(log, logging.INFO, "admin_content_saved", key=key, length=len(value))
-        outcome = views.content_saved(app.ui, app.op, key, value, result.changes)
+        # Show the new text on the posted panels right away (no /setup needed).
+        failed, error_id = await service.refresh_panels(app)
+        panels = views.panel_refresh_lines(app.op, failed, error_id)
+        outcome = views.content_saved(app.ui, app.op, key, value, result.changes, panels)
     await send_view_reply(ctx.interaction, outcome)
+
+
+async def edit_text_choose(ctx: Ctx) -> None:
+    """A text picked in the "Edit text" list: open the /content set form for it."""
+    _require_admin(ctx)
+    key = ctx.values[0] if ctx.values else ""
+    if key not in ctx.app.content.registry:  # the configuration was reloaded and the key no longer exists
+        raise HandlerError(ck.ERROR_NOT_FOUND)
+    await open_content_form(ctx.interaction, key)
 
 
 def register_handlers(app: App) -> None:
@@ -102,3 +115,4 @@ def register_handlers(app: App) -> None:
     router.component(views.ROUTE, "miss", feature=service.FEATURE, access="admin")(missing_page)
     router.component(views.ROUTE, "keys", feature=service.FEATURE, access="admin")(keys_page)
     router.modal(views.ROUTE, "cset", feature=service.FEATURE, access="admin")(content_set_submit)
+    router.component(views.ROUTE, views.EDIT_ACTION, feature=service.FEATURE, access="admin")(edit_text_choose)

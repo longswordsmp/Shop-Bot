@@ -33,12 +33,15 @@ Prepare = Callable[[MessageSpec], Awaitable[MessageSpec]]
 
 
 def spec_hash(spec: MessageSpec) -> str:
-    """Digest of everything a message shows. Files count by name, type and sha256 (never by their bytes), so a new
-    image re-renders the message; a spec that does not manage files hashes exactly as before files existed."""
-    data = asdict(replace(spec, files=None))
-    del data["files"]
+    """Digest of everything a message shows. Files and the banner count by name, type and sha256 (never by their
+    bytes), so a new image re-renders the message; a spec without files and banner hashes exactly as before they
+    existed."""
+    data = asdict(replace(spec, files=None, banner=None))
+    del data["files"], data["banner"]
     if spec.files is not None:
         data["files"] = [[f.filename, f.content_type, f.sha256] for f in spec.files]
+    if spec.banner is not None:
+        data["banner"] = [spec.banner.filename, spec.banner.content_type, spec.banner.sha256]
     payload = json.dumps(data, sort_keys=True, ensure_ascii=False, default=str)
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 

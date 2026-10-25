@@ -185,6 +185,7 @@ async def test_register_wires_routes_task_kind_and_commands(tenv: TestEnv) -> No
         ("component", "ad", "miss", "admin", "admin"),
         ("component", "ad", "keys", "admin", "admin"),
         ("modal", "ad", "cset", "admin", "admin"),
+        ("component", "ad", "etext", "admin", "admin"),
     }
     assert "admin.maintenance" in tenv.app.scheduler.kinds
     group = tenv.bot.tree.get_command("content", guild=tenv.app.guild_object)

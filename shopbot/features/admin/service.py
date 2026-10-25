@@ -12,6 +12,7 @@ import difflib
 import logging
 import re
 import sqlite3
+import uuid
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -31,6 +32,7 @@ from shopbot.logging_setup import log_event
 
 if TYPE_CHECKING:
     from shopbot.context import App
+    from shopbot.features.base import FeatureModule
 
 log = logging.getLogger(__name__)
 
@@ -244,14 +246,63 @@ def key_info(app: App, key: str) -> KeyInfo | None:
 
 
 def suggest_keys(app: App, query: str, *, limit: int = 25) -> list[str]:
-    """Registered keys containing ``query`` (case-insensitive), prefix matches first."""
+    """Registered keys matching ``query`` (case-insensitive): keys starting with it, keys containing it, then keys
+    whose current text contains it (so a few words copied from a message find the key that shows them)."""
     needle = query.strip().lower()
     keys = [d.key for d in app.content.registry.all()]
     if not needle:
         return keys[:limit]
     prefix = [k for k in keys if k.startswith(needle)]
-    rest = [k for k in keys if needle in k and not k.startswith(needle)]
-    return (prefix + rest)[:limit]
+    inside = [k for k in keys if needle in k and not k.startswith(needle)]
+    named = set(prefix) | set(inside)
+    phrase = " ".join(needle.split())
+    texts = {k: _searchable(app.content.raw(k)) for k in keys if k not in named}
+    exact = [k for k, text in texts.items() if phrase in text]
+    words = [k for k, text in texts.items() if phrase not in text and all(w in text for w in phrase.split())]
+    return (prefix + inside + exact + words)[:limit]
+
+
+async def _has_posted_panel(app: App, module: FeatureModule) -> bool:
+    for prefix in module.panel_prefixes:
+        if await app.db.run(state_repo.published_with_prefix, app.env.guild_id, prefix):
+            return True
+    return False
+
+
+_PLACEHOLDER = re.compile(r"\{[a-z][a-z0-9_]*\}")
+
+
+def _searchable(value: str | None) -> str:
+    """A value as searched by text: lower case, single spaces, without {placeholder} names."""
+    return " ".join(_PLACEHOLDER.sub(" ", value or "").lower().split())
+
+
+async def refresh_panels(app: App) -> tuple[int, str | None]:
+    """Update the posted panels of every ready feature (unchanged ones are left alone), e.g. after a text was edited.
+
+    Only features that already have a posted panel are refreshed: posting new panels (and creating their channels)
+    stays the job of /setup. Returns the number of features whose panels failed and the reference logged for them
+    (None when all worked). One failure never stops the rest."""
+    failed = 0
+    error_id: str | None = None
+    for module in app.modules:
+        if module.publish is None or not app.ready(module.name) or not await _has_posted_panel(app, module):
+            continue
+        try:
+            await module.publish(app)
+        except Exception as exc:
+            failed += 1
+            error_id = error_id or uuid.uuid4().hex[:12]
+            log_event(
+                log,
+                logging.ERROR,
+                "panel_refresh_failed",
+                feature=module.name,
+                error_id=error_id,
+                error=type(exc).__name__,
+            )
+            log.exception("panel refresh failed for %s (%s)", module.name, error_id)
+    return failed, error_id
 
 
 def close_keys(app: App, key: str, *, limit: int = 5) -> list[str]:

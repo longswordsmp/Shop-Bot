@@ -111,11 +111,12 @@ def test_module_is_registered_without_panels() -> None:
     assert MODULE.customer_facing is True
 
 
-def test_shipped_settings_enable_announcements_without_business_text() -> None:
+def test_shipped_settings_enable_announcements() -> None:
     loaded = load_config(ROOT / "config")
     an = loaded.settings.announcements
     assert loaded.settings.features.announcements is True
-    assert an.channel == "announcements" and an.fields == () and an.mention_roles == ()
+    assert an.channel == "announcements" and an.fields == ()
+    assert an.mention_roles == ("restock_alerts",)  # staff may choose to ping Restock Alerts
     assert settings_problems(loaded.settings) == []
 
 

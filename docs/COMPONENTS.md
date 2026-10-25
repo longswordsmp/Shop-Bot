@@ -9,6 +9,7 @@ perform staff actions check staff status inside the handler, e.g. per-ticket-cat
 | Kind | Route | Action | Feature | Access | DM allowed | Handler |
 |---|---|---|---|---|---|---|
 | modal | `ad` | `cset` | admin | admin | no | `shopbot.features.admin.handlers.content_set_submit` |
+| component | `ad` | `etext` | admin | admin | no | `shopbot.features.admin.handlers.edit_text_choose` |
 | component | `ad` | `keys` | admin | admin | no | `shopbot.features.admin.handlers.keys_page` |
 | component | `ad` | `miss` | admin | admin | no | `shopbot.features.admin.handlers.missing_page` |
 | component | `ad` | `status` | admin | admin | no | `shopbot.features.admin.handlers.status_page` |

@@ -77,7 +77,7 @@ async def _reset_workflow(ctx: Ctx, session_id: int) -> None:
         return
     try:
         spec = await service.workflow_spec(ctx.app, session_id)
-        await message.edit(**edit_kwargs(spec))
+        await message.edit(**edit_kwargs(spec, message.attachments))
     except (discord.HTTPException, RenderError, MissingContent, HandlerError) as exc:
         log_event(log, logging.INFO, "checkout_menu_reset_failed", session_id=session_id, error=type(exc).__name__)
 

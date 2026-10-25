@@ -123,6 +123,9 @@ class MessageSpec:
     # attachments alone). A tuple: exactly these attachments (an edit replaces them; () removes all), so a message
     # that shows ``attachment://`` images keeps them attached through every edit.
     files: tuple[FileSpec, ...] | None = None
+    # Banner picture shown above the embeds (``shopbot.ui.banners``): uploaded as the message's first attachment and
+    # never referenced by an embed. Independent of ``files``; None = no banner (an edit removes an earlier one).
+    banner: FileSpec | None = None
 
     @property
     def mention_text(self) -> str | None:

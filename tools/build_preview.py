@@ -20,7 +20,7 @@ import html
 import json
 import re
 import sys
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -253,9 +253,17 @@ def _inline_attachments(spec: MessageSpec) -> tuple[EmbedSpec, ...]:
     )
 
 
+BANNERS_DIR = "banners"  # next to the page: each banner picture is written once and shared by every state
+
+
 def render_message(spec: MessageSpec, router: Router) -> str:
     mention = f'<div class="msg-content">{_inline(html.escape(spec.mention_text))}</div>' if spec.mention_text else ""
-    embeds = "".join(render_embed(e) for e in _inline_attachments(spec))
+    banner = (
+        f'<img class="msg-banner" src="{BANNERS_DIR}/{html.escape(spec.banner.filename)}" alt="banner">'
+        if spec.banner is not None
+        else ""
+    )
+    embeds = banner + "".join(render_embed(e) for e in _inline_attachments(spec))
     return (
         '<div class="message"><div class="avatar">B</div><div class="msg-main">'
         '<div class="msg-head"><span class="bot-name">Bot</span><span class="bot-tag">APP</span>'
@@ -307,6 +315,7 @@ class RenderedState:
     html: str
     violations: list[str]
     missing: list[str]
+    banners: dict[str, bytes] = field(default_factory=dict)  # banner pictures the state shows (filename -> bytes)
 
 
 def render_state(index: int, state: PreviewState, router: Router) -> RenderedState:
@@ -338,7 +347,10 @@ def render_state(index: int, state: PreviewState, router: Router) -> RenderedSta
             ensure_ascii=False,
         )
     missing = sorted(set(_MARKER_RE.findall(text_blob)))
-    return RenderedState(f"s{index}", state.feature, state.name, state.note, kind, body, violations, missing)
+    banners: dict[str, bytes] = {}
+    if isinstance(state.spec, MessageSpec) and state.spec.banner is not None and state.spec.banner.data is not None:
+        banners[state.spec.banner.filename] = state.spec.banner.data
+    return RenderedState(f"s{index}", state.feature, state.name, state.note, kind, body, violations, missing, banners)
 
 
 # --------------------------------------------------------------------------------------------------
@@ -374,6 +386,7 @@ color:#fff;display:grid;place-items:center;font-weight:700;flex:none}.msg-main{m
 .msg-head{display:flex;align-items:center;gap:6px}.bot-name{color:var(--head);font-weight:600}
 .bot-tag{background:var(--blurple);color:#fff;font-size:10px;font-weight:600;padding:1px 4px;border-radius:3px}
 .msg-time{color:var(--muted);font-size:12px}.msg-content{margin-top:2px}
+.msg-banner{display:block;width:100%;max-width:550px;border-radius:8px;margin-top:6px}
 .embed{background:var(--bg2);border-left:4px solid;border-radius:4px;max-width:520px;margin-top:6px;padding:8px 16px 16px 12px}
 .embed-grid{display:flex;gap:16px}.embed-body{min-width:0;flex:1}
 .embed-author{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:var(--head);margin-top:8px}
@@ -553,6 +566,12 @@ def main(argv: list[str] | None = None) -> int:
     generated = datetime.now(tz=UTC).strftime("%Y-%m-%d %H:%M UTC")
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(build_html(states, generated=generated, readiness_rows=readiness_rows), encoding="utf-8")
+    banner_dir = args.out.parent / BANNERS_DIR
+    for state in states:
+        for filename, data in state.banners.items():
+            banner_dir.mkdir(exist_ok=True)
+            if not (banner_dir / filename).exists():
+                (banner_dir / filename).write_bytes(data)
     violations = sum(len(s.violations) for s in states)
     print(f"Wrote {args.out} ({len(states)} states, {violations} limit violations)")
     return 0

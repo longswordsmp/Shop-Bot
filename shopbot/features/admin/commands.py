@@ -20,8 +20,8 @@ from shopbot.commands import app_of, reply, reply_operator, require_admin
 from shopbot.db.repos import audit as audit_repo
 from shopbot.db.repos import state as state_repo
 from shopbot.db.repos import tasks as task_repo
+from shopbot.features.admin import edit_text, service, views
 from shopbot.features.admin import repo as admin_repo
-from shopbot.features.admin import service, views
 from shopbot.features.admin.content_toml import UnrepresentableValue, render_content_toml
 from shopbot.features.admin.state import state_for
 from shopbot.logging_setup import log_event
@@ -62,10 +62,25 @@ async def feature_autocomplete(interaction: discord.Interaction[Any], current: s
     return _choices([n for n in service.feature_names(app_of(interaction)) if needle in n])
 
 
+def _key_choices(app: App, keys: Sequence[str]) -> list[app_commands.Choice[str]]:
+    """Choices named "key · current text" (so admins can recognise the text), with the key as value."""
+    choices: list[app_commands.Choice[str]] = []
+    for key in keys:
+        if not 0 < len(key) <= CHOICE_MAX:
+            continue
+        text = " ".join((app.content.raw(key) or "").split())
+        name = f"{key} · {text}" if text else key
+        choices.append(app_commands.Choice(name=views.clip(name, CHOICE_MAX), value=key))
+        if len(choices) == AUTOCOMPLETE_LIMIT:
+            break
+    return choices
+
+
 async def key_autocomplete(interaction: discord.Interaction[Any], current: str) -> list[app_commands.Choice[str]]:
     if not _is_admin(interaction):
         return []
-    return _choices(service.suggest_keys(app_of(interaction), current, limit=AUTOCOMPLETE_LIMIT * 2))
+    app = app_of(interaction)
+    return _key_choices(app, service.suggest_keys(app, current, limit=AUTOCOMPLETE_LIMIT * 2))
 
 
 async def clear_key_autocomplete(interaction: discord.Interaction[Any], current: str) -> list[app_commands.Choice[str]]:
@@ -131,6 +146,29 @@ async def handle_content_set(interaction: discord.Interaction[Any], key: str) ->
     if key not in app.content.registry:
         await reply(interaction, views.unknown_key(app.ui, app.op, key, service.close_keys(app, key)))
         return
+    await open_content_form(interaction, key)
+    log_event(log, logging.INFO, "admin_content_form_opened", key=key, user_id=interaction.user.id)
+
+
+async def handle_edit_text(interaction: discord.Interaction[Any], message: discord.Message) -> None:
+    """ "Edit text" on a message: list the configured texts it shows; picking one opens the /content set form."""
+    app = app_of(interaction)
+    me = interaction.client.user
+    if me is None or message.author.id != me.id:
+        await reply(interaction, views.simple(app.ui, app.op, app.op("admin.edit.not_bot"), tone="warning"))
+        return
+    values = app.content.effective_values()
+    keys = edit_text.find_keys(edit_text.message_texts(message), values, app.content.registry.all())
+    if not keys:
+        title, text = app.op("admin.edit.none_title"), app.op("admin.edit.none")
+        await reply(interaction, views.simple(app.ui, app.op, title, text, tone="warning"))
+        return
+    await reply(interaction, views.edit_text_choices(app.ui, app.op, [(k, values[k]) for k in keys]))
+
+
+async def open_content_form(interaction: discord.Interaction[Any], key: str) -> None:
+    """Open the /content set form for a registered ``key``, prefilled with its current value."""
+    app = app_of(interaction)
     token = state_for(app).pending.create(key, interaction.user.id, app.clock.now())
     spec = views.content_modal(app.op, token, key, app.content.raw(key))
     check_modal(spec)
@@ -138,7 +176,6 @@ async def handle_content_set(interaction: discord.Interaction[Any], key: str) ->
     await interaction.response.send_modal(modal)
     # The submission is routed by custom_id (``sb:ad:cset:<token>``); drop the in-memory modal copy.
     modal.stop()
-    log_event(log, logging.INFO, "admin_content_form_opened", key=key, user_id=interaction.user.id)
 
 
 async def handle_content_show(interaction: discord.Interaction[Any], key: str) -> None:
@@ -362,6 +399,22 @@ def build_top_level_commands() -> list[app_commands.Command[Any, ..., None]]:
     return [status_command, reload_command, backup_command, audit_command, tasks_command]
 
 
+EDIT_TEXT_COMMAND = "Edit text"
+
+
+def build_message_commands() -> list[app_commands.ContextMenu]:
+    """Message commands (right-click a message → Apps)."""
+
+    @app_commands.context_menu(name=EDIT_TEXT_COMMAND)
+    @app_commands.default_permissions(administrator=True)
+    @app_commands.guild_only()
+    @require_admin()
+    async def edit_text_command(interaction: discord.Interaction[Any], message: discord.Message) -> None:
+        await handle_edit_text(interaction, message)
+
+    return [edit_text_command]
+
+
 def register_commands(app: App) -> None:
     bot = app.bot
     if bot is None:
@@ -369,3 +422,5 @@ def register_commands(app: App) -> None:
     for command in build_top_level_commands():
         bot.tree.add_command(command, guild=app.guild_object)
     bot.tree.add_command(build_content_group(), guild=app.guild_object)
+    for menu in build_message_commands():
+        bot.tree.add_command(menu, guild=app.guild_object)

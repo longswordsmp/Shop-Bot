@@ -92,7 +92,8 @@ def test_shipped_configuration_is_valid_for_operations() -> None:
     settings = parse_settings(shipped_settings_dict())
     o = settings.operations
     assert (o.staff_channel, o.ping_roles, o.owner_dm_alerts) == ("staff_chat", ("staff",), True)
-    assert not o.reminders_enabled()  # timers are business decisions: off until the owner chooses
+    assert (o.unclaimed_order_minutes, o.unpaid_order_minutes, o.unfulfilled_order_minutes) == (60, 1440, 2880)
+    assert o.unanswered_ticket_minutes == 240 and o.reminders_enabled()
     assert (settings.checkout.customer_role, settings.checkout.customer_role_on) == ("customer", "fulfilled")
     assert OPERATIONS.settings_problems(settings) == []
     assert OPERATIONS.is_enabled(settings)

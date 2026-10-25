@@ -449,7 +449,7 @@ def test_spec_hash_counts_files_by_digest_not_bytes() -> None:
     # A message that does not manage files hashes exactly as before file support existed.
     legacy = MessageSpec(embeds=(_embed(),))
     data = asdict(legacy)
-    del data["files"]
+    del data["files"], data["banner"]
     expected = hashlib.sha256(json.dumps(data, sort_keys=True, ensure_ascii=False, default=str).encode()).hexdigest()
     assert spec_hash(legacy) == expected
 

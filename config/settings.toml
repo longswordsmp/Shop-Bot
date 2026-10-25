@@ -1,9 +1,10 @@
 # =================================================================================================
 # Bot settings (behaviour only — no customer-facing text lives here).
 #
-# Customer-facing wording lives in config/content.toml. Business decisions (currency, payment method,
-# fees, review policy, timers) are intentionally left UNSET: each feature stays disabled and reports
-# what is missing (run /status in Discord, or `python -m tools.checklist`) until you decide.
+# Customer-facing wording lives in config/content.toml. The business decisions below (currency, payment
+# method, shipping regions, rules count, review policy, timers) are a starting setup chosen for you: change any
+# of them here. A feature that misses text or a decision stays hidden from customers and is listed by /status
+# (or `python -m tools.checklist`).
 #
 # Keys such as "staff" or "ticket_panel" below are INTERNAL identifiers. Customers never see them.
 # Visible names are configured in content.toml (server.role.<key>.name, server.channel.<key>.name, ...).
@@ -55,8 +56,8 @@ footer_icon_url = ""
 panel_thumbnail = false
 panel_banner = false
 show_timestamps = true
-progress_filled = ""                 # symbols used by {bar} in common.progress_format (e.g. a filled dot)
-progress_empty = ""
+progress_filled = "🟧"               # symbols used by {bar} in common.progress_format (e.g. a filled dot)
+progress_empty = "⬜"
 
 [branding.colors]                    # "#RRGGBB" or "" for Discord's default embed color
 # Owner's palette: #FF9900 orange, #146EB4 blue, #232F3E navy (also #000000 black and #F2F2F2 light grey,
@@ -68,6 +69,14 @@ success = "#007600"                  # completed / paid / approved
 warning = "#FF9900"                  # needs attention / pending
 danger = "#B12704"                   # errors / rejected / cancelled
 neutral = "#232F3E"                  # closed / inactive
+
+# Banner pictures shown at the top of the bot's messages (one per kind of message: welcome, faq, cart, order
+# status, error, ...). Each is config/banners/<id>.png (or .jpg/.gif/.webp, at most 2 MB); replace a file to change
+# its picture (then /reload and /setup). The ids are listed in docs/CONFIGURATION.md ("Banners").
+[banners]
+enabled = true
+directory = "banners"                # folder inside the config folder
+off = []                             # banner ids not to show, e.g. ["activity-log"] for the #bot-log entries
 
 # -------------------------------------------------------------------------------------------------
 # Server structure created/reconciled by /setup (from the server specification). Set `id` to adopt an
@@ -216,7 +225,7 @@ access = "inherit"
 
 [verification]
 channel = "welcome"                  # entry channel for the rules panel; must be public (visible before accepting)
-rules = 0                            # REQUIRED: number of server rules on the panel (1-25). Each rule n gets the
+rules = 6                            # number of server rules on the panel (1-25). Each rule n gets the
                                      # content keys verification.rule.<n>.name / .value (heading and text).
 dm_confirmation = false              # also confirm by direct message (only when features.dm_notifications = true)
 button_style = "success"             # color of the "I agree" button: primary, secondary, success or danger
@@ -235,43 +244,58 @@ channel = "faq"
 # `questions` = number of questions in the section (1-25). Long sections continue in further embeds/messages.
 [[faq.sections]]
 id = "general"
-questions = 1
+questions = 3
 
 [[faq.sections]]
 id = "transactions"
-questions = 1
+questions = 3
 
 [[faq.sections]]
 id = "order_status"
-questions = 1
+questions = 3
 
 [[faq.sections]]
 id = "cancellations"
-questions = 1
+questions = 2
 
 [[faq.sections]]
 id = "problems"
-questions = 1
+questions = 2
 
 [shipping]
 channel = "shipping"
-statuses = ["full", "partial", "none"]   # enabled availability categories, in display order:
+statuses = ["full", "none"]          # enabled availability categories, in display order:
                                      # full = fully supported, partial = partially supported, none = unsupported.
                                      # Labels/indicators: shipping.status.<status>.label / .indicator / .description
-info_sections = 0                    # extra information fields (0-25), e.g. delivery or fulfillment options.
+info_sections = 2                    # extra information fields (0-25), e.g. delivery or fulfillment options.
                                      # Text: shipping.info.<n>.name / .value
 info_position = "after"              # "before" or "after" the region list
-# Regions are business information: add one [[shipping.regions]] per region (none are shipped). `id` is an internal
-# key; the visible name is shipping.region.<id>.name (optional note: shipping.region.<id>.note). `status` must be
-# listed in `statuses` above. Example:
-# [[shipping.regions]]
-# id = "region_a"
-# status = "full"
+# One [[shipping.regions]] per region, in display order. `id` is an internal key; the visible name is
+# shipping.region.<id>.name (optional note: shipping.region.<id>.note). `status` must be listed in `statuses` above.
+[[shipping.regions]]
+id = "united_states"
+status = "full"
+
+[[shipping.regions]]
+id = "europe"
+status = "full"
+
+[[shipping.regions]]
+id = "alaska"
+status = "none"
+
+[[shipping.regions]]
+id = "north_dakota"
+status = "none"
+
+[[shipping.regions]]
+id = "rest_of_world"
+status = "none"
 
 [announcements]
 channel = "announcements"            # channel key /announce posts to
 roles = []                           # extra role keys allowed to use /announce (staff_roles and admins always can)
-mention_roles = []                   # role keys staff may choose to ping with an announcement ([] = never ping);
+mention_roles = ["restock_alerts"]   # role keys staff may choose to ping with an announcement ([] = never ping);
                                      # a role must be mentionable (server.roles mentionable = true) to be pinged
 allow_image = true                   # staff may attach one image (png, jpg, gif, webp) to an announcement
 # Optional extra inputs of the /announce form (at most 3), each posted as an embed field. The field's heading is
@@ -305,6 +329,36 @@ ping_staff = false                   # mention the staff roles in the new-report
 # Issue types (max 25). The id is internal; label/description/emoji are content keys problems.type.<id>.*
 # Optional form per type (max 5 fields, same schema as ticket forms; labels: problems.type.<id>.form.<field>.*).
 [[problems.types]]
+id = "not_received"
+
+[[problems.types.form]]
+id = "details"
+style = "paragraph"
+required = true
+min_length = 0
+max_length = 1000
+
+[[problems.types]]
+id = "damaged"
+
+[[problems.types.form]]
+id = "details"
+style = "paragraph"
+required = true
+min_length = 0
+max_length = 1000
+
+[[problems.types]]
+id = "wrong_item"
+
+[[problems.types.form]]
+id = "details"
+style = "paragraph"
+required = true
+min_length = 0
+max_length = 1000
+
+[[problems.types]]
 id = "general"
 
 [[problems.types.form]]
@@ -330,11 +384,11 @@ answers_in_orders_channel = false    # false = the customer's typed form answers
                                      # order record's Details button or /order view (staff-checked, only to the
                                      # person who asked). true = also post them as messages under each order record
                                      # in #orders, visible to everyone who can read that channel.
-# Reminders posted in staff_channel (minutes; 0 = off). Business decisions: left off until you choose them.
-unclaimed_order_minutes = 0          # an open order nobody claimed for this long
-unpaid_order_minutes = 0             # an order still waiting for payment this long after it was submitted
-unfulfilled_order_minutes = 0        # a paid order not completed this long after the payment was confirmed
-unanswered_ticket_minutes = 0        # a support ticket whose customer has waited this long for a staff reply
+# Reminders posted in staff_channel (minutes; 0 = off).
+unclaimed_order_minutes = 60         # an open order nobody claimed for this long
+unpaid_order_minutes = 1440          # an order still waiting for payment this long after it was submitted
+unfulfilled_order_minutes = 2880     # a paid order not completed this long after the payment was confirmed
+unanswered_ticket_minutes = 240      # a support ticket whose customer has waited this long for a staff reply
 reminder_repeat_minutes = 0          # repeat a reminder this often while it still applies (0 = remind once)
 
 [tickets]
@@ -384,8 +438,8 @@ manager_roles = []                   # extra role keys allowed to manage product
 browse_enabled = false               # private, paginated product browsing from the shop panel
 image_hosts = []                     # allowed hosts for image LINKS (/product image url:); [] = any https host.
                                      # Uploaded files (/product image file:) are stored by the bot instead.
-low_stock_threshold = 0              # 1..N units left shows catalog.availability.low_stock in the warning
-                                     # color; 0 = no low-stock state (business decision, off by default)
+low_stock_threshold = 3              # 1..N units left shows catalog.availability.low_stock in the warning
+                                     # color; 0 = no low-stock state
 # Each product card's color shows its availability: success = available, warning = low stock,
 # danger = out of stock (its buy button is then disabled). Buy buttons appear while checkout is on.
 
@@ -394,7 +448,7 @@ panel_channel = "purchase"
 order_category = "purchase"
 staff_roles = []
 staff_channel = "orders"             # staff order controls are posted here (required)
-currency = ""                        # REQUIRED business decision: ISO 4217 code such as "USD"
+currency = "USD"                     # ISO 4217 code such as "USD"
 currency_exponent = -1               # -1 = standard minor units for the currency
 decimal_separator = "."
 thousands_separator = ","
@@ -403,10 +457,10 @@ max_line_quantity = 0                # 0 = only limited by stock and per-product
 max_cart_lines = 20
 min_order_total_minor = 0
 products_per_page = 25
-session_expiry_minutes = 0           # 0 = an unsubmitted cart never expires automatically
+session_expiry_minutes = 1440        # 0 = an unsubmitted cart never expires automatically
 payment_expiry_minutes = 0           # 0 = an unpaid order never expires automatically
-payment_reminder_minutes = 0         # 0 = no payment reminder
-session_expiry_warning_minutes = 0   # warn in the ticket this many minutes before an unsubmitted cart expires
+payment_reminder_minutes = 1440      # 0 = no payment reminder
+session_expiry_warning_minutes = 60  # warn in the ticket this many minutes before an unsubmitted cart expires
                                      # (0 = no warning; needs session_expiry_minutes and must be less than it)
 delete_channel_after_close_minutes = 0
 transcript_on_close = true
@@ -416,12 +470,27 @@ customer_role_remove_on_refund = true  # remove the role when an order is fully 
 # Optional submission form (max 5 fields), asked when the customer presses Submit (e.g. a reference the business
 # needs). The answers are stored with the order and shown to staff. Labels are content keys
 # checkout.submission.form.<id>.label / .description / .placeholder; the form title is checkout.submission.modal_title.
-# [[checkout.submission_form]]
-# id = "reference"
-# style = "short"                    # "short" or "paragraph"
-# required = true
-# min_length = 0
-# max_length = 100
+# The shipping details below are shown to staff only (privately, see operations.answers_in_orders_channel).
+[[checkout.submission_form]]
+id = "full_name"
+style = "short"                      # "short" or "paragraph"
+required = true
+min_length = 2
+max_length = 100
+
+[[checkout.submission_form]]
+id = "address"
+style = "paragraph"
+required = true
+min_length = 10
+max_length = 400
+
+[[checkout.submission_form]]
+id = "notes"
+style = "paragraph"
+required = false
+min_length = 0
+max_length = 500
 # Fulfillment options (delivery, pickup, ...) are business decisions. Labels live in content.toml
 # checkout.fulfillment.<id>.label / .description. Example:
 # [[checkout.fulfillment_options]]
@@ -434,15 +503,15 @@ customer_role_remove_on_refund = true  # remove the role when an order is fully 
 # amount_minor = 0
 
 [payments]
-provider = ""                        # REQUIRED business decision. Implemented: "manual" (staff confirm payment)
+provider = "manual"                  # Implemented: "manual" (staff confirm payment)
 
 [credits]
 allow_at_checkout = true
 
 [reviews]
 channel = "reviews"
-prompt_delay_minutes = -1            # REQUIRED when reviews are enabled: minutes after fulfillment (0 = immediately)
-rating_scale = 0                     # REQUIRED when reviews are enabled: 1-10
+prompt_delay_minutes = 10080         # minutes after the order is completed (0 = immediately); 10080 = 7 days
+rating_scale = 5                     # 1-10 stars
 allow_comment = true
 comment_required = false
 comment_max_length = 1000

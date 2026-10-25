@@ -65,6 +65,16 @@ Default visibility: manage_guild
 | `/credits history` | staff | Show a member's credit history (newest first, paginated). | `member`: The member whose history to show.; `page` (optional): Page number (default 1). |
 | `/credits adjust` | admin | Add credits to or remove credits from a member (admins only). | `member`: The member whose balance to change.; `action`: add: give credits; remove: take credits away (never below 0).; `amount`: Amount in the shop currency, e.g. 12.50.; `note`: Internal reason, shown only in the staff history and the audit log. |
 
+## /myorders
+
+See your orders with their status, timeline and tracking details. Only you can see the reply.
+
+Default visibility: everyone
+
+| Command | Access | Description | Options |
+|---|---|---|---|
+| `/myorders` | - | See your orders with their status, timeline and tracking details. Only you can see the reply. | - |
+
 ## /order
 
 Order tools for staff.
@@ -181,3 +191,9 @@ Default visibility: manage_messages
 | `/ticket transcript` | staff | Generate and post a transcript of this ticket now. | - |
 | `/ticket info` | staff | Show the details of this ticket. | - |
 | `/ticket list` | staff | List recent support tickets (max 25). | `status` (optional): Only tickets with this status; `member` (optional): Only tickets of this member |
+
+## Message commands (right-click a message → Apps)
+
+| Command | Access | Default visibility |
+|---|---|---|
+| `Edit text` | admin | administrator |

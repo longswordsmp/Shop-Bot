@@ -186,6 +186,8 @@ class FakeMember(discord.Member):
 
 
 def _message_kwargs(kwargs: dict[str, Any]) -> dict[str, Any]:
+    if kwargs.get("file") is not None and kwargs.get("files") is not None:
+        raise TypeError("Cannot mix file and files keyword arguments.")  # as discord.py does
     out: dict[str, Any] = {}
     if "embeds" in kwargs and kwargs["embeds"] is not None:
         out["embeds"] = list(kwargs["embeds"])
@@ -198,11 +200,19 @@ def _message_kwargs(kwargs: dict[str, Any]) -> dict[str, Any]:
 
 
 class FakeAttachment:
-    def __init__(self, filename: str, url: str = "https://cdn.discordapp.com/attachments/1/2/file") -> None:
+    def __init__(
+        self,
+        filename: str,
+        url: str = "https://cdn.discordapp.com/attachments/1/2/file",
+        *,
+        file: discord.File | None = None,
+    ) -> None:
+        self.id = next_id()
         self.filename = filename
         self.url = url
         self.size = 1
         self.content_type = None
+        self.file = file  # the uploaded file this attachment came from (bot messages)
 
 
 class FakeMessage:
@@ -229,7 +239,10 @@ class FakeMessage:
         self.view = view
         self.files = list(files or [])
         self.allowed_mentions = allowed_mentions
-        self.attachments = list(attachments or [])
+        # Uploaded files become the message's attachments (a user message passes its attachments directly).
+        self.attachments = (
+            list(attachments) if attachments is not None else [FakeAttachment(f.filename, file=f) for f in self.files]
+        )
         self.created_at = created_at or datetime.now(tz=UTC)
         self.edits: list[dict[str, Any]] = []
         self.deleted = False
@@ -251,8 +264,27 @@ class FakeMessage:
             self.view = kwargs["view"]
         if "content" in kwargs:
             self.content = kwargs["content"] or ""
-        if "attachments" in kwargs:  # Discord replaces the message's attachments with exactly these
-            self.files = list(kwargs["attachments"] or [])
+        if "attachments" in kwargs:  # Discord keeps exactly these: kept attachments and newly uploaded files
+            files: list[discord.File] = []
+            attachments: list[FakeAttachment] = []
+            for item in kwargs["attachments"] or []:
+                if isinstance(item, FakeAttachment):
+                    if item not in self.attachments:
+                        raise http_error(discord.HTTPException, 400, 50035, "Invalid Form Body (unknown attachment)")
+                    if item.file is not None:
+                        files.append(item.file)
+                    attachments.append(item)
+                else:
+                    files.append(item)
+                    attachments.append(FakeAttachment(item.filename, file=item))
+            self.files = files
+            self.attachments = attachments
+        return self
+
+    async def fetch(self) -> FakeMessage:
+        """``PartialMessage.fetch``: the current message (the fakes hand out full messages as partial ones)."""
+        if self.deleted:
+            raise http_error(discord.NotFound, 404, 10008, "Unknown Message")
         return self
 
     async def delete(self, *, delay: float | None = None) -> None:

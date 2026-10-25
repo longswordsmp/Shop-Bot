@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import Sequence
 from dataclasses import dataclass, field
@@ -28,6 +29,7 @@ from shopbot.db.repos import state
 from shopbot.env import Env
 from shopbot.features.base import FeatureModule
 from shopbot.logging_setup import log_event
+from shopbot.ui.banners import BannerLibrary, load_banners
 from shopbot.ui.routing import Router
 from shopbot.ui.style import Ui
 
@@ -77,7 +79,8 @@ class App:
                 self.operator_defaults[key] = value
         self.resources = Resources(db, lambda: self.settings, env.guild_id, clock)
         self.perms = Permissions(lambda: self.settings, self.resources, env.owner_id)
-        self.ui = Ui(lambda: self.settings, self.content, clock)
+        self.banners: BannerLibrary = load_banners(config_dir, settings.banners)
+        self.ui = Ui(lambda: self.settings, self.content, clock, lambda: self.banners)
         self.router = Router(self)
         bot_settings = settings.bot
         self.scheduler = Scheduler(
@@ -139,7 +142,9 @@ class App:
             log_event(log, logging.ERROR, "config_reload_failed", errors=errors[:20])
             return ReloadResult(ok=False, errors=list(errors))
         overrides = await self.db.run(state.overrides_all)
+        banners = await asyncio.to_thread(load_banners, self.config_dir, loaded.settings.banners)
         self.settings = loaded.settings
+        self.banners = banners
         self.content.replace(registry=registry, file_values=loaded.content_values, overrides=overrides)
         self.recompute_readiness()
         self.router.reset_limits()

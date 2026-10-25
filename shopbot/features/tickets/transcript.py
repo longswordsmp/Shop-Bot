@@ -17,6 +17,7 @@ from datetime import UTC, datetime
 from typing import Any, Protocol
 
 from shopbot.core.clock import to_datetime
+from shopbot.ui.banners import is_banner_filename
 
 
 @dataclass(frozen=True)
@@ -93,7 +94,12 @@ async def collect_messages(channel: _History) -> list[TranscriptMessage]:
                 author_id=int(author.id),
                 author_name=str(getattr(author, "display_name", None) or getattr(author, "name", "")),
                 content=str(message.content or ""),
-                attachments=tuple(str(a.url) for a in message.attachments),
+                # A bot message's banner is decoration (and its link expires): it is not part of the record.
+                attachments=tuple(
+                    str(a.url)
+                    for a in message.attachments
+                    if not (getattr(author, "bot", False) and is_banner_filename(a.filename))
+                ),
                 embeds=embeds,
             )
         )

@@ -60,6 +60,8 @@ def commands_markdown(app: App) -> str:
         "",
     ]
     commands = sorted(tree.get_commands(guild=app.guild_object), key=lambda c: c.name)
+    menus = [c for c in commands if isinstance(c, app_commands.ContextMenu)]
+    commands = [c for c in commands if not isinstance(c, app_commands.ContextMenu)]
     for top in commands:
         default_perms = getattr(top, "default_permissions", None)
         perms = ", ".join(name for name, value in default_perms if value) if default_perms is not None else "everyone"
@@ -70,6 +72,16 @@ def commands_markdown(app: App) -> str:
                 f"`{p.name}`{'' if p.required else ' (optional)'}: {p.description}" for p in command.parameters
             )
             lines.append(f"| `{name}` | {_access(command)} | {command.description} | {options or '-'} |")
+        lines.append("")
+    if menus:
+        lines += ["## Message commands (right-click a message → Apps)", ""]
+        lines += ["| Command | Access | Default visibility |", "|---|---|---|"]
+        for menu in menus:
+            default_perms = getattr(menu, "default_permissions", None)
+            perms = (
+                ", ".join(name for name, value in default_perms if value) if default_perms is not None else "everyone"
+            )
+            lines.append(f"| `{menu.name}` | {_access(menu)} | {perms} |")
         lines.append("")
     return "\n".join(lines)
 

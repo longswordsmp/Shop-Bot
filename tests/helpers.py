@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import copy
 import tomllib
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -215,3 +216,34 @@ async def provision_channels(tenv: TestEnv) -> None:
     for channel in app.settings.server.channels:
         created = guild.add_text_channel(name=f"ch-{channel.key}", category=categories.get(channel.category))
         await app.resources.remember("channel", channel.key, created.id)
+
+
+# -- banners -----------------------------------------------------------------------------------------
+
+BANNERS_ON: dict[str, Any] = {"banners": {"enabled": True}}
+
+
+def tiny_png(tag: str) -> bytes:
+    """A small file the banner loader accepts as a PNG picture (its bytes differ per ``tag``)."""
+    return b"\x89PNG\r\n\x1a\n" + tag.encode("utf-8")
+
+
+def write_test_banners(config_dir: Path, ids: Sequence[str] | None = None) -> None:
+    """One tiny picture per banner id in ``config_dir/banners`` (all ids by default)."""
+    from shopbot.config.banner_ids import BANNER_IDS
+
+    folder = config_dir / "banners"
+    folder.mkdir(parents=True, exist_ok=True)
+    for banner_id in BANNER_IDS if ids is None else ids:
+        (folder / f"{banner_id}.png").write_bytes(tiny_png(banner_id))
+
+
+async def make_banner_env(tmp_path: Path, overrides: dict[str, Any] | None = None, **kwargs: Any) -> TestEnv:
+    """A test environment with banners switched on and a tiny picture for every banner id."""
+    write_test_banners(tmp_path / "config")
+    return await make_test_env(tmp_path, settings=make_settings(deep_merge(BANNERS_ON, overrides or {})), **kwargs)
+
+
+def banner_names(message: Any) -> list[str]:
+    """Names of the banner files a sent fake message carries."""
+    return [f.filename for f in message.files if f.filename.startswith("banner-")]

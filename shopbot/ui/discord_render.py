@@ -16,7 +16,8 @@ import discord
 
 from shopbot.core.clock import to_datetime
 from shopbot.logging_setup import log_event
-from shopbot.ui.limits import Violation, validate_message, validate_modal
+from shopbot.ui.banners import is_banner_filename
+from shopbot.ui.limits import Violation, message_files, validate_message, validate_modal
 from shopbot.ui.spec import ButtonSpec, EmbedSpec, FileSpec, MessageSpec, ModalSpec, SelectSpec
 
 log = logging.getLogger(__name__)
@@ -168,7 +169,9 @@ def to_files(files: Sequence[FileSpec]) -> list[discord.File]:
 
 
 def send_kwargs(spec: MessageSpec) -> dict[str, Any]:
-    """Keyword arguments for ``Messageable.send`` / ``InteractionResponse.send_message``."""
+    """Keyword arguments for ``Messageable.send`` / ``InteractionResponse.send_message``.
+
+    The banner (if any) is uploaded first; Discord shows attachments that no embed uses above the embeds."""
     check_message(spec)
     kwargs: dict[str, Any] = {
         "embeds": [to_embed(e) for e in spec.embeds],
@@ -179,17 +182,17 @@ def send_kwargs(spec: MessageSpec) -> dict[str, Any]:
         kwargs["view"] = view
     if spec.mention_text:
         kwargs["content"] = spec.mention_text
-    if spec.files:
-        kwargs["files"] = to_files(spec.files)
+    files = message_files(spec)
+    if files:
+        kwargs["files"] = to_files(files)
     return kwargs
 
 
-def edit_kwargs(spec: MessageSpec) -> dict[str, Any]:
+def edit_kwargs(spec: MessageSpec, current: Sequence[discord.Attachment] | None = None) -> dict[str, Any]:
     """Keyword arguments for message edits; components are replaced (or removed) to match the spec.
 
-    When the spec manages files (``files`` is not None) the message's attachments are replaced by exactly those
-    files, uploaded again, so ``attachment://`` images stay attached after every edit; otherwise they are left alone.
-    """
+    ``current``: the message's attachments when known (a fetched message, the message of a clicked component), None
+    when unknown. See ``edit_attachments`` for what happens to them."""
     check_message(spec)
     kwargs: dict[str, Any] = {
         "embeds": [to_embed(e) for e in spec.embeds],
@@ -197,9 +200,41 @@ def edit_kwargs(spec: MessageSpec) -> dict[str, Any]:
         "content": spec.mention_text,
         "allowed_mentions": allowed_mentions(spec),
     }
-    if spec.files is not None:
-        kwargs["attachments"] = to_files(spec.files)
+    attachments = edit_attachments(spec, current)
+    if attachments is not None:
+        kwargs["attachments"] = attachments
     return kwargs
+
+
+def edit_attachments(
+    spec: MessageSpec, current: Sequence[discord.Attachment] | None
+) -> list[discord.Attachment | discord.File] | None:
+    """The attachments an edit sends (Discord keeps exactly those), or None to leave the message's attachments alone.
+
+    - The banner: an uploaded banner with the same name (same picture) is kept without uploading it again; a
+      different or no banner replaces or removes earlier banners.
+    - ``spec.files`` not None: exactly those files, uploaded again (``attachment://`` images stay attached).
+      None: the message's other attachments are left as they are.
+    - Unknown ``current``: the banner and files the spec wants are uploaded (when it wants any).
+    """
+    managed = spec.files is not None
+    if current is None:
+        if not managed and spec.banner is None:
+            return None
+        return list(to_files(message_files(spec)))
+    banners = [a for a in current if is_banner_filename(a.filename)]
+    kept = next((a for a in banners if spec.banner is not None and a.filename == spec.banner.filename), None)
+    stale = any(a is not kept for a in banners)
+    if not managed and not stale and (spec.banner is None or kept is not None):
+        return None  # nothing to change: the right banner (or none) is already there
+    result: list[discord.Attachment | discord.File] = []
+    if spec.banner is not None:
+        result.append(kept if kept is not None else to_files([spec.banner])[0])
+    if managed:
+        result += to_files(spec.files or ())
+    else:
+        result += [a for a in current if not is_banner_filename(a.filename)]
+    return result
 
 
 async def send_spec(channel: discord.abc.Messageable, spec: MessageSpec) -> discord.Message:
@@ -207,4 +242,8 @@ async def send_spec(channel: discord.abc.Messageable, spec: MessageSpec) -> disc
 
 
 async def edit_spec(message: discord.Message | discord.PartialMessage, spec: MessageSpec) -> discord.Message:
-    return await message.edit(**edit_kwargs(spec))
+    """Edit ``message`` to show ``spec``. A ``PartialMessage`` is fetched first (one request): its attachments decide
+    whether the banner is kept, replaced or removed (raises ``discord.NotFound`` when the message is gone)."""
+    if not isinstance(message, discord.Message):
+        message = await message.fetch()
+    return await message.edit(**edit_kwargs(spec, message.attachments))

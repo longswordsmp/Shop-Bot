@@ -94,8 +94,8 @@ def test_test_and_shipped_settings_have_no_problems() -> None:
     shipped = load_config(ROOT / "config").settings
     assert MODULE.settings_problems(shipped) == []
     assert shipped.problems.discord_category == "purchase"
-    assert [t.id for t in shipped.problems.types] == ["general"]
-    assert [f.id for f in shipped.problems.types[0].form] == ["details"]
+    assert [t.id for t in shipped.problems.types] == ["not_received", "damaged", "wrong_item", "general"]
+    assert all([f.id for f in t.form] == ["details"] for t in shipped.problems.types)
     assert shipped.tickets.panel_channel == "" and shipped.tickets.categories == ()
 
 
@@ -174,14 +174,13 @@ def test_readiness_needs_tickets_checkout_and_every_required_key() -> None:
     assert any("requires the 'tickets' feature" in p.message for p in readiness.statuses[k.FEATURE].problems)
 
 
-def test_shipped_configuration_keeps_problems_hidden_until_text_exists() -> None:
+def test_shipped_configuration_makes_problem_reports_ready() -> None:
     loaded = load_config(ROOT / "config")
     modules = all_modules()
     registry = build_registry(loaded.settings, modules)
     readiness = compute_readiness(loaded.settings, ContentStore(registry, loaded.content_values), modules)
     status = readiness.statuses[k.FEATURE]
-    assert status.enabled and not status.ready
-    assert {p.kind for p in status.problems} <= {"missing_content", "dependency"}
+    assert status.enabled and status.ready, status.problems
 
 
 async def test_setup_diagnostics(pr: TestEnv) -> None:

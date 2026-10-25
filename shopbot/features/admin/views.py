@@ -29,7 +29,16 @@ from shopbot.features.admin.service import (
 )
 from shopbot.ui import limits
 from shopbot.ui.custom_ids import cid
-from shopbot.ui.spec import ButtonSpec, EmbedField, EmbedSpec, MessageSpec, ModalSpec, TextInputSpec
+from shopbot.ui.spec import (
+    ButtonSpec,
+    EmbedField,
+    EmbedSpec,
+    MessageSpec,
+    ModalSpec,
+    SelectOptionSpec,
+    SelectSpec,
+    TextInputSpec,
+)
 from shopbot.ui.style import Ui, chunk_lines
 
 ROUTE = "ad"
@@ -393,10 +402,66 @@ def _value_reply(ui: Ui, op: OpFn, title: str, value: str | None, fields: list[E
     return Reply(MessageSpec(embeds=(embed,)), attachment)
 
 
-def content_saved(ui: Ui, op: OpFn, key: str, value: str, changes: Sequence[ReadinessChange]) -> Reply:
+def content_saved(
+    ui: Ui,
+    op: OpFn,
+    key: str,
+    value: str,
+    changes: Sequence[ReadinessChange],
+    panels: Sequence[str] = (),
+) -> Reply:
+    """``panels``: lines about re-posting the panels after the change (empty when they were not refreshed)."""
     fields = list_field(op, op("admin.content.readiness"), [change_line(op, c) for c in changes])
+    fields += list_field(op, op("admin.content.panels"), panels)
     title = op("admin.content.saved_title", content_key=key)
     return _value_reply(ui, op, title, value, fields, "success")
+
+
+def panel_refresh_lines(op: OpFn, failed: int, error_id: str | None) -> list[str]:
+    if failed:
+        return [
+            op("admin.content.panels_failed", count=failed, error_id=error_id or "-"),
+            op("admin.content.panels_hint"),
+        ]
+    return [op("admin.content.panels_refreshed"), op("admin.content.panels_hint")]
+
+
+# --------------------------------------------------------------------------------------------------
+# Edit text (message command)
+# --------------------------------------------------------------------------------------------------
+
+EDIT_ACTION = "etext"
+
+
+def edit_text_select_id() -> str:
+    return cid(ROUTE, EDIT_ACTION)
+
+
+def _one_line(text: str) -> str:
+    return " ".join(text.split())
+
+
+def edit_text_choices(ui: Ui, op: OpFn, found: Sequence[tuple[str, str]]) -> MessageSpec:
+    """The texts found in a message (``found``: key and current value, in display order) as a select menu; picking
+    one opens the ``/content set`` form. At most 25 are offered; the rest are counted."""
+    offered = [(key, value) for key, value in found if len(key) <= limits.OPTION_VALUE][: limits.SELECT_OPTIONS]
+    description = op("admin.edit.description")
+    if len(found) > len(offered):
+        description += "\n\n" + op("admin.edit.more", count=len(found) - len(offered))
+    options = tuple(
+        SelectOptionSpec(
+            label=clip(_one_line(value) or key, limits.OPTION_LABEL),
+            value=key,
+            description=clip(key, limits.OPTION_DESCRIPTION),
+        )
+        for key, value in offered
+    )
+    select = SelectSpec(
+        custom_id=edit_text_select_id(),
+        options=options,
+        placeholder=clip(op("admin.edit.placeholder"), limits.SELECT_PLACEHOLDER),
+    )
+    return MessageSpec(embeds=(_embed(ui, op("admin.edit.title"), description),), rows=((select,),))
 
 
 def content_invalid(ui: Ui, op: OpFn, key: str, value: str, problems: Sequence[str]) -> Reply:

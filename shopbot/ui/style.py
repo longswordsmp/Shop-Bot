@@ -13,12 +13,14 @@ from __future__ import annotations
 
 from collections.abc import Callable, Sequence
 
+from shopbot.config.banner_ids import BannerId
 from shopbot.config.content import ContentStore
 from shopbot.config.settings import Settings
 from shopbot.core.clock import Clock
 from shopbot.core.money import currency_exponent, format_amount
 from shopbot.features import core_keys as ck
-from shopbot.ui.spec import ButtonSpec, ButtonStyle, EmbedField, EmbedSpec, SelectOptionSpec
+from shopbot.ui.banners import EMPTY_LIBRARY, BannerLibrary
+from shopbot.ui.spec import ButtonSpec, ButtonStyle, EmbedField, EmbedSpec, FileSpec, SelectOptionSpec
 
 _OPERATOR_COLORS = {
     "primary": 0x5865F2,
@@ -31,10 +33,23 @@ _OPERATOR_COLORS = {
 
 
 class Ui:
-    def __init__(self, settings: Callable[[], Settings], content: ContentStore, clock: Clock) -> None:
+    def __init__(
+        self,
+        settings: Callable[[], Settings],
+        content: ContentStore,
+        clock: Clock,
+        banners: Callable[[], BannerLibrary] = lambda: EMPTY_LIBRARY,
+    ) -> None:
         self._settings = settings
         self.content = content
         self.clock = clock
+        self._banners = banners
+
+    # -- banners ----------------------------------------------------------------------------------
+
+    def banner(self, banner_id: BannerId) -> FileSpec | None:
+        """The banner picture for a kind of message (None when banners are off or its picture is missing)."""
+        return self._banners().get(banner_id)
 
     # -- text -------------------------------------------------------------------------------------
 
