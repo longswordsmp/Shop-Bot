@@ -1,0 +1,240 @@
+"""The ``/product`` slash command group (catalog managers and admins).
+
+Visibility: ``default_permissions(manage_guild=True)`` hides the group from members without Manage Server
+(a convenience only; server admins can change it). Authorization is enforced on every invocation by
+``require_staff`` plus ``require_manager`` (admins, or members holding a role in ``catalog.manager_roles``);
+general staff without a manager role are refused. Replies are operator text and always ephemeral.
+
+Product images are accepted only as https links: Discord attachment CDN links are signed and expire, so an
+uploaded file cannot be used as a lasting product image.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Awaitable, Callable, Coroutine
+from typing import TYPE_CHECKING, Any, Literal, TypeVar
+
+import discord
+from discord import app_commands
+
+from shopbot.commands import NotAuthorized, app_of, reply, reply_operator, require_staff
+from shopbot.features.catalog import repo, service, views
+from shopbot.features.catalog.content_keys import CATALOG
+from shopbot.ui.discord_render import check_modal, to_modal
+from shopbot.ui.spec import ModalSpec
+
+if TYPE_CHECKING:
+    from shopbot.context import App
+
+T = TypeVar("T")
+MAX_ID = 9_007_199_254_740_991  # Discord integer option maximum (2**53 - 1)
+ProductId = app_commands.Range[int, 1, MAX_ID]
+StockAmount = app_commands.Range[int, -repo.STOCK_MAX, repo.STOCK_MAX]
+Position = app_commands.Range[int, -repo.SORT_LIMIT, repo.SORT_LIMIT]
+CHOICE_NAME_MAX = 100
+AutocompleteCallback = Callable[[discord.Interaction[Any], str], Coroutine[Any, Any, list[app_commands.Choice[int]]]]
+
+
+def _member(interaction: discord.Interaction[Any]) -> discord.Member | None:
+    return interaction.user if isinstance(interaction.user, discord.Member) else None
+
+
+def require_manager() -> Callable[[T], T]:
+    """Command check: admins or members with a ``catalog.manager_roles`` role (in the configured guild)."""
+
+    async def predicate(interaction: discord.Interaction[Any]) -> bool:
+        app = app_of(interaction)
+        if interaction.guild_id != app.env.guild_id or not service.is_manager(
+            app, _member(interaction), interaction.user.id
+        ):
+            raise NotAuthorized()
+        return True
+
+    return app_commands.check(predicate)
+
+
+async def _ready(interaction: discord.Interaction[Any]) -> bool:
+    app = app_of(interaction)
+    if app.ready(CATALOG):
+        return True
+    await reply_operator(interaction, app.op("command.feature_disabled", feature=CATALOG), tone="warning")
+    return False
+
+
+async def _run(interaction: discord.Interaction[Any], action: Callable[[], Awaitable[service.OpReply]]) -> None:
+    """Defer (the listing refresh may take a moment), run the change, reply with the operator report."""
+    if not await _ready(interaction):
+        return
+    app = app_of(interaction)
+    await interaction.response.defer(ephemeral=True, thinking=True)
+    result = await action()
+    await reply(interaction, service.reply_spec(app, result), ephemeral=True)
+
+
+async def _send_modal(interaction: discord.Interaction[Any], spec: ModalSpec) -> None:
+    check_modal(spec)
+    modal = to_modal(spec)
+    await interaction.response.send_modal(modal)
+    # Submissions are routed by custom_id (restart-safe); drop discord.py's in-memory copy.
+    modal.stop()
+
+
+def _choice_name(app: App, product: repo.Product) -> str:
+    label = app.op("catalog.choice", product_id=product.id, name=product.name)
+    return label if 1 <= len(label) <= CHOICE_NAME_MAX else product.name
+
+
+def _autocomplete(include_archived: bool) -> AutocompleteCallback:
+    async def complete(interaction: discord.Interaction[Any], current: str) -> list[app_commands.Choice[int]]:
+        app = app_of(interaction)
+        if interaction.guild_id != app.env.guild_id or not service.is_manager(
+            app, _member(interaction), interaction.user.id
+        ):
+            return []
+        products = await service.autocomplete_products(app, current, include_archived=include_archived)
+        return [app_commands.Choice(name=_choice_name(app, p), value=p.id) for p in products[:25]]
+
+    return complete
+
+
+def build_product_group() -> app_commands.Group:
+    group = app_commands.Group(name="product", description="Manage catalog products (catalog managers and admins).")
+    group = app_commands.default_permissions(manage_guild=True)(group)
+    group = app_commands.guild_only(group)
+    active_products = _autocomplete(include_archived=False)
+    all_products = _autocomplete(include_archived=True)
+
+    @group.command(name="add", description="Create a product (opens the product form).")
+    @require_staff(service.manager_role_keys)
+    @require_manager()
+    async def add(interaction: discord.Interaction[Any]) -> None:
+        if not await _ready(interaction):
+            return
+        app = app_of(interaction)
+        await _send_modal(interaction, views.add_form(app.op, service.money_format(app), interaction.id))
+
+    @group.command(name="edit", description="Edit a product's name, price, stock, limit and description.")
+    @app_commands.describe(product_id="Product number (see /product list).")
+    @require_staff(service.manager_role_keys)
+    @require_manager()
+    async def edit(interaction: discord.Interaction[Any], product_id: ProductId) -> None:
+        if not await _ready(interaction):
+            return
+        app = app_of(interaction)
+        product = await service.load_product(app, product_id)
+        if product is None or product.archived:
+            error = repo.ProductNotFound(product_id) if product is None else service.ArchivedProduct(product_id)
+            await reply(interaction, service.reply_spec(app, service.error_reply(app, error)), ephemeral=True)
+            return
+        await _send_modal(interaction, views.edit_form(app.op, service.money_format(app), product))
+
+    @group.command(name="price", description="Set a product's price.")
+    @app_commands.describe(product_id="Product number.", amount="New price, e.g. 12.50 (in the shop currency).")
+    @require_staff(service.manager_role_keys)
+    @require_manager()
+    async def price(interaction: discord.Interaction[Any], product_id: ProductId, amount: str) -> None:
+        app = app_of(interaction)
+        await _run(
+            interaction,
+            lambda: service.set_price(app, actor_id=interaction.user.id, product_id=product_id, amount=amount),
+        )
+
+    @group.command(name="stock", description="Set or change a product's stock, or make it unlimited.")
+    @app_commands.describe(
+        product_id="Product number.",
+        mode="set: units on hand; add: add (or remove, if negative) units; unlimited: no stock limit.",
+        amount="Number of units (not needed for 'unlimited').",
+    )
+    @require_staff(service.manager_role_keys)
+    @require_manager()
+    async def stock(
+        interaction: discord.Interaction[Any],
+        product_id: ProductId,
+        mode: Literal["set", "add", "unlimited"],
+        amount: StockAmount | None = None,
+    ) -> None:
+        app = app_of(interaction)
+        await _run(
+            interaction,
+            lambda: service.change_stock(
+                app, actor_id=interaction.user.id, product_id=product_id, mode=mode, amount=amount
+            ),
+        )
+
+    @group.command(name="image", description="Set a product's image from an https link, or remove it.")
+    @app_commands.describe(
+        product_id="Product number.",
+        url="Permanent https:// image link (uploaded Discord attachments expire). Leave out to remove the image.",
+    )
+    @require_staff(service.manager_role_keys)
+    @require_manager()
+    async def image(interaction: discord.Interaction[Any], product_id: ProductId, url: str = "") -> None:
+        app = app_of(interaction)
+        await _run(
+            interaction, lambda: service.set_image(app, actor_id=interaction.user.id, product_id=product_id, url=url)
+        )
+
+    @group.command(name="toggle", description="Switch a product between active (listed) and inactive (hidden).")
+    @app_commands.describe(product_id="Product number.")
+    @require_staff(service.manager_role_keys)
+    @require_manager()
+    async def toggle(interaction: discord.Interaction[Any], product_id: ProductId) -> None:
+        app = app_of(interaction)
+        await _run(interaction, lambda: service.toggle_active(app, actor_id=interaction.user.id, product_id=product_id))
+
+    @group.command(name="archive", description="Archive a product for good (hidden, never orderable again).")
+    @app_commands.describe(product_id="Product number.", confirm="Set to True to confirm archiving.")
+    @require_staff(service.manager_role_keys)
+    @require_manager()
+    async def archive(interaction: discord.Interaction[Any], product_id: ProductId, confirm: bool = False) -> None:
+        app = app_of(interaction)
+        await _run(
+            interaction,
+            lambda: service.archive(app, actor_id=interaction.user.id, product_id=product_id, confirm=confirm),
+        )
+
+    @group.command(name="sort", description="Set a product's position in the listing (lower comes first).")
+    @app_commands.describe(
+        product_id="Product number.", position="Position number; ties are ordered by product number."
+    )
+    @require_staff(service.manager_role_keys)
+    @require_manager()
+    async def sort(interaction: discord.Interaction[Any], product_id: ProductId, position: Position) -> None:
+        app = app_of(interaction)
+        await _run(
+            interaction,
+            lambda: service.set_position(app, actor_id=interaction.user.id, product_id=product_id, position=position),
+        )
+
+    @group.command(name="view", description="Show a product's details and its customer card.")
+    @app_commands.describe(product_id="Product number.")
+    @require_staff(service.manager_role_keys)
+    @require_manager()
+    async def view(interaction: discord.Interaction[Any], product_id: ProductId) -> None:
+        if not await _ready(interaction):
+            return
+        app = app_of(interaction)
+        await interaction.response.defer(ephemeral=True, thinking=True)
+        for spec in await service.product_details(app, product_id):
+            await reply(interaction, spec, ephemeral=True)
+
+    @group.command(name="list", description="List products (staff view, paginated).")
+    @app_commands.describe(include_archived="Also list archived products.")
+    @require_staff(service.manager_role_keys)
+    @require_manager()
+    async def list_(interaction: discord.Interaction[Any], include_archived: bool = False) -> None:
+        if not await _ready(interaction):
+            return
+        app = app_of(interaction)
+        await interaction.response.defer(ephemeral=True, thinking=True)
+        await reply(interaction, await service.admin_list_view(app, 0, include_archived), ephemeral=True)
+
+    edit.autocomplete("product_id")(active_products)
+    price.autocomplete("product_id")(active_products)
+    stock.autocomplete("product_id")(active_products)
+    image.autocomplete("product_id")(active_products)
+    toggle.autocomplete("product_id")(active_products)
+    archive.autocomplete("product_id")(active_products)
+    sort.autocomplete("product_id")(active_products)
+    view.autocomplete("product_id")(all_products)
+    return group
