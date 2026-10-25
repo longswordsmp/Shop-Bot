@@ -32,15 +32,27 @@ perform staff actions check staff status inside the handler, e.g. per-ticket-cat
 | component | `cr` | `balance` | credits | any | no | `shopbot.features.credits.handlers.on_balance` |
 | component | `cr` | `hpage` | credits | staff | no | `shopbot.features.credits.handlers.on_history_page` |
 | component | `cs` | `cancel` | checkout | staff | no | `shopbot.features.checkout.handlers.on_staff_action` |
+| component | `cs` | `claim` | checkout | staff | no | `shopbot.features.checkout.handlers.on_claim` |
+| component | `cs` | `correct` | checkout | staff | no | `shopbot.features.checkout.handlers.on_correction` |
+| modal | `cs` | `correctform` | checkout | staff | no | `shopbot.features.checkout.handlers.on_correction_form` |
 | component | `cs` | `creturn` | checkout | staff | no | `shopbot.features.checkout.handlers.on_credit_return` |
 | modal | `cs` | `creturnform` | checkout | staff | no | `shopbot.features.checkout.handlers.on_credit_return_form` |
+| component | `cs` | `details` | checkout | staff | no | `shopbot.features.checkout.handlers.on_record_details` |
 | component | `cs` | `fulfill` | checkout | staff | no | `shopbot.features.checkout.handlers.on_staff_action` |
+| component | `cs` | `lfilter` | checkout | staff | no | `shopbot.features.checkout.handlers.on_list_filter` |
 | component | `cs` | `lpage` | checkout | staff | no | `shopbot.features.checkout.handlers.on_list_page` |
+| component | `cs` | `lview` | checkout | staff | no | `shopbot.features.checkout.handlers.on_list_view` |
+| component | `cs` | `note` | checkout | staff | no | `shopbot.features.checkout.handlers.on_note` |
+| modal | `cs` | `noteform` | checkout | staff | no | `shopbot.features.checkout.handlers.on_note_form` |
 | component | `cs` | `paid` | checkout | staff | no | `shopbot.features.checkout.handlers.on_staff_action` |
 | component | `cs` | `process` | checkout | staff | no | `shopbot.features.checkout.handlers.on_staff_action` |
 | component | `cs` | `refund` | checkout | staff | no | `shopbot.features.checkout.handlers.on_refund` |
 | modal | `cs` | `refundform` | checkout | staff | no | `shopbot.features.checkout.handlers.on_refund_form` |
 | component | `cs` | `reject` | checkout | staff | no | `shopbot.features.checkout.handlers.on_staff_action` |
+| modal | `cs` | `rejectform` | checkout | staff | no | `shopbot.features.checkout.handlers.on_reject_form` |
+| component | `cs` | `track` | checkout | staff | no | `shopbot.features.checkout.handlers.on_tracking` |
+| modal | `cs` | `trackform` | checkout | staff | no | `shopbot.features.checkout.handlers.on_tracking_form` |
+| component | `cs` | `unclaim` | checkout | staff | no | `shopbot.features.checkout.handlers.on_unclaim` |
 | modal | `ct` | `addform` | catalog | staff | no | `shopbot.features.catalog.handlers.on_add_form` |
 | component | `ct` | `apage` | catalog | staff | no | `shopbot.features.catalog.handlers.on_admin_page` |
 | component | `ct` | `browse` | catalog | any | no | `shopbot.features.catalog.handlers.on_browse` |
@@ -66,12 +78,16 @@ perform staff actions check staff status inside the handler, e.g. per-ticket-cat
 
 - `admin.maintenance`
 - `catalog.refresh_listing`
+- `checkout.activity_followup`
 - `checkout.after_submit`
 - `checkout.after_transition`
 - `checkout.payment_expire`
 - `checkout.payment_reminder`
 - `checkout.session_expire`
 - `checkout.ticket_check`
+- `operations.alert`
+- `operations.customer_role`
+- `operations.reminders`
 - `reviews.prompt`
 - `reviews.publish`
 - `tickets.auto_close`

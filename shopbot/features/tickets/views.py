@@ -459,11 +459,25 @@ def staff_alert(
     return MessageSpec(embeds=(embed,), mention_role_ids=ping_role_ids)
 
 
-def transcript_post(ui: Ui, settings: TicketSettings, *, number: int, user_id: int, closer_id: int) -> MessageSpec:
+def transcript_post(
+    ui: Ui,
+    settings: TicketSettings,
+    *,
+    number: int,
+    user_id: int,
+    closer_id: int,
+    closed_at: int | None = None,
+    final_status: str | None = None,
+    close_reason: str | None = None,
+) -> MessageSpec:
+    """The transcript message: who, when, and with which final status/reason the ticket was closed (data values)."""
     values: Values = {
         "number": number_text(settings, number),
         "user_mention": user_mention(user_id),
         "closer_mention": user_mention(closer_id),
+        "closed_at": f"<t:{closed_at}:f>" if closed_at else "",
+        "final_status": final_status or "",
+        "close_reason": escape(close_reason) if close_reason else "",
     }
     embed = _embed(
         ui,

@@ -17,6 +17,7 @@ from shopbot.ui.custom_ids import cid
 from tests.checkout.util import (
     add_product,
     balance,
+    control_ids,
     give_credits,
     go,
     make_env,
@@ -26,6 +27,7 @@ from tests.checkout.util import (
     orders,
     place_order,
     press,
+    reject,
     render,
     set_price,
     set_qty,
@@ -184,7 +186,7 @@ async def test_credit_of_an_order_paid_entirely_with_credit_is_given_back_after_
     cancelled = await order(co, placed.id)
     assert cancelled.status == m.CANCELLED and cancelled.can_return_credit and not cancelled.can_refund
     control = staff_message(co, cancelled)
-    assert control.custom_ids() == [views.credit_return_id(placed.id)]
+    assert control_ids(control) == [views.credit_return_id(placed.id)]
     opened = await press(co, staffer, control, views.credit_return_id(placed.id))
     modal = modal_of(opened)
     assert modal is not None and modal.title == co.app.op("checkout.refund.title_return", number=1)
@@ -205,7 +207,7 @@ async def test_credit_of_an_order_paid_entirely_with_credit_is_given_back_after_
     ]
     entries = await co.app.db.run(credits_repo.order_entries, GUILD_ID, placed.id)
     assert [(e.kind, e.delta_minor) for e in entries] == [("order_debit", -1000), ("order_return", 1000)]
-    assert staff_message(co, done).custom_ids() == []
+    assert control_ids(staff_message(co, done)) == []
     assert customer.dms[-1].embeds[0].description == render(
         co,
         k.notify_description_key(m.REFUNDED),
@@ -236,7 +238,7 @@ async def test_partly_credit_paid_order_is_fully_refunded_only_with_money_and_cr
     await _staff_status(co, staffer, placed, m.PAID)
     await _staff_status(co, staffer, placed, m.CANCELLED)
     control = staff_message(co, await order(co, placed.id))
-    assert control.custom_ids() == [
+    assert control_ids(control) == [
         views.refund_id(placed.id, views.MODE_MONEY),
         views.refund_id(placed.id, views.MODE_CREDIT),
         views.credit_return_id(placed.id),
@@ -257,7 +259,7 @@ async def test_partly_credit_paid_order_is_fully_refunded_only_with_money_and_cr
     current = await order(co, placed.id)
     assert current.status == m.CANCELLED and current.refunded_minor == 600
     assert await balance(co, customer.id) == 600
-    assert staff_message(co, current).custom_ids() == [views.credit_return_id(placed.id)]
+    assert control_ids(staff_message(co, current)) == [views.credit_return_id(placed.id)]
     reply = await _return_credit(co, staffer, placed)
     assert co.app.op("checkout.op.fully_refunded", number=1) in (reply or "")
     final = await order(co, placed.id)
@@ -311,13 +313,13 @@ async def test_credit_of_an_order_refunded_before_the_fix_can_still_be_given_bac
     legacy = await order(co, placed.id)
     assert legacy.can_return_credit and not legacy.can_refund
     assert await service.refresh_staff_message(co.app, placed.id)
-    assert staff_message(co, legacy).custom_ids() == [views.credit_return_id(placed.id)]
+    assert control_ids(staff_message(co, legacy)) == [views.credit_return_id(placed.id)]
     reply = await _return_credit(co, staffer, placed)
     assert reply == co.app.op("checkout.op.credit_returned", number=1, amount="4.00 USD")
     done = await order(co, placed.id)
     assert done.status == m.REFUNDED and done.fully_refunded
     assert await balance(co, customer.id) == 400
-    assert staff_message(co, done).custom_ids() == []
+    assert control_ids(staff_message(co, done)) == []
 
 
 async def test_credit_cannot_be_given_back_before_payment(co: TestEnv) -> None:
@@ -331,7 +333,7 @@ async def test_credit_cannot_be_given_back_before_payment(co: TestEnv) -> None:
     assert await balance(co, customer.id) == 0
     assert views.credit_return_id(placed.id) not in staff_message(co, placed).custom_ids()
     # Rejecting the unpaid order still gives the credit back automatically, once.
-    await _staff_status(co, staffer, placed, m.REJECTED)
+    await reject(co, staffer, staff_message(co, placed), placed.id)
     assert await balance(co, customer.id) == 300
     with pytest.raises(repo.RefundNotAllowed):
         await co.app.db.transaction(

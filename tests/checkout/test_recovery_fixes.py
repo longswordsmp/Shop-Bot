@@ -22,6 +22,7 @@ from tests.checkout.util import (
     add_product,
     audit_actions,
     channel,
+    control_ids,
     error_text,
     go,
     make_env,
@@ -259,7 +260,7 @@ async def test_an_error_in_one_follow_up_step_skips_nothing_else(co: TestEnv, mo
     assert await ticket_status(co, placed.ticket_id or 0) == "closed"
     assert customer.dms[-1].embeds[0].description == _notified(co, m.FULFILLED, placed, ch.id)
     assert await task(co, f"reviews.prompt:{placed.id}") is not None
-    assert staff_message(co, await order(co, placed.id)).custom_ids() == [
+    assert control_ids(staff_message(co, await order(co, placed.id))) == [
         views.refund_id(placed.id, views.MODE_MONEY),
         views.refund_id(placed.id, views.MODE_CREDIT),
     ]

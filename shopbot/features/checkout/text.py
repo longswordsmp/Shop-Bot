@@ -1,5 +1,6 @@
-"""Operator text of the checkout feature: private replies to staff (order buttons and ``/order``), the staff-only
-refund form, the staff order list and lookup, and /setup report lines.
+"""Operator text of the checkout feature: private replies to staff (order buttons, ``/order`` and ``/orders``), the
+staff-only forms (refund, note, correction request, tracking details, rejection reason), the staff order list and
+lookup, and /setup report lines.
 
 Shown only after a staff/admin check passed, always privately. Never shown to customers. The staff order-control
 message and every customer notification are business text (content keys), not operator text. Each entry can be
@@ -60,7 +61,50 @@ OPERATOR_TEXT: dict[str, str] = {
     "checkout.refund.reason_hint": "Kept in the order history; the customer does not see it.",
     "checkout.refund.title_return": "Return store credit of order #{number}",
     "checkout.refund.return_hint": "Gives {amount} back to the customer's store credit.",
-    # /order list
+    # claims, notes, correction requests, tracking details, rejection with a reason (order-record buttons)
+    "checkout.op.claimed": "You claimed order #{number}.",
+    "checkout.op.claim_taken": "Order #{number} is already claimed by {staff}. Nothing was changed.",
+    "checkout.op.claim_state": "Order #{number} is {status}; only open orders can be claimed. Nothing was changed.",
+    "checkout.op.unclaimed": "The claim on order #{number} was released.",
+    "checkout.op.not_claimed": "Order #{number} is not claimed. Nothing was changed.",
+    "checkout.op.not_claimer": (
+        "Order #{number} is claimed by {staff}; only they or an admin can release it. Nothing was changed."
+    ),
+    "checkout.op.correction_sent": (
+        "Correction request for order #{number} recorded; the customer was notified {delivery}."
+    ),
+    "checkout.op.correction_state": (
+        "Order #{number} is {status}; a correction can only be requested while it waits for payment. Nothing was sent."
+    ),
+    "checkout.op.tracking_saved": "Tracking details of order #{number} saved (sent with the completion notification).",
+    "checkout.op.tracking_sent": "Tracking details of order #{number} saved; the customer was notified {delivery}.",
+    "checkout.op.tracking_state": (
+        "Order #{number} is {status}; tracking details can be added once it is paid. Nothing was changed."
+    ),
+    "checkout.op.tracking_unavailable": "Tracking details are not used (checkout.staff.button.tracking is not set).",
+    "checkout.op.text_invalid": "The text must be between 1 and {max} characters. Nothing was changed.",
+    "checkout.op.delivery.dm": "by direct message",
+    "checkout.op.delivery.channel": "in the order channel",
+    "checkout.op.delivery.none": "- the notification could NOT be delivered (recorded in the audit log)",
+    "checkout.op.delivery.duplicate": "(it had already been sent)",
+    # staff-only forms of the order record
+    "checkout.note.title": "Note for order #{number}",
+    "checkout.note.label": "Internal note",
+    "checkout.note.hint": "Only staff see it: the order record in the staff channel and its details.",
+    "checkout.correction.title": "Correction for order #{number}",
+    "checkout.correction.label": "Message to the customer",
+    "checkout.correction.hint": "Sent privately with your correction wording; the order keeps waiting for payment.",
+    "checkout.tracking.title": "Tracking for order #{number}",
+    "checkout.tracking.label": "Tracking details",
+    "checkout.tracking.hint": "The customer sees them (completion notification, or right away if completed).",
+    "checkout.reject.title": "Reject order #{number}",
+    "checkout.reject.label": "Reason (sent to the customer)",
+    "checkout.reject.hint": "Included in the customer's rejection notification. Stock and credit are returned.",
+    # /order list and /orders
+    "checkout.list.filter_all": "All statuses",
+    "checkout.list.filter_placeholder": "Filter by status",
+    "checkout.list.view_option": "#{number} · {status}",
+    "checkout.list.view_placeholder": "Show an order's full record",
     "checkout.list.title": "Orders ({total})",
     "checkout.list.empty": "No orders match.",
     "checkout.list.line": "#{number} · {status} · {customer} · {total} · {created}",
@@ -96,6 +140,11 @@ OPERATOR_TEXT: dict[str, str] = {
     "checkout.lookup.history": "History (latest)",
     "checkout.lookup.event": "{when} · {old} → {new} · {actor} · {note}",
     "checkout.lookup.automatic": "automatic",
+    "checkout.lookup.claimed": "Claimed by",
+    "checkout.lookup.claimed_value": "{staff} since {when}",
+    "checkout.lookup.tracking": "Tracking details",
+    "checkout.lookup.activity": "Staff activity (latest)",
+    "checkout.lookup.activity_line": "{when} · {kind} · {actor} · {text}",
     # /setup report
     "checkout.publish.no_guild": "Shop panel: the configured server is not available.",
     "checkout.publish.no_channel": "Shop panel: channel '{name}' does not exist yet (run /setup to create it).",

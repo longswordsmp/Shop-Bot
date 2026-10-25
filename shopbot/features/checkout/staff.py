@@ -1,6 +1,10 @@
-"""Staff tooling shared by the staff order-control buttons and ``/order``: status changes, refunds, lookups and
-the order list. Every reply here is operator text (staff/admin only, always private); the staff order-control
-message itself is business text built by ``views.staff_message``.
+"""Staff tooling shared by the staff order-control buttons and ``/order``: status changes, refunds, claims, notes,
+correction requests, tracking details, rejection with a reason, lookups and the order list. Every reply here is
+operator text (staff/admin only, always private); the live order record itself is business text built by
+``staff_views.staff_messages``.
+
+Every action re-checks the order's current state in its transaction (conditional writes), so a double click or two
+staff members acting at once never apply anything twice; each one is audited and refreshes the live record.
 """
 
 from __future__ import annotations
@@ -12,7 +16,8 @@ from typing import TYPE_CHECKING
 from discord.utils import escape_markdown
 
 from shopbot.core.money import MoneyError, currency_exponent, format_amount, parse_amount
-from shopbot.features.checkout import flow, repo, service, views
+from shopbot.features.checkout import flow, repo, service, staff_keys, views
+from shopbot.features.checkout import handling_repo as h
 from shopbot.features.checkout import models as m
 from shopbot.ui.limits import EMBED_FIELD_VALUE, EMBED_FIELDS, EMBED_TOTAL_CHARS, EMBEDS_PER_MESSAGE
 from shopbot.ui.spec import EmbedField, EmbedSpec, MessageSpec
@@ -23,6 +28,7 @@ if TYPE_CHECKING:
 
 LIST_PAGE_SIZE = 10
 LOOKUP_EVENTS = 10
+LOOKUP_ACTIVITY = 15
 
 
 @dataclass(frozen=True)
@@ -129,6 +135,156 @@ async def change_status(
         if outstanding:
             lines += [app.op("checkout.op.paid_cancel", number=number), *outstanding]
     return OpReply("\n".join(lines), "success")
+
+
+# -- rejection with a reason ------------------------------------------------------------------------------------
+
+
+async def reject(app: App, order: m.Order, *, actor_id: int, reason: str, rendered_status: str) -> OpReply:
+    """Reject an unpaid order with a reason for the customer (the rejection form). Acts only while the order is still
+    in the status the reject button was rendered for; the reason goes into the customer's rejection notification."""
+    number = order.number
+    text = reason.strip()
+    if not text or len(text) > h.TEXT_MAX:
+        return OpReply(app.op("checkout.op.text_invalid", max=h.TEXT_MAX), "warning")
+    if rendered_status != order.status:
+        return await _already_handled(app, order, order)
+    if order.status not in m.TRANSITIONS[m.REJECTED]:
+        return OpReply(
+            app.op("checkout.op.invalid_transition", number=number, status=order.status, target=m.REJECTED), "warning"
+        )
+    result = await app.db.transaction(
+        h.reject_with_reason,
+        guild_id=app.env.guild_id,
+        order_id=order.id,
+        allowed_from=(rendered_status,),
+        actor_id=actor_id,
+        reason=text,
+        now=app.clock.now(),
+        task_attempts=app.scheduler.max_attempts,
+    )
+    if result is None:
+        return await _already_handled(app, order, await service.get_order(app, order.id))
+    moved, _ = result
+    await service.after_transition(app, moved, actor_id=actor_id)
+    return OpReply(app.op("checkout.op.status_changed", number=number, status=m.REJECTED), "success")
+
+
+# -- claims, notes, correction requests, tracking details -----------------------------------------------------------
+
+
+def _staff_mention(user_id: int | None) -> str:
+    return views.user_mention(user_id) if user_id else "-"
+
+
+def _handling_refused(app: App, order: m.Order, exc: h.HandlingError, *, state_key: str) -> OpReply:
+    current = exc.order or order
+    number = current.number
+    if exc.reason == "missing":
+        return OpReply(app.op("checkout.op.order_missing"), "warning")
+    if exc.reason == "claimed":
+        return OpReply(
+            app.op("checkout.op.claim_taken", number=number, staff=_staff_mention(exc.claimed_by)), "warning"
+        )
+    if exc.reason == "not_claimed":
+        return OpReply(app.op("checkout.op.not_claimed", number=number), "warning")
+    if exc.reason == "not_claimer":
+        return OpReply(
+            app.op("checkout.op.not_claimer", number=number, staff=_staff_mention(exc.claimed_by)), "warning"
+        )
+    if exc.reason == "text":
+        return OpReply(app.op("checkout.op.text_invalid", max=h.TEXT_MAX), "warning")
+    return OpReply(app.op(state_key, number=number, status=current.status), "warning")
+
+
+async def claim(app: App, order: m.Order, *, actor_id: int) -> OpReply:
+    """Claim an open order. A second claim (by anyone) is refused and changes nothing."""
+    try:
+        await service.record_activity(app, h.claim, order.id, actor_id=actor_id, audit_action="checkout.order_claimed")
+    except h.HandlingError as exc:
+        await service.refresh_staff_message(app, order.id)  # bring a stale record up to date
+        return _handling_refused(app, order, exc, state_key="checkout.op.claim_state")
+    return OpReply(app.op("checkout.op.claimed", number=order.number), "success")
+
+
+async def unclaim(app: App, order: m.Order, *, actor_id: int, override: bool) -> OpReply:
+    """Release the claim (the member holding it, or an admin with ``override``)."""
+    try:
+        await service.record_activity(
+            app, h.unclaim, order.id, actor_id=actor_id, audit_action="checkout.order_unclaimed", override=override
+        )
+    except h.HandlingError as exc:
+        await service.refresh_staff_message(app, order.id)
+        return _handling_refused(app, order, exc, state_key="checkout.op.claim_state")
+    return OpReply(app.op("checkout.op.unclaimed", number=order.number), "success")
+
+
+async def note(app: App, order: m.Order, *, actor_id: int, text: str) -> OpReply:
+    """An internal note (never shown to the customer)."""
+    if not text.strip() or len(text.strip()) > h.NOTE_MAX:
+        return OpReply(app.op("checkout.op.text_invalid", max=h.NOTE_MAX), "warning")
+    try:
+        await service.record_activity(
+            app, h.add_note, order.id, actor_id=actor_id, audit_action="checkout.order_note", text=text
+        )
+    except h.HandlingError as exc:
+        return _handling_refused(app, order, exc, state_key="checkout.op.claim_state")
+    return OpReply(app.op("checkout.op.note_added", number=order.number), "success")
+
+
+_DELIVERY_TEXT = {
+    "dm": "checkout.op.delivery.dm",
+    "channel": "checkout.op.delivery.channel",
+    "duplicate": "checkout.op.delivery.duplicate",
+}
+
+
+def _delivery(app: App, delivery: str) -> str:
+    return app.op(_DELIVERY_TEXT.get(delivery, "checkout.op.delivery.none"))
+
+
+async def request_correction(app: App, order: m.Order, *, actor_id: int, text: str) -> OpReply:
+    """Ask the customer of an order waiting for payment to correct information; the order keeps waiting."""
+    try:
+        change = await service.record_activity(
+            app,
+            h.request_correction,
+            order.id,
+            actor_id=actor_id,
+            audit_action="checkout.order_correction_requested",
+            text=text,
+        )
+    except h.HandlingError as exc:
+        return _handling_refused(app, order, exc, state_key="checkout.op.correction_state")
+    delivery = await app.db.run(_delivery_of, service.notify_key(order.id, f"correction:{change.activity.id}"))
+    tone = "success" if delivery in ("dm", "channel") else "warning"
+    return OpReply(app.op("checkout.op.correction_sent", number=order.number, delivery=_delivery(app, delivery)), tone)
+
+
+async def set_tracking(app: App, order: m.Order, *, actor_id: int, text: str) -> OpReply:
+    """Store tracking details; a completed order's customer is told right away, otherwise they are sent with the
+    completion notification."""
+    if not staff_keys.tracking_enabled(app.content):
+        return OpReply(app.op("checkout.op.tracking_unavailable"), "warning")
+    try:
+        change = await service.record_activity(
+            app, h.set_tracking, order.id, actor_id=actor_id, audit_action="checkout.order_tracking_set", text=text
+        )
+    except h.HandlingError as exc:
+        return _handling_refused(app, order, exc, state_key="checkout.op.tracking_state")
+    if change.order.status != m.FULFILLED:
+        return OpReply(app.op("checkout.op.tracking_saved", number=order.number), "success")
+    delivery = await app.db.run(_delivery_of, service.notify_key(order.id, f"tracking:{change.activity.id}"))
+    tone = "success" if delivery in ("dm", "channel") else "warning"
+    return OpReply(app.op("checkout.op.tracking_sent", number=order.number, delivery=_delivery(app, delivery)), tone)
+
+
+def _delivery_of(conn: sqlite3.Connection, dedupe_key: str) -> str:
+    """How a notification was delivered ('dm', 'channel', 'none'), from its delivery record."""
+    row = conn.execute("SELECT delivery, status FROM notifications WHERE dedupe_key = ?", (dedupe_key,)).fetchone()
+    if row is None or str(row["status"]) != "sent":
+        return "none"
+    return str(row["delivery"])
 
 
 # -- refunds --------------------------------------------------------------------------------------------------------
@@ -262,6 +418,11 @@ def _label(app: App, answer_key: str) -> str:
     return app.op("checkout.lookup.unlabelled", key=answer_key)
 
 
+def _pieces(line: str) -> list[str]:
+    """``line`` in pieces that each fit an embed field (operator display of staff-entered text; nothing is lost)."""
+    return [line[i : i + EMBED_FIELD_VALUE] for i in range(0, len(line), EMBED_FIELD_VALUE)] or [line]
+
+
 def _blocks(name: str, lines: list[str]) -> list[EmbedField]:
     return [EmbedField(name=name, value=block) for block in chunk_lines(lines, EMBED_FIELD_VALUE)] if lines else []
 
@@ -298,10 +459,23 @@ async def lookup_messages(app: App, order: m.Order) -> list[MessageSpec]:
     view = await service.order_view(app, order.id)
     if view is None:
         return [reply_spec(app, OpReply(app.op("checkout.op.not_found", number=order.number), "warning"))]
-    order = view.order
     payment = await app.db.run(repo.payment_for, order.id)
     adjustments = await app.db.run(repo.adjustments, order.id)
-    history = await app.db.run(repo.events, order.id)
+    data = await service.staff_data(app, order.id)
+    return lookup_specs(app, view, payment, adjustments, data)
+
+
+def lookup_specs(
+    app: App,
+    view: m.OrderView,
+    payment: m.Payment | None,
+    adjustments: list[m.Adjustment],
+    data: h.StaffData,
+) -> list[MessageSpec]:
+    """The full order record (``/order lookup``/``view``, the details button) from loaded data (pure; the preview
+    builds it from sample data)."""
+    order = view.order
+    history = list(data.events)
     op = app.op
     cur = order.currency
 
@@ -334,6 +508,14 @@ async def lookup_messages(app: App, order: m.Order) -> list[MessageSpec]:
         fields.append(
             EmbedField(op("checkout.lookup.credit_returned"), money(order.credit_returned_minor), inline=True)
         )
+    handling = data.handling
+    if handling.claimed_by is not None:
+        claimed = op(
+            "checkout.lookup.claimed_value",
+            staff=views.user_mention(handling.claimed_by),
+            when=_when(handling.claimed_at),
+        )
+        fields.append(EmbedField(op("checkout.lookup.claimed"), claimed, inline=True))
     if payment is not None:
         fields.append(
             EmbedField(
@@ -386,4 +568,18 @@ async def lookup_messages(app: App, order: m.Order) -> list[MessageSpec]:
         for e in history[-LOOKUP_EVENTS:]
     ]
     fields += _blocks(op("checkout.lookup.history"), event_lines)
+    if handling.tracking:
+        fields += views.answer_fields(op("checkout.lookup.tracking"), handling.tracking)
+    activity_lines = [
+        op(
+            "checkout.lookup.activity_line",
+            when=_when(a.created_at),
+            kind=a.kind,
+            actor=views.user_mention(a.actor_id) if a.actor_id else op("checkout.lookup.automatic"),
+            text=escape_markdown(a.text) if a.text else "-",
+        )
+        for a in data.activity[-LOOKUP_ACTIVITY:]
+    ]
+    # A long note or message is split over several lines (never cut).
+    fields += _blocks(op("checkout.lookup.activity"), [piece for line in activity_lines for piece in _pieces(line)])
     return _pack(app, op("checkout.lookup.title", number=order.number), fields)

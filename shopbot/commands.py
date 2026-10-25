@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING, Any, TypeVar
 import discord
 from discord import app_commands
 
+from shopbot.core.events import FAILURE
 from shopbot.features import core_keys as ck
 from shopbot.logging_setup import log_event
 from shopbot.ui.discord_render import RenderError, send_kwargs
@@ -143,10 +144,20 @@ async def on_tree_error(interaction: discord.Interaction[Any], error: app_comman
             command=getattr(interaction.command, "qualified_name", None),
         )
         log.error("command failure %s", error_id, exc_info=original)
-        if app.perms.is_staff(_member(interaction), interaction.user.id):
-            await reply_operator(interaction, app.op("command.failed", error_id=error_id), tone="danger")
-        else:
-            await reply_content_error(interaction, ck.ERROR_GENERIC, error_id=error_id)
+        try:
+            if app.perms.is_staff(_member(interaction), interaction.user.id):
+                await reply_operator(interaction, app.op("command.failed", error_id=error_id), tone="danger")
+            else:
+                await reply_content_error(interaction, ck.ERROR_GENERIC, error_id=error_id)
+        finally:
+            # Operations records it in the audit log and alerts staff (no private data: names and the reference).
+            await app.events.publish(
+                FAILURE,
+                kind="command",
+                source=getattr(interaction.command, "qualified_name", None) or "-",
+                error_id=error_id,
+                error=type(original).__name__,
+            )
     except (discord.HTTPException, RenderError):
         log.exception("failed to report command error")
 

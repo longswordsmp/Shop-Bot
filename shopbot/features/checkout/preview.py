@@ -17,7 +17,7 @@ from shopbot.config.content import MissingContent
 from shopbot.config.settings import FulfillmentOption, Settings
 from shopbot.features.catalog.repo import NAME_MAX, Product
 from shopbot.features.checkout import content_keys as k
-from shopbot.features.checkout import flow, panel, staff, views
+from shopbot.features.checkout import flow, panel, staff, staff_preview, views
 from shopbot.features.checkout import models as m
 from shopbot.features.checkout.payments import get_provider
 from shopbot.features.checkout.totals import compute_totals
@@ -427,56 +427,15 @@ def preview(app: App) -> list[PreviewState]:
             f"Workflow message once the order is '{status}'.",
             partial(views.order_message, ui, settings, view, instructions=None),
         )
-    staff_confirms = provider.requires_staff_confirmation if provider is not None else True
-    credit_refunds = settings.features.credits
-    for status in m.ORDER_STATUSES:
-        view = _order(settings, status, lines)
-        add(
-            f"staff_{status}",
-            f"Staff order controls for an order that is '{status}'.",
-            partial(
-                views.staff_message,
-                ui,
-                settings,
-                view,
-                staff_confirms_payment=staff_confirms,
-                credit_refunds=credit_refunds,
-            ),
-        )
-    partly_refunded = _order(settings, m.PAID, lines, refunded=1)
-    add(
-        "staff_paid_partially_refunded",
-        "Staff order controls after a partial refund.",
-        lambda: views.staff_message(
-            ui, settings, partly_refunded, staff_confirms_payment=staff_confirms, credit_refunds=credit_refunds
-        ),
+    staff_preview.add_states(
+        app,
+        add,
+        partial(_order, settings),
+        lines=lines,
+        largest=largest,
+        staff_confirms=provider.requires_staff_confirmation if provider is not None else True,
+        credit_refunds=settings.features.credits,
     )
-    with_credit = _order(settings, m.CANCELLED, lines, credits=SAMPLE_CREDITS_MINOR)
-    add(
-        "staff_cancelled_credit_applied",
-        "Staff order controls of a paid order that was cancelled and had store credit applied (refund buttons and "
-        "the button that gives the applied credit back).",
-        lambda: views.staff_message(
-            ui, settings, with_credit, staff_confirms_payment=staff_confirms, credit_refunds=credit_refunds
-        ),
-    )
-    try:
-        largest_staff = views.staff_messages(
-            ui,
-            settings,
-            _order(settings, m.PENDING, largest),
-            staff_confirms_payment=staff_confirms,
-            credit_refunds=credit_refunds,
-        )
-    except MissingContent:
-        largest_staff = []
-    for index, spec in enumerate(largest_staff):
-        add(
-            "staff_pending_largest" if index == 0 else f"staff_pending_largest_part_{index}",
-            "Staff order controls of the largest possible order (the lines follow as separate messages when they do "
-            "not fit next to the configured text).",
-            partial(_same, spec),
-        )
     try:
         details_messages = views.staff_details_messages(ui, settings, pending.order) if inputs else []
     except MissingContent:

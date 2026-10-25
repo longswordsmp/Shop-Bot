@@ -5,8 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 
 from shopbot.features import core_keys as core
+from shopbot.features.checkout import handling_repo, repo, views
 from shopbot.features.checkout import models as m
-from shopbot.features.checkout import repo, views
 from tests.checkout.util import (
     FULL_SETTINGS,
     add_product,
@@ -72,9 +72,11 @@ async def test_status_cancel_and_note(co: TestEnv) -> None:
     assert [(e.from_status, e.to_status, e.note) for e in events] == [
         (None, m.PENDING, None),
         (m.PENDING, m.PAID, None),
-        (m.PAID, m.PAID, "[sample note]"),
         (m.PAID, m.CANCELLED, "[sample reason]"),
     ]
+    # Internal notes are staff activity (never part of the status history customers' timelines are built from).
+    notes = await co.app.db.run(handling_repo.activity, placed.id, (handling_repo.NOTE,))
+    assert [(n.text, n.actor_id) for n in notes] == [("[sample note]", staffer.id)]
 
 
 async def test_refund_command(co: TestEnv) -> None:

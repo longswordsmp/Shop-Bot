@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Literal
 
 import discord
 
+from shopbot.core.events import FAILURE
 from shopbot.db.repos import notifications as notif_repo
 from shopbot.db.repos import state
 from shopbot.logging_setup import log_event
@@ -136,6 +137,8 @@ class Notifier:
             status="failed",
             error=dm_error,
         )
+        # Operations records it in the audit log and alerts staff (who the notification was for and its kind only).
+        await self.app.events.publish(FAILURE, kind="notification", source=kind, user_id=user_id)
         return "none"
 
     async def notify_channel(

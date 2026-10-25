@@ -230,6 +230,19 @@ channel = "new_arrivals"
 [my_orders]
 
 [operations]
+# Staff side of orders and tickets: #staff-chat alerts, reminders, Owner alerts, failure reports.
+# (Switched on automatically while checkout or tickets is on; the wording is in content.toml under operations.*)
+staff_channel = "staff_chat"         # staff alert channel: new/paid order alerts, reminders, failure alerts (required)
+ping_roles = ["staff"]               # role keys mentioned on alerts that need attention (the role must be mentionable,
+                                     # or the bot needs "Mention @everyone, @here and All Roles", to notify anyone)
+owner_dm_alerts = true               # also send order alerts and critical failure alerts to the Owner (OWNER_ID) by
+                                     # direct message; when the DM fails they are posted in staff_channel instead
+# Reminders posted in staff_channel (minutes; 0 = off). Business decisions: left off until you choose them.
+unclaimed_order_minutes = 0          # an open order nobody claimed for this long
+unpaid_order_minutes = 0             # an order still waiting for payment this long after it was submitted
+unfulfilled_order_minutes = 0        # a paid order not completed this long after the payment was confirmed
+unanswered_ticket_minutes = 0        # a support ticket whose customer has waited this long for a staff reply
+reminder_repeat_minutes = 0          # repeat a reminder this often while it still applies (0 = remind once)
 
 [tickets]
 panel_channel = ""                   # "" = no standalone ticket panel (support starts from #purchase)
@@ -295,6 +308,9 @@ payment_expiry_minutes = 0           # 0 = an unpaid order never expires automat
 payment_reminder_minutes = 0         # 0 = no payment reminder
 delete_channel_after_close_minutes = 0
 transcript_on_close = true
+customer_role = "customer"           # role key given to members whose order reached customer_role_on ("" = off)
+customer_role_on = "fulfilled"       # "paid" (payment confirmed) or "fulfilled" (order completed)
+customer_role_remove_on_refund = true  # remove the role when an order is fully refunded and no other order qualifies
 # Fulfillment options (delivery, pickup, ...) are business decisions. Labels live in content.toml
 # checkout.fulfillment.<id>.label / .description. Example:
 # [[checkout.fulfillment_options]]

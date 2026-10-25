@@ -215,6 +215,21 @@ async def press(
     return await click(tenv.app, user=user, custom_id=custom_id, message=message, **kwargs)
 
 
+async def reject(
+    tenv: TestEnv, user: FakeMember, message: FakeMessage | None, order_id: int, reason: str = "[sample reason]"
+) -> FakeInteraction:
+    """Submit the rejection form of an unpaid order (the reject button opens it; the reason goes to the customer)."""
+    from shopbot.features.checkout import staff_views
+
+    return await submit_modal(
+        tenv.app,
+        user=user,
+        custom_id=staff_views.reject_form_id(order_id, m.PENDING),
+        fields={staff_views.REASON_INPUT: reason},
+        message=message,
+    )
+
+
 async def go(tenv: TestEnv, user: FakeMember, message: FakeMessage, session_id: int, step: str) -> FakeInteraction:
     return await press(tenv, user, message, views.go_id(session_id, step))
 
@@ -256,6 +271,19 @@ async def place_order(
     session = await reload_session(tenv, session.id)
     assert session.order_id is not None, error_text(interaction)
     return await order(tenv, session.order_id), ch, message
+
+
+def control_ids(message: FakeMessage) -> list[str]:
+    """custom_ids of the status and refund controls of a live order record (without the management buttons: claim,
+    note, correction, tracking, details - see tests/operations for those)."""
+    from shopbot.ui import custom_ids as cids
+
+    kept = []
+    for custom_id in message.custom_ids():
+        parsed = cids.parse(custom_id)
+        if parsed is None or parsed[1] not in views.MANAGEMENT_ACTIONS:
+            kept.append(custom_id)
+    return kept
 
 
 def staff_message(tenv: TestEnv, found: m.Order) -> FakeMessage:

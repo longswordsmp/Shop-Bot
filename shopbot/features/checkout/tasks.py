@@ -9,7 +9,8 @@ Follow-up tasks (scheduled in the same transaction as the change they follow, se
 - ``checkout.after_transition``: the order views, the status notification, closing the channel of a final order,
   the review request of a fulfilled order;
 - ``checkout.ticket_check``: closes an order channel that can no longer be used (its session ended without an
-  order, its order is final, or it never got a session - after ``ORPHAN_GRACE_SECONDS``).
+  order, its order is final, or it never got a session - after ``ORPHAN_GRACE_SECONDS``);
+- ``checkout.activity_followup``: the live staff record and the customer notification after a staff activity.
 A follow-up that could not complete every step raises, so the scheduler retries it with backoff.
 """
 
@@ -25,8 +26,8 @@ import discord
 from shopbot.core.scheduler import PermanentTaskError, RescheduleTask
 from shopbot.db.repos.tasks import Task
 from shopbot.features.checkout import content_keys as k
+from shopbot.features.checkout import handling_repo, repo, service, views
 from shopbot.features.checkout import models as m
-from shopbot.features.checkout import repo, service, views
 from shopbot.features.tickets import service as tickets_service
 from shopbot.features.tickets.models import CREATING, KIND_ORDER, OPEN
 from shopbot.logging_setup import log_event
@@ -128,6 +129,18 @@ async def after_transition_task(app: App, task: Task) -> None:
     released = bool(task.payload.get("released"))
     if not await service.run_transition_followups(app, order_id, status, actor_id=actor_id, released=released):
         raise service.FollowupIncomplete(f"order {order_id}: follow-up of {status} incomplete")
+
+
+async def activity_followup_task(app: App, task: Task) -> None:
+    """``checkout.activity_followup``: the follow-up of a staff activity (claim, note, correction request, tracking
+    details) that did not complete right after the commit: refresh the live record, send the customer notification
+    (deduplicated)."""
+    order_id = _payload_id(task, "order_id")
+    activity_id = _payload_id(task, "activity_id")
+    if await service.get_order(app, order_id) is None:
+        return
+    if not await service.run_activity_followup(app, order_id, activity_id):
+        raise service.FollowupIncomplete(f"order {order_id}: follow-up of activity {activity_id} incomplete")
 
 
 async def ticket_check_task(app: App, task: Task) -> None:
@@ -277,4 +290,5 @@ def register(app: App) -> None:
     app.scheduler.register(service.TASK_AFTER_SUBMIT, after_submit_task)
     app.scheduler.register(service.TASK_AFTER_TRANSITION, after_transition_task)
     app.scheduler.register(service.TASK_TICKET_CHECK, ticket_check_task)
+    app.scheduler.register(handling_repo.TASK_ACTIVITY_FOLLOWUP, activity_followup_task)
     app.bot.add_listener("guild_channel_delete", partial(on_channel_delete, app))

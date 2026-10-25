@@ -2,19 +2,22 @@
 
 If ``settings.audit.channel`` is set, a compact operator embed is also posted there (best effort). That
 channel must be admin-only; the embed uses technical wording (action identifiers), not customer content.
+Details are sanitized before they are stored or posted (``sanitize_details``): sensitive keys are masked, error
+texts are reduced to the exception type, token-shaped strings are redacted and long texts are capped.
 """
 
 from __future__ import annotations
 
 import json
 import logging
+import re
 from typing import TYPE_CHECKING, Any
 
 import discord
 
 from shopbot.db.repos import audit as audit_repo
 from shopbot.features.server_keys import PRIVATE_ACCESS, effective_access
-from shopbot.logging_setup import log_event
+from shopbot.logging_setup import log_event, redact
 from shopbot.ui.discord_render import RenderError, send_kwargs
 from shopbot.ui.spec import EmbedField, MessageSpec
 
@@ -22,6 +25,33 @@ if TYPE_CHECKING:
     from shopbot.context import App
 
 log = logging.getLogger(__name__)
+
+
+# Detail keys whose values are never recorded (defense in depth: callers must not pass secrets at all).
+_SENSITIVE_KEY = re.compile(r"(token|secret|password|passwd|credential|authorization|api_?key|cookie|webhook)", re.I)
+# Detail keys holding error text: only the exception type is kept (raw error text may echo request data).
+_ERROR_KEY = re.compile(r"(^|_)error$", re.I)
+_TYPE_NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_.]*")
+MAX_DETAIL_TEXT = 300
+REDACTED = "[REDACTED]"
+
+
+def sanitize_details(value: Any, key: str | None = None) -> Any:
+    """Audit details safe to store and to post in the audit channel: sensitive keys masked, error texts reduced to
+    their exception type, token-shaped strings redacted, every text capped (operator data, not business text)."""
+    if isinstance(value, dict):
+        return {str(k): sanitize_details(v, str(k)) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [sanitize_details(v, key) for v in value]
+    if isinstance(value, str):
+        if key is not None and _SENSITIVE_KEY.search(key):
+            return REDACTED
+        if key is not None and _ERROR_KEY.search(key):
+            match = _TYPE_NAME.match(value.strip())
+            return match.group(0)[:100] if match else "-"
+        text = redact(value)
+        return text if len(text) <= MAX_DETAIL_TEXT else text[:MAX_DETAIL_TEXT] + "…"
+    return value
 
 
 class AuditLog:
@@ -37,6 +67,7 @@ class AuditLog:
         target_id: str | int | None = None,
         details: dict[str, Any] | None = None,
     ) -> int:
+        details = sanitize_details(details) if details else details
         event_id = await self.app.db.transaction(
             audit_repo.insert,
             guild_id=self.app.env.guild_id,

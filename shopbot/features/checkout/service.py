@@ -12,6 +12,13 @@ Public API (also used by future payment webhooks)
 - ``return_credit(app, order_id, *, reason, actor_id) -> RefundOutcome``: gives the store credit the customer applied
   to a paid order back, all at once.
 - ``order_view(app, order_id)``, ``get_order(app, order_id)``, ``get_order_by_number(app, number)``.
+- ``add_note(app, order_id, *, actor_id, note)``: an internal staff note (staff activity, shown on the live order
+  record; never to customers). ``record_activity``/``run_activity_followup``: the staff activity of the live record
+  (claims, notes, correction requests, tracking details; see ``handling_repo``).
+
+Events (``shopbot.core.events``): ``ORDER_SUBMITTED`` and ``ORDER_STATUS_CHANGED`` are published from the durable
+follow-ups (``run_submit_followups``, ``run_transition_followups``), so they are published again when a follow-up is
+retried; the operations feature schedules its deduplicated alert and customer-role tasks from them.
 
 Refunds of a paid order
 -----------------------
@@ -51,11 +58,13 @@ from typing import TYPE_CHECKING
 import discord
 
 from shopbot.config.content import MissingContent
+from shopbot.core.events import ORDER_STATUS_CHANGED, ORDER_SUBMITTED
 from shopbot.core.ratelimit import Cooldowns
 from shopbot.features import core_keys as core
 from shopbot.features.catalog import service as catalog_service
 from shopbot.features.checkout import content_keys as k
-from shopbot.features.checkout import flow, repo, views
+from shopbot.features.checkout import flow, repo, staff_keys, staff_views, views
+from shopbot.features.checkout import handling_repo as h
 from shopbot.features.checkout import models as m
 from shopbot.features.checkout.payments import PaymentInstructions, PaymentProvider, RefundResult, get_provider
 from shopbot.features.checkout.totals import compute_totals
@@ -718,6 +727,8 @@ async def run_submit_followups(app: App, order_id: int, *, adopt: bool) -> bool:
             "staff_message", lambda: _ensure_staff_message(app, order_id, adopt=adopt), order_id=order_id
         )
         ok &= await _attempt("staff_details", lambda: post_staff_details(app, order_id), order_id=order_id)
+        # Operations: the new-order staff alert (its handler schedules a deduplicated task).
+        await app.events.publish(ORDER_SUBMITTED, order_id=order_id)
         return ok
 
 
@@ -831,20 +842,27 @@ async def refresh_customer_message(app: App, order_id: int) -> bool:
 # -- staff order controls ------------------------------------------------------------------------------------------
 
 
-def staff_specs(app: App, view: m.OrderView) -> list[MessageSpec]:
-    """The staff controls, then (large orders only) the order lines that did not fit into them."""
+def staff_specs(app: App, view: m.OrderView, data: h.StaffData) -> list[MessageSpec]:
+    """The live order record with its controls, then (large orders only) the order lines that did not fit into it."""
     provider = provider_for(view.order)
-    return views.staff_messages(
+    return staff_views.staff_messages(
         app.ui,
         app.settings,
         view,
+        data,
         staff_confirms_payment=provider.requires_staff_confirmation if provider is not None else True,
         credit_refunds=credit_refunds_possible(app, view.order),
+        tracking=staff_keys.tracking_enabled(app.content),
     )
 
 
-def staff_spec(app: App, view: m.OrderView) -> MessageSpec:
-    return staff_specs(app, view)[0]
+def staff_spec(app: App, view: m.OrderView, data: h.StaffData) -> MessageSpec:
+    return staff_specs(app, view, data)[0]
+
+
+async def staff_data(app: App, order_id: int) -> h.StaffData:
+    """Claim, tracking details, status history and staff activity of an order (for the live record)."""
+    return await app.db.run(h.staff_data, order_id)
 
 
 def staff_channel(app: App) -> discord.TextChannel | None:
@@ -918,7 +936,7 @@ async def post_staff_message(app: App, order_id: int, *, adopt: bool = False) ->
         log_event(log, logging.ERROR, "checkout_staff_channel_missing", order_id=order_id)
         return False
     try:
-        specs = staff_specs(app, view)
+        specs = staff_specs(app, view, await staff_data(app, order_id))
     except MissingContent as exc:
         _content_missing(exc, "checkout.staff_message")
         return False
@@ -973,7 +991,7 @@ async def refresh_staff_message(app: App, order_id: int) -> bool:
     if not isinstance(channel, discord.TextChannel):
         return await post_staff_message(app, order_id)
     try:
-        specs = staff_specs(app, view)
+        specs = staff_specs(app, view, await staff_data(app, order_id))
         await edit_spec(channel.get_partial_message(order.staff_message_id), specs[0])
     except discord.NotFound:
         return await post_staff_message(app, order_id)
@@ -1105,6 +1123,8 @@ async def run_transition_followups(
         ok &= await _attempt("staff_message", lambda: refresh_staff_message(app, order_id), order_id=order_id)
         if status == m.FULFILLED:
             ok &= await _attempt("review", lambda: _schedule_review(app, order_id), order_id=order_id)
+        # Operations: staff alerts and the customer role (handlers schedule deduplicated tasks).
+        await app.events.publish(ORDER_STATUS_CHANGED, order_id=order_id, status=status, actor_id=actor_id)
         return ok
 
 
@@ -1112,7 +1132,17 @@ async def _notify_status(app: App, order_id: int, status: str) -> None:
     view = await order_view(app, order_id)
     if view is None or view.order.status != status or status not in k.NOTIFIED_STATUSES:
         return
-    await notify_customer(app, view, status, lambda: views.status_notification(app.ui, app.settings, view, status))
+    # Staff-entered data the notification carries: the rejection reason, the tracking details of a completed order.
+    extras = await app.db.run(h.notification_data, order_id, status)
+    await notify_customer(
+        app,
+        view,
+        status,
+        lambda: staff_views.with_fields(
+            views.status_notification(app.ui, app.settings, view, status),
+            staff_views.notification_fields(app.ui, status, extras),
+        ),
+    )
 
 
 async def _close_final_channel(app: App, order_id: int, actor_id: int | None) -> None:
@@ -1294,16 +1324,100 @@ async def _after_refund(app: App, record: repo.RefundRecord, *, amount_minor: in
         )
 
 
-async def add_note(app: App, order_id: int, *, actor_id: int, note: str) -> m.Order | None:
-    order = await app.db.transaction(
-        repo.add_note, guild_id=app.env.guild_id, order_id=order_id, actor_id=actor_id, note=note, now=app.clock.now()
+# -- staff activity (claims, notes, correction requests, tracking details) -------------------------------------------
+
+
+async def record_activity(
+    app: App,
+    write: Callable[..., h.Change],
+    order_id: int,
+    *,
+    actor_id: int,
+    audit_action: str,
+    **values: object,
+) -> h.Change:
+    """Run one ``handling_repo`` write (it raises ``HandlingError`` and changes nothing when it is not allowed), audit
+    it, then run its follow-up right away (the durable follow-up task, scheduled by the write, is cancelled when every
+    step completed)."""
+    change = await app.db.transaction(
+        write,
+        guild_id=app.env.guild_id,
+        order_id=order_id,
+        actor_id=actor_id,
+        now=app.clock.now(),
+        task_attempts=app.scheduler.max_attempts,
+        **values,
     )
-    if order is not None:
-        await app.audit.record(
-            "checkout.order_note",
-            actor_id=actor_id,
-            target_type="order",
-            target_id=order_id,
-            details={"number": order.number},
+    activity = change.activity
+    details: dict[str, object] = {"number": change.order.number, "activity_id": activity.id}
+    if activity.text is not None:
+        details["length"] = len(activity.text)  # the text itself stays in the database (it may be private)
+    await _attempt(
+        "audit",
+        lambda: app.audit.record(
+            audit_action, actor_id=actor_id, target_type="order", target_id=order_id, details=details
+        ),
+        order_id=order_id,
+    )
+    if await run_activity_followup(app, order_id, activity.id):
+        await _attempt("cancel_followup", lambda: app.scheduler.cancel(h.activity_followup_key(activity.id)))
+    return change
+
+
+async def run_activity_followup(app: App, order_id: int, activity_id: int) -> bool:
+    """After a staff activity: the live record is brought up to date, and a correction request or tracking details
+    of a completed order are sent to the customer (each at most once). Safe to repeat; True when every step
+    completed."""
+
+    async def refresh() -> None:
+        if not await refresh_staff_message(app, order_id):
+            raise FollowupIncomplete("live order record not updated")  # e.g. a Discord error: the task retries
+
+    async with runtime(app).followup_lock(order_id):
+        ok = await _attempt("staff_message", refresh, order_id=order_id)
+        activity = await app.db.run(h.get_activity, activity_id)
+        if activity is not None and activity.kind in (h.CORRECTION, h.TRACKING):
+            ok &= await _attempt("notification", lambda: notify_activity(app, activity), order_id=order_id)
+        return ok
+
+
+async def notify_activity(app: App, activity: h.Activity) -> str:
+    """The customer notification of a correction request (only while the order still waits for payment) or of
+    tracking details entered after the order was completed. Returns the delivery ('skipped' when not applicable)."""
+    view = await order_view(app, activity.order_id)
+    if view is None or not activity.text:
+        return "skipped"
+    order = view.order
+    text = activity.text
+    if activity.kind == h.CORRECTION and order.status == m.PENDING:
+        return await notify_customer(
+            app,
+            view,
+            staff_keys.NOTIFY_CORRECTION,
+            lambda: staff_views.correction_notification(app.ui, app.settings, view, text),
+            dedupe_suffix=str(activity.id),
         )
-    return order
+    completed_before = order.fulfilled_at is not None and order.fulfilled_at <= activity.created_at
+    if activity.kind == h.TRACKING and order.status == m.FULFILLED and completed_before:
+        if not staff_keys.tracking_enabled(app.content):
+            return "skipped"
+        return await notify_customer(
+            app,
+            view,
+            staff_keys.NOTIFY_TRACKING,
+            lambda: staff_views.tracking_notification(app.ui, app.settings, view, text),
+            dedupe_suffix=str(activity.id),
+        )
+    return "skipped"
+
+
+async def add_note(app: App, order_id: int, *, actor_id: int, note: str) -> m.Order | None:
+    """An internal staff note (``/order note``, the note button; other features may call it too). None when the order
+    does not exist or the note is empty/too long. Notes are never shown to customers."""
+    try:
+        change = await record_activity(
+            app, h.add_note, order_id, actor_id=actor_id, audit_action="checkout.order_note", text=note
+        )
+    except h.HandlingError:
+        return None
+    return change.order

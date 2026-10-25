@@ -1298,7 +1298,9 @@ def return_order_credit(
 def add_note(
     conn: sqlite3.Connection, *, guild_id: int, order_id: int, actor_id: int, note: str, now: int
 ) -> m.Order | None:
-    """Add a staff note to the order's history (an event without a status change)."""
+    """Legacy: a staff note as an ``order_events`` row without a status change. Staff notes are staff activity now
+    (``service.add_note`` / ``handling_repo.add_note``: shown on the live order record, never in status timelines);
+    migration 0003 moved older notes there. Kept only for callers written before that change."""
     order = get_order(conn, order_id)
     if order is None or order.guild_id != guild_id:
         return None

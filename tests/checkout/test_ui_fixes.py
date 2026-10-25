@@ -18,6 +18,7 @@ from tests.checkout.util import (
     add_product,
     channel,
     component,
+    control_ids,
     error_text,
     go,
     make_env,
@@ -91,7 +92,7 @@ async def test_a_full_cart_with_long_names_never_hides_the_payment_instructions(
         # Staff get their controls (and the lines separately), too.
         assert placed.staff_message_id is not None
         control = staff_message(tenv, placed)
-        assert control.custom_ids() == [
+        assert control_ids(control) == [
             views.staff_action_id(m.PAID, placed.id, m.PENDING),
             views.staff_action_id(m.REJECTED, placed.id, m.PENDING),
             views.staff_action_id(m.CANCELLED, placed.id, m.PENDING),

@@ -70,7 +70,7 @@ TRANSCRIPT_DM_DESCRIPTION = "tickets.transcript_dm.description"
 WELCOME_PLACEHOLDERS = ("user_mention", "user_name", "number")
 CLOSED_PLACEHOLDERS = ("closer_mention", "number")
 STAFF_ALERT_PLACEHOLDERS = ("user_mention", "channel_mention", "number", "category_label")
-TRANSCRIPT_PLACEHOLDERS = ("number", "user_mention", "closer_mention")
+TRANSCRIPT_PLACEHOLDERS = ("number", "user_mention", "closer_mention", "closed_at", "final_status", "close_reason")
 
 _NUMBER_DOC = "{number} is the ticket number, zero-padded to tickets.number_padding digits."
 
@@ -479,7 +479,10 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             g_transcript,
             "Text of the transcript message in the transcript channel. {user_mention} mentions the customer; "
             "{closer_mention} mentions who closed the ticket (the bot for automatic closes, or the staff "
-            f"member who requested the transcript while the ticket was open). {_NUMBER_DOC} Needed when "
+            "member who requested the transcript while the ticket was open); {closed_at} is when it was closed "
+            "(shown in each reader's time zone; empty while it is open); {final_status} is the order's final status "
+            "name (checkout.status_label.*) for order channels, empty for support tickets; {close_reason} is the "
+            f"recorded close reason (the reason staff gave, or the automatic reason). {_NUMBER_DOC} Needed when "
             "tickets.transcript_channel is set.",
             required=transcripts,
             placeholders=TRANSCRIPT_PLACEHOLDERS,

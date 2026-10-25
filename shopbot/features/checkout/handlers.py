@@ -10,8 +10,10 @@ refused pick or quantity, the workflow message is re-rendered (best effort), and
 again.
 
 Staff routes (``cs``, access ``staff`` incl. ``checkout.staff_roles``): status changes through the state machine
-(a button acts only on the status it was rendered for), refund forms, giving back applied store credit, and the
-order-list pages. Replies to staff are private operator text.
+(a button acts only on the status it was rendered for; reject opens a form for the reason the customer receives),
+refund forms, giving back applied store credit, claim/unclaim, internal notes, correction requests, tracking details,
+the private full record ("details"), and the order list (pages, status filter, record menu). Every handler re-checks
+the staff role server-side and reloads the order by id. Replies to staff are private operator text.
 """
 
 from __future__ import annotations
@@ -26,8 +28,9 @@ from shopbot.config.content import MissingContent
 from shopbot.features import core_keys as core
 from shopbot.features.catalog import repo as catalog_repo
 from shopbot.features.checkout import content_keys as k
+from shopbot.features.checkout import handling_repo as h
 from shopbot.features.checkout import models as m
-from shopbot.features.checkout import repo, service, staff, views
+from shopbot.features.checkout import repo, service, staff, staff_keys, staff_views, views
 from shopbot.logging_setup import log_event
 from shopbot.ui.discord_render import RenderError, edit_kwargs
 from shopbot.ui.routing import Ctx, HandlerError
@@ -326,12 +329,19 @@ async def _staff_order(ctx: Ctx) -> m.Order | None:
     return order
 
 
-async def on_staff_action(ctx: Ctx) -> None:
+def _require_staff(ctx: Ctx) -> None:
     if not ctx.is_staff(staff_role_keys(ctx.app)):  # also enforced by the route's access level
         raise HandlerError(core.ERROR_PERMISSION)
+
+
+async def on_staff_action(ctx: Ctx) -> None:
+    _require_staff(ctx)
     target = views.STAFF_ACTION_TARGETS.get(ctx.route.action)
     if target is None:
         raise HandlerError(core.ERROR_NOT_FOUND)
+    if target == m.REJECTED:
+        await _open_reject_form(ctx)
+        return
     await ctx.defer_reply(ephemeral=True)
     order = await _staff_order(ctx)
     if order is None:
@@ -439,6 +449,154 @@ async def on_credit_return_form(ctx: Ctx) -> None:
     await _staff_reply(ctx, await staff.return_credit(ctx.app, order, reason=reason, actor_id=ctx.user_id))
 
 
+# -- staff: the live order record's management buttons ------------------------------------------------------------
+
+
+def _form_text(ctx: Ctx, input_id: str) -> str:
+    return ctx.fields.get(input_id, "").strip()
+
+
+async def _open_reject_form(ctx: Ctx) -> None:
+    """The reject button: open the reason form while the order is still in the status the button was rendered for."""
+    order = await _staff_order(ctx)
+    if order is None:
+        return
+    rendered = ctx.args[1] if len(ctx.args) > 1 else ""
+    if rendered != order.status or order.status not in m.TRANSITIONS[m.REJECTED]:
+        await ctx.defer_reply(ephemeral=True)
+        await _staff_reply(
+            ctx, await staff.change_status(ctx.app, order, m.REJECTED, actor_id=ctx.user_id, rendered_status=rendered)
+        )
+        return
+    await ctx.send_modal(staff_views.reject_modal(ctx.app.op, order, order.status))
+
+
+async def on_reject_form(ctx: Ctx) -> None:
+    _require_staff(ctx)
+    await ctx.defer_reply(ephemeral=True)
+    order = await _staff_order(ctx)
+    if order is None:
+        return
+    rendered = ctx.args[1] if len(ctx.args) > 1 else ""
+    reply = await staff.reject(
+        ctx.app, order, actor_id=ctx.user_id, reason=_form_text(ctx, staff_views.REASON_INPUT), rendered_status=rendered
+    )
+    await _staff_reply(ctx, reply)
+
+
+async def on_claim(ctx: Ctx) -> None:
+    _require_staff(ctx)
+    await ctx.defer_reply(ephemeral=True)
+    order = await _staff_order(ctx)
+    if order is not None:
+        await _staff_reply(ctx, await staff.claim(ctx.app, order, actor_id=ctx.user_id))
+
+
+async def on_unclaim(ctx: Ctx) -> None:
+    _require_staff(ctx)
+    await ctx.defer_reply(ephemeral=True)
+    order = await _staff_order(ctx)
+    if order is not None:
+        reply = await staff.unclaim(ctx.app, order, actor_id=ctx.user_id, override=ctx.is_admin())
+        await _staff_reply(ctx, reply)
+
+
+async def on_note(ctx: Ctx) -> None:
+    _require_staff(ctx)
+    order = await _staff_order(ctx)
+    if order is not None:
+        await ctx.send_modal(staff_views.note_modal(ctx.app.op, order))
+
+
+async def on_note_form(ctx: Ctx) -> None:
+    _require_staff(ctx)
+    await ctx.defer_reply(ephemeral=True)
+    order = await _staff_order(ctx)
+    if order is not None:
+        text = _form_text(ctx, staff_views.NOTE_INPUT)
+        await _staff_reply(ctx, await staff.note(ctx.app, order, actor_id=ctx.user_id, text=text))
+
+
+async def on_correction(ctx: Ctx) -> None:
+    _require_staff(ctx)
+    order = await _staff_order(ctx)
+    if order is None:
+        return
+    if order.status not in h.CORRECTION_STATUSES:
+        text = ctx.app.op("checkout.op.correction_state", number=order.number, status=order.status)
+        await _staff_reply(ctx, staff.OpReply(text, "warning"))
+        return
+    await ctx.send_modal(staff_views.correction_modal(ctx.app.op, order))
+
+
+async def on_correction_form(ctx: Ctx) -> None:
+    _require_staff(ctx)
+    await ctx.defer_reply(ephemeral=True)
+    order = await _staff_order(ctx)
+    if order is not None:
+        text = _form_text(ctx, staff_views.MESSAGE_INPUT)
+        await _staff_reply(ctx, await staff.request_correction(ctx.app, order, actor_id=ctx.user_id, text=text))
+
+
+async def on_tracking(ctx: Ctx) -> None:
+    _require_staff(ctx)
+    app = ctx.app
+    order = await _staff_order(ctx)
+    if order is None:
+        return
+    if not staff_keys.tracking_enabled(app.content):
+        await _staff_reply(ctx, staff.OpReply(app.op("checkout.op.tracking_unavailable"), "warning"))
+        return
+    if order.status not in h.TRACKING_STATUSES:
+        text = app.op("checkout.op.tracking_state", number=order.number, status=order.status)
+        await _staff_reply(ctx, staff.OpReply(text, "warning"))
+        return
+    current = await app.db.run(h.tracking_text, order.id)
+    await ctx.send_modal(staff_views.tracking_modal(app.op, order, current))
+
+
+async def on_tracking_form(ctx: Ctx) -> None:
+    _require_staff(ctx)
+    await ctx.defer_reply(ephemeral=True)
+    order = await _staff_order(ctx)
+    if order is not None:
+        text = _form_text(ctx, staff_views.TRACKING_INPUT)
+        await _staff_reply(ctx, await staff.set_tracking(ctx.app, order, actor_id=ctx.user_id, text=text))
+
+
+async def _show_record(ctx: Ctx, order_id: int) -> None:
+    """The full order record (operator text), privately to the staff member who asked."""
+    await ctx.defer_reply(ephemeral=True)
+    order = await service.get_order(ctx.app, order_id)
+    if order is None:
+        await _staff_reply(ctx, staff.OpReply(ctx.app.op("checkout.op.order_missing"), "warning"))
+        return
+    for spec in await staff.lookup_messages(ctx.app, order):
+        await ctx.respond(spec, ephemeral=True)
+
+
+async def on_record_details(ctx: Ctx) -> None:
+    _require_staff(ctx)
+    await _show_record(ctx, ctx.arg_int(0))
+
+
+async def on_list_view(ctx: Ctx) -> None:
+    _require_staff(ctx)
+    if len(ctx.values) != 1 or not ctx.values[0].isdigit():
+        raise HandlerError(core.ERROR_INVALID_INPUT)
+    await _show_record(ctx, int(ctx.values[0]))
+
+
+async def on_list_filter(ctx: Ctx) -> None:
+    _require_staff(ctx)
+    if len(ctx.values) != 1:
+        raise HandlerError(core.ERROR_INVALID_INPUT)
+    status = "" if ctx.values[0] == "all" else ctx.values[0]
+    if status and status not in m.ORDER_STATUSES:
+        raise HandlerError(core.ERROR_INVALID_INPUT)
+    await ctx.update(await staff.list_view(ctx.app, 0, status, ctx.arg_int(0)))
+
+
 async def on_list_page(ctx: Ctx) -> None:
     if not ctx.is_staff(staff_role_keys(ctx.app)):
         raise HandlerError(core.ERROR_PERMISSION)
@@ -492,3 +650,23 @@ def register(app: App) -> None:
         on_credit_return_form
     )
     router.component(staff_route, "lpage", feature=feature, access="staff", staff_roles=staff_role_keys)(on_list_page)
+    staff_components = {
+        "claim": on_claim,
+        "unclaim": on_unclaim,
+        "note": on_note,
+        "correct": on_correction,
+        "track": on_tracking,
+        "details": on_record_details,
+        "lfilter": on_list_filter,
+        "lview": on_list_view,
+    }
+    for action, handler in staff_components.items():
+        router.component(staff_route, action, feature=feature, access="staff", staff_roles=staff_role_keys)(handler)
+    staff_forms = {
+        "noteform": on_note_form,
+        "correctform": on_correction_form,
+        "trackform": on_tracking_form,
+        "rejectform": on_reject_form,
+    }
+    for action, handler in staff_forms.items():
+        router.modal(staff_route, action, feature=feature, access="staff", staff_roles=staff_role_keys)(handler)

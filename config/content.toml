@@ -410,8 +410,8 @@ tickets.staff_alert.title = ""
 
 # --- Ticket transcripts ---
 
-# Text of the transcript message in the transcript channel. {user_mention} mentions the customer; {closer_mention} mentions who closed the ticket (the bot for automatic closes, or the staff member who requested the transcript while the ticket was open). {number} is the ticket number, zero-padded to tickets.number_padding digits. Needed when tickets.transcript_channel is set.
-# description · max 4096 characters · required · placeholders: {number}, {user_mention}, {closer_mention}
+# Text of the transcript message in the transcript channel. {user_mention} mentions the customer; {closer_mention} mentions who closed the ticket (the bot for automatic closes, or the staff member who requested the transcript while the ticket was open); {closed_at} is when it was closed (shown in each reader's time zone; empty while it is open); {final_status} is the order's final status name (checkout.status_label.*) for order channels, empty for support tickets; {close_reason} is the recorded close reason (the reason staff gave, or the automatic reason). {number} is the ticket number, zero-padded to tickets.number_padding digits. Needed when tickets.transcript_channel is set.
+# description · max 4096 characters · required · placeholders: {number}, {user_mention}, {closer_mention}, {closed_at}, {final_status}, {close_reason}
 tickets.transcript.description = ""
 
 # Title of the message (with the transcript file) posted in the transcript channel. {number} is the ticket number, zero-padded to tickets.number_padding digits. Needed when tickets.transcript_channel is set.
@@ -794,6 +794,36 @@ checkout.notify.rejected.description = ""
 # title · max 256 characters · optional · placeholders: {order_number}, {total}, {channel_mention}
 checkout.notify.rejected.title = ""
 
+# --- Checkout: customer notifications sent by staff actions ---
+
+# Notification sent to the customer when staff ask them to correct information on an order waiting for payment (the staff message follows in a field). {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention.
+# description · max 4096 characters · required · placeholders: {order_number}, {total}, {channel_mention}
+checkout.notify.correction.description = ""
+
+# Name of the field in the correction notification that shows the staff member's message.
+# field_name · max 256 characters · required
+checkout.notify.correction.message_field = ""
+
+# Optional title of the notification asking the customer to correct information. {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention.
+# title · max 256 characters · optional · placeholders: {order_number}, {total}, {channel_mention}
+checkout.notify.correction.title = ""
+
+# Name of the field in the customer's rejection notification (checkout.notify.rejected.*) that shows the reason staff entered when rejecting the order.
+# field_name · max 256 characters · required
+checkout.notify.rejected.reason_field = ""
+
+# Notification sent to the customer when staff add or change tracking details of an order that is already completed (the details follow in a field). {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention. Needed when checkout.staff.button.tracking is configured.
+# description · max 4096 characters · optional · placeholders: {order_number}, {total}, {channel_mention}
+checkout.notify.tracking.description = ""
+
+# Name of the field showing the tracking details in the customer's completion notification and in the tracking notification. Needed when checkout.staff.button.tracking is configured.
+# field_name · max 256 characters · optional
+checkout.notify.tracking.details_field = ""
+
+# Optional title of the notification sent when staff add or change tracking details of a completed order. {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention.
+# title · max 256 characters · optional · placeholders: {order_number}, {total}, {channel_mention}
+checkout.notify.tracking.title = ""
+
 # --- Checkout: payment instructions (manual payment) ---
 
 # How the customer pays (your own payment instructions), shown in the order channel after the customer submits an order and in the payment reminder. Staff confirm receipt with the mark-paid button. Never ask customers to send card details or passwords in Discord. {order_number} is the order number, {total} the amount to pay written with common.money_format.
@@ -828,6 +858,18 @@ checkout.quantity.title = ""
 # button_label · max 80 characters · required
 checkout.staff.button.cancel = ""
 
+# Staff button: claim an open order (records who handles it; a second claim is refused).
+# button_label · max 80 characters · required
+checkout.staff.button.claim = ""
+
+# Staff button on an order waiting for payment: ask the customer to correct information (opens a form for the message; the customer is notified privately and the order keeps waiting).
+# button_label · max 80 characters · required
+checkout.staff.button.correction = ""
+
+# Staff button: show the full order record privately to the staff member who clicks it.
+# button_label · max 80 characters · required
+checkout.staff.button.details = ""
+
 # Staff button: the order was delivered/completed (the order channel is closed).
 # button_label · max 80 characters · required
 checkout.staff.button.fulfilled = ""
@@ -835,6 +877,10 @@ checkout.staff.button.fulfilled = ""
 # Staff button: the payment was received (unpaid -> paid; stock is then taken).
 # button_label · max 80 characters · required
 checkout.staff.button.mark_paid = ""
+
+# Staff button: add an internal note (opens a staff-only form; notes are never shown to the customer).
+# button_label · max 80 characters · required
+checkout.staff.button.note = ""
 
 # Staff button: mark a paid order as being prepared (optional stage).
 # button_label · max 80 characters · required
@@ -856,9 +902,29 @@ checkout.staff.button.reject = ""
 # button_label · max 80 characters · required
 checkout.staff.button.return_credit = ""
 
+# Optional staff button on a paid, in-progress or completed order: add or change tracking details (included in the customer's completion notification, or sent to them when the order is already completed). Leave empty if your workflow does not use tracking details.
+# button_label · max 80 characters · optional
+checkout.staff.button.tracking = ""
+
+# Staff button: release the claim (only the member holding it, or an admin).
+# button_label · max 80 characters · required
+checkout.staff.button.unclaim = ""
+
+# Optional name of the field on the staff order record that links the customer's order channel.
+# field_name · max 256 characters · optional
+checkout.staff.channel_field = ""
+
+# Name of the field on the staff order record showing which staff member claimed the order and since when (shown only while it is claimed).
+# field_name · max 256 characters · required
+checkout.staff.claimed_field = ""
+
 # Optional name of the field on the staff order controls showing the applied store credit that was given back to the customer (written with common.money_format).
 # field_name · max 256 characters · optional
 checkout.staff.credit_returned_field = ""
+
+# Name of the field on the staff order record that mentions the customer (no ping).
+# field_name · max 256 characters · required
+checkout.staff.customer_field = ""
 
 # Text of the staff order controls. {user_mention} mentions the customer (no ping), {channel_mention} links the order channel, {order_number}/{total}/{status} as in the title. The order lines, totals and buttons follow.
 # description · max 4096 characters · required · placeholders: {order_number}, {user_mention}, {channel_mention}, {total}, {status}
@@ -868,13 +934,59 @@ checkout.staff.description = ""
 # title · max 256 characters · optional · placeholders: {order_number}
 checkout.staff.details_title = ""
 
+# Name of the field on the staff order record showing the order's unique reference (its number).
+# field_name · max 256 characters · required
+checkout.staff.reference_field = ""
+
 # Name of the field on the staff order controls showing how much was refunded so far.
 # field_name · max 256 characters · required
 checkout.staff.refunded_field = ""
 
+# Name of the field on the staff order record showing the current status (its name from checkout.status_label.*).
+# field_name · max 256 characters · required
+checkout.staff.status_field = ""
+
 # Title of the order controls posted for staff in checkout.staff_channel for every submitted order (edited on every status change). {order_number} is the order number, {total} the total, {status} the status name (checkout.status_label.*).
 # title · max 256 characters · required · placeholders: {order_number}, {total}, {status}
 checkout.staff.title = ""
+
+# Name of the field on the staff order record showing the tracking details staff entered. Needed when checkout.staff.button.tracking is configured.
+# field_name · max 256 characters · optional
+checkout.staff.tracking_field = ""
+
+# --- Checkout: staff order controls - timeline and notes ---
+
+# How one internal note is written, e.g. '{time} {actor}: {note}'. {time} is when it was added, {actor} mentions who added it, {note} is the note.
+# format · max 100 characters · required · placeholders: {time}, {actor}, {note}
+checkout.staff.note_line = ""
+
+# Name of the field on the staff order record listing the internal staff notes (the latest ones; never shown to the customer).
+# field_name · max 256 characters · required
+checkout.staff.notes_field = ""
+
+# Stage name in the timeline when a staff member claimed the order.
+# format · max 100 characters · required
+checkout.staff.stage.claimed = ""
+
+# Stage name in the timeline when staff asked the customer to correct information.
+# format · max 100 characters · required
+checkout.staff.stage.correction = ""
+
+# Stage name in the timeline when staff added or changed the tracking details. Needed when checkout.staff.button.tracking is configured.
+# format · max 100 characters · optional
+checkout.staff.stage.tracking = ""
+
+# Stage name in the timeline when the claim on the order was released.
+# format · max 100 characters · required
+checkout.staff.stage.unclaimed = ""
+
+# Name of the field on the staff order record listing the order's stages with their times (submitted, status changes, claims, correction requests, tracking details; the latest ones when there are many - the details button shows the full history).
+# field_name · max 256 characters · required
+checkout.staff.timeline_field = ""
+
+# How one stage is written in the timeline, e.g. '{time} {stage} {actor}'. {time} is the time (shown in each reader's time zone), {stage} the stage name (checkout.status_label.* for statuses, checkout.staff.stage.* for the other stages), {actor} mentions who did it (empty for automatic changes).
+# format · max 100 characters · required · placeholders: {time}, {stage}, {actor}
+checkout.staff.timeline_line = ""
 
 # --- Checkout: order status views (order channel) ---
 
@@ -1155,3 +1267,127 @@ reviews.rating.5.emoji = ""
 # Option label for rating 5 of 5 in the rating selection menu of the review request (options are listed from the highest rating to the lowest). Also shown on the published review when reviews.rating.5.display is empty.
 # option_label · max 100 characters · required
 reviews.rating.5.label = ""
+
+# ==================================================================================================
+# Feature: operations
+# ==================================================================================================
+
+# --- Operations: staff alerts (staff channel) ---
+
+# Staff alert when a customer submitted a new order (operations.ping_roles are mentioned). {order_number} is the order number, {customer_mention} mentions the customer (no ping), {total} is the order total, {status} the status name (checkout.status_label.*), {order_channel} links the customer's order channel.
+# description · max 4096 characters · required · placeholders: {order_number}, {customer_mention}, {total}, {status}, {order_channel}
+operations.alert.new_order.description = ""
+
+# Optional title of the Staff alert when a customer submitted a new order (operations.ping_roles are mentioned). {order_number} is the order number, {customer_mention} mentions the customer (no ping), {total} is the order total, {status} the status name (checkout.status_label.*), {order_channel} links the customer's order channel.
+# title · max 256 characters · optional · placeholders: {order_number}, {customer_mention}, {total}, {status}, {order_channel}
+operations.alert.new_order.title = ""
+
+# Staff alert when an order's payment was confirmed and it waits to be completed (operations.ping_roles are mentioned). {order_number} is the order number, {customer_mention} mentions the customer (no ping), {total} is the order total, {status} the status name (checkout.status_label.*), {order_channel} links the customer's order channel.
+# description · max 4096 characters · required · placeholders: {order_number}, {customer_mention}, {total}, {status}, {order_channel}
+operations.alert.paid_order.description = ""
+
+# Optional title of the Staff alert when an order's payment was confirmed and it waits to be completed (operations.ping_roles are mentioned). {order_number} is the order number, {customer_mention} mentions the customer (no ping), {total} is the order total, {status} the status name (checkout.status_label.*), {order_channel} links the customer's order channel.
+# title · max 256 characters · optional · placeholders: {order_number}, {customer_mention}, {total}, {status}, {order_channel}
+operations.alert.paid_order.title = ""
+
+# Optional link button under order alerts and order reminders that jumps to the order's live record in checkout.staff_channel.
+# button_label · max 80 characters · optional
+operations.button.open_record = ""
+
+# --- Operations: staff reminders (staff channel) ---
+
+# Optional link button under unanswered-ticket reminders that jumps to the ticket.
+# button_label · max 80 characters · optional
+operations.button.open_ticket = ""
+
+# Staff reminder about a support ticket whose customer waits for a staff reply, posted once it waited operations.unanswered_ticket_minutes minutes (again every operations.reminder_repeat_minutes while it still waits, when set). {ticket_number} is the ticket number, {customer_mention} mentions the customer (no ping), {ticket_channel} links the ticket; {waiting_since} is when it started waiting (shown in each reader's time zone), {minutes} the threshold in minutes. Needed when operations.unanswered_ticket_minutes is above 0.
+# description · max 4096 characters · optional · placeholders: {ticket_number}, {customer_mention}, {ticket_channel}, {waiting_since}, {minutes}
+operations.reminder.unanswered.description = ""
+
+# Optional title of the Staff reminder about a support ticket whose customer waits for a staff reply, posted once it waited operations.unanswered_ticket_minutes minutes (again every operations.reminder_repeat_minutes while it still waits, when set). {ticket_number} is the ticket number, {customer_mention} mentions the customer (no ping), {ticket_channel} links the ticket; {waiting_since} is when it started waiting (shown in each reader's time zone), {minutes} the threshold in minutes.
+# title · max 256 characters · optional · placeholders: {ticket_number}, {customer_mention}, {ticket_channel}, {waiting_since}, {minutes}
+operations.reminder.unanswered.title = ""
+
+# Staff reminder about an open order nobody claimed, posted once it waited operations.unclaimed_order_minutes minutes (again every operations.reminder_repeat_minutes while it still waits, when set). {order_number} is the order number, {customer_mention} mentions the customer (no ping), {total} is the order total, {status} the status name (checkout.status_label.*), {order_channel} links the customer's order channel; {waiting_since} is when it started waiting (shown in each reader's time zone), {minutes} the threshold in minutes. Needed when operations.unclaimed_order_minutes is above 0.
+# description · max 4096 characters · optional · placeholders: {order_number}, {customer_mention}, {total}, {status}, {order_channel}, {waiting_since}, {minutes}
+operations.reminder.unclaimed.description = ""
+
+# Optional title of the Staff reminder about an open order nobody claimed, posted once it waited operations.unclaimed_order_minutes minutes (again every operations.reminder_repeat_minutes while it still waits, when set). {order_number} is the order number, {customer_mention} mentions the customer (no ping), {total} is the order total, {status} the status name (checkout.status_label.*), {order_channel} links the customer's order channel; {waiting_since} is when it started waiting (shown in each reader's time zone), {minutes} the threshold in minutes.
+# title · max 256 characters · optional · placeholders: {order_number}, {customer_mention}, {total}, {status}, {order_channel}, {waiting_since}, {minutes}
+operations.reminder.unclaimed.title = ""
+
+# Staff reminder about a paid order not completed yet, posted once it waited operations.unfulfilled_order_minutes minutes (again every operations.reminder_repeat_minutes while it still waits, when set). {order_number} is the order number, {customer_mention} mentions the customer (no ping), {total} is the order total, {status} the status name (checkout.status_label.*), {order_channel} links the customer's order channel; {waiting_since} is when it started waiting (shown in each reader's time zone), {minutes} the threshold in minutes. Needed when operations.unfulfilled_order_minutes is above 0.
+# description · max 4096 characters · optional · placeholders: {order_number}, {customer_mention}, {total}, {status}, {order_channel}, {waiting_since}, {minutes}
+operations.reminder.unfulfilled.description = ""
+
+# Optional title of the Staff reminder about a paid order not completed yet, posted once it waited operations.unfulfilled_order_minutes minutes (again every operations.reminder_repeat_minutes while it still waits, when set). {order_number} is the order number, {customer_mention} mentions the customer (no ping), {total} is the order total, {status} the status name (checkout.status_label.*), {order_channel} links the customer's order channel; {waiting_since} is when it started waiting (shown in each reader's time zone), {minutes} the threshold in minutes.
+# title · max 256 characters · optional · placeholders: {order_number}, {customer_mention}, {total}, {status}, {order_channel}, {waiting_since}, {minutes}
+operations.reminder.unfulfilled.title = ""
+
+# Staff reminder about an order still waiting for payment, posted once it waited operations.unpaid_order_minutes minutes (again every operations.reminder_repeat_minutes while it still waits, when set). {order_number} is the order number, {customer_mention} mentions the customer (no ping), {total} is the order total, {status} the status name (checkout.status_label.*), {order_channel} links the customer's order channel; {waiting_since} is when it started waiting (shown in each reader's time zone), {minutes} the threshold in minutes. Needed when operations.unpaid_order_minutes is above 0.
+# description · max 4096 characters · optional · placeholders: {order_number}, {customer_mention}, {total}, {status}, {order_channel}, {waiting_since}, {minutes}
+operations.reminder.unpaid.description = ""
+
+# Optional title of the Staff reminder about an order still waiting for payment, posted once it waited operations.unpaid_order_minutes minutes (again every operations.reminder_repeat_minutes while it still waits, when set). {order_number} is the order number, {customer_mention} mentions the customer (no ping), {total} is the order total, {status} the status name (checkout.status_label.*), {order_channel} links the customer's order channel; {waiting_since} is when it started waiting (shown in each reader's time zone), {minutes} the threshold in minutes.
+# title · max 256 characters · optional · placeholders: {order_number}, {customer_mention}, {total}, {status}, {order_channel}, {waiting_since}, {minutes}
+operations.reminder.unpaid.title = ""
+
+# --- Operations: failure alerts (staff channel) ---
+
+# Staff alert when a button, form or command failed unexpectedly (the member got the configured error message; details are in the bot logs). {source} is the internal name of the control or command, {error_id} the reference the member saw, {error} the error type.
+# description · max 4096 characters · required · placeholders: {source}, {error_id}, {error}
+operations.failure.error.description = ""
+
+# Optional title of the Staff alert when a button, form or command failed unexpectedly (the member got the configured error message; details are in the bot logs). {source} is the internal name of the control or command, {error_id} the reference the member saw, {error} the error type.
+# title · max 256 characters · optional · placeholders: {source}, {error_id}, {error}
+operations.failure.error.title = ""
+
+# Staff alert when a private notification to a member could not be delivered, neither by direct message nor in the fallback channel. {user_mention} mentions the member (no ping), {notification} is the notification's internal name (e.g. checkout.paid).
+# description · max 4096 characters · required · placeholders: {user_mention}, {notification}
+operations.failure.notification.description = ""
+
+# Optional title of the Staff alert when a private notification to a member could not be delivered, neither by direct message nor in the fallback channel. {user_mention} mentions the member (no ping), {notification} is the notification's internal name (e.g. checkout.paid).
+# title · max 256 characters · optional · placeholders: {user_mention}, {notification}
+operations.failure.notification.title = ""
+
+# Staff alert when the customer role could not be given or removed (missing role, role above the bot's highest role, or missing permission). {user_mention} mentions the member (no ping), {role_mention} the role.
+# description · max 4096 characters · required · placeholders: {user_mention}, {role_mention}
+operations.failure.role.description = ""
+
+# Optional title of the Staff alert when the customer role could not be given or removed (missing role, role above the bot's highest role, or missing permission). {user_mention} mentions the member (no ping), {role_mention} the role.
+# title · max 256 characters · optional · placeholders: {user_mention}, {role_mention}
+operations.failure.role.title = ""
+
+# Staff alert when a scheduled task failed permanently after its retries (details are in the audit log). {task} is the task's internal name, {task_id} its number, {attempts} the attempts made.
+# description · max 4096 characters · required · placeholders: {task}, {task_id}, {attempts}
+operations.failure.task.description = ""
+
+# Optional title of the Staff alert when a scheduled task failed permanently after its retries (details are in the audit log). {task} is the task's internal name, {task_id} its number, {attempts} the attempts made.
+# title · max 256 characters · optional · placeholders: {task}, {task_id}, {attempts}
+operations.failure.task.title = ""
+
+# --- Operations: the Owner's private alerts ---
+
+# Optional text of the Owner's private alert about the same failure (empty = the staff alert's text). Placeholders as in the staff alert.
+# description · max 4096 characters · optional; falls back to operations.failure.task.description · placeholders: {task}, {task_id}, {attempts}
+operations.owner.failure_task.description = ""
+
+# Optional title of the Owner's private alert when a scheduled task failed permanently after its retries (details are in the audit log) (empty = the staff alert's title).
+# title · max 256 characters · optional; falls back to operations.failure.task.title · placeholders: {task}, {task_id}, {attempts}
+operations.owner.failure_task.title = ""
+
+# Optional text of the Owner's private alert when a customer submitted a new order (empty = the staff alert's text). Placeholders as in the staff alert.
+# description · max 4096 characters · optional; falls back to operations.alert.new_order.description · placeholders: {order_number}, {customer_mention}, {total}, {status}, {order_channel}
+operations.owner.new_order.description = ""
+
+# Optional title of the Owner's private alert when a customer submitted a new order (empty = the staff alert's title). Placeholders as in the staff alert.
+# title · max 256 characters · optional; falls back to operations.alert.new_order.title · placeholders: {order_number}, {customer_mention}, {total}, {status}, {order_channel}
+operations.owner.new_order.title = ""
+
+# Optional text of the Owner's private alert when an order's payment was confirmed and it waits to be completed (empty = the staff alert's text). Placeholders as in the staff alert.
+# description · max 4096 characters · optional; falls back to operations.alert.paid_order.description · placeholders: {order_number}, {customer_mention}, {total}, {status}, {order_channel}
+operations.owner.paid_order.description = ""
+
+# Optional title of the Owner's private alert when an order's payment was confirmed and it waits to be completed (empty = the staff alert's title). Placeholders as in the staff alert.
+# title · max 256 characters · optional; falls back to operations.alert.paid_order.title · placeholders: {order_number}, {customer_mention}, {total}, {status}, {order_channel}
+operations.owner.paid_order.title = ""
