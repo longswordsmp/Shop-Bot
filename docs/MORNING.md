@@ -174,7 +174,7 @@ include `{error_id}` in your `common.error.generic` text (e.g. "Reference: {erro
 
 ### What has and has not been verified so far
 
-- ✅ Implemented and tested locally: 780+ automated tests (all features, failures, concurrency, restarts),
+- ✅ Implemented and tested locally and on GitHub Actions: 880+ automated tests (all features, failures, concurrency, restarts),
   type checks, lint, Discord-limit and handler-coverage checks, offline preview.
 - ❌ Not yet verified: running on Railway and in a real Discord server (no credentials were available while it was
   built). Steps 9–12 are that verification.
