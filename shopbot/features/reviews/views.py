@@ -4,7 +4,8 @@ limits checker all render through these functions.
 Customer-facing wording comes only from content keys (missing required text raises ``MissingContent``; empty
 optional text is omitted). Customer data (the comment, the reviewer's name) is escaped with
 ``discord.utils.escape_markdown`` and never pings: embeds do not mention, and only the explicit
-``mention_user_ids`` of a spec are allowed to ping. Staff command output uses operator text (``op``).
+``mention_user_ids`` of a spec are allowed to ping. The staff approval message is a business message (content keys
+``reviews.approval.*``); staff command output, the staff reject form and staff replies use operator text (``op``).
 """
 
 from __future__ import annotations
@@ -32,6 +33,7 @@ from shopbot.ui.style import Ui, chunk_lines
 
 ROUTE = "rv"
 COMMENT_INPUT_ID = "comment"
+REASON_INPUT_ID = "reason"
 
 OpText = Callable[..., str]
 
@@ -49,6 +51,21 @@ def decline_id(review_id: int) -> str:
 
 def comment_id(review_id: int) -> str:
     return cid(ROUTE, "comment", review_id)
+
+
+def approve_id(review_id: int) -> str:
+    """Staff Approve button on the approval message."""
+    return cid(ROUTE, "approve", review_id)
+
+
+def reject_id(review_id: int) -> str:
+    """Staff Reject button on the approval message (opens the reject form)."""
+    return cid(ROUTE, "reject", review_id)
+
+
+def reject_form_id(review_id: int) -> str:
+    """The reject form (optional reason)."""
+    return cid(ROUTE, "rejected", review_id)
 
 
 # -- helpers -----------------------------------------------------------------------------------------
@@ -125,22 +142,145 @@ def rating_display(ui: Ui, rating: int) -> str:
     return text
 
 
+def verified_field(ui: Ui, *, order_number: str) -> EmbedField | None:
+    """The optional verification marker (every review comes from a completed order): shown when both its heading
+    and its text are configured (content_problems reports one without the other)."""
+    name = ui.text(k.PUBLISHED_VERIFIED_FIELD)
+    value = ui.text(k.PUBLISHED_VERIFIED_VALUE, order_number=order_number)
+    if not name or not value:
+        return None
+    return EmbedField(name=name, value=value)
+
+
 def published_view(ui: Ui, *, rating: int, user_name: str, order_number: str, comment: str | None) -> MessageSpec:
-    """The review posted in the reviews channel. ``user_name`` and ``comment`` are raw customer data (escaped here);
-    an empty comment is omitted."""
+    """The review posted in the reviews channel: title, the approved comment, the rating and the optional
+    verification marker. ``user_name`` and ``comment`` are raw customer data (escaped here); an empty comment is
+    omitted."""
     title = _text(ui, k.PUBLISHED_TITLE, rating=rating, user_name=escape(user_name), order_number=order_number)
     field = EmbedField(name=_text(ui, k.PUBLISHED_RATING_FIELD), value=rating_display(ui, rating))
+    verified = verified_field(ui, order_number=order_number)
+    fields = (field,) if verified is None else (field, verified)
     description = escape(comment) if comment else None
-    embed = ui.embed(title=title, description=description, fields=(field,), tone="primary", timestamp=True)
+    embed = ui.embed(title=title, description=description, fields=fields, tone="primary", timestamp=True)
+    return MessageSpec(embeds=(embed,))
+
+
+# -- staff approval message (business message: content keys) ---------------------------------------------
+
+_APPROVAL_TONES = {
+    k.STATE_PENDING: "warning",
+    k.STATE_APPROVED: "success",
+    k.STATE_REJECTED: "danger",
+    k.STATE_REMOVED: "neutral",
+}
+
+
+def user_mention(user_id: int) -> str:
+    return f"<@{user_id}>"
+
+
+def approval_view(
+    ui: Ui,
+    *,
+    review_id: int,
+    state: str,
+    rating: int,
+    user_name: str,
+    user_id: int,
+    order_number: str,
+    comment: str | None,
+    staff_id: int | None = None,
+    reason: str | None = None,
+) -> MessageSpec:
+    """The staff message in reviews.approval_channel for one submitted review: title, the customer's comment
+    (escaped, omitted when empty), rating, order, customer and status fields, and while ``state`` is pending the
+    Approve / Reject buttons. A rejection reason (staff text, shown as written) is shown when its heading is
+    configured. Mentions in embeds never ping."""
+    if state not in k.APPROVAL_STATES:
+        raise ValueError(state)
+    title = _text(ui, k.APPROVAL_TITLE, rating=rating, user_name=escape(user_name), order_number=order_number)
+    staff = user_mention(staff_id) if staff_id else ""
+    fields = [
+        EmbedField(name=_text(ui, k.APPROVAL_RATING_FIELD), value=rating_display(ui, rating), inline=True),
+        EmbedField(name=_text(ui, k.APPROVAL_ORDER_FIELD), value=order_number, inline=True),
+        EmbedField(name=_text(ui, k.APPROVAL_CUSTOMER_FIELD), value=user_mention(user_id), inline=True),
+        EmbedField(
+            name=_text(ui, k.APPROVAL_STATUS_FIELD), value=_text(ui, k.approval_status_key(state), staff_mention=staff)
+        ),
+    ]
+    if state == k.STATE_REJECTED and reason:
+        reason_field = ui.field(k.APPROVAL_REASON_FIELD, reason)
+        if reason_field is not None:
+            fields.append(reason_field)
+    rows: tuple[tuple[ButtonSpec, ...], ...] = ()
+    if state == k.STATE_PENDING:
+        approve = ButtonSpec(
+            label=_text(ui, k.APPROVAL_BUTTON_APPROVE), custom_id=approve_id(review_id), style="success"
+        )
+        reject = ButtonSpec(label=_text(ui, k.APPROVAL_BUTTON_REJECT), custom_id=reject_id(review_id), style="danger")
+        rows = ((approve, reject),)
+    embed = ui.embed(
+        title=title,
+        description=escape(comment) if comment else None,
+        fields=fields,
+        tone=_APPROVAL_TONES[state],
+        timestamp=True,
+    )
+    return MessageSpec(embeds=(embed,), rows=rows)
+
+
+def reject_modal(op: OpText, *, review_id: int, order_number: str, max_length: int) -> ModalSpec:
+    """Staff-only reject form with an optional reason (operator text)."""
+    reason = TextInputSpec(
+        custom_id=REASON_INPUT_ID,
+        label=op("reviews.form.reject_reason"),
+        style="paragraph",
+        description=op("reviews.form.reject_reason_help"),
+        required=False,
+        max_length=max_length,
+    )
+    return ModalSpec(
+        custom_id=reject_form_id(review_id),
+        title=op("reviews.form.reject_title", order_number=order_number),
+        inputs=(reason,),
+    )
+
+
+# -- private decision notices to the customer ----------------------------------------------------------------
+
+
+def approved_notice(ui: Ui, *, order_number: str, review_link: str) -> MessageSpec | None:
+    """'Your review was approved' (after publication). None when its text is not configured (optional)."""
+    values: dict[str, str | int] = {"order_number": order_number}
+    description = ui.text(k.notice_key(k.STATE_APPROVED, "description"), review_link=review_link, **values)
+    if description is None:
+        return None
+    title = ui.text(k.notice_key(k.STATE_APPROVED, "title"), **values)
+    return MessageSpec(embeds=(ui.embed(title=title, description=description, tone="success", timestamp=True),))
+
+
+def rejected_notice(ui: Ui, *, order_number: str, reason: str | None) -> MessageSpec | None:
+    """'Your review was not approved', with the staff reason when its heading is configured. None when its text is
+    not configured (optional)."""
+    values: dict[str, str | int] = {"order_number": order_number}
+    description = ui.text(k.notice_key(k.STATE_REJECTED, "description"), **values)
+    if description is None:
+        return None
+    title = ui.text(k.notice_key(k.STATE_REJECTED, "title"), **values)
+    reason_field = ui.field(k.NOTICE_REJECTED_REASON_FIELD, reason) if reason else None
+    fields = (reason_field,) if reason_field is not None else ()
+    embed = ui.embed(title=title, description=description, fields=fields, tone="warning", timestamp=True)
     return MessageSpec(embeds=(embed,))
 
 
 # -- replies to the customer -----------------------------------------------------------------------------
 
 
-def thanks_view(ui: Ui, *, order_number: str) -> MessageSpec:
-    """Replaces the request after a submitted review (no components)."""
-    return MessageSpec(embeds=(_description_embed(ui, k.THANKS, tone="success", order_number=order_number),))
+def thanks_view(ui: Ui, *, order_number: str, pending_approval: bool = False) -> MessageSpec:
+    """Replaces the request after a submitted review (no components). While the review waits for staff approval
+    the 'pending' text is shown (it falls back to the normal thank-you text)."""
+    key = k.THANKS_PENDING if pending_approval else k.THANKS
+    return MessageSpec(embeds=(_description_embed(ui, key, tone="success", order_number=order_number),))
 
 
 def declined_view(ui: Ui, *, order_number: str) -> MessageSpec:

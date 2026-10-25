@@ -74,9 +74,12 @@ perform staff actions check staff status inside the handler, e.g. per-ticket-cat
 | modal | `pr` | `resolved` | problems | staff | no | `shopbot.features.problems.handlers.resolve_submit` |
 | component | `pr` | `start` | problems | any | no | `shopbot.features.problems.handlers.start_button` |
 | component | `pr` | `type` | problems | any | no | `shopbot.features.problems.handlers.type_pick` |
+| component | `rv` | `approve` | reviews | staff | no | `shopbot.features.reviews.handlers.on_approve` |
 | modal | `rv` | `comment` | reviews | any | yes | `shopbot.features.reviews.handlers.on_comment` |
 | component | `rv` | `decline` | reviews | any | yes | `shopbot.features.reviews.handlers.on_decline` |
 | component | `rv` | `rate` | reviews | any | yes | `shopbot.features.reviews.handlers.on_rate` |
+| component | `rv` | `reject` | reviews | staff | no | `shopbot.features.reviews.handlers.on_reject` |
+| modal | `rv` | `rejected` | reviews | staff | no | `shopbot.features.reviews.handlers.on_rejected` |
 | component | `tk` | `claim` | tickets | any | no | `shopbot.features.tickets.handlers.claim_button` |
 | component | `tk` | `close` | tickets | any | no | `shopbot.features.tickets.handlers.close_button` |
 | component | `tk` | `closeno` | tickets | any | no | `shopbot.features.tickets.handlers.close_cancelled` |
@@ -110,6 +113,8 @@ perform staff actions check staff status inside the handler, e.g. per-ticket-cat
 - `operations.reminders`
 - `problems.after_decision`
 - `problems.finish`
+- `reviews.approval`
+- `reviews.decided`
 - `reviews.prompt`
 - `reviews.publish`
 - `tickets.auto_close`

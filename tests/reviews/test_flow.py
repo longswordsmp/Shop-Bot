@@ -88,7 +88,8 @@ async def test_rating_and_comment_end_to_end_in_direct_messages(rv: TestEnv) -> 
     assert card.title == published_title(rv, rating=4, user_name="Ada", number=order.number)
     assert card.description == "Great \\*service\\* <@123> @everyone"
     assert [(f.name, f.value) for f in card.fields] == [
-        (rv.text(k.PUBLISHED_RATING_FIELD), rv.text(k.rating_key(4, "display")))
+        (rv.text(k.PUBLISHED_RATING_FIELD), rv.text(k.rating_key(4, "display"))),
+        (rv.text(k.PUBLISHED_VERIFIED_FIELD), rendered(rv, k.PUBLISHED_VERIFIED_VALUE, order_number=number)),
     ]
     assert post.content == "" and post.view is None
     assert post.allowed_mentions is not None

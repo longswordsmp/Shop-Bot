@@ -1,5 +1,6 @@
-"""Customer reviews: a rating request after an order is fulfilled, an optional comment, publication in the reviews
-channel, and ``/review`` staff tools.
+"""Customer reviews: a rating request after an order is fulfilled, an optional comment, optional staff approval
+(``reviews.require_approval``: Approve / Reject in a staff channel), publication in the reviews channel with an
+optional verification marker, and ``/review`` staff tools.
 
 Public API for other features:
 - ``await schedule_review_prompt(app, order_id)`` (also ``shopbot.features.reviews.service``): call when an order
@@ -35,13 +36,24 @@ def register(app: App) -> None:
     register_handlers(app)
     app.scheduler.register(service.PROMPT_TASK, tasks.run_prompt_task)
     app.scheduler.register(service.PUBLISH_TASK, tasks.run_publish_task)
+    app.scheduler.register(service.APPROVAL_TASK, tasks.run_approval_task)
+    app.scheduler.register(service.DECISION_TASK, tasks.run_decision_task)
     bot.tree.add_command(build_review_group(), guild=app.guild_object)
 
 
 async def publish(app: App) -> list[str]:
-    """/setup hook: reviews have no panel; re-queue submitted reviews (e.g. after the reviews channel was created)."""
+    """/setup hook: reviews have no panel. Re-queue submitted reviews (e.g. after the reviews channel was created),
+    edit the approval messages of pending reviews to the current text and (re-)post missing ones."""
+    lines: list[str] = []
     count = await service.requeue_pending(app)
-    return [app.op("reviews.setup.requeued", count=count)] if count else []
+    if count:
+        lines.append(app.op("reviews.setup.requeued", count=count))
+    updated, queued = await service.requeue_approvals(app, sync_messages=True)
+    if updated:
+        lines.append(app.op("reviews.setup.approvals_refreshed", count=updated))
+    if queued:
+        lines.append(app.op("reviews.setup.approvals_queued", count=queued))
+    return lines
 
 
 MODULE = FeatureModule(
@@ -49,6 +61,7 @@ MODULE = FeatureModule(
     is_enabled=lambda settings: settings.features.reviews,
     content_keys=review_keys.content_keys,
     settings_problems=review_keys.settings_problems,
+    content_problems=review_keys.content_problems,
     depends_on=("checkout",),
     operator_text=OPERATOR_TEXT,
     register=register,

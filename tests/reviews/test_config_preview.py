@@ -8,7 +8,7 @@ from typing import Any
 
 from shopbot.config.content_keys import ContentKey, Kind
 from shopbot.features import core_keys as ck
-from shopbot.features.reviews import MODULE, content_keys, schedule_review_prompt, service
+from shopbot.features.reviews import MODULE, content_keys, repo, schedule_review_prompt, service
 from shopbot.features.reviews import content_keys as k
 from shopbot.features.reviews.text import OPERATOR_TEXT
 from shopbot.ui.limits import validate_message, validate_modal
@@ -29,10 +29,26 @@ FIXED_KEYS = {
     k.COMMENT_PLACEHOLDER,
     k.PUBLISHED_TITLE,
     k.PUBLISHED_RATING_FIELD,
+    k.PUBLISHED_VERIFIED_FIELD,
+    k.PUBLISHED_VERIFIED_VALUE,
     k.THANKS,
+    k.THANKS_PENDING,
     k.DECLINED,
     k.ALREADY_REVIEWED,
     k.EXPIRED,
+    # staff approval message (reviews.require_approval)
+    k.APPROVAL_TITLE,
+    k.APPROVAL_RATING_FIELD,
+    k.APPROVAL_ORDER_FIELD,
+    k.APPROVAL_CUSTOMER_FIELD,
+    k.APPROVAL_STATUS_FIELD,
+    k.APPROVAL_REASON_FIELD,
+    k.APPROVAL_BUTTON_APPROVE,
+    k.APPROVAL_BUTTON_REJECT,
+    *(k.approval_status_key(state) for state in k.APPROVAL_STATES),
+    # decision notices
+    *(k.notice_key(decision, part) for decision in k.NOTICE_DECISIONS for part in ("title", "description")),
+    k.NOTICE_REJECTED_REASON_FIELD,
 }
 
 
@@ -94,11 +110,15 @@ def test_every_content_key_used_in_code_is_declared() -> None:
     source = "\n".join(path.read_text(encoding="utf-8") for path in PACKAGE.glob("*.py"))
     constants = set(
         re.findall(
-            r'= "(reviews\.(?:prompt|button|comment|published|thanks|declined|already_reviewed|expired)\.[a-z_]+)"',
+            r'= "(reviews\.(?:prompt|button|comment|published|thanks|thanks_pending|declined|already_reviewed|expired|'
+            r'approval|notice)\.[a-z_.]+)"',
             source,
         )
     )
-    assert constants == FIXED_KEYS
+    generated = {k.approval_status_key(state) for state in k.APPROVAL_STATES} | {
+        k.notice_key(decision, part) for decision in k.NOTICE_DECISIONS for part in ("title", "description")
+    }
+    assert constants == FIXED_KEYS - generated
 
 
 # --------------------------------------------------------------------------------------------------
@@ -195,18 +215,29 @@ def test_operator_text_keys_are_prefixed_and_used() -> None:
     assert all(key.startswith("reviews.") for key in OPERATOR_TEXT)
     source = "\n".join(path.read_text(encoding="utf-8") for path in PACKAGE.glob("*.py"))
     used = set(re.findall(r'"(reviews\.[a-z_.]+)"', source))
-    dynamic = {f"reviews.status.{status}" for status in ("prompted", "rated", "published", "declined")}
+    dynamic = {f"reviews.status.{status}" for status in repo.STATUSES} | {
+        f"reviews.decision.notice.{notice}" for notice in ("dm", "channel", "none", "duplicate", "off")
+    }
     content_key_names = FIXED_KEYS
     identifiers = {
         service.PROMPT_TASK,
         service.PUBLISH_TASK,
+        service.APPROVAL_TASK,
+        service.DECISION_TASK,
+        service.APPROVED_KIND,
+        service.REJECTED_KIND,
         "reviews.prompted",
         "reviews.published",
         "reviews.declined",
         "reviews.removed",
         "reviews.resent",
         "reviews.prompt_cancelled",
-        "reviews.channel",  # a settings path in settings_problems
+        "reviews.approved",
+        "reviews.rejected",
+        "reviews.channel",  # settings paths in settings_problems
+        "reviews.approval_channel",
+        "reviews.approval",  # content key prefix used in a docstring of content_keys
+        "reviews.thanks_pending.description",
     }
     operator_used = (used - content_key_names - identifiers) | dynamic
     assert operator_used <= set(OPERATOR_TEXT), operator_used - set(OPERATOR_TEXT)
@@ -222,11 +253,22 @@ ALL_STATES = {
     "published_with_comment",
     "published_longest_comment",
     "published_without_comment",
+    "approval_request",
+    "approval_request_longest_comment",
+    "approval_request_without_comment",
+    "approval_approved",
+    "approval_rejected",
+    "approval_removed",
     "comment_form",
     "thanks",
+    "thanks_pending_approval",
     "declined",
     "already_reviewed",
     "expired",
+    "notice_approved",
+    "notice_rejected",
+    "staff_reject_form",
+    "staff_decision_reply",
     "staff_list",
     "staff_list_empty",
 }
@@ -289,7 +331,8 @@ async def test_preview_uses_exact_configured_text(tenv: TestEnv) -> None:
     assert card.title == rendered(tenv, k.PUBLISHED_TITLE, rating=5, user_name="[sample member]", order_number=number)
     assert card.description == "[sample review comment]"
     assert [(f.name, f.value) for f in card.fields] == [
-        (tenv.text(k.PUBLISHED_RATING_FIELD), tenv.text(k.rating_key(5, "display")))
+        (tenv.text(k.PUBLISHED_RATING_FIELD), tenv.text(k.rating_key(5, "display"))),
+        (tenv.text(k.PUBLISHED_VERIFIED_FIELD), rendered(tenv, k.PUBLISHED_VERIFIED_VALUE, order_number=number)),
     ]
     bare = states["published_without_comment"]
     assert isinstance(bare, MessageSpec) and bare.embeds[0].description is None
@@ -334,7 +377,8 @@ async def test_preview_skips_states_without_configured_text(tmp_path: Path) -> N
     try:
         assert MODULE.preview is not None
         names = {s.name for s in MODULE.preview(tenv.app)}
-        assert names == {"staff_list", "staff_list_empty"}  # operator text only
+        # operator text only
+        assert names == {"staff_list", "staff_list_empty", "staff_reject_form", "staff_decision_reply"}
         assert tenv.app.ui.content.get(ck.ERROR_GENERIC) is None
     finally:
         await tenv.close()

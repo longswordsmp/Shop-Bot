@@ -211,6 +211,13 @@ staff confirm payment; refunds are recorded and returned outside the bot. The bo
 | `rating_scale` | 0 | **Business decision**: 1–10 rating options. |
 | `allow_comment`, `comment_required`, `comment_max_length` | true, false, 1000 | Comment form. |
 | `prompt_via` | `dm_then_channel` | `dm`, `channel` (order channel), or DM with channel fallback. |
+| `require_approval` | false | `true`: a submitted review is posted with Approve / Reject buttons in `approval_channel` and published only after a staff member approves it (the `reviews.approval.*` texts are then required). `false`: published right away (approved automatically). |
+| `approval_channel` | `staff_chat` (shipped) | Staff or admin channel key for approval messages; checked only when `require_approval = true`. |
+
+Staff for the Approve / Reject buttons and `/review approve|reject`: `permissions.staff_roles`, admins and
+`checkout.staff_roles`. The customer's optional decision notices (`reviews.notice.*`) and the optional verification
+marker on published reviews (`reviews.published.verified_field` + `verified_value`) are content keys; see
+`docs/features/reviews.md`.
 
 ## `[notifications]`, `[audit]`
 

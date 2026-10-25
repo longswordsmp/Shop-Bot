@@ -435,6 +435,11 @@ allow_comment = true
 comment_required = false
 comment_max_length = 1000
 prompt_via = "dm_then_channel"       # "dm", "channel" (the order channel), or "dm_then_channel"
+# Staff approval of review comments. false = a submitted review is published in #reviews right away (approved
+# automatically). true = it is posted with Approve / Reject buttons in approval_channel and published only after a
+# staff member approves it (the reviews.approval.* texts are then required).
+require_approval = false
+approval_channel = "staff_chat"      # staff-only channel for approval requests (used when require_approval = true)
 
 [notifications]
 fallback_to_channel = true

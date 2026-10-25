@@ -367,28 +367,6 @@ Constraints:
 - `delta_minor INTEGER NOT NULL CHECK (delta_minor != 0)`
 - `kind TEXT NOT NULL CHECK (kind IN ('admin_adjust', 'order_debit', 'order_return', 'refund_to_credit'))`
 
-## `reviews`
-
-| Column | Type | Not null | Default | Key |
-|---|---|---|---|---|
-| `id` | INTEGER |  |  | PK |
-| `guild_id` | INTEGER | yes |  |  |
-| `order_id` | INTEGER | yes |  |  |
-| `user_id` | INTEGER | yes |  |  |
-| `status` | TEXT | yes |  |  |
-| `rating` | INTEGER |  |  |  |
-| `comment` | TEXT |  |  |  |
-| `prompt_message_id` | INTEGER |  |  |  |
-| `prompt_channel_id` | INTEGER |  |  |  |
-| `published_message_id` | INTEGER |  |  |  |
-| `created_at` | INTEGER | yes |  |  |
-| `updated_at` | INTEGER | yes |  |  |
-
-Constraints:
-
-- `status TEXT NOT NULL CHECK (status IN ('prompted', 'rated', 'published', 'declined'))`
-- `rating INTEGER CHECK (rating IS NULL OR rating BETWEEN 1 AND 10)`
-
 ## `scheduled_tasks`
 
 | Column | Type | Not null | Default | Key |
@@ -648,3 +626,43 @@ Constraints:
 - `kind TEXT NOT NULL CHECK (kind IN ('unclaimed', 'unpaid', 'unfulfilled', 'unanswered'))`
 - `target_id INTEGER NOT NULL CHECK (target_id > 0)`
 - `sent_count INTEGER NOT NULL DEFAULT 0 CHECK (sent_count >= 0)`
+
+## `reviews`
+
+| Column | Type | Not null | Default | Key |
+|---|---|---|---|---|
+| `id` | INTEGER |  |  | PK |
+| `guild_id` | INTEGER | yes |  |  |
+| `order_id` | INTEGER | yes |  |  |
+| `user_id` | INTEGER | yes |  |  |
+| `status` | TEXT | yes |  |  |
+| `rating` | INTEGER |  |  |  |
+| `comment` | TEXT |  |  |  |
+| `prompt_message_id` | INTEGER |  |  |  |
+| `prompt_channel_id` | INTEGER |  |  |  |
+| `published_message_id` | INTEGER |  |  |  |
+| `approval` | TEXT |  |  |  |
+| `decided_by` | INTEGER |  |  |  |
+| `decided_at` | INTEGER |  |  |  |
+| `decision_reason` | TEXT |  |  |  |
+| `approval_channel_id` | INTEGER |  |  |  |
+| `approval_message_id` | INTEGER |  |  |  |
+| `created_at` | INTEGER | yes |  |  |
+| `updated_at` | INTEGER | yes |  |  |
+
+Indexes: `idx_reviews_guild_status`
+
+Constraints:
+
+- `CHECK (status IN ('prompted', 'rated', 'pending_approval', 'published', 'rejected', 'declined'))`
+- `rating INTEGER CHECK (rating IS NULL OR rating BETWEEN 1 AND 10)`
+- `approval TEXT CHECK (approval IS NULL OR approval IN ('automatic', 'approved', 'rejected'))`
+- `decision_reason TEXT CHECK (decision_reason IS NULL OR length(decision_reason) BETWEEN 1 AND 500)`
+- `CHECK (status NOT IN ('pending_approval', 'rejected') OR (rating IS NOT NULL AND comment IS NOT NULL))`
+- `CHECK (status != 'pending_approval' OR approval IS NULL)`
+- `CHECK (status != 'rejected' OR coalesce(approval, '') = 'rejected')`
+- `CHECK (status != 'published' OR coalesce(approval, '') IN ('automatic', 'approved'))`
+- `CHECK (status != 'rated' OR comment IS NULL OR coalesce(approval, '') IN ('automatic', 'approved'))`
+- `CHECK (approval IS NULL OR (approval IN ('approved', 'rejected')) = (decided_by IS NOT NULL AND decided_at IS NOT NULL))`
+- `CHECK (decision_reason IS NULL OR coalesce(approval, '') = 'rejected')`
+- `CHECK ((approval_channel_id IS NULL) = (approval_message_id IS NULL))`
