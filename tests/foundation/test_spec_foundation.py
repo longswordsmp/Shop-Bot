@@ -199,3 +199,20 @@ def test_self_assignable_roles_must_not_be_staff_roles_of_any_feature() -> None:
     settings = make_settings(overrides)
     assert any("problems.staff_roles" in p for p in verification_keys.settings_problems(settings))
     assert any("new_arrivals.role" in p for p in na_keys.settings_problems(settings))
+
+
+async def test_add_mode_keeps_an_adopted_roles_other_permissions(tmp_path: Path) -> None:
+    import discord
+
+    overrides = deep_merge(
+        server_extension(roles=[{"key": "helpers", "permissions": ["manage_messages"], "permissions_mode": "add"}]),
+        {},
+    )
+    tenv = await make_test_env(tmp_path, settings=make_settings(overrides))
+    try:
+        tenv.app.content.set_override("server.role.helpers.name", "Helpers")
+        existing = tenv.guild.add_role(name="Helpers", position=3, permissions=discord.Permissions(kick_members=True))
+        await setup(tenv)
+        assert existing.permissions.kick_members and existing.permissions.manage_messages
+    finally:
+        await tenv.close()

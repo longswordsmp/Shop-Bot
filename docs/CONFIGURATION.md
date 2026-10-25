@@ -97,6 +97,7 @@ The structure `/setup` creates or adopts. `key` is an internal identifier; names
 | `key` | all | Internal identifier referenced by other settings. |
 | `id` | all | Adopt this existing Discord object (0 = create or adopt by name). |
 | `permissions` | roles | Discord permission names granted server-wide, e.g. `["manage_messages"]`. Empty leaves an adopted role's permissions untouched. |
+| `permissions_mode` | roles | `exact` (default: the role gets exactly `permissions`) or `add` (the listed permissions are added; the role's other permissions are kept — the shipped Staff role uses this so adopting an existing Staff role never removes its permissions). |
 | `color`, `hoist`, `mentionable` | roles | Role appearance. |
 | `access` | categories, channels | `public_readonly` (everyone reads, only staff/bot post), `public_interactive`, `members_readonly` / `members_interactive` (hidden until the Member role; staff always see), `staff`, `admin`, or (channels) `inherit` from the category. |
 | `category` | channels | Parent category key. |
@@ -192,6 +193,8 @@ Each section is documented, key by key, in its own page and in the comments of `
 `docs/features/announcements.md`, `docs/features/new_arrivals.md`, `docs/features/problems.md`,
 `docs/features/customer_panel.md` (my_orders and the order ticket), `docs/features/operations.md` (staff alerts,
 reminders, Owner alerts, Customer role) and `docs/features/catalog.md`.
+
+`operations.answers_in_orders_channel` (shipped false): post the customer's form answers under the order record in #orders; when false they appear only in the private Details view and `/order view`.
 
 ## `[payments]`
 

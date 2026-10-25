@@ -302,6 +302,9 @@ class RoleDef:
     key: str
     id: int = 0
     permissions: tuple[str, ...] = ()
+    # "exact": the role gets exactly ``permissions``; "add": the listed permissions are added and any others the role
+    # already has are kept (safe for adopting an existing role).
+    permissions_mode: str = "exact"
     color: int | None = None
     hoist: bool = False
     mentionable: bool = False
@@ -800,6 +803,7 @@ def parse_settings(data: dict[str, Any]) -> Settings:
                 key=r.str_("key", "", pattern=KEY_PATTERN, allow_empty=False),
                 id=r.int_("id", 0, min_=0),
                 permissions=_perm_names(r),
+                permissions_mode=r.str_("permissions_mode", "exact", choices=("exact", "add")),
                 color=r.color_("color"),
                 hoist=r.bool_("hoist", False),
                 mentionable=r.bool_("mentionable", False),

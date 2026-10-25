@@ -242,6 +242,8 @@ class Reconciler:
             changes["name"] = name
         if role_def.permissions:
             desired = role_permissions(role_def.permissions)
+            if role_def.permissions_mode == "add":  # keep what the role already has, add what is missing
+                desired = discord.Permissions(role.permissions.value | desired.value)
             if role.permissions.value != desired.value:
                 changes["permissions"] = desired
         if role_def.color is not None and role.colour.value != role_def.color:

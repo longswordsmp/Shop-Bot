@@ -96,10 +96,11 @@ id = 0
 # Manage Messages lets Staff see the staff slash commands (/orders, /order, /ticket, /review, /announce) in Discord's
 # command picker: Discord shows them by default only to members with this permission. The bot checks the Staff role
 # itself on every use. It also lets staff delete and pin messages in every channel they can see, including the bot's
-# panels (/setup posts a deleted panel again). /setup sets EXACTLY these permissions on the role, so list every
-# server-wide permission it should keep. Admins can instead fine-tune who sees each command under
+# panels (/setup posts a deleted panel again). With permissions_mode = "add", /setup only adds missing permissions
+# and keeps any others the role already has. Admins can instead fine-tune who sees each command under
 # Server Settings -> Integrations -> (the bot) and set this back to [] (an adopted role is then left untouched).
 permissions = ["manage_messages"]
+permissions_mode = "add"             # "add" keeps the role's other permissions; "exact" sets exactly the list
 color = ""
 hoist = false
 mentionable = true                   # so #staff-chat alerts and reminders can notify staff (operations.ping_roles)

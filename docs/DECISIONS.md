@@ -162,7 +162,7 @@ how you want to operate** (each is one line in `config/settings.toml`).
 | START HERE `public_readonly`; CATALOG/PURCHASE `members_readonly`; STAFF `staff` | – | Unverified users see only START HERE |
 | `permissions.admin_roles` / `owner_role` | `["owner"]` / `owner` | The Owner role is admin; `/setup` gives it to `OWNER_ID` |
 | Staff role `mentionable` / Restock Alerts `mentionable` | true / true | Alerts and #new-arrivals updates can notify those roles |
-| Staff role `permissions` | `["manage_messages"]` | Staff see the staff slash commands (`/orders`, `/order`, `/ticket`, `/review`, `/announce`) in Discord's picker; it also lets them delete/pin messages. `/setup` sets exactly these permissions. Fine-tune per command under Server Settings → Integrations; the bot's staff checks stay authoritative |
+| Staff role `permissions` | `["manage_messages"]` | Staff see the staff slash commands (`/orders`, `/order`, `/ticket`, `/review`, `/announce`) in Discord's picker; it also lets them delete/pin messages. `/setup` adds it and keeps the role's other permissions (`permissions_mode = "add"`). Fine-tune per command under Server Settings → Integrations; the bot's staff checks stay authoritative |
 | `verification.rules` | 0 (**you must set it**) | #welcome stays hidden until you say how many rules there are |
 | `verification.dm_confirmation` | false | Confirmation only privately in Discord, no DM |
 | `how_to_buy.steps` / `link_channels` | 4 / catalog, purchase, faq | Guide size and its link buttons |

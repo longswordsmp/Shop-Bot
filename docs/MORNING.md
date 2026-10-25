@@ -112,8 +112,8 @@ Check: Server Settings → Roles shows the bot's role **above** Owner, Staff, Me
 
 **Who sees which slash command.** Discord lists a command only for members with its default permission: the staff
 commands (`/orders`, `/order`, `/ticket`, `/review`, `/announce`) need *Manage Messages*, which `/setup` gives the Staff
-role (`permissions = ["manage_messages"]` in `settings.toml`; it also lets staff delete and pin messages, and `/setup`
-sets exactly the listed permissions on that role). Admin commands need Administrator; `/product` needs Manage
+role (`permissions = ["manage_messages"]` in `settings.toml`; it also lets staff delete and pin messages; `/setup`
+only adds it and keeps any other permissions the role already has). Admin commands need Administrator; `/product` needs Manage
 Server. To fine-tune, open **Server Settings → Integrations → (the bot) → Manage** and allow or deny each command for
 roles, members or channels. For example, to let the Staff role manage products: allow `/product` for Staff there and
 add `"staff"` to `catalog.manager_roles` (do not give Staff Manage Server). These settings only change who *sees* a
