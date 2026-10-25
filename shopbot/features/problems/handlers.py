@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING
 
 import discord
 
+from shopbot.config.banner_ids import BannerId
 from shopbot.config.settings import ProblemType
 from shopbot.features import core_keys as core
 from shopbot.features.problems import content_keys as k
@@ -245,8 +246,8 @@ async def _number(ctx: Ctx, report: Report) -> str:
     return service.number_text(ctx.app, ticket.number) if ticket is not None else str(report.id)
 
 
-async def _staff_reply(ctx: Ctx, text: str, *, tone: str) -> None:
-    await ctx.respond(views.operator_reply(ctx.app.ui, text, tone=tone))
+async def _staff_reply(ctx: Ctx, text: str, *, tone: str, banner: BannerId = "general-response") -> None:
+    await ctx.respond(views.operator_reply(ctx.app.ui, text, tone=tone, banner=banner))
 
 
 async def _already_decided(ctx: Ctx, report: Report, number: str) -> None:
@@ -278,12 +279,11 @@ async def _decide(ctx: Ctx, status: str, *, reason_required: bool) -> None:
     report = await _load_report(ctx)
     reason = ctx.fields.get(views.REASON_INPUT, "").strip()
     if reason_required and not reason:
-        await _staff_reply(ctx, app.op("problems.op.reason_required"), tone="warning")
+        await _staff_reply(ctx, app.op("problems.op.reason_required"), tone="warning", banner="error")
         return
     if len(reason) > k.REASON_MAX:
-        await _staff_reply(
-            ctx, app.op("problems.op.reason_too_long", max=k.REASON_MAX, length=len(reason)), tone="warning"
-        )
+        text = app.op("problems.op.reason_too_long", max=k.REASON_MAX, length=len(reason))
+        await _staff_reply(ctx, text, tone="warning", banner="error")
         return
     await ctx.defer_reply(ephemeral=True)
     outcome = await service.decide(app, report.id, status=status, reason=reason or None, actor_id=ctx.user_id)

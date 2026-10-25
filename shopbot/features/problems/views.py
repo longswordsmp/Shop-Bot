@@ -6,6 +6,10 @@ Missing required content raises ``MissingContent``; optional elements whose cont
 Customer data (display names, form answers, staff reasons) is escaped with ``discord.utils.escape_markdown`` and never
 pings: embeds do not mention, only the explicit ``mention_user_ids``/``mention_role_ids`` of a spec do.
 
+Every message carries the banner of its kind (``Ui.banner``). The private step and the report panel are each ONE
+message whose banner follows its state (``STATUS_BANNERS``, ``REFUSED_BANNER``); the answers posted under the panel have
+none (they continue it).
+
 Custom ids (route ``pr``) carry only identifiers; handlers reload and re-validate everything:
 - ``sb:pr:start`` - the Report a Problem button on the #purchase panel;
 - ``sb:pr:order:<nonce>:<type>`` / ``sb:pr:type:<nonce>:<order>`` - the order and issue-type menus of the private
@@ -25,6 +29,7 @@ from dataclasses import dataclass, replace
 
 from discord.utils import escape_markdown
 
+from shopbot.config.banner_ids import BannerId
 from shopbot.config.content import MissingContent
 from shopbot.config.settings import ProblemSettings, ProblemType
 from shopbot.features import core_keys as core
@@ -38,6 +43,7 @@ from shopbot.ui.spec import (
     Component,
     EmbedField,
     EmbedSpec,
+    FileSpec,
     InputStyle,
     MessageSpec,
     ModalSpec,
@@ -64,6 +70,14 @@ OpText = Callable[..., str]
 
 _INPUT_STYLES: dict[str, InputStyle] = {"short": "short", "paragraph": "paragraph"}
 _STATUS_TONES = {k.OPEN: "warning", k.RESOLVED: "success", k.REJECTED: "danger"}
+# The banner of the report panel and of the decision notification for each report status.
+STATUS_BANNERS: dict[str, BannerId] = {
+    k.OPEN: "support-request",
+    k.RESOLVED: "resolution",
+    k.REJECTED: "rejected-or-unsuccessful-submission",
+}
+# Replies that refuse a new report (no order to report about, the open-report limit reached).
+REFUSED_BANNER: BannerId = "rejected-or-unsuccessful-submission"
 
 
 # -- custom ids ---------------------------------------------------------------------------------------------------
@@ -255,6 +269,10 @@ def _fields(*items: EmbedField | None) -> tuple[EmbedField, ...]:
     return tuple(item for item in items if item is not None)
 
 
+def _status_banner(ui: Ui, status: str) -> FileSpec | None:
+    return ui.banner(STATUS_BANNERS.get(status, "general-response"))
+
+
 # -- #purchase panel button ---------------------------------------------------------------------------------------
 
 
@@ -327,7 +345,11 @@ def choose_message(
         style="primary",
         disabled=not choice.complete,
     )
-    return MessageSpec(embeds=(main, _attachments_embed(ui)), rows=rows_of(order_menu, type_menu, proceed))
+    return MessageSpec(
+        embeds=(main, _attachments_embed(ui)),
+        rows=rows_of(order_menu, type_menu, proceed),
+        banner=ui.banner("support-request"),
+    )
 
 
 def form_modal(ui: Ui, problem_type: ProblemType, *, nonce: str, order_sel: str) -> ModalSpec:
@@ -363,24 +385,28 @@ def created_reply(ui: Ui, *, channel_id: int, number: str) -> MessageSpec:
     embed = _reply(
         ui, k.CREATED, tone="success", values={"channel_mention": channel_mention(channel_id), "number": number}
     )
-    return MessageSpec(embeds=(embed, _attachments_embed(ui)))
+    return MessageSpec(embeds=(embed, _attachments_embed(ui)), banner=ui.banner("ticket-created"))
 
 
 def limit_reply(ui: Ui, *, limit: int, channel_id: int | None) -> MessageSpec:
     values: Values = {"limit": limit, "channel_mention": channel_mention(channel_id) if channel_id else ""}
-    return MessageSpec(embeds=(_reply(ui, k.LIMIT_REACHED, tone="warning", values=values),))
+    return MessageSpec(
+        embeds=(_reply(ui, k.LIMIT_REACHED, tone="warning", values=values),), banner=ui.banner(REFUSED_BANNER)
+    )
 
 
 def no_orders_reply(ui: Ui, *, links: Mapping[str, str] | None = None) -> MessageSpec:
-    return MessageSpec(embeds=(_reply(ui, k.NO_ORDERS, tone="warning", values=dict(links or {})),))
+    return MessageSpec(
+        embeds=(_reply(ui, k.NO_ORDERS, tone="warning", values=dict(links or {})),), banner=ui.banner(REFUSED_BANNER)
+    )
 
 
 def error_reply(ui: Ui, key: str, **values: str | int) -> MessageSpec:
-    """A private error exactly as the router sends it (used by the preview)."""
-    embed = ui.error_embed(key, **values)
-    if embed is None:
+    """A private error exactly as the router sends it (``Ui.error_message``; used by the preview)."""
+    spec = ui.error_message(key, **values)
+    if spec is None:
         raise MissingContent(key)
-    return MessageSpec(embeds=(embed,))
+    return spec
 
 
 # -- the report's ticket -------------------------------------------------------------------------------------------
@@ -411,7 +437,8 @@ def ticket_panel(
     links: Mapping[str, str] | None = None,
     ping_role_ids: tuple[int, ...] = (),
 ) -> MessageSpec:
-    """The live report panel in the ticket: report summary, status, staff decision and the actions."""
+    """The live report panel in the ticket: report summary, status, staff decision and the actions. Its banner follows
+    the report's status (the decision edits this same message)."""
     label = type_label(ui, settings, data.type_id)
     values: Values = {
         "number": data.number,
@@ -444,6 +471,7 @@ def ticket_panel(
         rows=panel_rows(ui, data),
         mention_user_ids=(data.user_id,),
         mention_role_ids=ping_role_ids,
+        banner=_status_banner(ui, data.status),
     )
 
 
@@ -488,7 +516,8 @@ def _pack(fields: Sequence[EmbedField], base: EmbedSpec) -> list[MessageSpec]:
 
 
 def details_messages(ui: Ui, problem_type: ProblemType, answers: Mapping[str, str]) -> list[MessageSpec]:
-    """The customer's form answers, posted once below the report panel (none when the type has no form)."""
+    """The customer's form answers, posted once below the report panel (none when the type has no form). No banner:
+    they continue the panel above."""
     return _pack(answer_fields(ui, problem_type, answers), ui.embed(tone="info", branding_text=False))
 
 
@@ -520,7 +549,7 @@ def decision_notification(
         fields=_fields(_type_field(ui, label), _order_field(ui, order), _reason_field(ui, reason)),
         timestamp=True,
     )
-    return MessageSpec(embeds=(embed,))
+    return MessageSpec(embeds=(embed,), banner=_status_banner(ui, status))
 
 
 def staff_alert(
@@ -549,7 +578,7 @@ def staff_alert(
         fields=_fields(_type_field(ui, label), _order_field(ui, order)),
         timestamp=True,
     )
-    return MessageSpec(embeds=(embed,), mention_role_ids=ping_role_ids)
+    return MessageSpec(embeds=(embed,), mention_role_ids=ping_role_ids, banner=ui.banner("staff-notifications"))
 
 
 # -- staff forms and replies (operator text; shown only after a staff check) -----------------------------------------
@@ -583,5 +612,6 @@ def reject_modal(op: OpText, *, report_id: int, number: str, required: bool) -> 
     )
 
 
-def operator_reply(ui: Ui, text: str, *, tone: str = "info") -> MessageSpec:
-    return MessageSpec(embeds=(ui.operator_embed(text, tone=tone),))
+def operator_reply(ui: Ui, text: str, *, tone: str = "info", banner: BannerId = "general-response") -> MessageSpec:
+    """A staff-only private reply: ``general-response`` for answers, ``error`` for refused input."""
+    return MessageSpec(embeds=(ui.operator_embed(text, tone=tone),), banner=ui.banner(banner))

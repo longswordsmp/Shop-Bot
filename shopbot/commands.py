@@ -21,7 +21,7 @@ from shopbot.core.events import FAILURE
 from shopbot.features import core_keys as ck
 from shopbot.logging_setup import log_event
 from shopbot.ui.discord_render import RenderError, send_kwargs
-from shopbot.ui.spec import EmbedField, MessageSpec
+from shopbot.ui.spec import EmbedField, FileSpec, MessageSpec
 
 if TYPE_CHECKING:
     from shopbot.context import App
@@ -94,20 +94,23 @@ async def reply_operator(
     tone: str = "info",
     fields: Sequence[EmbedField] = (),
     files: Sequence[discord.File] = (),
+    banner: FileSpec | None = None,
 ) -> None:
-    """Admin-only reply with operator wording (always ephemeral)."""
+    """Admin-only reply with operator wording (always ephemeral). ``banner``: the picture above it
+    (``app.ui.banner(...)``); ``files`` are uploaded after it."""
     app = app_of(interaction)
-    spec = MessageSpec(embeds=(app.ui.operator_embed(title, description, tone=tone, fields=fields),))
+    spec = MessageSpec(embeds=(app.ui.operator_embed(title, description, tone=tone, fields=fields),), banner=banner)
     await reply(interaction, spec, ephemeral=True, files=files)
 
 
 async def reply_content_error(
     interaction: discord.Interaction[Any], key: str = ck.ERROR_GENERIC, **values: str | int
 ) -> None:
-    """Customer-safe error: configured content, or a silent acknowledgement when not configured."""
+    """Customer-safe error (``Ui.error_message``: the error banner and embed), or a silent acknowledgement when its text
+    is not configured."""
     app = app_of(interaction)
-    embed = app.ui.error_embed(key, **values)
-    if embed is None:
+    spec = app.ui.error_message(key, **values)
+    if spec is None:
         # Slash commands have no silent acknowledgement: deferring leaves a "thinking" message. Defer, then delete
         # the deferred response so nothing (and no invented wording) remains.
         try:
@@ -117,7 +120,7 @@ async def reply_content_error(
         except discord.HTTPException:
             log.debug("could not clear deferred command response")
         return
-    await reply(interaction, MessageSpec(embeds=(embed,)), ephemeral=True)
+    await reply(interaction, spec, ephemeral=True)
 
 
 async def on_tree_error(interaction: discord.Interaction[Any], error: app_commands.AppCommandError) -> None:
@@ -146,7 +149,12 @@ async def on_tree_error(interaction: discord.Interaction[Any], error: app_comman
         log.error("command failure %s", error_id, exc_info=original)
         try:
             if app.perms.is_staff(_member(interaction), interaction.user.id):
-                await reply_operator(interaction, app.op("command.failed", error_id=error_id), tone="danger")
+                await reply_operator(
+                    interaction,
+                    app.op("command.failed", error_id=error_id),
+                    tone="danger",
+                    banner=app.ui.banner("error"),
+                )
             else:
                 await reply_content_error(interaction, ck.ERROR_GENERIC, error_id=error_id)
         finally:

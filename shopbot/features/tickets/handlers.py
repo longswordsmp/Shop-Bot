@@ -365,7 +365,8 @@ async def transcript_button(ctx: Ctx) -> None:
         number=service.format_number(app, ticket.number),
         channel=views.channel_mention(channel_id),
     )
-    await ctx.respond(MessageSpec(embeds=(app.ui.operator_embed(text, tone="success"),)))
+    embed = app.ui.operator_embed(text, tone="success")
+    await ctx.respond(MessageSpec(embeds=(embed,), banner=app.ui.banner(views.TRANSCRIPT_BANNER)))
 
 
 def register(app: App) -> None:
