@@ -271,7 +271,13 @@ def build_announcement(
     listing = app.settings.catalog.listing_channel
     catalog_link = channel_url(app, listing) if listing else None
     return views.announcement(
-        app.ui, event, product, role_id=role.id if role is not None else None, catalog_url=catalog_link, image=image
+        app.ui,
+        event,
+        product,
+        role_id=role.id if role is not None else None,
+        catalog_url=catalog_link,
+        image=image,
+        low_stock_threshold=app.settings.catalog.low_stock_threshold,
     )
 
 

@@ -37,7 +37,7 @@ from shopbot.features.announcements.content_keys import field_name_key
 from shopbot.features.announcements.repo import Announcement, ImageRef
 from shopbot.logging_setup import log_event
 from shopbot.ui.discord_render import RenderError, send_kwargs
-from shopbot.ui.limits import EMBED_TOTAL_CHARS, validate_message
+from shopbot.ui.limits import EMBED_TOTAL_CHARS, FILES_TOTAL_BYTES, validate_message
 from shopbot.ui.spec import FileSpec, MessageSpec, ModalSpec
 
 if TYPE_CHECKING:
@@ -135,9 +135,11 @@ def form_inputs(app: App) -> list[views.FormInput]:
 
 
 def upload_limit(app: App) -> int:
-    """Largest file the bot may upload in the server (depends on the server's boost level)."""
+    """Largest image /announce accepts: the server's upload limit (boost level), capped by the per-message file limit
+    every bot message is validated against (``ui.limits.FILES_TOTAL_BYTES``)."""
     limit = getattr(app.guild, "filesize_limit", None)
-    return limit if isinstance(limit, int) and limit > 0 else discord.utils.DEFAULT_FILE_SIZE_LIMIT_BYTES
+    guild_limit = limit if isinstance(limit, int) and limit > 0 else discord.utils.DEFAULT_FILE_SIZE_LIMIT_BYTES
+    return min(guild_limit, FILES_TOTAL_BYTES)
 
 
 def _megabytes(size: int) -> str:

@@ -94,6 +94,7 @@ def announcement(
     role_id: int | None,
     catalog_url: str | None,
     image: tuple[str | None, Sequence[FileSpec]] | None = None,
+    low_stock_threshold: int = 0,
 ) -> MessageSpec:
     """The update posted in #new-arrivals for ``event`` ("new" or "restock").
 
@@ -112,7 +113,7 @@ def announcement(
         title=title,
         description=product.description or None,
         image_url=image_url,
-        fields=catalog_views.product_fields(ui, product),
+        fields=catalog_views.product_fields(ui, product, low_stock_threshold),
         tone=tone,
         timestamp=True,
         footer_extra=ui.text(footer_key),

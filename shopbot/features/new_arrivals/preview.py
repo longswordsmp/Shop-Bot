@@ -109,6 +109,14 @@ def preview(app: App) -> list[PreviewState]:
             add(
                 f"update_{event}{suffix}",
                 f"Automatic update in the new-arrivals channel when {why}, {how}.",
-                partial(views.announcement, ui, event, product, role_id=role_id, catalog_url=catalog_link),
+                partial(
+                    views.announcement,
+                    ui,
+                    event,
+                    product,
+                    role_id=role_id,
+                    catalog_url=catalog_link,
+                    low_stock_threshold=settings.catalog.low_stock_threshold,
+                ),
             )
     return states

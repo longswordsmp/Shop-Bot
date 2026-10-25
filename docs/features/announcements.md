@@ -36,7 +36,7 @@ mentioned), **nothing is posted** and the staff member gets a private operator e
 | `channel` | `"announcements"` (shipped) | Channel key (from `[[server.channels]]`) the announcements are posted in. Required. |
 | `roles` | `[]` | Extra role keys allowed to use `/announce`. `permissions.staff_roles` and admins (Owner, `permissions.admin_roles`, Discord Administrators) can always announce. |
 | `mention_roles` | `[]` | Role keys staff may choose to mention. Empty: announcements never mention anyone. At most 25. The role must be mentionable (`mentionable = true` in `[[server.roles]]`, applied by `/setup`) unless the bot has the Mention @everyone permission in the channel. |
-| `allow_image` | `true` | Whether staff may attach one image (png, jpg, gif or webp, up to the server's bot upload limit: 10 MB without boosts). The option stays visible when off but is refused. |
+| `allow_image` | `true` | Whether staff may attach one image (png, jpg, gif or webp, up to 10 MB: the per-message file limit every bot message is checked against, also on boosted servers). The option stays visible when off but is refused. |
 | `[[announcements.fields]]` | none | Up to 3 extra form inputs, each posted as an embed field: `id` (internal key), `style` (`short` or `paragraph`), `required` (default `false`), `max_length` (1-1024, default 1024). |
 
 Example:

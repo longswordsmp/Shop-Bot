@@ -220,3 +220,14 @@ async def test_autocomplete_suggests_existing_mention_roles_to_staff_only(env: A
     await env.app.resources.forget("role", "quiet")
     remaining = await mention_autocomplete(interaction_for(env.staff()), "")  # type: ignore[arg-type]
     assert [c.value for c in remaining] == ["alerts"]
+
+
+async def test_boosted_servers_are_still_capped_at_the_per_message_file_limit(
+    env: AnnounceEnv, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from shopbot.ui.limits import FILES_TOTAL_BYTES
+
+    monkeypatch.setattr(type(env.tenv.guild), "filesize_limit", 100 * 1_048_576, raising=False)  # boost level 3
+    assert service.upload_limit(env.app) == FILES_TOTAL_BYTES
+    big = await _error(env, image=Upload(size=FILES_TOTAL_BYTES + 1))
+    assert env.app.op("announcements.error.image_too_large", size="10.0", limit="10.0") in reply_text(big)

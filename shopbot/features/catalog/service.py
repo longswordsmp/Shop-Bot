@@ -568,9 +568,11 @@ async def _finish(
         await app.audit.record(
             f"catalog.product_{action}", actor_id=actor_id, target_type="product", target_id=product.id, details=details
         )
-    report = await request_listing_refresh(app)
     if action is not None:
+        # Before the (slow, Discord-bound) listing refresh: subscribers schedule their durable tasks right after the
+        # commit, so a restart during the refresh cannot lose them.
         await app.events.publish(PRODUCT_CHANGED, action=action, before=before, after=product, actor_id=actor_id)
+    report = await request_listing_refresh(app)
     tone = reply.tone if report.ok else "warning"
     listing = EmbedField(app.op("catalog.refresh.field"), "\n".join(report.lines)) if report.lines else None
     return OpReply(reply.title, reply.description, tone=tone, fields=reply.fields + ((listing,) if listing else ()))

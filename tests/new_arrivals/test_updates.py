@@ -630,3 +630,23 @@ async def test_scheduling_failure_never_breaks_the_catalog_change(env: NaEnv, mo
     monkeypatch.setattr(service, "schedule_announcement", broken)
     product_id = await add_product(env)  # asserts the catalog reply is a success
     assert (await product(env, product_id)).listed
+
+
+async def test_low_stock_reads_the_same_as_on_the_catalog_card(tmp_path: Path) -> None:
+    from shopbot.features.catalog import content_keys as catalog_keys
+
+    na = await na_env(
+        tmp_path,
+        {"catalog": {"low_stock_threshold": 5}},
+        content={catalog_keys.AVAILABILITY_LOW_STOCK: "[only {count} left]"},
+    )
+    try:
+        product_id = await add_product(na, stock="0")
+        await run_tasks(na)
+        await set_stock(na, product_id, "set", 2)
+        await run_tasks(na)
+        restock = na.updates()[-1]
+        values = [f.value for f in restock.embeds[0].fields]
+        assert "[only 2 left]" in values
+    finally:
+        await na.close()
