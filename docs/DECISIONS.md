@@ -162,6 +162,7 @@ how you want to operate** (each is one line in `config/settings.toml`).
 | START HERE `public_readonly`; CATALOG/PURCHASE `members_readonly`; STAFF `staff` | – | Unverified users see only START HERE |
 | `permissions.admin_roles` / `owner_role` | `["owner"]` / `owner` | The Owner role is admin; `/setup` gives it to `OWNER_ID` |
 | Staff role `mentionable` / Restock Alerts `mentionable` | true / true | Alerts and #new-arrivals updates can notify those roles |
+| Staff role `permissions` | `["manage_messages"]` | Staff see the staff slash commands (`/orders`, `/order`, `/ticket`, `/review`, `/announce`) in Discord's picker; it also lets them delete/pin messages. `/setup` sets exactly these permissions. Fine-tune per command under Server Settings → Integrations; the bot's staff checks stay authoritative |
 | `verification.rules` | 0 (**you must set it**) | #welcome stays hidden until you say how many rules there are |
 | `verification.dm_confirmation` | false | Confirmation only privately in Discord, no DM |
 | `how_to_buy.steps` / `link_channels` | 4 / catalog, purchase, faq | Guide size and its link buttons |
@@ -181,6 +182,7 @@ how you want to operate** (each is one line in `config/settings.toml`).
 | `problems.allow_without_order` / `require_reason_on_reject` | true / true | |
 | one problem type `general` with one paragraph field | – | Add types and fields as needed |
 | `operations.ping_roles` / `owner_dm_alerts` | staff / true | Who is notified about orders and failures |
+| `operations.answers_in_orders_channel` | false | The customer's typed form answers are not posted in #orders; staff open them privately (Details button, `/order view`) |
 | `operations.*_minutes` reminders | 0 (off) | Set thresholds to get #staff-chat reminders |
 | `announcements.allow_image` | true | |
 | `my_orders.orders_per_page` | 5 | |

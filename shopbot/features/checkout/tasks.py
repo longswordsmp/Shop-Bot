@@ -8,7 +8,8 @@ per idle period; scheduled with the session, re-armed by restart recovery).
 
 Follow-up tasks (scheduled in the same transaction as the change they follow, see ``repo``):
 - ``checkout.after_submit``: the staff controls (adopting controls that were posted but never recorded), the
-  customer's form answers for staff, the payment provider's start;
+  customer's form answers for staff (only with ``operations.answers_in_orders_channel``), the payment
+  provider's start;
 - ``checkout.after_transition``: the order views, the status notification, closing the channel of a final order,
   the review request of a fulfilled order;
 - ``checkout.ticket_check``: closes an order channel that can no longer be used (its session ended without an

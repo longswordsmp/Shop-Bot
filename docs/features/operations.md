@@ -34,6 +34,11 @@ request, tracking details, refund). It always shows:
 When the record would exceed Discord's limits, the order lines move to separate messages first, then the oldest notes
 and timeline entries are left out (the **Details** button shows everything). Configured text is never cut.
 
+**Privacy.** What the customer typed in the order forms (details form, fulfillment option form, submission form) is
+not part of the record and is not posted in #orders: staff open it privately with **Details** or `/order view`, after
+the bot's staff check. `operations.answers_in_orders_channel = true` also posts the answers as messages under each
+record (the previous behaviour). See `docs/features/orders_privacy.md`.
+
 ### Staff actions
 
 All buttons are routed (`sb:cs:<action>:<order id>[...]`), keep working after a restart, re-check the staff role on
@@ -51,7 +56,7 @@ notification even after a crash.
 | Request correction | (waiting for payment) opens a form; the customer is notified privately with the configured wording plus the staff message; the order keeps waiting; recorded in the timeline |
 | Tracking details | optional (only when `checkout.staff.button.tracking` is set); stores tracking text; included in the completion notification, or sent to the customer when the order is already completed |
 | Add note | opens a form; the internal note is stored and listed on the record |
-| Details | the full record, privately to the clicking staff member (same as `/order view`) |
+| Details | the full record incl. the customer's form answers, privately to the clicking staff member (same as `/order view`) |
 | Refund / Refund to credit / Return credit | unchanged |
 
 Internal notes used to be `order_events` rows without a status change; migration `0003_operations` moves them to
@@ -109,6 +114,7 @@ the bot's highest role or a 403 is audited and reported in `#staff-chat`; a memb
 staff_channel = "staff_chat"   # required; staff/admin channel
 ping_roles = ["staff"]
 owner_dm_alerts = true
+answers_in_orders_channel = false  # true = also post the customer's form answers under each record in #orders
 unclaimed_order_minutes = 0    # reminders: 0 = off (business decisions)
 unpaid_order_minutes = 0
 unfulfilled_order_minutes = 0
@@ -148,6 +154,8 @@ Staff-only forms and private replies to staff are operator text (`checkout.note.
   order's full record privately, and previous/next buttons. Same list as `/order list`.
 - `/order view <number>`: staff; the full record (same as `/order lookup`).
 - `/order note` now stores the note as staff activity (shown on the record).
+- `/ticket close` in an order ticket: closes the ticket of an order that was never submitted (the unfinished order is
+  cancelled); refused while a submitted order of the ticket is open (see `docs/features/orders_privacy.md`).
 
 ## Testing manually in Discord
 

@@ -917,10 +917,13 @@ def cancel_confirm(ui: Ui, session_id: int) -> MessageSpec:
     return MessageSpec(embeds=(embed,), rows=rows)
 
 
-def session_ended(ui: Ui, status: str, *, reference: str | None = None) -> MessageSpec:
-    """The workflow message after the customer cancelled (or the session expired); no controls. ``reference``: the
+def session_ended(ui: Ui, status: str, *, reference: str | None = None, by_staff: bool = False) -> MessageSpec:
+    """The workflow message after the customer cancelled (or the session expired, or staff closed the ticket of the
+    unfinished order: ``by_staff``, whose text falls back to the cancelled text); no controls. ``reference``: the
     ticket reference (``ticket_reference``), still shown on the ended panel."""
-    if status == m.SESSION_EXPIRED:
+    if by_staff:
+        title_key, description_key = k.STAFF_CLOSED_TITLE, k.STAFF_CLOSED_DESCRIPTION
+    elif status == m.SESSION_EXPIRED:
         title_key, description_key = k.EXPIRED_TITLE, k.EXPIRED_DESCRIPTION
     else:
         title_key, description_key = k.CANCELLED_TITLE, k.CANCELLED_DESCRIPTION

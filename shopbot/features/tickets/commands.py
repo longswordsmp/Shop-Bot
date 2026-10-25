@@ -1,7 +1,9 @@
 """``/ticket`` staff commands. They act on the support ticket of the channel they are run in (``list``
-works anywhere). Hidden from non-staff by default permissions; authorized by ``require_staff`` (any
-ticket staff role) and again per ticket (staff of that ticket's category). Replies are private
-operator text."""
+works anywhere). ``close`` also works in an order ticket (``kind='order'``): the checkout feature's registered
+closer ends an unfinished order first and refuses a submitted open order (see
+``service.register_staff_closer``). Hidden from non-staff by default permissions; authorized by ``require_staff``
+(any ticket or order staff role) and again per ticket (staff of that ticket's category, or order staff). Replies
+are private operator text."""
 
 from __future__ import annotations
 
@@ -16,7 +18,7 @@ from discord.utils import escape_markdown
 from shopbot.commands import app_of, operator_fields, reply, reply_operator, require_staff
 from shopbot.features.tickets import content_keys as k
 from shopbot.features.tickets import repo, service, views
-from shopbot.features.tickets.models import CLOSED, KIND_SUPPORT, OPEN, Ticket
+from shopbot.features.tickets.models import CLOSED, KIND_ORDER, KIND_SUPPORT, OPEN, Ticket
 from shopbot.logging_setup import log_event
 from shopbot.ui.spec import MessageSpec
 from shopbot.ui.style import chunk_lines
@@ -29,15 +31,21 @@ log = logging.getLogger(__name__)
 StatusChoice = Literal["creating", "open", "closed", "deleted", "failed"]
 LIST_LIMIT = 25
 LIST_SCAN = 500
+# The feature that owns order tickets (kind 'order'; its closer is registered with service.register_staff_closer).
+ORDER_FEATURE = "checkout"
+CLOSE_DESCRIPTION = "Close this ticket (also an order ticket whose order was not submitted)."
+CLOSE_REASON_DESCRIPTION = "Optional reason (shown on a support ticket's closed message if configured; audited)"
 
 
 def command_staff_keys(app: App) -> tuple[str, ...]:
-    """Every role key that is staff for at least one ticket category (per-ticket checks follow)."""
+    """Every role key that is staff for at least one ticket category or for order tickets (``checkout.staff_roles``,
+    for ``/ticket close`` in an order ticket); per-ticket checks follow."""
     t = app.settings.tickets
     keys = list(t.staff_roles)
     for category in t.categories:
         keys.extend(category.staff_roles)
     keys.extend(service.external_staff_keys(app))
+    keys.extend(app.settings.checkout.staff_roles)
     return tuple(dict.fromkeys(keys))
 
 
@@ -49,14 +57,24 @@ def _when(timestamp: int | None) -> str:
     return f"<t:{timestamp}:f>" if timestamp else "-"
 
 
-async def _ticket_here(interaction: discord.Interaction[Any]) -> tuple[App, Ticket] | None:
+async def _ticket_here(
+    interaction: discord.Interaction[Any], kinds: tuple[str, ...] = (KIND_SUPPORT,)
+) -> tuple[App, Ticket] | None:
+    """The ticket of the channel the command runs in, when it is one of ``kinds`` and the caller is its staff.
+
+    Support tickets need the ticket feature to be ready. Order tickets belong to checkout: they are available while
+    checkout is switched on, even when the support-ticket texts are not configured (closing one needs none)."""
     app = app_of(interaction)
-    if not app.ready(k.FEATURE):
-        await reply_operator(interaction, app.op("command.feature_disabled", feature=k.FEATURE), tone="warning")
-        return None
     channel_id = interaction.channel_id
     ticket = await service.get_ticket_by_channel(app, channel_id) if channel_id else None
-    if ticket is None or ticket.kind != KIND_SUPPORT or ticket.guild_id != app.env.guild_id:
+    if ticket is not None and ticket.kind == KIND_ORDER and KIND_ORDER in kinds:
+        if not app.settings.features.checkout:
+            await reply_operator(interaction, app.op("command.feature_disabled", feature=ORDER_FEATURE), tone="warning")
+            return None
+    elif not app.ready(k.FEATURE):
+        await reply_operator(interaction, app.op("command.feature_disabled", feature=k.FEATURE), tone="warning")
+        return None
+    if ticket is None or ticket.kind not in kinds or ticket.guild_id != app.env.guild_id:
         await reply_operator(interaction, app.op("tickets.cmd.not_ticket"), tone="warning")
         return None
     if not service.is_ticket_staff(app, _member(interaction), interaction.user.id, ticket):
@@ -134,12 +152,15 @@ async def ticket_remove(interaction: discord.Interaction[Any], member: discord.M
 
 
 async def ticket_close(interaction: discord.Interaction[Any], reason: str | None = None) -> None:
-    found = await _ticket_here(interaction)
+    found = await _ticket_here(interaction, (KIND_SUPPORT, KIND_ORDER))
     if found is None:
         return
     app, ticket = found
     if ticket.status != OPEN:
         await _wrong_state(interaction, app, ticket)
+        return
+    if ticket.kind != KIND_SUPPORT:
+        await _close_other_kind(interaction, app, ticket, reason or None)
         return
     await _defer(interaction)
     closed = await service.close_ticket(app, ticket.id, actor_id=interaction.user.id, reason=reason or None)
@@ -150,6 +171,26 @@ async def ticket_close(interaction: discord.Interaction[Any], reason: str | None
     await reply_operator(
         interaction, app.op("tickets.cmd.closed", number=service.format_number(app, ticket.number)), tone="success"
     )
+
+
+async def _close_other_kind(
+    interaction: discord.Interaction[Any], app: App, ticket: Ticket, reason: str | None
+) -> None:
+    """``/ticket close`` in a ticket of another kind (an order ticket): its feature's registered closer decides (it
+    re-reads the ticket and its records; e.g. a submitted open order is refused). Any failure is answered with
+    operator text; nothing internal is shown."""
+    closer = service.staff_closer(app, ticket.kind)
+    if closer is None:
+        await reply_operator(interaction, app.op("tickets.cmd.not_ticket"), tone="warning")
+        return
+    await _defer(interaction)
+    try:
+        result = await closer(app, ticket, interaction.user.id, reason)
+    except discord.HTTPException as exc:
+        log_event(log, logging.WARNING, "tickets_close_failed", ticket_id=ticket.id, status=exc.status)
+        await reply_operator(interaction, app.op("tickets.cmd.discord_error", status=exc.status), tone="danger")
+        return
+    await reply_operator(interaction, result.text, result.detail, tone=result.tone)
 
 
 async def ticket_reopen(interaction: discord.Interaction[Any]) -> None:
@@ -316,8 +357,8 @@ def build_group() -> app_commands.Group:
     async def remove(interaction: discord.Interaction[Any], member: discord.Member) -> None:
         await ticket_remove(interaction, member)
 
-    @group.command(name="close", description="Close this ticket.")
-    @app_commands.describe(reason="Optional reason (shown on the closed message if configured)")
+    @group.command(name="close", description=CLOSE_DESCRIPTION)
+    @app_commands.describe(reason=CLOSE_REASON_DESCRIPTION)
     @require_staff(command_staff_keys)
     async def close(
         interaction: discord.Interaction[Any], reason: app_commands.Range[str, 1, 500] | None = None

@@ -449,6 +449,11 @@ def preview(app: App) -> list[PreviewState]:
         "Workflow message after the unfinished order expired.",
         lambda: views.session_ended(ui, m.SESSION_EXPIRED, reference=reference),
     )
+    add(
+        "workflow_closed_by_staff",
+        "Workflow message after staff closed the ticket of the unfinished order (/ticket close).",
+        lambda: views.session_ended(ui, m.SESSION_CANCELLED, reference=reference, by_staff=True),
+    )
     if option is not None:
         add(
             "workflow_fulfillment_largest",
@@ -538,8 +543,11 @@ def preview(app: App) -> list[PreviewState]:
         staff_confirms=provider.requires_staff_confirmation if provider is not None else True,
         credit_refunds=settings.features.credits,
     )
+    # The answers are posted in the staff channel only with operations.answers_in_orders_channel (otherwise staff see
+    # them in the private record details, which the staff preview shows).
+    posted = bool(inputs) and settings.operations.answers_in_orders_channel
     try:
-        details_messages = views.staff_details_messages(ui, settings, pending.order) if inputs else []
+        details_messages = views.staff_details_messages(ui, settings, pending.order) if posted else []
     except MissingContent:
         details_messages = []
     for index, spec in enumerate(details_messages, start=1):

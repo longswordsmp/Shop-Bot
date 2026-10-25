@@ -20,6 +20,7 @@ from tests.checkout.util import (
     channel,
     error_text,
     orders,
+    post_answers_in_channel,
     press,
     reload_session,
     restarted_app,
@@ -57,6 +58,7 @@ async def sf(tmp_path: Path) -> AsyncIterator[TestEnv]:
 
 async def test_submit_opens_the_form_and_the_answers_are_stored_with_the_order(sf: TestEnv) -> None:
     tenv = sf
+    post_answers_in_channel(tenv)  # operations.answers_in_orders_channel (off by default: see tests/orders_privacy)
     customer, session, message = await _review(tenv)
     total, gross = await _totals(tenv, session.id)
     opened = await press(tenv, customer, message, views.submit_id(session.id, total, gross))

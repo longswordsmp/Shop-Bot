@@ -32,6 +32,11 @@ it if a ticket never got it.
 | Current status | field `checkout.ticket.status_field` = `checkout.ticket.status_in_progress` before submission, the stage name (`checkout.ticket.stage.<status>`) afterwards |
 | Actions | Back on every step after the first, Continue/Submit, Cancel; after submission the customer's cancel button while unpaid |
 
+**Closed by staff.** Staff can close the ticket of an order that was never submitted with `/ticket close`: the
+unfinished order is cancelled and the panel shows `checkout.staff_closed.title` / `.description` (optional; empty =
+the cancelled texts) without controls. A submitted open order is refused; staff end it from #orders (see
+`docs/features/orders_privacy.md`).
+
 After submission the panel shows the reference, the order number (`checkout.ticket.order_number_field`), the
 current stage, the order lines and totals, the payment instructions (while unpaid) and the **timeline**
 (`checkout.ticket.timeline_field`): one line per stage reached, written with `checkout.ticket.timeline_entry`
@@ -45,9 +50,10 @@ configured, pressing Submit opens a form (title `checkout.submission.modal_title
 `checkout.submission.form.<id>.label/.description/.placeholder`) instead of submitting directly. The answers are
 checked on the server (required, length), stored in the session (so they are filled in again when the submission has
 to be repeated, e.g. after a price change) and become part of the order (`orders.details`, keys `s.<id>`;
-`Order.submission_answers`). Staff see them with their labels in the form-answers message under the staff order
-controls and in `/order lookup`. The order cannot be submitted without the required answers (checked again in the
-submit transaction). The form carries the totals the customer saw; if they changed, the price-changed notice is
+`Order.submission_answers`). Staff see them with their labels privately: the order record's Details button and
+`/order view` / `/order lookup` (and, only with `operations.answers_in_orders_channel = true`, in a form-answers
+message under the staff order controls in #orders). The order cannot be submitted without the required answers
+(checked again in the submit transaction). The form carries the totals the customer saw; if they changed, the price-changed notice is
 shown and nothing is submitted. Empty `submission_form` = submit directly (previous behaviour).
 
 **Notifications** (DM with the configured fallback to the ticket):

@@ -754,6 +754,16 @@ def open_orders_for_user(conn: sqlite3.Connection, guild_id: int, user_id: int) 
     return [_order(r) for r in rows]
 
 
+def open_order_for_ticket(conn: sqlite3.Connection, ticket_id: int) -> m.Order | None:
+    """The newest open order (waiting for payment, paid, in progress) placed in an order ticket, else None."""
+    row = conn.execute(
+        f"{_ORDER_SELECT} WHERE o.ticket_id = ? "  # noqa: S608 (constant SQL, bound values)
+        "AND o.status IN (SELECT value FROM json_each(?)) ORDER BY o.id DESC LIMIT 1",
+        (ticket_id, json.dumps(list(m.OPEN_STATUSES))),
+    ).fetchone()
+    return None if row is None else _order(row)
+
+
 def orders_with_status(conn: sqlite3.Connection, guild_id: int, statuses: Sequence[str]) -> list[m.Order]:
     # Only constant SQL is concatenated; every value is a bound parameter.
     rows = conn.execute(

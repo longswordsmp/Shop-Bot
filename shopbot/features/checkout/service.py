@@ -72,7 +72,7 @@ from shopbot.features.checkout.payments import PaymentInstructions, PaymentProvi
 from shopbot.features.checkout.totals import compute_totals
 from shopbot.features.credits import service as credits_service
 from shopbot.features.tickets import service as tickets_service
-from shopbot.features.tickets.models import CREATING, KIND_ORDER, OPEN
+from shopbot.features.tickets.models import CREATING, KIND_ORDER, OPEN, Ticket
 from shopbot.logging_setup import log_event
 from shopbot.ui import custom_ids
 from shopbot.ui.discord_render import RenderError, check_message, edit_spec, send_spec
@@ -907,6 +907,136 @@ async def expire_session(app: App, session_id: int, *, reason: str, render: bool
     return True
 
 
+# -- staff closing an order ticket (/ticket close) -------------------------------------------------------------------
+
+
+def _record_location(app: App, order: m.Order) -> str:
+    """Where staff find an order's live record: a link to its message, else the staff channel, else '-'."""
+    if order.staff_channel_id is not None and order.staff_message_id is not None:
+        return f"https://discord.com/channels/{app.env.guild_id}/{order.staff_channel_id}/{order.staff_message_id}"
+    channel_id = app.resources.channel_id(app.settings.checkout.staff_channel)
+    return views.channel_mention(channel_id) if channel_id else "-"
+
+
+def _order_open_reply(app: App, number: str, order: m.Order) -> tickets_service.StaffCloseReply:
+    text = app.op("checkout.op.ticket_order_open", number=number, order=order.number, status=order.status)
+    hint = app.op("checkout.op.ticket_order_open_hint", record=_record_location(app, order))
+    return tickets_service.StaffCloseReply(text, "warning", hint)
+
+
+async def _after_staff_ended(app: App, ended: m.Session, *, actor_id: int, reason: str | None) -> None:
+    """A session staff ended by closing its ticket: audit it, then show the ended panel (best effort; missing text
+    only skips the panel update)."""
+    await _attempt(
+        "audit",
+        lambda: app.audit.record(
+            "checkout.session_closed_by_staff",
+            actor_id=actor_id,
+            target_type="checkout_session",
+            target_id=ended.id,
+            details={"ticket_id": ended.ticket_id, "reason": reason},
+        ),
+        session_id=ended.id,
+    )
+
+    async def show_closed() -> None:
+        try:
+            reference = await ticket_reference(app, ended)
+            spec = views.session_ended(app.ui, m.SESSION_CANCELLED, reference=reference, by_staff=True)
+        except MissingContent as exc:
+            _content_missing(exc, "checkout.staff_closed")
+            return
+        await _edit_session_message(app, ended, spec)
+
+    await _attempt("render_staff_closed", show_closed, session_id=ended.id)
+
+
+async def staff_close_ticket(
+    app: App, ticket: Ticket, actor_id: int, reason: str | None
+) -> tickets_service.StaffCloseReply:
+    """``/ticket close`` in an order ticket (registered with the ticket system, which already checked that
+    ``actor_id`` is order staff). Everything is re-read here:
+
+    - a submitted order of the ticket that is still open (waiting for payment, paid, in progress) is refused: staff
+      end it with the order's controls in the staff channel (its ticket closes when the order is final);
+    - an unfinished order (active session; never submitted, so no stock or credit is held) is cancelled through the
+      normal durable path (``repo.end_session`` schedules the ``checkout.ticket_check`` that closes the channel even
+      if this process stops right after), audited, and its live panel shows the staff-closed text;
+    - then the ticket is closed like an automatic closure (lock, transcript and deletion per settings, audit), with
+      the reason the automatic closure would use (the session's or order's final status) so the transcript shows the
+      final status. The staff member's optional ``reason`` is recorded in the audit log
+      (``checkout.session_closed_by_staff``, or ``checkout.ticket_closed_by_staff`` when no session had to end).
+
+    Conditional writes make repeated or concurrent closures (two staff, the customer cancelling or submitting at the
+    same moment) change things at most once."""
+    number = tickets_service.format_number(app, ticket.number)
+    current = await tickets_service.get_ticket(app, ticket.id)
+    if current is None or current.kind != KIND_ORDER or current.status != OPEN:
+        status = current.status if current is not None else "-"
+        return tickets_service.StaffCloseReply(app.op("checkout.op.ticket_not_open", number=number, status=status))
+    order = await app.db.run(repo.open_order_for_ticket, ticket.id)
+    if order is not None:
+        return _order_open_reply(app, number, order)
+    session = await app.db.run(repo.active_session_for_ticket, ticket.id)
+    ended: m.Session | None = None
+    if session is not None:
+        ended = await app.db.transaction(
+            repo.end_session,
+            session.id,
+            m.SESSION_CANCELLED,
+            app.clock.now(),
+            task_attempts=app.scheduler.max_attempts,
+        )
+        if ended is not None:
+            log_event(log, logging.INFO, "checkout_session_closed_by_staff", session_id=ended.id, ticket_id=ticket.id)
+            await _after_staff_ended(app, ended, actor_id=actor_id, reason=reason)
+    close_reason = await app.db.run(repo.ticket_close_reason, ticket.id)
+    if close_reason is None:
+        # The customer submitted the order at the same moment (or the ticket is otherwise in use again).
+        order = await app.db.run(repo.open_order_for_ticket, ticket.id)
+        if order is not None:
+            return _order_open_reply(app, number, order)
+        return tickets_service.StaffCloseReply(app.op("checkout.op.ticket_busy", number=number), "warning")
+    try:
+        closed = await tickets_service.close_ticket(app, ticket.id, actor_id=actor_id, reason=close_reason)
+    except Exception as exc:  # the durable channel check closes it later; never a crash in the command
+        log_event(log, logging.ERROR, "checkout_staff_close_failed", ticket_id=ticket.id, error=type(exc).__name__)
+        log.warning("closing order ticket %s failed", ticket.id, exc_info=True)
+        await _attempt(
+            "schedule_check",
+            lambda: app.scheduler.schedule(
+                TASK_TICKET_CHECK,
+                run_at=app.clock.now() + repo.FOLLOWUP_DELAY_SECONDS,
+                payload={"ticket_id": ticket.id},
+                dedupe_key=repo.ticket_check_key(ticket.id),
+                replace=True,
+            ),
+            ticket_id=ticket.id,
+        )
+        return tickets_service.StaffCloseReply(app.op("checkout.op.ticket_close_pending", number=number), "warning")
+    if closed is not None:
+        await _attempt("cancel_check", lambda: app.scheduler.cancel(repo.ticket_check_key(ticket.id)))
+        if ended is None:  # (an ended session was audited with the reason above)
+            await _attempt(
+                "audit",
+                lambda: app.audit.record(
+                    "checkout.ticket_closed_by_staff",
+                    actor_id=actor_id,
+                    target_type="ticket",
+                    target_id=ticket.id,
+                    details={"number": ticket.number, "close_reason": close_reason, "reason": reason},
+                ),
+                ticket_id=ticket.id,
+            )
+    if ended is not None:
+        return tickets_service.StaffCloseReply(app.op("checkout.op.ticket_session_closed", number=number), "success")
+    if closed is None:
+        latest = await tickets_service.get_ticket(app, ticket.id)
+        status = latest.status if latest is not None else "-"
+        return tickets_service.StaffCloseReply(app.op("checkout.op.ticket_not_open", number=number, status=status))
+    return tickets_service.StaffCloseReply(app.op("checkout.op.ticket_closed", number=number), "success")
+
+
 # -- submission ----------------------------------------------------------------------------------------------------
 
 
@@ -961,8 +1091,9 @@ async def _after_submit(app: App, order: m.Order) -> None:
 async def run_submit_followups(app: App, order_id: int, *, adopt: bool) -> bool:
     """The Discord side of a new order, safe to repeat: the catalog listing refresh, the payment provider's start
     (only while the payment has no provider reference yet), the staff controls (posted once; ``adopt`` first looks
-    for controls that were posted but never recorded), the customer's form answers for staff (deduplicated) and
-    the customer's 'submission received' notification (once). Returns True when every step completed."""
+    for controls that were posted but never recorded), the customer's form answers for staff (deduplicated; only
+    with ``operations.answers_in_orders_channel``) and the customer's 'submission received' notification (once).
+    Returns True when every step completed."""
     async with runtime(app).followup_lock(order_id):
         order = await get_order(app, order_id)
         if order is None:
@@ -1185,7 +1316,8 @@ async def _post_staff_extras(app: App, order_id: int, channel_id: int, specs: Se
 async def post_staff_message(app: App, order_id: int, *, adopt: bool = False) -> bool:
     """Post the order controls in the staff channel and remember where they are (with ``adopt``, controls already
     posted for this order but never recorded are reused instead of posting a duplicate). The order lines of a large
-    order and the customer's form answers follow as separate messages (each at most once)."""
+    order and (with ``operations.answers_in_orders_channel``) the customer's form answers follow as separate
+    messages (each at most once)."""
     view = await order_view(app, order_id)
     channel = staff_channel(app)
     if view is None or channel is None:
@@ -1215,8 +1347,18 @@ async def post_staff_message(app: App, order_id: int, *, adopt: bool = False) ->
     return True
 
 
+def answers_in_staff_channel(app: App) -> bool:
+    """Whether the customer's form answers are posted as messages in the staff channel
+    (``operations.answers_in_orders_channel``). Off: staff see them only privately (the record's Details button,
+    ``/order view``), after the staff check of that interaction."""
+    return app.settings.operations.answers_in_orders_channel
+
+
 async def post_staff_details(app: App, order_id: int) -> None:
-    """Post the customer's form answers under the staff controls (once per message part)."""
+    """Post the customer's form answers under the staff controls (once per message part), only when
+    ``operations.answers_in_orders_channel`` is on; otherwise nothing is posted."""
+    if not answers_in_staff_channel(app):
+        return
     order = await get_order(app, order_id)
     channel = staff_channel(app)
     if order is None or channel is None or not order.details:
