@@ -30,6 +30,7 @@ from shopbot.env import Env
 from shopbot.features.base import FeatureModule
 from shopbot.logging_setup import log_event
 from shopbot.ui.banners import BannerLibrary, load_banners
+from shopbot.ui.icons import IconLibrary, keep_uploaded_ids, load_icons, sync_application_emojis
 from shopbot.ui.routing import Router
 from shopbot.ui.style import Ui
 
@@ -69,7 +70,16 @@ class App:
         self.config_dir = config_dir
         self.bot: ShopBot | None = None
         registry = build_registry(settings, self.modules)
-        self.content = ContentStore(registry, content_values, overrides)
+        # The bot's custom icons ({icon_<name>} in texts): pictures now, uploaded emoji ids at startup (``bot``).
+        self.icons: IconLibrary = load_icons(config_dir, settings.icons)
+        self.icons_ready = asyncio.Event()  # set once the startup upload of the icons has finished (or failed)
+        self.content = ContentStore(
+            registry,
+            content_values,
+            overrides,
+            icons=lambda name: self.icons.text(name),
+            icon_names=lambda: self.icons.names if self.icons.enabled else None,
+        )
         self.readiness: Readiness = compute_readiness(settings, self.content, self.modules)
         self.operator_defaults: dict[str, str] = dict(CORE_OPERATOR_TEXT)
         for module in self.modules:
@@ -143,12 +153,23 @@ class App:
             return ReloadResult(ok=False, errors=list(errors))
         overrides = await self.db.run(state.overrides_all)
         banners = await asyncio.to_thread(load_banners, self.config_dir, loaded.settings.banners)
+        # Unchanged pictures keep their uploaded emoji; new or changed ones are uploaded by the sync below.
+        icons = keep_uploaded_ids(
+            await asyncio.to_thread(load_icons, self.config_dir, loaded.settings.icons), self.icons
+        )
         self.settings = loaded.settings
         self.banners = banners
+        self.icons = icons
         self.content.replace(registry=registry, file_values=loaded.content_values, overrides=overrides)
         self.recompute_readiness()
         self.router.reset_limits()
         await self.resources.refresh()
+        if self.bot is not None and self.icons_ready.is_set():
+            # New or changed icon pictures are uploaded now (the startup upload already ran).
+            try:
+                await sync_application_emojis(self)
+            except Exception:
+                log.exception("icon upload after reload failed")
         log_event(
             log, logging.INFO, "config_reloaded", ready=[n for n, s in self.readiness.statuses.items() if s.ready]
         )

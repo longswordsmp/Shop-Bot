@@ -112,6 +112,26 @@ and confirmation prompts). Messages spread over several Discord messages show th
 live message (order ticket panel, #orders record) changes banner with its status. Replace a picture file and run
 `/reload` then `/setup` to update posted panels.
 
+## `[icons]`
+
+| Key | Default | Meaning |
+|---|---|---|
+| `enabled` | false (shipped: true) | Use the bot's own icons (small pictures shown like emojis) in its texts. |
+| `directory` | `emojis` | Folder inside the config folder with one `<name>.png` per icon (names: a-z, 0-9 and `_`, 2-32 characters; at most 256 KB; 128×128 recommended). |
+
+The bot uploads the icons as *application emojis* when it starts: they belong to the bot, work in every channel and
+direct message, use none of the server's emoji slots and need no permission (Discord allows 2000 per bot). Uploaded
+icons are reused on the next start; a changed picture is uploaded again. A text shows an icon with `{icon_<name>}`,
+for example `{icon_truck} **Delivery**`; a button or option emoji can be `{icon_<name>}` too. Icons work in titles,
+descriptions, field names and values, and emojis; Discord does not show them in footers, author lines, button labels,
+select options or modal texts, so `/content set` refuses them there. Until an icon is uploaded (or if its upload
+failed) it shows nothing, or a plain dot for the `dot_*` status dots. The shipped set (`config/emojis`, from Tabler
+Icons, MIT licence) is rendered by `tools/icons/render.js`: status dots `dot_blue` (we ship there), `dot_yellow` (we
+ship to parts of it) and `dot_grey` (we do not ship there); step numbers `step_1` to `step_6`; order statuses
+`st_submitted`, `st_confirmed`, `st_shipped`, `st_delivered`, `st_cancelled`; and section icons such as `truck`,
+`gift`, `shield`, `box`, `receipt`, `lock`, `ticket`, `star` (see the folder for all of them). Run
+`/reload` after changing a picture, then `/setup` to update posted panels.
+
 ## `[[server.roles]]`, `[[server.categories]]`, `[[server.channels]]`
 
 The structure `/setup` creates or adopts. `key` is an internal identifier; names come from content keys

@@ -14,6 +14,7 @@ Content modes:
 from __future__ import annotations
 
 import sys
+import zlib
 from pathlib import Path
 from typing import Any, Literal
 
@@ -219,12 +220,27 @@ async def build_offline_app(
     file_values = (
         fixture_values(registry, loaded.content_values) if content_mode == "fixtures" else loaded.content_values
     )
-    store = store_cls(registry, file_values, {})
+    # Offline, every icon gets a stable stand-in emoji id (as long as a real one), so rendered texts have their real
+    # length and the preview can show the icon picture by name.
+    app.icons.ids = {name: offline_emoji_id(name) for name in app.icons.files}
+    app.icons_ready.set()
+    store = store_cls(
+        registry,
+        file_values,
+        {},
+        icons=lambda name: app.icons.text(name),
+        icon_names=lambda: app.icons.names if app.icons.enabled else None,
+    )
     app.content = store
     app.ui.content = store
     app.recompute_readiness()
     register_offline(app)
     return app
+
+
+def offline_emoji_id(name: str) -> int:
+    """A stand-in application emoji id for ``name`` (19 digits like a real snowflake; stable across runs)."""
+    return 1_300_000_000_000_000_000 + zlib.crc32(name.encode("utf-8"))
 
 
 def ensure_import_path() -> None:

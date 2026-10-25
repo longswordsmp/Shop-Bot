@@ -712,6 +712,23 @@ class FakeUser:
         return message
 
 
+class FakeAppEmoji:
+    """An application emoji (``discord.Emoji`` owned by the bot application)."""
+
+    def __init__(self, bot: FakeBot, name: str, image: bytes) -> None:
+        self._bot = bot
+        self.id = next_id()
+        self.name = name
+        self.image = image
+        self.animated = False
+
+    def __str__(self) -> str:
+        return f"<:{self.name}:{self.id}>"
+
+    async def delete(self) -> None:
+        self._bot.app_emojis.pop(self.id, None)
+
+
 class FakeBot:
     """Stands in for ``ShopBot``: lookups, listeners, and a real (offline) command tree."""
 
@@ -726,6 +743,20 @@ class FakeBot:
         self.listeners: dict[str, list[Any]] = {}
         self.extra_users: dict[int, FakeUser] = {}
         self.dynamic_items: list[Any] = []
+        self.app_emojis: dict[int, FakeAppEmoji] = {}  # application emojis (the bot's icons)
+        self.emoji_uploads: list[str] = []  # names uploaded, in order
+        self.fail_emoji_upload: set[str] = set()  # names whose upload fails (HTTP 400)
+
+    async def fetch_application_emojis(self) -> list[FakeAppEmoji]:
+        return list(self.app_emojis.values())
+
+    async def create_application_emoji(self, *, name: str, image: bytes) -> FakeAppEmoji:
+        if name in self.fail_emoji_upload:
+            raise http_error(discord.HTTPException, 400, 50035, "Invalid Form Body (image)")
+        emoji = FakeAppEmoji(self, name, image)
+        self.app_emojis[emoji.id] = emoji
+        self.emoji_uploads.append(name)
+        return emoji
 
     @property
     def guilds(self) -> list[FakeGuild]:

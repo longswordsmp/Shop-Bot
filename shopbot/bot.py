@@ -14,6 +14,7 @@ from discord import app_commands
 from shopbot.commands import on_tree_error
 from shopbot.core.panels import withdraw_and_audit
 from shopbot.logging_setup import log_event
+from shopbot.ui.icons import load_uploaded_ids, sync_application_emojis
 from shopbot.ui.routing import RoutedItem, parse_modal_fields
 
 if TYPE_CHECKING:
@@ -117,6 +118,7 @@ class ShopBot(discord.Client):
             try:
                 await self.app.resources.refresh()
                 await self.app.load_overrides()
+                await self._sync_icons()
                 await self.app.scheduler.recover()
                 for module in self.app.modules:
                     if module.on_ready is None:
@@ -145,6 +147,16 @@ class ShopBot(discord.Client):
                 ready_features=[n for n, s in statuses.items() if s.ready],
                 not_ready_features=[n for n, s in statuses.items() if s.enabled and not s.ready],
             )
+
+    async def _sync_icons(self) -> None:
+        """Upload missing or changed icons as application emojis before any panel is rendered (never fatal)."""
+        try:
+            await load_uploaded_ids(self.app)
+            await sync_application_emojis(self.app)
+        except Exception:
+            log.exception("icon sync failed; icons show their fallback until the next start")
+        finally:
+            self.app.icons_ready.set()
 
     async def on_resumed(self) -> None:
         log_event(log, logging.INFO, "gateway_resumed")

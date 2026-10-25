@@ -93,7 +93,9 @@ service **Settings**: Start command `python -m shopbot`, Restart policy **On Fai
 
 Check the deploy logs for, in order: `starting` → `instance_lock_acquired` → `db_ready` → `commands_synced` →
 `bot_ready`. The bot should show online. A `banners_incomplete` warning means a picture in `config/banners/` is
-missing or unreadable (that kind of message then shows no banner).
+missing or unreadable (that kind of message then shows no banner). The first start also logs `icons_uploaded`: the
+bot uploads its icons (`config/emojis/`) as its own application emojis; `icon_upload_failed` names an icon Discord
+refused (it then shows nothing, and the next start tries again).
 See `docs/DEPLOYMENT.md` → Troubleshooting if anything else appears.
 
 ## 10. Run `/setup`
@@ -163,6 +165,10 @@ reminders. The full list is in `docs/DECISIONS.md` §10a.
 at most 2 MB, 1500×500 recommended) to change it, then `/reload` and `/setup`. To hide one kind, add its name to
 `[banners] off` in `settings.toml`; `enabled = false` hides them all.
 
+**Icons:** `config/emojis/` holds the small pictures the texts use like emojis (`{icon_truck}`, `{icon_dot_blue}`,
+...). Replace a file with your own 128×128 PNG of the same name, then `/reload` and `/setup`. `docs/CONFIGURATION.md`
+→ `[icons]` explains where icons can be used.
+
 Locally you can also run `python -m tools.checklist --write`, `python -m tools.check_limits --strict` and
 `python -m tools.build_preview` (open `preview/out/index.html` to see every screen with your text and banners).
 
@@ -218,4 +224,5 @@ customers see it only if you include `{error_id}` in your `common.error.generic`
   shipped text, offline preview.
 - ❌ Not yet verified by us: running in a real Discord server. In particular, check on desktop and phone that each
   banner shows **above** its message (Discord places pictures that no embed uses above the embeds; this could not be
-  tested offline). Steps 9–12 are that verification.
+  tested offline), and that the icons appear (the upload of application emojis was tested against a stand-in for
+  Discord only). Steps 9–12 are that verification.

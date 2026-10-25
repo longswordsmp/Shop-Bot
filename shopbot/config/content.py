@@ -3,8 +3,9 @@
 Lookup order for a key: database override (entered with ``/content set``) → ``config/content.toml``.
 Empty strings count as *not configured*. Optional keys may declare a ``fallback`` key.
 
-Rendering substitutes only the placeholders a key declares (``{order_number}``); every other character,
-including other braces, is preserved exactly as written. The store never appends, trims, or rewrites
+Rendering substitutes only the placeholders a key declares (``{order_number}``) plus the global icon placeholders
+``{icon_<name>}`` (the bot's custom icons, in the kinds of text where Discord shows custom emojis); every other
+character, including other braces, is preserved exactly as written. The store never appends, trims, or rewrites
 the configured text.
 """
 
@@ -12,7 +13,7 @@ from __future__ import annotations
 
 import re
 import tomllib
-from collections.abc import Mapping
+from collections.abc import Callable, Collection, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -21,6 +22,11 @@ from shopbot.config.content_keys import ContentKey, Kind, Registry
 
 _PLACEHOLDER_RE = re.compile(r"\{([a-z][a-z0-9_]*)\}")
 _CUSTOM_EMOJI_RE = re.compile(r"^<a?:[A-Za-z0-9_]{2,32}:\d{15,21}>$")
+# The bot's custom icons (``shopbot.ui.icons``): a global placeholder every key may use where Discord shows custom
+# emojis (``ICON_KINDS``); the whole value of an emoji key may be one icon (a button's emoji).
+ICON_RE = re.compile(r"\{icon_([a-z0-9_]{2,32})\}")
+ICON_KINDS = frozenset({Kind.TITLE, Kind.DESCRIPTION, Kind.FIELD_NAME, Kind.FIELD_VALUE, Kind.EMOJI})
+IconText = Callable[[str], str]
 OPERATOR_PREFIX = "operator."
 
 
@@ -74,8 +80,9 @@ def load_content_file(path: Path) -> dict[str, str]:
 
 
 def is_valid_emoji(value: str) -> bool:
-    """Accept a custom emoji (<:name:id>) or a short unicode sequence without letters/digits."""
-    if _CUSTOM_EMOJI_RE.match(value):
+    """Accept a custom emoji (<:name:id>), one icon placeholder ({icon_name}) or a short unicode sequence without
+    letters/digits."""
+    if _CUSTOM_EMOJI_RE.match(value) or ICON_RE.fullmatch(value):
         return True
     if not value or len(value) > 16 or any(ch.isspace() for ch in value):
         return False
@@ -88,9 +95,18 @@ class ValueProblem:
     message: str
 
 
-def validate_value(key: ContentKey, value: str) -> list[str]:
-    """Check one configured value against its key's Discord constraints. Returns problems (no fixing)."""
+def validate_value(key: ContentKey, value: str, icons: Collection[str] | None = None) -> list[str]:
+    """Check one configured value against its key's Discord constraints. Returns problems (no fixing).
+
+    ``icons``: the names of the bot's icons when known (unknown ``{icon_<name>}`` names are then reported)."""
     problems: list[str] = []
+    used_icons = ICON_RE.findall(value)
+    if used_icons and key.kind not in ICON_KINDS:
+        problems.append("uses {icon_...}, but Discord cannot show icons here (only in titles, texts and fields)")
+    elif icons is not None:
+        unknown_icons = sorted(set(used_icons) - set(icons))
+        if unknown_icons:
+            problems.append(f"uses icons that do not exist: {', '.join(unknown_icons)}")
     if len(value) > key.max_length:
         problems.append(f"is {len(value)} characters; Discord allows at most {key.max_length} here")
     if key.kind is Kind.EMOJI and not is_valid_emoji(value):
@@ -101,7 +117,7 @@ def validate_value(key: ContentKey, value: str) -> list[str]:
         problems.append("must not start or end with whitespace")
     if not value.strip():
         problems.append("contains only whitespace; Discord cannot display it (leave it empty to unset)")
-    unknown = sorted(set(_PLACEHOLDER_RE.findall(value)) - set(key.placeholders))
+    unknown = sorted({p for p in _PLACEHOLDER_RE.findall(value) if not p.startswith("icon_")} - set(key.placeholders))
     if unknown and key.placeholders:
         problems.append(
             f"uses placeholders {unknown} that are not available here (available: {list(key.placeholders)})"
@@ -115,10 +131,15 @@ class ContentStore:
         registry: Registry,
         file_values: Mapping[str, str] | None = None,
         overrides: Mapping[str, str] | None = None,
+        icons: IconText | None = None,
+        icon_names: Callable[[], Collection[str] | None] | None = None,
     ) -> None:
         self.registry = registry
         self._file: dict[str, str] = dict(file_values or {})
         self._overrides: dict[str, str] = dict(overrides or {})
+        # The bot's icons: name -> message text (``<:name:id>`` or a fallback), and the known names (validation).
+        self._icons = icons
+        self._icon_names = icon_names
 
     # -- raw access -------------------------------------------------------------------------------
 
@@ -167,6 +188,7 @@ class ContentStore:
         if text is None:
             return None
         definition = self._definition(key)
+        text = self.render_icons(text) if definition.kind in ICON_KINDS else text
         allowed = set(definition.placeholders)
         if definition.fallback is not None:
             fallback_def = self.registry.get(definition.fallback)
@@ -184,6 +206,17 @@ class ContentStore:
             return str(values[name]) if name in values else ""
 
         return _PLACEHOLDER_RE.sub(substitute, text)
+
+    def render_icons(self, text: str) -> str:
+        """``text`` with every ``{icon_<name>}`` replaced by the icon (its fallback while it is not uploaded; nothing
+        for an unknown icon), so no raw placeholder reaches a customer."""
+        if "{icon_" not in text:
+            return text
+        icons = self._icons
+        return ICON_RE.sub(lambda m: icons(m.group(1)) if icons is not None else "", text)
+
+    def icon_names(self) -> Collection[str] | None:
+        return self._icon_names() if self._icon_names is not None else None
 
     def require(self, key: str, /, **values: str | int) -> str:
         text = self.render(key, **values)
@@ -245,6 +278,6 @@ class ContentStore:
             value = self.raw(definition.key)
             if value is None:
                 continue
-            for message in validate_value(definition, value):
+            for message in validate_value(definition, value, self.icon_names()):
                 problems.append(ValueProblem(definition.key, message))
         return problems

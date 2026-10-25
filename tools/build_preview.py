@@ -47,6 +47,15 @@ _MARKER_RE = re.compile(r"⟦([^⟧]+)⟧")
 # --------------------------------------------------------------------------------------------------
 
 
+EMOJIS_DIR = "emojis"  # next to the page: the bot's icon pictures, shown where messages use them
+
+
+def _custom_emoji(match: re.Match[str]) -> str:
+    """A custom emoji (the bot's icons) as its picture from the icons folder, like Discord shows it."""
+    name = match.group(1)
+    return f'<img class="cemoji" src="{EMOJIS_DIR}/{name}.png" alt=":{name}:" title=":{name}:">'
+
+
 def _inline(text: str) -> str:
     code_spans: list[str] = []
 
@@ -66,7 +75,7 @@ def _inline(text: str) -> str:
     text = re.sub(r"&lt;@!?(\d+)&gt;", r'<span class="mention">@user</span>', text)
     text = re.sub(r"&lt;@&amp;(\d+)&gt;", r'<span class="mention">@role</span>', text)
     text = re.sub(r"&lt;#(\d+)&gt;", r'<span class="mention">#channel</span>', text)
-    text = re.sub(r"&lt;a?:(\w+):\d+&gt;", r'<span class="cemoji">:\1:</span>', text)
+    text = re.sub(r"&lt;a?:(\w+):\d+&gt;", _custom_emoji, text)
     text = re.sub(
         r"&lt;t:(\d+)(?::[tTdDfFR])?&gt;",
         lambda m: f'<span class="ts">{datetime.fromtimestamp(int(m.group(1)), tz=UTC):%Y-%m-%d %H:%M} UTC</span>',
@@ -118,6 +127,11 @@ def markdown(source: str | None) -> str:
         blocks.append("".join(lines_out))
     result = "".join(blocks)
     return re.sub(r"(<br>)+$", "", result)
+
+
+def emoji_html(emoji: str) -> str:
+    """A button/option emoji: the icon picture for a custom emoji, the character otherwise."""
+    return re.sub(r"&lt;a?:(\w+):\d+&gt;", _custom_emoji, plain(emoji))
 
 
 def plain(text: str | None) -> str:
@@ -203,7 +217,7 @@ def render_components(spec: MessageSpec, router: Router) -> str:
         items: list[str] = []
         for component in row:
             if isinstance(component, ButtonSpec):
-                emoji = f'<span class="emoji">{plain(component.emoji)}</span>' if component.emoji else ""
+                emoji = f'<span class="emoji">{emoji_html(component.emoji)}</span>' if component.emoji else ""
                 label = plain(component.label)
                 ext = ' <span class="ext">↗</span>' if component.style == "link" else ""
                 title = (
@@ -219,7 +233,7 @@ def render_components(spec: MessageSpec, router: Router) -> str:
             elif isinstance(component, SelectSpec):
                 options = "".join(
                     f'<div class="opt{" default" if o.default else ""}">'
-                    f"{f'<span class=emoji>{plain(o.emoji)}</span>' if o.emoji else ''}"
+                    f"{f'<span class=emoji>{emoji_html(o.emoji)}</span>' if o.emoji else ''}"
                     f'<div><div class="opt-label">{plain(o.label)}</div>'
                     f"{f'<div class=opt-desc>{plain(o.description)}</div>' if o.description else ''}</div></div>"
                     for o in component.options
@@ -386,6 +400,8 @@ color:#fff;display:grid;place-items:center;font-weight:700;flex:none}.msg-main{m
 .msg-head{display:flex;align-items:center;gap:6px}.bot-name{color:var(--head);font-weight:600}
 .bot-tag{background:var(--blurple);color:#fff;font-size:10px;font-weight:600;padding:1px 4px;border-radius:3px}
 .msg-time{color:var(--muted);font-size:12px}.msg-content{margin-top:2px}
+.cemoji{width:1.375em;height:1.375em;vertical-align:-0.3em;object-fit:contain}
+.emoji .cemoji{width:18px;height:18px;vertical-align:-3px}
 .msg-banner{display:block;width:100%;max-width:550px;border-radius:8px;margin-top:6px}
 .embed{background:var(--bg2);border-left:4px solid;border-radius:4px;max-width:520px;margin-top:6px;padding:8px 16px 16px 12px}
 .embed-grid{display:flex;gap:16px}.embed-body{min-width:0;flex:1}
@@ -566,6 +582,12 @@ def main(argv: list[str] | None = None) -> int:
     generated = datetime.now(tz=UTC).strftime("%Y-%m-%d %H:%M UTC")
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(build_html(states, generated=generated, readiness_rows=readiness_rows), encoding="utf-8")
+    icons_dir = args.config_dir / "emojis"
+    if icons_dir.is_dir():
+        target = args.out.parent / EMOJIS_DIR
+        target.mkdir(exist_ok=True)
+        for picture in icons_dir.glob("*.png"):
+            (target / picture.name).write_bytes(picture.read_bytes())
     banner_dir = args.out.parent / BANNERS_DIR
     for state in states:
         for filename, data in state.banners.items():

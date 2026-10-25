@@ -33,6 +33,7 @@ re-created, adopted, updated (with the change kinds) and failed resources, and t
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import uuid
 import weakref
@@ -702,6 +703,17 @@ def report_not_ready(app: App, report: SetupReport) -> None:
         report.add("problems", app.op("server.setup.status_hint"))
 
 
+ICONS_WAIT_SECONDS = 60
+
+
+async def _wait_for_icons(app: App) -> None:
+    """Panels show the bot's icons: right after a start, let the icon upload finish first (bounded wait)."""
+    if not app.icons.enabled or app.icons_ready.is_set():
+        return
+    with contextlib.suppress(TimeoutError):
+        await asyncio.wait_for(app.icons_ready.wait(), timeout=ICONS_WAIT_SECONDS)
+
+
 async def run_setup(
     app: App, guild: discord.Guild, *, actor_id: int, dry_run: bool = False, publish: bool = True
 ) -> SetupReport:
@@ -717,6 +729,7 @@ async def run_setup(
         report.add("panels", app.op("server.setup.publish_skipped"))
     else:
         await withdraw_panels(app, report, dry_run=False)
+        await _wait_for_icons(app)
         await publish_panels(app, report)
     report_not_ready(app, report)
     log_event(log, logging.INFO, "setup_finished", actor_id=actor_id, **report.summary_details())

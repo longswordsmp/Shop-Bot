@@ -666,3 +666,17 @@ Constraints:
 - `CHECK (approval IS NULL OR (approval IN ('approved', 'rejected')) = (decided_by IS NOT NULL AND decided_at IS NOT NULL))`
 - `CHECK (decision_reason IS NULL OR coalesce(approval, '') = 'rejected')`
 - `CHECK ((approval_channel_id IS NULL) = (approval_message_id IS NULL))`
+
+## `app_emojis`
+
+| Column | Type | Not null | Default | Key |
+|---|---|---|---|---|
+| `name` | TEXT | yes |  | PK |
+| `emoji_id` | INTEGER | yes |  |  |
+| `sha256` | TEXT | yes |  |  |
+| `updated_at` | INTEGER | yes |  |  |
+
+Constraints:
+
+- `name TEXT NOT NULL PRIMARY KEY CHECK (length(name) BETWEEN 2 AND 32)`
+- `sha256 TEXT NOT NULL CHECK (length(sha256) = 64)`

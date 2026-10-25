@@ -192,6 +192,7 @@ async def make_test_env(
         values.update(content)
     app.content.replace(file_values=values)
     app.recompute_readiness()
+    app.icons_ready.set()  # a test app behaves like a started bot whose icon upload has finished
 
     guild = FakeGuild(id=GUILD_ID)
     bot = FakeBot(app, guild)

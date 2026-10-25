@@ -78,6 +78,13 @@ enabled = true
 directory = "banners"                # folder inside the config folder
 off = []                             # banner ids not to show, e.g. ["activity-log"] for the #bot-log entries
 
+# The bot's custom icons (status dots, step numbers, section icons): config/emojis/<name>.png (128x128, at most
+# 256 KB). The bot uploads them as its own emojis at startup (no server emoji slots or permission needed). Texts use
+# one with {icon_<name>}, e.g. {icon_truck}; a replaced picture is uploaded again after /reload or a restart.
+[icons]
+enabled = true
+directory = "emojis"
+
 # -------------------------------------------------------------------------------------------------
 # Server structure created/reconciled by /setup (from the server specification). Set `id` to adopt an
 # existing role/channel instead of creating one. Visible names are in content.toml (server.*.name).

@@ -6,9 +6,10 @@ current values appear in it, and picking one opens the ``/content set`` form pre
 The message itself does not record which keys built it, so keys are found from what it shows: every text of the
 message (embed author, title, description, field names and values, footer; button labels, select placeholders and
 options) is compared with every key's current value. A value's ``{placeholders}`` (data such as an order number or a
-channel link) match any text. A key matches when its value is a whole text of the message, or appears inside a longer
-one (descriptions often join several values) and has at least ``MIN_SEARCH_LITERAL`` characters of its own, so short
-words such as "Yes" do not match every description. Keys are listed in the order their text appears.
+channel link) and its icons (``{icon_<name>}``) match any text. A key matches when its value is a whole text of the
+message, or appears inside a longer one (descriptions often join several values) and has at least
+``MIN_SEARCH_LITERAL`` characters of its own, so short words such as "Yes" do not match every description. Keys
+are listed in the order their text appears.
 """
 
 from __future__ import annotations
@@ -60,8 +61,8 @@ def _pattern(value: str, placeholders: Iterable[str]) -> tuple[re.Pattern[str], 
     literal = 0
     last = 0
     for match in PLACEHOLDER_RE.finditer(value):
-        if match.group(1) not in declared:
-            continue  # not a placeholder of this key: shown exactly as written
+        if match.group(1) not in declared and not match.group(1).startswith("icon_"):
+            continue  # not a placeholder of this key (nor an icon): shown exactly as written
         fixed = value[last : match.start()]
         parts += [re.escape(fixed), r"[\s\S]*?"]
         literal += len("".join(fixed.split()))

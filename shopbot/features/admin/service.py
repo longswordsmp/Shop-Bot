@@ -240,7 +240,7 @@ def key_info(app: App, key: str) -> KeyInfo | None:
         source=content.source(key),
         fallback_used=fallback_used,
         required=definition.required or key in shared_required_keys(app),
-        problems=tuple(validate_value(definition, raw)) if raw is not None else (),
+        problems=tuple(validate_value(definition, raw, app.content.icon_names())) if raw is not None else (),
         effective=effective,
     )
 
@@ -349,7 +349,7 @@ def check_value(app: App, definition: ContentKey, value: str) -> list[str]:
         value.encode("utf-8")
     except UnicodeEncodeError:
         return [app.op("admin.content.problem_encoding")]
-    return validate_value(definition, value)
+    return validate_value(definition, value, app.content.icon_names())
 
 
 @dataclass(frozen=True)

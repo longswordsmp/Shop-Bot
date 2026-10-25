@@ -280,6 +280,14 @@ class BrandingSettings:
 
 
 @dataclass(frozen=True)
+class IconSettings:
+    """The bot's custom icons, uploaded as application emojis (``shopbot.ui.icons``)."""
+
+    enabled: bool = False
+    directory: str = "emojis"  # folder (relative to the config folder) with one <name>.png per icon
+
+
+@dataclass(frozen=True)
 class BannerSettings:
     """Banner pictures shown at the top of messages (``shopbot.ui.banners``)."""
 
@@ -703,6 +711,7 @@ class Settings:
     permissions: PermissionSettings = field(default_factory=PermissionSettings)
     branding: BrandingSettings = field(default_factory=BrandingSettings)
     banners: BannerSettings = field(default_factory=BannerSettings)
+    icons: IconSettings = field(default_factory=IconSettings)
     features: FeatureFlags = field(default_factory=FeatureFlags)
     server: ServerSettings = field(default_factory=ServerSettings)
     info_panels: tuple[InfoPanelDef, ...] = ()
@@ -819,6 +828,13 @@ def parse_settings(data: dict[str, Any]) -> Settings:
         if banner_id not in BANNER_IDS:
             bn.error("off", f"unknown banner '{banner_id}' (known: {', '.join(BANNER_IDS)})")
     bn.finish()
+
+    ic = root.table("icons")
+    icons = IconSettings(
+        enabled=ic.bool_("enabled", False),
+        directory=ic.str_("directory", "emojis", pattern=_FOLDER_PATTERN, allow_empty=False),
+    )
+    ic.finish()
 
     fl = root.table("features")
     features = FeatureFlags(**{name: fl.bool_(name, False) for name in FeatureFlags.__dataclass_fields__})
@@ -1060,6 +1076,7 @@ def parse_settings(data: dict[str, Any]) -> Settings:
         permissions=permissions,
         branding=branding,
         banners=banners,
+        icons=icons,
         features=features,
         server=server,
         info_panels=info_panels,
