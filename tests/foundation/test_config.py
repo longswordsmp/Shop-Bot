@@ -13,7 +13,8 @@ from shopbot.config.readiness import build_registry, compute_readiness
 from shopbot.config.settings import GUILD_PERMISSION_NAMES, SettingsError, parse_settings
 from shopbot.env import EnvError, load_env
 from shopbot.features import all_modules
-from tests.helpers import ROOT, deep_merge, fixture_content, make_settings, shipped_settings_dict
+from shopbot.features.server_keys import server_problems
+from tests.helpers import ROOT, base_settings_dict, deep_merge, fixture_content, make_settings
 
 VALID_TOKEN = "A" * 24 + "." + "B" * 6 + "." + "C" * 38
 
@@ -39,37 +40,92 @@ def test_env_valid_and_token_not_in_repr(tmp_path: Path) -> None:
     assert env.owner_id is None
 
 
-def test_shipped_settings_parse_with_everything_disabled() -> None:
+SPEC_FEATURES = {
+    "verification",
+    "how_to_buy",
+    "faq",
+    "shipping",
+    "announcements",
+    "catalog",
+    "new_arrivals",
+    "reviews",
+    "checkout",
+    "tickets",
+    "problems",
+    "my_orders",
+    "dm_notifications",
+}
+
+# Names copied from the owner's server specification (the only values shipped in content.toml).
+SPEC_NAMES = {
+    "server.role.owner.name": "Owner",
+    "server.role.staff.name": "Staff",
+    "server.role.member.name": "Member",
+    "server.role.customer.name": "Customer",
+    "server.role.restock_alerts.name": "Restock Alerts",
+    "server.category.start_here.name": "📌 START HERE",
+    "server.category.catalog.name": "📦 CATALOG",
+    "server.category.purchase.name": "🛒 PURCHASE",
+    "server.category.staff.name": "🔒 STAFF",
+    "server.channel.welcome.name": "welcome",
+    "server.channel.how_to_buy.name": "how-to-buy",
+    "server.channel.faq.name": "faq",
+    "server.channel.shipping.name": "shipping",
+    "server.channel.announcements.name": "announcements",
+    "server.channel.catalog.name": "catalog",
+    "server.channel.new_arrivals.name": "new-arrivals",
+    "server.channel.reviews.name": "reviews",
+    "server.channel.purchase.name": "purchase",
+    "server.channel.orders.name": "orders",
+    "server.channel.staff_chat.name": "staff-chat",
+    "server.channel.bot_log.name": "bot-log",
+    "server.channel.transcripts.name": "transcripts",
+}
+
+
+def test_shipped_settings_follow_the_specification() -> None:
     loaded = load_config(ROOT / "config")
-    assert loaded.settings.features.enabled() == ()
+    assert set(loaded.settings.features.enabled()) == SPEC_FEATURES
     assert loaded.settings.checkout.currency == ""  # business decision left unset
     assert loaded.settings.payments.provider == ""  # business decision left unset
+    server = loaded.settings.server
+    assert {r.key for r in server.roles} == {"owner", "staff", "member", "customer", "restock_alerts"}
+    assert [c.key for c in server.categories] == ["start_here", "catalog", "purchase", "staff"]
+    assert {c.access for c in server.categories} == {"public_readonly", "members_readonly", "staff"}
+    assert loaded.settings.permissions.owner_role == "owner"
+    assert loaded.settings.permissions.member_role == "member"
+    assert server_problems(loaded.settings) == []
 
 
-def test_shipped_content_file_has_no_values() -> None:
+def test_shipped_content_has_only_the_specification_names() -> None:
     path = ROOT / "config" / "content.toml"
     if not path.exists():
         pytest.skip("content template not generated yet")
     with path.open("rb") as handle:
         data = tomllib.load(handle)
 
-    def walk(node: object) -> list[str]:
-        if isinstance(node, dict):
-            return [v for value in node.values() for v in walk(value)]
-        return [node] if isinstance(node, str) and node != "" else []
+    flat: dict[str, str] = {}
 
-    assert walk(data) == [], "config/content.toml must ship with every value empty"
+    def flatten(node: object, prefix: str) -> None:
+        if isinstance(node, dict):
+            for key, value in node.items():
+                flatten(value, f"{prefix}.{key}" if prefix else key)
+        elif isinstance(node, str) and node != "":
+            flat[prefix] = node
+
+    flatten(data, "")
+    assert flat == SPEC_NAMES, "content.toml ships only the names given in the server specification"
 
 
 def test_settings_unknown_key_is_rejected() -> None:
-    data = deep_merge(shipped_settings_dict(), {"tickets": {"max_open_per_usr": 2}})
+    data = deep_merge(base_settings_dict(), {"tickets": {"max_open_per_usr": 2}})
     with pytest.raises(SettingsError) as exc:
         parse_settings(data)
     assert any("max_open_per_usr" in e and "unknown" in e for e in exc.value.errors)
 
 
 def test_settings_type_errors_are_reported_with_paths() -> None:
-    data = deep_merge(shipped_settings_dict(), {"bot": {"scheduler_poll_seconds": "5"}, "checkout": {"currency": "us"}})
+    data = deep_merge(base_settings_dict(), {"bot": {"scheduler_poll_seconds": "5"}, "checkout": {"currency": "us"}})
     with pytest.raises(SettingsError) as exc:
         parse_settings(data)
     joined = "\n".join(exc.value.errors)
@@ -78,13 +134,13 @@ def test_settings_type_errors_are_reported_with_paths() -> None:
 
 
 def test_channel_pattern_requires_number() -> None:
-    data = deep_merge(shipped_settings_dict(), {"tickets": {"channel_name_pattern": "{prefix}"}})
+    data = deep_merge(base_settings_dict(), {"tickets": {"channel_name_pattern": "{prefix}"}})
     with pytest.raises(SettingsError):
         parse_settings(data)
 
 
 def test_reserved_ticket_category_id() -> None:
-    data = shipped_settings_dict()
+    data = base_settings_dict()
     data["tickets"]["categories"][0]["id"] = "checkout"
     with pytest.raises(SettingsError):
         parse_settings(data)
@@ -169,8 +225,17 @@ def test_readiness_with_fixture_content_makes_core_ready() -> None:
     assert readiness.is_ready("core"), readiness.statuses["core"].problems
 
 
+def test_shipped_configuration_shows_customers_nothing_until_text_exists() -> None:
+    loaded = load_config(ROOT / "config")
+    modules = all_modules()
+    registry = build_registry(loaded.settings, modules)
+    store = ContentStore(registry, loaded.content_values)
+    readiness = compute_readiness(loaded.settings, store, modules)
+    assert not any(s.ready for s in readiness.statuses.values() if s.name not in ("server", "admin"))
+
+
 def test_disabled_settings_make_nothing_customer_facing_ready() -> None:
-    settings = parse_settings(shipped_settings_dict())
+    settings = parse_settings(base_settings_dict())  # the test base ships every feature switched off
     modules = all_modules()
     registry = build_registry(settings, modules)
     store = ContentStore(registry, fixture_content(registry))

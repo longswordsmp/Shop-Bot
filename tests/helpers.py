@@ -33,8 +33,35 @@ OWNER_ID = 222_222_222_222_222_222
 
 
 def shipped_settings_dict() -> dict[str, Any]:
+    """config/settings.toml exactly as shipped (only for tests about the shipped configuration itself)."""
     with SHIPPED_SETTINGS.open("rb") as handle:
         return tomllib.load(handle)
+
+
+BASE_SETTINGS = Path(__file__).resolve().parent / "base_settings.toml"
+
+
+def base_settings_dict() -> dict[str, Any]:
+    """The test base layout (tests/base_settings.toml) every test environment starts from."""
+    with BASE_SETTINGS.open("rb") as handle:
+        return tomllib.load(handle)
+
+
+def server_extension(
+    *,
+    roles: list[dict[str, Any]] | None = None,
+    categories: list[dict[str, Any]] | None = None,
+    channels: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Settings override that APPENDS roles/categories/channels to the base layout (deep_merge replaces lists)."""
+    server = base_settings_dict()["server"]
+    return {
+        "server": {
+            "roles": [*server.get("roles", []), *(roles or [])],
+            "categories": [*server.get("categories", []), *(categories or [])],
+            "channels": [*server.get("channels", []), *(channels or [])],
+        }
+    }
 
 
 def deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
@@ -69,7 +96,7 @@ TEST_TECHNICAL_SETTINGS: dict[str, Any] = {"bot": {"interaction_cooldown_ms": 0}
 
 
 def make_settings(overrides: dict[str, Any] | None = None, *, all_features: bool = True) -> Settings:
-    data = deep_merge(shipped_settings_dict(), TEST_TECHNICAL_SETTINGS)
+    data = deep_merge(base_settings_dict(), TEST_TECHNICAL_SETTINGS)
     if all_features:
         data = deep_merge(data, TEST_BUSINESS_SETTINGS)
     if overrides:

@@ -100,99 +100,151 @@ common.progress_format = ""
 
 # --- Category names ---
 
-# Name of the 'admin' channel category.
+# Name of the 'catalog' channel category.
 # category_name · max 100 characters · required
-server.category.admin.name = ""
+server.category.catalog.name = "📦 CATALOG"
 
-# Name of the 'orders' channel category.
+# Name of the 'purchase' channel category.
 # category_name · max 100 characters · required
-server.category.orders.name = ""
+server.category.purchase.name = "🛒 PURCHASE"
 
 # Name of the 'staff' channel category.
 # category_name · max 100 characters · required
-server.category.staff.name = ""
+server.category.staff.name = "🔒 STAFF"
 
-# Name of the 'support' channel category.
+# Name of the 'start_here' channel category.
 # category_name · max 100 characters · required
-server.category.support.name = ""
-
-# Name of the 'tickets' channel category.
-# category_name · max 100 characters · required
-server.category.tickets.name = ""
+server.category.start_here.name = "📌 START HERE"
 
 # --- Channel names ---
 
-# Name of the 'audit_log' channel.
+# Name of the 'announcements' channel.
 # channel_name · max 100 characters · required
-server.channel.audit_log.name = ""
+server.channel.announcements.name = "announcements"
+
+# Name of the 'bot_log' channel.
+# channel_name · max 100 characters · required
+server.channel.bot_log.name = "bot-log"
 
 # Name of the 'catalog' channel.
 # channel_name · max 100 characters · required
-server.channel.catalog.name = ""
+server.channel.catalog.name = "catalog"
 
-# Name of the 'order_queue' channel.
+# Name of the 'faq' channel.
 # channel_name · max 100 characters · required
-server.channel.order_queue.name = ""
+server.channel.faq.name = "faq"
+
+# Name of the 'how_to_buy' channel.
+# channel_name · max 100 characters · required
+server.channel.how_to_buy.name = "how-to-buy"
+
+# Name of the 'new_arrivals' channel.
+# channel_name · max 100 characters · required
+server.channel.new_arrivals.name = "new-arrivals"
+
+# Name of the 'orders' channel.
+# channel_name · max 100 characters · required
+server.channel.orders.name = "orders"
+
+# Name of the 'purchase' channel.
+# channel_name · max 100 characters · required
+server.channel.purchase.name = "purchase"
 
 # Name of the 'reviews' channel.
 # channel_name · max 100 characters · required
-server.channel.reviews.name = ""
+server.channel.reviews.name = "reviews"
 
-# Name of the 'shop' channel.
+# Name of the 'shipping' channel.
 # channel_name · max 100 characters · required
-server.channel.shop.name = ""
+server.channel.shipping.name = "shipping"
 
-# Name of the 'staff_alerts' channel.
+# Name of the 'staff_chat' channel.
 # channel_name · max 100 characters · required
-server.channel.staff_alerts.name = ""
-
-# Name of the 'ticket_panel' channel.
-# channel_name · max 100 characters · required
-server.channel.ticket_panel.name = ""
+server.channel.staff_chat.name = "staff-chat"
 
 # Name of the 'transcripts' channel.
 # channel_name · max 100 characters · required
-server.channel.transcripts.name = ""
+server.channel.transcripts.name = "transcripts"
+
+# Name of the 'welcome' channel.
+# channel_name · max 100 characters · required
+server.channel.welcome.name = "welcome"
 
 # --- Channel topics ---
 
-# Optional topic (description) of the 'audit_log' channel.
+# Optional topic (description) of the 'announcements' channel.
 # channel_topic · max 1024 characters · optional
-server.channel.audit_log.topic = ""
+server.channel.announcements.topic = ""
+
+# Optional topic (description) of the 'bot_log' channel.
+# channel_topic · max 1024 characters · optional
+server.channel.bot_log.topic = ""
 
 # Optional topic (description) of the 'catalog' channel.
 # channel_topic · max 1024 characters · optional
 server.channel.catalog.topic = ""
 
-# Optional topic (description) of the 'order_queue' channel.
+# Optional topic (description) of the 'faq' channel.
 # channel_topic · max 1024 characters · optional
-server.channel.order_queue.topic = ""
+server.channel.faq.topic = ""
+
+# Optional topic (description) of the 'how_to_buy' channel.
+# channel_topic · max 1024 characters · optional
+server.channel.how_to_buy.topic = ""
+
+# Optional topic (description) of the 'new_arrivals' channel.
+# channel_topic · max 1024 characters · optional
+server.channel.new_arrivals.topic = ""
+
+# Optional topic (description) of the 'orders' channel.
+# channel_topic · max 1024 characters · optional
+server.channel.orders.topic = ""
+
+# Optional topic (description) of the 'purchase' channel.
+# channel_topic · max 1024 characters · optional
+server.channel.purchase.topic = ""
 
 # Optional topic (description) of the 'reviews' channel.
 # channel_topic · max 1024 characters · optional
 server.channel.reviews.topic = ""
 
-# Optional topic (description) of the 'shop' channel.
+# Optional topic (description) of the 'shipping' channel.
 # channel_topic · max 1024 characters · optional
-server.channel.shop.topic = ""
+server.channel.shipping.topic = ""
 
-# Optional topic (description) of the 'staff_alerts' channel.
+# Optional topic (description) of the 'staff_chat' channel.
 # channel_topic · max 1024 characters · optional
-server.channel.staff_alerts.topic = ""
-
-# Optional topic (description) of the 'ticket_panel' channel.
-# channel_topic · max 1024 characters · optional
-server.channel.ticket_panel.topic = ""
+server.channel.staff_chat.topic = ""
 
 # Optional topic (description) of the 'transcripts' channel.
 # channel_topic · max 1024 characters · optional
 server.channel.transcripts.topic = ""
 
+# Optional topic (description) of the 'welcome' channel.
+# channel_topic · max 1024 characters · optional
+server.channel.welcome.topic = ""
+
 # --- Role names ---
+
+# Name of the 'customer' role.
+# role_name · max 100 characters · required
+server.role.customer.name = "Customer"
+
+# Name of the 'member' role.
+# role_name · max 100 characters · required
+server.role.member.name = "Member"
+
+# Name of the 'owner' role.
+# role_name · max 100 characters · required
+server.role.owner.name = "Owner"
+
+# Name of the 'restock_alerts' role.
+# role_name · max 100 characters · required
+server.role.restock_alerts.name = "Restock Alerts"
 
 # Name of the 'staff' role.
 # role_name · max 100 characters · required
-server.role.staff.name = ""
+server.role.staff.name = "Staff"
 
 # ==================================================================================================
 # Feature: tickets
@@ -407,7 +459,7 @@ catalog.field.price = ""
 # --- Catalog: private browsing ---
 
 # Button under the last listing message that opens a private, page-by-page view of the products (only when catalog.browse_enabled is true).
-# button_label · max 80 characters · required
+# button_label · max 80 characters · optional
 catalog.button.browse = ""
 
 # --- Catalog: live product listing ---

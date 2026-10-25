@@ -18,7 +18,7 @@ from shopbot.features.server_keys import channel_name_key
 from shopbot.ui.limits import validate_message
 from shopbot.ui.spec import ButtonSpec, MessageSpec
 from tests.fakes import FakeMessage, FakeTextChannel, http_error
-from tests.helpers import TestEnv, make_settings, make_test_env, provision_channels, shipped_settings_dict
+from tests.helpers import TestEnv, base_settings_dict, make_settings, make_test_env, provision_channels
 from tests.setup.util import restarted_app, setup
 
 RULES = {"key": "rules", "channel": "rules", "fields": 2, "inline_fields": True, "links": ["site", "docs"]}
@@ -26,7 +26,7 @@ FAQ = {"key": "faq", "channel": "faq", "fields": 0, "links": []}
 
 
 def panel_settings(*panels: dict[str, Any], extra: dict[str, Any] | None = None) -> Settings:
-    server = shipped_settings_dict()["server"]
+    server = base_settings_dict()["server"]
     server["channels"] += [
         {"key": "rules", "category": "support", "access": "inherit"},
         {"key": "faq", "category": "support", "access": "inherit"},

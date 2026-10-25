@@ -12,14 +12,24 @@
 
 schema_version = 1
 
+# Features of the server specification. A feature that is on but still misses text or a business decision
+# stays hidden from customers and is listed by /status until it is complete.
 [features]
-info_panels = false
-tickets = false
-catalog = false
-checkout = false
-credits = false
-reviews = false
-dm_notifications = false     # send notifications by direct message (falls back to the ticket/order channel)
+verification = true          # #welcome rules + "I agree" button that grants the Member role
+how_to_buy = true            # #how-to-buy step-by-step guide
+faq = true                   # #faq question-and-answer panels
+shipping = true              # #shipping fulfillment information and regions
+announcements = true         # /announce posts to #announcements
+catalog = true               # #catalog: one live embed per item
+new_arrivals = true          # #new-arrivals opt-in button + automatic updates
+reviews = true               # #reviews: verified reviews after completed orders
+checkout = true              # #purchase Start button and the private order ticket workflow
+tickets = true               # private tickets (used by Report a Problem)
+problems = true              # #purchase Report a Problem workflow
+my_orders = true             # /myorders for customers
+info_panels = false          # generic extra panels (not used by the specification)
+credits = false              # store credit (not part of the specification)
+dm_notifications = true      # private notifications by direct message (falls back to the ticket/order channel)
 
 [bot]
 interaction_cooldown_ms = 700        # technical anti-double-click protection
@@ -33,8 +43,10 @@ message_content_intent = true        # privileged intent; required for ticket tr
 members_intent = false               # privileged intent; not required by any current feature
 
 [permissions]
-admin_roles = []                     # role keys from [[server.roles]] (Discord Administrators are always admins)
+admin_roles = ["owner"]              # role keys from [[server.roles]] (Discord Administrators are always admins)
 staff_roles = ["staff"]
+owner_role = "owner"                 # /setup gives this role to OWNER_ID
+member_role = "member"               # granted by the #welcome "I agree" button; unlocks members_* channels
 
 [branding]
 logo_url = ""                        # https:// image used as author icon / panel thumbnail
@@ -58,14 +70,25 @@ danger = "#B12704"                   # errors / rejected / cancelled
 neutral = "#232F3E"                  # closed / inactive
 
 # -------------------------------------------------------------------------------------------------
-# Server structure created/reconciled by /setup. Set `id` to adopt an existing role/channel instead
-# of creating one. Access levels:
-#   public_readonly    everyone can read, only staff/bot can post
-#   public_interactive everyone can read and post
-#   staff              hidden from everyone except staff roles and admins
-#   admin              hidden from everyone except admin roles
-#   inherit            (channels only) same permissions as the parent category
+# Server structure created/reconciled by /setup (from the server specification). Set `id` to adopt an
+# existing role/channel instead of creating one. Visible names are in content.toml (server.*.name).
+# Access levels:
+#   public_readonly      everyone (also before accepting the rules) can read; only staff/bot can post
+#   public_interactive   everyone can read and post
+#   members_readonly     only the Member role (and staff) can see; only staff/bot can post
+#   members_interactive  only the Member role (and staff) can see and post
+#   staff                hidden from everyone except staff roles and admins (Owner)
+#   admin                hidden from everyone except admin roles
+#   inherit              (channels only) same permissions as the parent category
 # -------------------------------------------------------------------------------------------------
+
+[[server.roles]]
+key = "owner"
+id = 0
+permissions = []
+color = ""
+hoist = false
+mentionable = false
 
 [[server.roles]]
 key = "staff"
@@ -75,53 +98,103 @@ color = ""
 hoist = false
 mentionable = false
 
-[[server.categories]]
-key = "support"
-access = "public_readonly"
+[[server.roles]]
+key = "member"
+id = 0
+permissions = []
+color = ""
+hoist = false
+mentionable = false
+
+[[server.roles]]
+key = "customer"
+id = 0
+permissions = []
+color = ""
+hoist = false
+mentionable = false
+
+[[server.roles]]
+key = "restock_alerts"
+id = 0
+permissions = []
+color = ""
+hoist = false
+mentionable = true                   # so the bot can mention it in #new-arrivals
 
 [[server.categories]]
-key = "tickets"
-access = "staff"                     # private ticket channels are created here
+key = "start_here"
+access = "public_readonly"           # visible before accepting the rules
 
 [[server.categories]]
-key = "orders"
-access = "staff"                     # private checkout/order channels are created here
+key = "catalog"
+access = "members_readonly"
+
+[[server.categories]]
+key = "purchase"
+access = "members_readonly"          # private ticket/order channels are created here (only owner + staff)
 
 [[server.categories]]
 key = "staff"
-access = "staff"
-
-[[server.categories]]
-key = "admin"
-access = "admin"
+access = "staff"                     # Staff and Owner only
 
 [[server.channels]]
-key = "ticket_panel"
-category = "support"
+key = "welcome"
+category = "start_here"
 access = "inherit"
 
 [[server.channels]]
-key = "shop"
-category = "support"
+key = "how_to_buy"
+category = "start_here"
+access = "inherit"
+
+[[server.channels]]
+key = "faq"
+category = "start_here"
+access = "inherit"
+
+[[server.channels]]
+key = "shipping"
+category = "start_here"
+access = "inherit"
+
+[[server.channels]]
+key = "announcements"
+category = "start_here"
 access = "inherit"
 
 [[server.channels]]
 key = "catalog"
-category = "support"
+category = "catalog"
+access = "inherit"
+
+[[server.channels]]
+key = "new_arrivals"
+category = "catalog"
 access = "inherit"
 
 [[server.channels]]
 key = "reviews"
-category = "support"
+category = "catalog"
 access = "inherit"
 
 [[server.channels]]
-key = "staff_alerts"
+key = "purchase"
+category = "purchase"
+access = "inherit"
+
+[[server.channels]]
+key = "orders"
 category = "staff"
 access = "inherit"
 
 [[server.channels]]
-key = "order_queue"
+key = "staff_chat"
+category = "staff"
+access = "inherit"
+
+[[server.channels]]
+key = "bot_log"
 category = "staff"
 access = "inherit"
 
@@ -130,30 +203,41 @@ key = "transcripts"
 category = "staff"
 access = "inherit"
 
-[[server.channels]]
-key = "audit_log"
-category = "admin"
-access = "inherit"
+# -------------------------------------------------------------------------------------------------
+# Specification features. Text for each is in content.toml under the feature's prefix.
+# -------------------------------------------------------------------------------------------------
 
-# -------------------------------------------------------------------------------------------------
-# Informational panels (rules, FAQ, announcements...). Each panel's text is configured in content.toml
-# under info_panels.<key>.*  Example (uncomment and add a matching channel above):
-#
-# [[info_panels]]
-# key = "rules"
-# channel = "rules"
-# fields = 0             # number of embed fields (content keys info_panels.rules.field.<n>.name/value)
-# inline_fields = false
-# links = []             # link-button ids (content keys info_panels.rules.link.<id>.label/url)
-# -------------------------------------------------------------------------------------------------
+[verification]
+channel = "welcome"
+
+[how_to_buy]
+channel = "how_to_buy"
+
+[faq]
+channel = "faq"
+
+[shipping]
+channel = "shipping"
+
+[announcements]
+channel = "announcements"
+
+[new_arrivals]
+channel = "new_arrivals"
+
+[problems]
+
+[my_orders]
+
+[operations]
 
 [tickets]
-panel_channel = "ticket_panel"
+panel_channel = ""                   # "" = no standalone ticket panel (support starts from #purchase)
 panel_style = "buttons"              # "buttons" (one button per category) or "select" (dropdown)
 staff_roles = []                     # extra role keys with access to every ticket (permissions.staff_roles always have access)
 transcript_channel = "transcripts"   # "" disables transcripts
 transcript_dm_user = false
-staff_alert_channel = "staff_alerts" # "" disables staff alerts for new tickets
+staff_alert_channel = "staff_chat"   # "" disables staff alerts for new tickets
 max_open_per_user = 1
 creation_cooldown_seconds = 30
 max_created_per_user_per_day = 10    # anti-abuse cap on new tickets per user per 24 h (0 = unlimited)
@@ -166,12 +250,12 @@ closed_category = ""                 # category key to move closed tickets into 
 delete_after_close_minutes = 0       # 0 = never delete automatically
 auto_close_inactive_minutes = 0      # 0 = never close automatically
 auto_close_warning_minutes = 0       # 0 = no warning before auto-close (must be less than the above)
-channel_name_pattern = "{prefix}-{number}"   # placeholders: {prefix} (content), {number}, {user}
+channel_name_pattern = "{prefix}-{number}-{user}"   # placeholders: {prefix} (content), {number}, {user}
 number_padding = 4
 
 [[tickets.categories]]
 id = "general"                       # internal id; button label etc. in content.toml tickets.category.general.*
-discord_category = "tickets"
+discord_category = "purchase"
 staff_roles = []
 max_open_per_user = 0                # 0 = use tickets.max_open_per_user
 button_style = "primary"
@@ -187,16 +271,16 @@ ping_staff = false
 
 [catalog]
 listing_channel = "catalog"          # "" disables the live product listing
-products_per_listing_message = 5     # 1-10 product embeds per listing message
+products_per_listing_message = 1     # 1-10 product embeds per listing message (1 = one message per item)
 manager_roles = []                   # extra role keys allowed to manage products (admins always can)
-browse_enabled = true                # private, paginated product browsing from the shop panel
+browse_enabled = false               # private, paginated product browsing from the shop panel
 image_hosts = []                     # allowed image hosts, e.g. ["cdn.discordapp.com"]; [] = any https host
 
 [checkout]
-panel_channel = "shop"
-order_category = "orders"
+panel_channel = "purchase"
+order_category = "purchase"
 staff_roles = []
-staff_channel = "order_queue"        # staff order controls are posted here (required)
+staff_channel = "orders"             # staff order controls are posted here (required)
 currency = ""                        # REQUIRED business decision: ISO 4217 code such as "USD"
 currency_exponent = -1               # -1 = standard minor units for the currency
 decimal_separator = "."
@@ -210,7 +294,7 @@ session_expiry_minutes = 0           # 0 = an unsubmitted cart never expires aut
 payment_expiry_minutes = 0           # 0 = an unpaid order never expires automatically
 payment_reminder_minutes = 0         # 0 = no payment reminder
 delete_channel_after_close_minutes = 0
-transcript_on_close = false
+transcript_on_close = true
 # Fulfillment options (delivery, pickup, ...) are business decisions. Labels live in content.toml
 # checkout.fulfillment.<id>.label / .description. Example:
 # [[checkout.fulfillment_options]]
@@ -241,5 +325,5 @@ prompt_via = "dm_then_channel"       # "dm", "channel" (the order channel), or "
 fallback_to_channel = true
 
 [audit]
-channel = "audit_log"                # admin-only channel for audit entries ("" = database only)
+channel = "bot_log"                  # staff-only channel for audit entries ("" = database only)
 retention_days = 0                   # 0 = keep audit events forever

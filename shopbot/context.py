@@ -17,6 +17,7 @@ from shopbot.config.readiness import Readiness, build_registry, compute_readines
 from shopbot.config.settings import Settings
 from shopbot.core.audit import AuditLog
 from shopbot.core.clock import Clock
+from shopbot.core.events import EventBus
 from shopbot.core.notifier import Notifier
 from shopbot.core.panels import withdraw_and_audit
 from shopbot.core.permissions import Permissions
@@ -89,6 +90,7 @@ class App:
         )
         self.notifier = Notifier(self)
         self.audit = AuditLog(self)
+        self.events = EventBus()
 
     # -- helpers ----------------------------------------------------------------------------------
 

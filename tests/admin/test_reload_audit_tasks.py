@@ -7,7 +7,7 @@ import shutil
 from shopbot.db.repos import tasks as task_repo
 from shopbot.features import core_keys as ck
 from tests.admin.util import admin, audit_actions, is_ephemeral, run_command, sent
-from tests.helpers import SHIPPED_SETTINGS, TestEnv
+from tests.helpers import BASE_SETTINGS, TestEnv
 
 # --------------------------------------------------------------------------------------------------
 # /reload
@@ -32,7 +32,7 @@ async def test_reload_failure_keeps_running_configuration(tenv: TestEnv) -> None
 async def test_reload_success_applies_files_and_shows_readiness(tenv: TestEnv) -> None:
     config_dir = tenv.app.config_dir
     config_dir.mkdir(parents=True)
-    shutil.copy(SHIPPED_SETTINGS, config_dir / "settings.toml")  # shipped settings: every feature off
+    shutil.copy(BASE_SETTINGS, config_dir / "settings.toml")  # test base settings: every feature off
     (config_dir / "content.toml").write_text('[common.error]\ngeneric = "From the file"\n', encoding="utf-8")
     interaction = await run_command(tenv, "reload", user=admin(tenv))
     messages = interaction.sent
@@ -51,7 +51,7 @@ async def test_reload_keeps_database_overrides(tenv: TestEnv) -> None:
     await tenv.app.db.transaction(state_repo.override_set, ck.ERROR_GENERIC, "override", 1, 1)
     config_dir = tenv.app.config_dir
     config_dir.mkdir(parents=True)
-    shutil.copy(SHIPPED_SETTINGS, config_dir / "settings.toml")
+    shutil.copy(BASE_SETTINGS, config_dir / "settings.toml")
     (config_dir / "content.toml").write_text('[common.error]\ngeneric = "From the file"\n', encoding="utf-8")
     await run_command(tenv, "reload", user=admin(tenv))
     assert tenv.app.text(ck.ERROR_GENERIC) == "override"

@@ -218,6 +218,7 @@ class Reconciler:
         server = self.app.settings.server
         for role_def in server.roles:
             await self.reconcile_role(role_def)
+        await self.assign_owner_role()
         for category_def in server.categories:
             await self.reconcile_category(category_def)
         for channel_def in server.channels:
@@ -313,6 +314,39 @@ class Reconciler:
 
     # -- permission targets -------------------------------------------------------------------------
 
+    async def assign_owner_role(self) -> None:
+        """Give ``permissions.owner_role`` to the OWNER_ID account (never removed from anyone)."""
+        key = self.app.settings.permissions.owner_role
+        owner_id = self.app.env.owner_id
+        if not key or owner_id is None:
+            return
+        role = self.roles.get(key) or self.app.resources.role(self.guild, key)
+        if role is None:
+            return  # the role itself was reported in the roles section
+        member = self.guild.get_member(owner_id)
+        if member is None:
+            try:
+                member = await self.guild.fetch_member(owner_id)
+            except discord.NotFound:
+                self.problem("role", key, "server.setup.owner_not_member", user_id=owner_id)
+                return
+            except discord.HTTPException as exc:
+                self.failed("role", key, "assign", exc)
+                return
+        target = role.mention
+        if any(r.id == role.id for r in member.roles):
+            self.ok("roles", key, "unchanged", "server.setup.owner_role_present", target=target, user_id=owner_id)
+            return
+        if self.dry_run:
+            self.ok("roles", key, "updated", "server.setup.owner_role_would_assign", target=target, user_id=owner_id)
+            return
+        try:
+            await member.add_roles(role, reason=self.reason)
+        except discord.HTTPException as exc:
+            self.failed("role", key, "assign", exc)
+            return
+        self.ok("roles", key, "updated", "server.setup.owner_role_assigned", target=target, user_id=owner_id)
+
     def role_objects(self, keys: tuple[str, ...]) -> list[discord.Role]:
         found: dict[int, discord.Role] = {}
         for key in keys:
@@ -325,9 +359,14 @@ class Reconciler:
         permissions = self.app.settings.permissions
         staff = self.role_objects(permissions.staff_roles)
         admin = self.role_objects(permissions.admin_roles)
+        members = self.role_objects((permissions.member_role,) if permissions.member_role else ())
         everyone = self.guild.default_role
-        desired = ow.access_overwrites(access, everyone=everyone, staff_roles=staff, admin_roles=admin, bot=self.bot)
-        managed = ow.managed_ids(everyone=everyone, staff_roles=staff, admin_roles=admin, bot_id=self.bot.id)
+        desired = ow.access_overwrites(
+            access, everyone=everyone, staff_roles=staff, admin_roles=admin, bot=self.bot, member_roles=members
+        )
+        managed = ow.managed_ids(
+            everyone=everyone, staff_roles=staff, admin_roles=admin, bot_id=self.bot.id, member_roles=members
+        )
         return desired, managed
 
     # -- categories ---------------------------------------------------------------------------------

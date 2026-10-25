@@ -29,6 +29,7 @@ from urllib.parse import urlsplit
 import discord
 
 from shopbot.config.content import MissingContent
+from shopbot.core.events import PRODUCT_CHANGED
 from shopbot.core.money import MoneyError, parse_amount
 from shopbot.core.panels import remove_message, upsert_message
 from shopbot.core.permissions import CHANNEL_SEND_PERMISSIONS, missing_permissions
@@ -532,14 +533,24 @@ _EXPECTED = (InputProblems, repo.CatalogError)
 
 
 async def _finish(
-    app: App, reply: OpReply, *, action: str | None, actor_id: int, product: Product, details: dict[str, Any]
+    app: App,
+    reply: OpReply,
+    *,
+    action: str | None,
+    actor_id: int,
+    product: Product,
+    details: dict[str, Any],
+    before: Product | None = None,
 ) -> OpReply:
-    """Audit a committed change, refresh the listing, and attach the refresh report to the reply."""
+    """Audit a committed change, refresh the listing, tell subscribers (``PRODUCT_CHANGED``), and attach the
+    refresh report to the reply."""
     if action is not None:
         await app.audit.record(
             f"catalog.product_{action}", actor_id=actor_id, target_type="product", target_id=product.id, details=details
         )
     report = await request_listing_refresh(app)
+    if action is not None:
+        await app.events.publish(PRODUCT_CHANGED, action=action, before=before, after=product, actor_id=actor_id)
     tone = reply.tone if report.ok else "warning"
     listing = EmbedField(app.op("catalog.refresh.field"), "\n".join(report.lines)) if report.lines else None
     return OpReply(reply.title, reply.description, tone=tone, fields=reply.fields + ((listing,) if listing else ()))
@@ -588,7 +599,7 @@ async def edit_from_form(
     if before.description != after.description:
         details["description_changed"] = True
     reply = OpReply(app.op("catalog.cmd.updated", product_id=product_id), tone="success")
-    return await _finish(app, reply, action="edit", actor_id=actor_id, product=after, details=details)
+    return await _finish(app, reply, action="edit", actor_id=actor_id, product=after, details=details, before=before)
 
 
 async def set_price(app: App, *, actor_id: int, product_id: int, amount: str) -> OpReply:
@@ -604,7 +615,7 @@ async def set_price(app: App, *, actor_id: int, product_id: int, amount: str) ->
     if before.version == after.version:
         return reply
     details = _changes(before, after, ("price_minor",))
-    return await _finish(app, reply, action="price", actor_id=actor_id, product=after, details=details)
+    return await _finish(app, reply, action="price", actor_id=actor_id, product=after, details=details, before=before)
 
 
 async def change_stock(app: App, *, actor_id: int, product_id: int, mode: str, amount: int | None) -> OpReply:
@@ -631,7 +642,7 @@ async def change_stock(app: App, *, actor_id: int, product_id: int, mode: str, a
     if mode == "add":
         details["delta"] = amount
     reply = OpReply(title, tone="success")
-    return await _finish(app, reply, action="stock", actor_id=actor_id, product=after, details=details)
+    return await _finish(app, reply, action="stock", actor_id=actor_id, product=after, details=details, before=before)
 
 
 async def set_image(app: App, *, actor_id: int, product_id: int, url: str) -> OpReply:
@@ -647,18 +658,18 @@ async def set_image(app: App, *, actor_id: int, product_id: int, url: str) -> Op
     if before.version == after.version:
         return reply
     details = {"image_url": [before.image_url, after.image_url]}
-    return await _finish(app, reply, action="image", actor_id=actor_id, product=after, details=details)
+    return await _finish(app, reply, action="image", actor_id=actor_id, product=after, details=details, before=before)
 
 
 async def toggle_active(app: App, *, actor_id: int, product_id: int) -> OpReply:
     try:
-        _, after = await app.db.transaction(_tx_toggle, app.env.guild_id, product_id, app.clock.now())
+        before, after = await app.db.transaction(_tx_toggle, app.env.guild_id, product_id, app.clock.now())
     except _EXPECTED as exc:
         return error_reply(app, exc)
     key = "catalog.cmd.activated" if after.active else "catalog.cmd.deactivated"
     reply = OpReply(app.op(key, product_id=product_id), tone="success")
     details = {"active": after.active}
-    return await _finish(app, reply, action="toggle", actor_id=actor_id, product=after, details=details)
+    return await _finish(app, reply, action="toggle", actor_id=actor_id, product=after, details=details, before=before)
 
 
 async def archive(app: App, *, actor_id: int, product_id: int, confirm: bool) -> OpReply:
@@ -672,7 +683,7 @@ async def archive(app: App, *, actor_id: int, product_id: int, confirm: bool) ->
     if before.version == after.version:
         return reply  # already archived: nothing changed
     details = {"name": after.name}
-    return await _finish(app, reply, action="archive", actor_id=actor_id, product=after, details=details)
+    return await _finish(app, reply, action="archive", actor_id=actor_id, product=after, details=details, before=before)
 
 
 async def set_position(app: App, *, actor_id: int, product_id: int, position: int) -> OpReply:
@@ -686,7 +697,7 @@ async def set_position(app: App, *, actor_id: int, product_id: int, position: in
     if before.version == after.version:
         return reply
     details = {"sort_order": [before.sort_order, after.sort_order]}
-    return await _finish(app, reply, action="sort", actor_id=actor_id, product=after, details=details)
+    return await _finish(app, reply, action="sort", actor_id=actor_id, product=after, details=details, before=before)
 
 
 async def load_product(app: App, product_id: int) -> Product | None:

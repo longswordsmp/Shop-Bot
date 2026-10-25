@@ -6,10 +6,46 @@ by ``id`` keeps its existing name unless a name is configured (then /setup renam
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from shopbot.config.content_keys import ContentKey, Kind, ck
-from shopbot.config.settings import Settings
+from shopbot.config.settings import MEMBER_ACCESS_LEVELS, Settings
+
+if TYPE_CHECKING:
+    from shopbot.context import App
 
 SERVER = "server"
+
+
+# -- clickable channel links inside text ---------------------------------------------------------------------
+# Any content key can declare ``channel_placeholders(settings)`` so the owner may write e.g. "{channel_catalog}" in
+# their text; it renders as a clickable #channel link (Discord channel mention) once /setup created the channel.
+
+
+def channel_placeholder(channel_key: str) -> str:
+    return f"channel_{channel_key}"
+
+
+def channel_placeholders(settings: Settings) -> tuple[str, ...]:
+    return tuple(channel_placeholder(channel.key) for channel in settings.server.channels)
+
+
+def channel_mentions(app: App) -> dict[str, str]:
+    """Values for ``channel_placeholders``: ``<#id>`` for every configured channel /setup has created or adopted."""
+    values: dict[str, str] = {}
+    for channel in app.settings.server.channels:
+        channel_id = app.resources.channel_id(channel.key)
+        if channel_id:
+            values[channel_placeholder(channel.key)] = f"<#{channel_id}>"
+    return values
+
+
+def channel_url(app: App, channel_key: str) -> str | None:
+    """A https:// link to a configured channel (for link buttons), or None before /setup created it."""
+    channel_id = app.resources.channel_id(channel_key)
+    if not channel_id:
+        return None
+    return f"https://discord.com/channels/{app.env.guild_id}/{channel_id}"
 
 
 def role_name_key(key: str) -> str:
@@ -133,9 +169,14 @@ def server_problems(settings: Settings) -> list[str]:
             problems.append(f"server.channels '{channel.key}': category '{channel.category}' is not defined")
         if channel.access == "inherit" and not channel.category:
             problems.append(f"server.channels '{channel.key}': access 'inherit' requires a category")
-    problems.extend(
-        reference_problems(settings, roles=settings.permissions.admin_roles + settings.permissions.staff_roles)
-    )
+    perms = settings.permissions
+    named = tuple(key for key in (perms.owner_role, perms.member_role) if key)
+    problems.extend(reference_problems(settings, roles=perms.admin_roles + perms.staff_roles + named))
+    uses_members = [c.key for c in settings.server.categories if c.access in MEMBER_ACCESS_LEVELS] + [
+        c.key for c in settings.server.channels if c.access in MEMBER_ACCESS_LEVELS
+    ]
+    if uses_members and not perms.member_role:
+        problems.append(f"permissions.member_role: required because {uses_members[0]!r} uses a members_* access level")
     problems.extend(reference_problems(settings, channels=(("audit.channel", settings.audit.channel),)))
     problems.extend(private_channel_problems(settings, (("audit.channel", settings.audit.channel),)))
     return problems

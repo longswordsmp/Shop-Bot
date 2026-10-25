@@ -8,6 +8,9 @@ target without a computed overwrite has its overwrite removed, so e.g. staff rol
 Access levels:
 - ``public_readonly``: everyone can read but not post, react, or open threads; staff/admin roles can post.
 - ``public_interactive``: everyone can read and post.
+- ``members_readonly``: hidden from everyone; the member role (``permissions.member_role``, granted by the
+  verification button) can read but not post; staff/admin roles can read and post.
+- ``members_interactive``: hidden from everyone; the member role and staff/admin roles can read and post.
 - ``staff``: hidden from everyone; staff and admin roles can read, post, and see history.
 - ``admin``: hidden from everyone; admin roles can read, post, and see history.
 - ``inherit`` (channels only): identical overwrites to the parent category (handled by the caller).
@@ -36,8 +39,24 @@ TEAM_CAN_POST: dict[str, bool] = {"send_messages": True}
 EVERYONE_INTERACTIVE: dict[str, bool] = {"view_channel": True, "send_messages": True}
 EVERYONE_HIDDEN: dict[str, bool] = {"view_channel": False}
 MEMBER_ACCESS: dict[str, bool] = {"view_channel": True, "send_messages": True, "read_message_history": True}
+MEMBER_READONLY: dict[str, bool] = {
+    "view_channel": True,
+    "read_message_history": True,
+    "send_messages": False,
+    "add_reactions": False,
+    "create_public_threads": False,
+    "create_private_threads": False,
+}
+TEAM_ACCESS: dict[str, bool] = {"view_channel": True, "send_messages": True, "read_message_history": True}
 
-OWN_ACCESS_LEVELS = ("public_readonly", "public_interactive", "staff", "admin")
+OWN_ACCESS_LEVELS = (
+    "public_readonly",
+    "public_interactive",
+    "members_readonly",
+    "members_interactive",
+    "staff",
+    "admin",
+)
 
 
 def bot_target(bot_id: int) -> discord.Object:
@@ -52,6 +71,7 @@ def access_overwrites(
     staff_roles: Sequence[discord.Role],
     admin_roles: Sequence[discord.Role],
     bot: OverwriteTarget,
+    member_roles: Sequence[discord.Role] = (),
 ) -> Overwrites:
     """The overwrites a category/channel with ``access`` must have for its managed targets.
 
@@ -64,6 +84,13 @@ def access_overwrites(
             result[role] = discord.PermissionOverwrite(**TEAM_CAN_POST)
     elif access == "public_interactive":
         result[everyone] = discord.PermissionOverwrite(**EVERYONE_INTERACTIVE)
+    elif access in ("members_readonly", "members_interactive"):
+        result[everyone] = discord.PermissionOverwrite(**EVERYONE_HIDDEN)
+        member_access = MEMBER_READONLY if access == "members_readonly" else MEMBER_ACCESS
+        for role in member_roles:
+            result[role] = discord.PermissionOverwrite(**member_access)
+        for role in (*staff_roles, *admin_roles):
+            result[role] = discord.PermissionOverwrite(**TEAM_ACCESS)
     elif access == "staff":
         result[everyone] = discord.PermissionOverwrite(**EVERYONE_HIDDEN)
         for role in (*staff_roles, *admin_roles):
@@ -79,9 +106,20 @@ def access_overwrites(
 
 
 def managed_ids(
-    *, everyone: discord.Role, staff_roles: Iterable[discord.Role], admin_roles: Iterable[discord.Role], bot_id: int
+    *,
+    everyone: discord.Role,
+    staff_roles: Iterable[discord.Role],
+    admin_roles: Iterable[discord.Role],
+    bot_id: int,
+    member_roles: Iterable[discord.Role] = (),
 ) -> set[int]:
-    return {everyone.id, bot_id, *(r.id for r in staff_roles), *(r.id for r in admin_roles)}
+    return {
+        everyone.id,
+        bot_id,
+        *(r.id for r in staff_roles),
+        *(r.id for r in admin_roles),
+        *(r.id for r in member_roles),
+    }
 
 
 def pairs(overwrites: Mapping[Any, discord.PermissionOverwrite]) -> dict[int, tuple[int, int]]:

@@ -130,7 +130,7 @@ def test_module_contract() -> None:
     assert MODULE.depends_on == ("checkout",)
     assert MODULE.is_enabled(make_settings()) is True
     assert MODULE.is_enabled(make_settings({"features": {"reviews": False}})) is False
-    assert shipped_settings_dict()["features"]["reviews"] is False  # shipped disabled: a business decision
+    assert shipped_settings_dict()["reviews"]["rating_scale"] == 0  # the rating scale is a business decision
 
 
 async def test_ready_with_full_content(tenv: TestEnv) -> None:

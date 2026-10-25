@@ -60,6 +60,12 @@ OPERATOR_TEXT: dict[str, str] = {
     "server.setup.failed": "{kind} `{item}`: {action} failed (HTTP {http_status}, Discord code {code})",
     "server.setup.action.create": "creating",
     "server.setup.action.update": "updating",
+    "server.setup.action.assign": "assigning the role",
+    # owner role
+    "server.setup.owner_role_assigned": "`{item}`: gave {target} to the owner (<@{user_id}>)",
+    "server.setup.owner_role_would_assign": "`{item}`: would give {target} to the owner (<@{user_id}>)",
+    "server.setup.owner_role_present": "`{item}`: the owner (<@{user_id}>) already has {target}",
+    "server.setup.owner_not_member": "{kind} `{item}`: OWNER_ID {user_id} is not a member of this server",
     # change names
     "server.setup.change.name": "name",
     "server.setup.change.permissions": "permissions",

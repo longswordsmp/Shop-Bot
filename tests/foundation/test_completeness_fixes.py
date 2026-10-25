@@ -23,7 +23,7 @@ from shopbot.features.tickets import models as ticket_models
 from shopbot.features.tickets import repo as ticket_repo
 from shopbot.ui.routing import Ctx, Route
 from tests.fakes import click
-from tests.helpers import ROOT, TestEnv, provision_channels
+from tests.helpers import BASE_SETTINGS, ROOT, TestEnv, provision_channels
 
 
 def test_declared_placeholder_without_value_renders_empty_and_other_braces_stay() -> None:
@@ -79,7 +79,7 @@ async def test_reload_that_disables_a_feature_withdraws_its_panel(tenv: TestEnv)
     record = await _publish_ticket_panel(tenv)
     config_dir = app.config_dir
     config_dir.mkdir(parents=True, exist_ok=True)
-    shutil.copy(ROOT / "config" / "settings.toml", config_dir / "settings.toml")  # every feature switched off
+    shutil.copy(BASE_SETTINGS, config_dir / "settings.toml")  # the test base layout: every feature switched off
     (config_dir / "content.toml").write_text("", encoding="utf-8")
     result = await app.reload_config()
     assert result.ok

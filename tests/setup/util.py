@@ -12,7 +12,7 @@ from shopbot.features import all_modules
 from shopbot.features.setup.report import SetupReport
 from shopbot.features.setup.service import run_setup
 from tests.fakes import FakeBot, FakeInteraction, FakeMember
-from tests.helpers import TestEnv, shipped_settings_dict
+from tests.helpers import TestEnv, base_settings_dict
 
 
 async def setup(tenv: TestEnv, *, dry_run: bool = False, publish: bool = True, app: App | None = None) -> SetupReport:
@@ -71,7 +71,7 @@ def restarted_app(tenv: TestEnv) -> App:
 
 
 def shipped_server() -> dict[str, Any]:
-    server: dict[str, Any] = shipped_settings_dict()["server"]
+    server: dict[str, Any] = base_settings_dict()["server"]
     return server
 
 

@@ -58,43 +58,56 @@ Feature `server` — enabled.
 
 | | Key | Where it appears | Kind (max chars) | Required | Placeholders |
 |---|---|---|---|---|---|
-| ❌ | `server.category.admin.name` | Name of the 'admin' channel category. | category_name (100) | required |  |
-| ❌ | `server.category.orders.name` | Name of the 'orders' channel category. | category_name (100) | required |  |
-| ❌ | `server.category.staff.name` | Name of the 'staff' channel category. | category_name (100) | required |  |
-| ❌ | `server.category.support.name` | Name of the 'support' channel category. | category_name (100) | required |  |
-| ❌ | `server.category.tickets.name` | Name of the 'tickets' channel category. | category_name (100) | required |  |
+| ✅ | `server.category.catalog.name` | Name of the 'catalog' channel category. | category_name (100) | required |  |
+| ✅ | `server.category.purchase.name` | Name of the 'purchase' channel category. | category_name (100) | required |  |
+| ✅ | `server.category.staff.name` | Name of the 'staff' channel category. | category_name (100) | required |  |
+| ✅ | `server.category.start_here.name` | Name of the 'start_here' channel category. | category_name (100) | required |  |
 
 ### Channel names
 
 | | Key | Where it appears | Kind (max chars) | Required | Placeholders |
 |---|---|---|---|---|---|
-| ❌ | `server.channel.audit_log.name` | Name of the 'audit_log' channel. | channel_name (100) | required |  |
-| ❌ | `server.channel.catalog.name` | Name of the 'catalog' channel. | channel_name (100) | required |  |
-| ❌ | `server.channel.order_queue.name` | Name of the 'order_queue' channel. | channel_name (100) | required |  |
-| ❌ | `server.channel.reviews.name` | Name of the 'reviews' channel. | channel_name (100) | required |  |
-| ❌ | `server.channel.shop.name` | Name of the 'shop' channel. | channel_name (100) | required |  |
-| ❌ | `server.channel.staff_alerts.name` | Name of the 'staff_alerts' channel. | channel_name (100) | required |  |
-| ❌ | `server.channel.ticket_panel.name` | Name of the 'ticket_panel' channel. | channel_name (100) | required |  |
-| ❌ | `server.channel.transcripts.name` | Name of the 'transcripts' channel. | channel_name (100) | required |  |
+| ✅ | `server.channel.announcements.name` | Name of the 'announcements' channel. | channel_name (100) | required |  |
+| ✅ | `server.channel.bot_log.name` | Name of the 'bot_log' channel. | channel_name (100) | required |  |
+| ✅ | `server.channel.catalog.name` | Name of the 'catalog' channel. | channel_name (100) | required |  |
+| ✅ | `server.channel.faq.name` | Name of the 'faq' channel. | channel_name (100) | required |  |
+| ✅ | `server.channel.how_to_buy.name` | Name of the 'how_to_buy' channel. | channel_name (100) | required |  |
+| ✅ | `server.channel.new_arrivals.name` | Name of the 'new_arrivals' channel. | channel_name (100) | required |  |
+| ✅ | `server.channel.orders.name` | Name of the 'orders' channel. | channel_name (100) | required |  |
+| ✅ | `server.channel.purchase.name` | Name of the 'purchase' channel. | channel_name (100) | required |  |
+| ✅ | `server.channel.reviews.name` | Name of the 'reviews' channel. | channel_name (100) | required |  |
+| ✅ | `server.channel.shipping.name` | Name of the 'shipping' channel. | channel_name (100) | required |  |
+| ✅ | `server.channel.staff_chat.name` | Name of the 'staff_chat' channel. | channel_name (100) | required |  |
+| ✅ | `server.channel.transcripts.name` | Name of the 'transcripts' channel. | channel_name (100) | required |  |
+| ✅ | `server.channel.welcome.name` | Name of the 'welcome' channel. | channel_name (100) | required |  |
 
 ### Channel topics
 
 | | Key | Where it appears | Kind (max chars) | Required | Placeholders |
 |---|---|---|---|---|---|
-| ▫️ | `server.channel.audit_log.topic` | Optional topic (description) of the 'audit_log' channel. | channel_topic (1024) | optional |  |
+| ▫️ | `server.channel.announcements.topic` | Optional topic (description) of the 'announcements' channel. | channel_topic (1024) | optional |  |
+| ▫️ | `server.channel.bot_log.topic` | Optional topic (description) of the 'bot_log' channel. | channel_topic (1024) | optional |  |
 | ▫️ | `server.channel.catalog.topic` | Optional topic (description) of the 'catalog' channel. | channel_topic (1024) | optional |  |
-| ▫️ | `server.channel.order_queue.topic` | Optional topic (description) of the 'order_queue' channel. | channel_topic (1024) | optional |  |
+| ▫️ | `server.channel.faq.topic` | Optional topic (description) of the 'faq' channel. | channel_topic (1024) | optional |  |
+| ▫️ | `server.channel.how_to_buy.topic` | Optional topic (description) of the 'how_to_buy' channel. | channel_topic (1024) | optional |  |
+| ▫️ | `server.channel.new_arrivals.topic` | Optional topic (description) of the 'new_arrivals' channel. | channel_topic (1024) | optional |  |
+| ▫️ | `server.channel.orders.topic` | Optional topic (description) of the 'orders' channel. | channel_topic (1024) | optional |  |
+| ▫️ | `server.channel.purchase.topic` | Optional topic (description) of the 'purchase' channel. | channel_topic (1024) | optional |  |
 | ▫️ | `server.channel.reviews.topic` | Optional topic (description) of the 'reviews' channel. | channel_topic (1024) | optional |  |
-| ▫️ | `server.channel.shop.topic` | Optional topic (description) of the 'shop' channel. | channel_topic (1024) | optional |  |
-| ▫️ | `server.channel.staff_alerts.topic` | Optional topic (description) of the 'staff_alerts' channel. | channel_topic (1024) | optional |  |
-| ▫️ | `server.channel.ticket_panel.topic` | Optional topic (description) of the 'ticket_panel' channel. | channel_topic (1024) | optional |  |
+| ▫️ | `server.channel.shipping.topic` | Optional topic (description) of the 'shipping' channel. | channel_topic (1024) | optional |  |
+| ▫️ | `server.channel.staff_chat.topic` | Optional topic (description) of the 'staff_chat' channel. | channel_topic (1024) | optional |  |
 | ▫️ | `server.channel.transcripts.topic` | Optional topic (description) of the 'transcripts' channel. | channel_topic (1024) | optional |  |
+| ▫️ | `server.channel.welcome.topic` | Optional topic (description) of the 'welcome' channel. | channel_topic (1024) | optional |  |
 
 ### Role names
 
 | | Key | Where it appears | Kind (max chars) | Required | Placeholders |
 |---|---|---|---|---|---|
-| ❌ | `server.role.staff.name` | Name of the 'staff' role. | role_name (100) | required |  |
+| ✅ | `server.role.customer.name` | Name of the 'customer' role. | role_name (100) | required |  |
+| ✅ | `server.role.member.name` | Name of the 'member' role. | role_name (100) | required |  |
+| ✅ | `server.role.owner.name` | Name of the 'owner' role. | role_name (100) | required |  |
+| ✅ | `server.role.restock_alerts.name` | Name of the 'restock_alerts' role. | role_name (100) | required |  |
+| ✅ | `server.role.staff.name` | Name of the 'staff' role. | role_name (100) | required |  |
 
 ## Tickets
 
@@ -199,7 +212,7 @@ Feature `catalog` — enabled.
 
 | | Key | Where it appears | Kind (max chars) | Required | Placeholders |
 |---|---|---|---|---|---|
-| ❌ | `catalog.button.browse` | Button under the last listing message that opens a private, page-by-page view of the products (only when catalog.browse_enabled is true). | button_label (80) | required |  |
+| ▫️ | `catalog.button.browse` | Button under the last listing message that opens a private, page-by-page view of the products (only when catalog.browse_enabled is true). | button_label (80) | optional |  |
 
 ### Catalog: live product listing
 
@@ -498,11 +511,11 @@ Feature `reviews` — enabled.
 
 ## Business decisions and settings still open
 
-- None reported for the listed features.
+- **tickets**: tickets.panel_channel: required (the channel that shows the ticket panel)
 
 ## Summary
 
-- Required keys (for the listed features): 151
-- Required keys still missing: 151
+- Required keys (for the listed features): 158
+- Required keys still missing: 136
 
 Legend: ✅ configured · ❌ required and missing · ▫️ optional and empty

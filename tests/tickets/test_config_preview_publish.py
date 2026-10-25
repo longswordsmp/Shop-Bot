@@ -16,7 +16,7 @@ from shopbot.ui.limits import validate_message, validate_modal
 from shopbot.ui.routing import Router
 from shopbot.ui.spec import MessageSpec, ModalSpec
 from tests.fakes import submit_modal
-from tests.helpers import TestEnv, deep_merge, make_settings, shipped_settings_dict
+from tests.helpers import TestEnv, base_settings_dict, deep_merge, make_settings
 from tests.tickets.util import channel, form_overrides, make_env
 from tools.check_limits import unrouted_components
 
@@ -92,7 +92,7 @@ def test_conditional_requiredness() -> None:
     ],
 )
 def test_settings_problems(override: dict[str, Any], fragment: str) -> None:
-    settings = parse_settings(deep_merge(shipped_settings_dict(), override))
+    settings = parse_settings(deep_merge(base_settings_dict(), override))
     problems = MODULE.settings_problems(settings)
     assert any(fragment in p for p in problems), problems
 

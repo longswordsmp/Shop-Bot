@@ -24,7 +24,16 @@ from typing import Any, TypeVar
 T = TypeVar("T")
 
 KEY_PATTERN = re.compile(r"^[a-z][a-z0-9_]{0,31}$")
-ACCESS_LEVELS = ("public_readonly", "public_interactive", "staff", "admin", "inherit")
+ACCESS_LEVELS = (
+    "public_readonly",
+    "public_interactive",
+    "members_readonly",
+    "members_interactive",
+    "staff",
+    "admin",
+    "inherit",
+)
+MEMBER_ACCESS_LEVELS = ("members_readonly", "members_interactive")
 BUTTON_STYLES = ("primary", "secondary", "success", "danger")
 TONES = ("primary", "info", "success", "warning", "danger", "neutral")
 RESERVED_TICKET_CATEGORY_IDS = frozenset({"checkout"})
@@ -245,6 +254,10 @@ class BotSettings:
 class PermissionSettings:
     admin_roles: tuple[str, ...] = ()
     staff_roles: tuple[str, ...] = ()
+    # Role key /setup gives to OWNER_ID (list it in admin_roles too so it grants admin access).
+    owner_role: str = ""
+    # Role key that unlocks members_* channels; granted by the verification button.
+    member_role: str = ""
 
 
 @dataclass(frozen=True)
@@ -268,6 +281,14 @@ class FeatureFlags:
     checkout: bool = False
     credits: bool = False
     reviews: bool = False
+    verification: bool = False
+    new_arrivals: bool = False
+    how_to_buy: bool = False
+    faq: bool = False
+    shipping: bool = False
+    announcements: bool = False
+    problems: bool = False
+    my_orders: bool = False
     dm_notifications: bool = False
 
     def enabled(self) -> tuple[str, ...]:
@@ -457,6 +478,66 @@ class AuditSettings:
     retention_days: int = 0
 
 
+# -- Sections for the server specification. Each feature owns its dataclass and its _parse_* function below. --
+
+
+@dataclass(frozen=True)
+class VerificationSettings:
+    """[verification]: the #welcome rules panel whose button grants ``permissions.member_role``."""
+
+    channel: str = ""
+
+
+@dataclass(frozen=True)
+class NewArrivalsSettings:
+    """[new_arrivals]: the #new-arrivals opt-in panel and automatic product announcements."""
+
+    channel: str = ""
+
+
+@dataclass(frozen=True)
+class HowToBuySettings:
+    """[how_to_buy]: the step-by-step guide panel."""
+
+    channel: str = ""
+
+
+@dataclass(frozen=True)
+class FaqSettings:
+    """[faq]: the FAQ panels (sections of questions and answers)."""
+
+    channel: str = ""
+
+
+@dataclass(frozen=True)
+class ShippingSettings:
+    """[shipping]: the fulfillment/regions panel."""
+
+    channel: str = ""
+
+
+@dataclass(frozen=True)
+class AnnouncementSettings:
+    """[announcements]: /announce and the channel it publishes to."""
+
+    channel: str = ""
+
+
+@dataclass(frozen=True)
+class ProblemSettings:
+    """[problems]: the Report a Problem workflow."""
+
+
+@dataclass(frozen=True)
+class MyOrdersSettings:
+    """[my_orders]: the customer /myorders command."""
+
+
+@dataclass(frozen=True)
+class OperationsSettings:
+    """[operations]: staff alerts, reminders, Owner alerts and record-handling options."""
+
+
 @dataclass(frozen=True)
 class Settings:
     bot: BotSettings = field(default_factory=BotSettings)
@@ -473,6 +554,15 @@ class Settings:
     reviews: ReviewSettings = field(default_factory=ReviewSettings)
     notifications: NotificationSettings = field(default_factory=NotificationSettings)
     audit: AuditSettings = field(default_factory=AuditSettings)
+    verification: VerificationSettings = field(default_factory=VerificationSettings)
+    new_arrivals: NewArrivalsSettings = field(default_factory=NewArrivalsSettings)
+    how_to_buy: HowToBuySettings = field(default_factory=HowToBuySettings)
+    faq: FaqSettings = field(default_factory=FaqSettings)
+    shipping: ShippingSettings = field(default_factory=ShippingSettings)
+    announcements: AnnouncementSettings = field(default_factory=AnnouncementSettings)
+    problems: ProblemSettings = field(default_factory=ProblemSettings)
+    my_orders: MyOrdersSettings = field(default_factory=MyOrdersSettings)
+    operations: OperationsSettings = field(default_factory=OperationsSettings)
 
 
 # ---------------------------------------------------------------------------------------------------
@@ -534,7 +624,12 @@ def parse_settings(data: dict[str, Any]) -> Settings:
     b.finish()
 
     p = root.table("permissions")
-    permissions = PermissionSettings(admin_roles=p.keys_("admin_roles"), staff_roles=p.keys_("staff_roles"))
+    permissions = PermissionSettings(
+        admin_roles=p.keys_("admin_roles"),
+        staff_roles=p.keys_("staff_roles"),
+        owner_role=p.str_("owner_role", "", pattern=KEY_PATTERN),
+        member_role=p.str_("member_role", "", pattern=KEY_PATTERN),
+    )
     p.finish()
 
     br = root.table("branding")
@@ -767,6 +862,16 @@ def parse_settings(data: dict[str, Any]) -> Settings:
     )
     au.finish()
 
+    verification = _parse_verification(root.table("verification"))
+    new_arrivals = _parse_new_arrivals(root.table("new_arrivals"))
+    how_to_buy = _parse_how_to_buy(root.table("how_to_buy"))
+    faq = _parse_faq(root.table("faq"))
+    shipping = _parse_shipping(root.table("shipping"))
+    announcements = _parse_announcements(root.table("announcements"))
+    problems = _parse_problems(root.table("problems"))
+    my_orders = _parse_my_orders(root.table("my_orders"))
+    operations = _parse_operations(root.table("operations"))
+
     root.finish()
     if errors:
         raise SettingsError(errors)
@@ -785,6 +890,15 @@ def parse_settings(data: dict[str, Any]) -> Settings:
         reviews=reviews,
         notifications=notifications,
         audit=audit,
+        verification=verification,
+        new_arrivals=new_arrivals,
+        how_to_buy=how_to_buy,
+        faq=faq,
+        shipping=shipping,
+        announcements=announcements,
+        problems=problems,
+        my_orders=my_orders,
+        operations=operations,
     )
 
 
@@ -799,3 +913,42 @@ def _perm_names(reader: _Reader) -> tuple[str, ...]:
         if name not in GUILD_PERMISSION_NAMES:
             reader.error("permissions", f"unknown Discord permission '{name}'")
     return names
+
+
+# -- Parsers for the server-specification sections (one per feature; each finishes its own table). -----------
+
+
+def _parse_verification(r: _Reader) -> VerificationSettings:
+    return _finish(r, VerificationSettings(channel=r.str_("channel", "", pattern=KEY_PATTERN)))
+
+
+def _parse_new_arrivals(r: _Reader) -> NewArrivalsSettings:
+    return _finish(r, NewArrivalsSettings(channel=r.str_("channel", "", pattern=KEY_PATTERN)))
+
+
+def _parse_how_to_buy(r: _Reader) -> HowToBuySettings:
+    return _finish(r, HowToBuySettings(channel=r.str_("channel", "", pattern=KEY_PATTERN)))
+
+
+def _parse_faq(r: _Reader) -> FaqSettings:
+    return _finish(r, FaqSettings(channel=r.str_("channel", "", pattern=KEY_PATTERN)))
+
+
+def _parse_shipping(r: _Reader) -> ShippingSettings:
+    return _finish(r, ShippingSettings(channel=r.str_("channel", "", pattern=KEY_PATTERN)))
+
+
+def _parse_announcements(r: _Reader) -> AnnouncementSettings:
+    return _finish(r, AnnouncementSettings(channel=r.str_("channel", "", pattern=KEY_PATTERN)))
+
+
+def _parse_problems(r: _Reader) -> ProblemSettings:
+    return _finish(r, ProblemSettings())
+
+
+def _parse_my_orders(r: _Reader) -> MyOrdersSettings:
+    return _finish(r, MyOrdersSettings())
+
+
+def _parse_operations(r: _Reader) -> OperationsSettings:
+    return _finish(r, OperationsSettings())
