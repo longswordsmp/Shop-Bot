@@ -8,7 +8,15 @@ from typing import Any
 from shopbot.config.readiness import build_registry
 from shopbot.config.settings import Settings
 from tests.fakes import FakeMessage, FakeTextChannel
-from tests.helpers import TestEnv, deep_merge, make_settings, make_test_env, provision_channels, server_extension
+from tests.helpers import (
+    TestEnv,
+    deep_merge,
+    make_banner_env,
+    make_settings,
+    make_test_env,
+    provision_channels,
+    server_extension,
+)
 
 GUIDE_CHANNELS = ("how_to_buy", "faq", "shipping", "purchase")
 
@@ -33,12 +41,14 @@ BASE_OVERRIDES: dict[str, Any] = {
 }
 
 
-def guide_settings(overrides: dict[str, Any] | None = None) -> Settings:
+def guide_overrides(overrides: dict[str, Any] | None = None) -> dict[str, Any]:
     channels = [{"key": key, "category": "support", "access": "inherit"} for key in GUIDE_CHANNELS]
     data = deep_merge(server_extension(channels=channels), BASE_OVERRIDES)
-    if overrides:
-        data = deep_merge(data, overrides)
-    return make_settings(data)
+    return deep_merge(data, overrides) if overrides else data
+
+
+def guide_settings(overrides: dict[str, Any] | None = None) -> Settings:
+    return make_settings(guide_overrides(overrides))
 
 
 async def guide_env(
@@ -47,8 +57,13 @@ async def guide_env(
     *,
     content: dict[str, str] | None = None,
     provision: bool = True,
+    banners: bool = False,
 ) -> TestEnv:
-    tenv = await make_test_env(tmp_path, settings=guide_settings(overrides), content=content)
+    """``banners`` switches banners on with a tiny picture per banner id (``make_banner_env``)."""
+    if banners:
+        tenv = await make_banner_env(tmp_path, guide_overrides(overrides), content=content)
+    else:
+        tenv = await make_test_env(tmp_path, settings=guide_settings(overrides), content=content)
     if provision:
         await provision_channels(tenv)
     return tenv

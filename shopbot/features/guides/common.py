@@ -7,6 +7,7 @@
   Discord's limits (25 fields, 4096-character descriptions and 6000 characters per embed; 10 embeds and 6000
   characters per message) without ever cutting text: a block that does not fit one embed continues in the next
   embed, and embeds that do not fit one message continue in the next message.
+- ``guide_messages`` puts the guide's banner picture on its first message only (later messages continue it).
 - ``publish_guide`` keeps one guide as an ordered series of messages (``<prefix><index>`` records): edited in
   place, re-posted in order when one was deleted or moved, surplus messages of an earlier, longer configuration
   removed. It is idempotent: running /setup again changes nothing when nothing changed.
@@ -20,11 +21,12 @@ import re
 import weakref
 from collections import Counter
 from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING
 
 import discord
 
+from shopbot.config.banner_ids import BannerId
 from shopbot.config.content import ContentStore, MissingContent
 from shopbot.config.content_keys import ContentKey
 from shopbot.config.settings import Settings
@@ -297,11 +299,16 @@ def pack_messages(embeds: Sequence[EmbedSpec]) -> list[tuple[EmbedSpec, ...]]:
     return messages
 
 
-def guide_messages(ui: Ui, blocks: Iterable[Block], rows: tuple[tuple[Component, ...], ...] = ()) -> list[MessageSpec]:
-    """The messages of a guide; ``rows`` (link buttons) are attached to the last message."""
+def guide_messages(
+    ui: Ui, blocks: Iterable[Block], rows: tuple[tuple[Component, ...], ...] = (), *, banner: BannerId
+) -> list[MessageSpec]:
+    """The messages of a guide; the ``banner`` picture tops the first message only and ``rows`` (link buttons) are
+    attached to the last message."""
     specs = [MessageSpec(embeds=group) for group in pack_messages(build_embeds(ui, blocks))]
+    if specs:
+        specs[0] = replace(specs[0], banner=ui.banner(banner))
     if specs and rows:
-        specs[-1] = MessageSpec(embeds=specs[-1].embeds, rows=rows)
+        specs[-1] = replace(specs[-1], rows=rows)
     return specs
 
 

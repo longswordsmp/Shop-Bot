@@ -79,7 +79,8 @@ async def content_set_submit(ctx: Ctx) -> None:
     pending = state_for(app).pending.take(token, ctx.user_id, app.clock.now())
     if pending is None:
         log_event(log, logging.INFO, "admin_content_form_expired", user_id=ctx.user_id)
-        await reply(ctx.interaction, views.simple(app.ui, app.op, app.op("admin.content.expired"), tone="warning"))
+        expired = views.simple(app.ui, app.op, app.op("admin.content.expired"), tone="warning", banner="cancellation")
+        await reply(ctx.interaction, expired)
         return
     key = pending.key
     if key not in app.content.registry:  # the configuration was reloaded and the key no longer exists

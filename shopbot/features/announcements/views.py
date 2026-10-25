@@ -3,8 +3,10 @@
 - ``announcement_form``: the staff-only form (operator text labels). Its custom id carries only the form's token.
 - ``announcement_message``: the customer-facing post in the announcements channel. Title, message and field values
   are typed by staff; field headings come from content keys; footer/author/branding imagery from the shared branding
-  configuration. An uploaded image is referenced as ``attachment://<filename>`` so it stays attached to the message.
-- ``reply_spec`` and the ``*_reply`` helpers: the private operator replies (confirmation and errors).
+  configuration. The announcements banner picture is uploaded first (shown above the embed); an uploaded image is
+  uploaded after it and referenced as ``attachment://<filename>`` so it stays attached to the message.
+- ``reply_spec`` and the ``*_reply`` helpers: the private operator replies (confirmation and errors), each with the
+  banner of its outcome.
 """
 
 from __future__ import annotations
@@ -12,6 +14,7 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 
+from shopbot.config.banner_ids import BannerId
 from shopbot.ui.custom_ids import cid
 from shopbot.ui.limits import EMBED_TITLE, INPUT_LABEL, INPUT_VALUE
 from shopbot.ui.spec import (
@@ -35,6 +38,7 @@ TITLE_INPUT = "title"
 MESSAGE_INPUT = "message"
 TITLE_MAX = EMBED_TITLE
 MESSAGE_MAX = INPUT_VALUE  # a form input holds at most 4000 characters (an embed description 4096)
+ANNOUNCEMENT_BANNER: BannerId = "announcements"
 
 
 def field_input_id(field_id: str) -> str:
@@ -151,6 +155,7 @@ def announcement_message(
         embeds=(embed,),
         mention_role_ids=(mention_role_id,) if mention_role_id else (),
         files=(image,) if image is not None else None,
+        banner=ui.banner(ANNOUNCEMENT_BANNER),
     )
 
 
@@ -159,13 +164,15 @@ def announcement_message(
 
 @dataclass(frozen=True)
 class Reply:
-    """A private operator reply. ``retry_token`` adds the "edit and try again" button (reopens the prefilled form)."""
+    """A private operator reply. ``retry_token`` adds the "edit and try again" button (reopens the prefilled form);
+    ``banner`` is the picture shown above it."""
 
     title: str
     lines: tuple[str, ...] = ()
     tone: str = "info"
     retry_token: str | None = None
     link_url: str | None = None
+    banner: BannerId = "general-response"
 
 
 def reply_spec(ui: Ui, op: OperatorText, reply: Reply) -> MessageSpec:
@@ -178,7 +185,7 @@ def reply_spec(ui: Ui, op: OperatorText, reply: Reply) -> MessageSpec:
         if reply.retry_token
         else None
     )
-    return MessageSpec(embeds=(embed,), rows=rows_of(link, retry))
+    return MessageSpec(embeds=(embed,), rows=rows_of(link, retry), banner=ui.banner(reply.banner))
 
 
 def published_reply(
@@ -189,19 +196,62 @@ def published_reply(
         lines.append(op("announcements.done.mention", role=f"<@&{mention_role_id}>"))
     if has_image:
         lines.append(op("announcements.done.image"))
-    return Reply(op("announcements.done.title"), tuple(lines), tone="success", link_url=url)
+    return Reply(
+        op("announcements.done.title"), tuple(lines), tone="success", link_url=url, banner="successful-confirmation"
+    )
 
 
 def already_published_reply(op: OperatorText, *, url: str) -> Reply:
-    return Reply(op("announcements.done.title"), (op("announcements.done.already", url=url),), link_url=url)
+    return Reply(
+        op("announcements.done.title"),
+        (op("announcements.done.already", url=url),),
+        link_url=url,
+        banner="general-response",
+    )
 
 
 def error_reply(op: OperatorText, problems: Sequence[str], *, retry_token: str | None = None) -> Reply:
     """Nothing was posted. With ``retry_token`` the reply offers to reopen the form with the text already typed."""
     hint = op("announcements.error.retry_hint" if retry_token else "announcements.error.rerun_hint")
-    return Reply(op("announcements.error.title"), (*problems, "", hint), tone="danger", retry_token=retry_token or None)
+    return Reply(
+        op("announcements.error.title"),
+        (*problems, "", hint),
+        tone="danger",
+        retry_token=retry_token or None,
+        banner="error",
+    )
 
 
-def notice_reply(op: OperatorText, line: str, *, tone: str = "warning") -> Reply:
-    """A reply about the form itself (in progress, expired, unknown...)."""
-    return Reply(op("announcements.notice.title"), (line,), tone=tone)
+def notice_reply(op: OperatorText, line: str, *, banner: BannerId, tone: str = "warning") -> Reply:
+    """A reply about the form itself (in progress, expired, unknown...); ``banner`` fits the situation."""
+    return Reply(op("announcements.notice.title"), (line,), tone=tone, banner=banner)
+
+
+def busy_reply(op: OperatorText) -> Reply:
+    """The same form submitted again while the first submission is still being posted."""
+    return notice_reply(op, op("announcements.error.busy"), banner="submission-and-processing", tone="info")
+
+
+def expired_reply(op: OperatorText, *, hours: int) -> Reply:
+    """A form used after its lifetime: it is void (run /announce again)."""
+    return notice_reply(op, op("announcements.error.expired", hours=hours), banner="cancellation")
+
+
+def interrupted_reply(op: OperatorText, *, channel: str) -> Reply:
+    """A form whose posting was interrupted by a restart (it may or may not have been posted)."""
+    return notice_reply(op, op("announcements.error.interrupted", channel=channel), banner="error")
+
+
+def unknown_form_reply(op: OperatorText) -> Reply:
+    """An unknown, deleted or malformed form."""
+    return notice_reply(op, op("announcements.error.form_unknown"), banner="error")
+
+
+def not_owner_reply(op: OperatorText) -> Reply:
+    """A form opened by another staff member."""
+    return notice_reply(op, op("announcements.error.not_owner"), banner="error", tone="danger")
+
+
+def feature_disabled_reply(op: OperatorText, *, feature: str) -> Reply:
+    """/announce while the feature is disabled or not fully configured."""
+    return Reply(op("command.feature_disabled", feature=feature), tone="warning", banner="error")

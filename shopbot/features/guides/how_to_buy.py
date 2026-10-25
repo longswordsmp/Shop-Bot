@@ -158,7 +158,7 @@ def guide_messages(
         )
         for key in s.link_channels
     ]
-    return common.guide_messages(ui, [block], rows_of(*buttons))
+    return common.guide_messages(ui, [block], rows_of(*buttons), banner="how-it-works")
 
 
 # -- runtime ---------------------------------------------------------------------------------------------------

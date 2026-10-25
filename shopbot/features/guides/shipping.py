@@ -273,7 +273,7 @@ def shipping_messages(ui: Ui, s: ShippingSettings, texts: common.Texts) -> list[
         )
     if info and not before:
         blocks.append(common.Block(tone="info", fields=info))
-    return common.guide_messages(ui, blocks)
+    return common.guide_messages(ui, blocks, banner="shipping")
 
 
 # -- runtime ---------------------------------------------------------------------------------------------------

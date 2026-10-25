@@ -6,10 +6,11 @@ Flow:
    with a random token and returns the form. Nothing is posted.
 2. ``submit`` (form submission, routed by custom id ``sb:an:submit:<token>``; works after a restart): claims the draft
    atomically (a second submission of the same form can never post again), validates the text, the channel, the bot's
-   permissions, the mention and the image, then posts one embed in the announcements channel. The uploaded image is
-   downloaded again and re-attached to the message (``attachment://``) so it stays valid. Any problem means nothing is
-   posted and staff get a private operator reply; most problems offer to reopen the form with the text already typed
-   (``reopen_form``).
+   permissions, the mention and the image, then posts one embed in the announcements channel under the announcements
+   banner. The uploaded image is downloaded again and re-attached to the message after the banner (``attachment://``)
+   so it stays valid; the banner counts toward the message's file limit, so the image cap is that much smaller. Any
+   problem means nothing is posted and staff get a private operator reply; most problems offer to reopen the form with
+   the text already typed (``reopen_form``).
 3. ``recover`` (startup): a row a previous process was posting when it stopped is marked ``interrupted`` (never
    retried automatically, since it may already have been posted) and recorded in the audit log.
 
@@ -134,15 +135,22 @@ def form_inputs(app: App) -> list[views.FormInput]:
     return inputs
 
 
+def announcement_banner(app: App) -> FileSpec | None:
+    """The banner picture every announcement is posted with (None when banners are off or it is missing)."""
+    return app.ui.banner(views.ANNOUNCEMENT_BANNER)
+
+
 def upload_limit(app: App) -> int:
     """Largest image /announce accepts: the server's upload limit (boost level), capped by the per-message file limit
-    every bot message is validated against (``ui.limits.FILES_TOTAL_BYTES``)."""
+    every bot message is validated against (``ui.limits.FILES_TOTAL_BYTES``), minus the banner uploaded with the same
+    message."""
     limit = getattr(app.guild, "filesize_limit", None)
     guild_limit = limit if isinstance(limit, int) and limit > 0 else discord.utils.DEFAULT_FILE_SIZE_LIMIT_BYTES
-    return min(guild_limit, FILES_TOTAL_BYTES)
+    banner = announcement_banner(app)
+    return max(0, min(guild_limit, FILES_TOTAL_BYTES) - (banner.size if banner is not None else 0))
 
 
-def _megabytes(size: int) -> str:
+def megabytes(size: int) -> str:
     return f"{size / 1_048_576:.1f}"
 
 
@@ -165,7 +173,7 @@ def check_attachment(app: App, attachment: AttachmentLike) -> ImageRef | Problem
     limit = upload_limit(app)
     if attachment.size > limit:
         return Problem(
-            op("announcements.error.image_too_large", size=_megabytes(attachment.size), limit=_megabytes(limit)),
+            op("announcements.error.image_too_large", size=megabytes(attachment.size), limit=megabytes(limit)),
             "image_too_large",
             retryable=False,
         )
@@ -204,7 +212,7 @@ def resolve_mention_key(app: App, raw: str | None) -> str | Problem | None:
 
 
 def target_channel(app: App, *, with_image: bool) -> discord.TextChannel | Problem:
-    """The announcements channel, if it exists and the bot can post (and attach files) there."""
+    """The announcements channel, if it exists and the bot can post (and attach files: the image, the banner) there."""
     op = app.op
     guild = app.guild
     if guild is None:
@@ -213,7 +221,8 @@ def target_channel(app: App, *, with_image: bool) -> discord.TextChannel | Probl
     channel = app.resources.text_channel(guild, key)
     if channel is None:
         return Problem(op("announcements.error.channel_missing", channel=key), "channel_missing")
-    required = CHANNEL_SEND_PERMISSIONS + (("attach_files",) if with_image else ())
+    with_files = with_image or announcement_banner(app) is not None
+    required = CHANNEL_SEND_PERMISSIONS + (("attach_files",) if with_files else ())
     missing = missing_permissions(guild.me, channel, required)
     if missing:
         return Problem(
@@ -293,17 +302,17 @@ def _state_reply(app: App, item: Announcement | None, actor_id: int, now: int) -
     """Why a form can no longer be used, or None when it can."""
     op = app.op
     if item is None:
-        return views.notice_reply(op, op("announcements.error.form_unknown"))
+        return views.unknown_form_reply(op)
     if item.actor_id != actor_id:
-        return views.notice_reply(op, op("announcements.error.not_owner"), tone="danger")
+        return views.not_owner_reply(op)
     if item.status == "published" and item.channel_id and item.message_id:
         return views.already_published_reply(op, url=_message_url(item.guild_id, item.channel_id, item.message_id))
     if item.status == "posting":
-        return views.notice_reply(op, op("announcements.error.busy"), tone="info")
+        return views.busy_reply(op)
     if item.status == "interrupted":
-        return views.notice_reply(op, op("announcements.error.interrupted", channel=_channel_text(app)))
+        return views.interrupted_reply(op, channel=_channel_text(app))
     if item.expired(now):
-        return views.notice_reply(op, op("announcements.error.expired", hours=DRAFT_TTL_SECONDS // 3600))
+        return views.expired_reply(op, hours=DRAFT_TTL_SECONDS // 3600)
     return None
 
 
@@ -318,7 +327,7 @@ async def reopen_form(app: App, *, token: str, actor_id: int) -> ModalSpec | vie
     item = await app.db.run(repo.get_by_token, app.env.guild_id, token)
     blocked = _state_reply(app, item, actor_id, app.clock.now())
     if blocked is not None or item is None:
-        return blocked or views.notice_reply(app.op, app.op("announcements.error.form_unknown"))
+        return blocked or views.unknown_form_reply(app.op)
     defaults: dict[str, str] = {views.TITLE_INPUT: item.title or "", views.MESSAGE_INPUT: item.message or ""}
     for field_id, value in item.field_values.items():
         defaults[views.field_input_id(field_id)] = value
@@ -442,7 +451,7 @@ async def download_image(app: App, image: ImageRef) -> tuple[bytes, str] | Probl
     limit = upload_limit(app)
     if len(data) > limit:
         return Problem(
-            op("announcements.error.image_too_large", size=_megabytes(len(data)), limit=_megabytes(limit)),
+            op("announcements.error.image_too_large", size=megabytes(len(data)), limit=megabytes(limit)),
             "image_too_large",
             retryable=False,
         )
@@ -555,9 +564,7 @@ async def submit(app: App, *, token: str, actor_id: int, fields: Mapping[str, st
         now=app.clock.now(),
     )
     if outcome != "claimed" or item is None:
-        return _state_reply(app, item, actor_id, app.clock.now()) or views.notice_reply(
-            app.op, app.op("announcements.error.form_unknown")
-        )
+        return _state_reply(app, item, actor_id, app.clock.now()) or views.unknown_form_reply(app.op)
     posted: Posted | list[Problem] = []
     try:
         posted = await _post(app, item, submission)

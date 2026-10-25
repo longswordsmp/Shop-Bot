@@ -105,7 +105,8 @@ def panel_message(ui: Ui, text: PanelText, *, inline_fields: bool) -> MessageSpe
         panel=True,
     )
     buttons = [ButtonSpec(label=link.label, style="link", url=link.url, emoji=link.emoji) for link in text.links]
-    return MessageSpec(embeds=(embed,), rows=rows_of(*buttons))
+    # Panel contents are owner-defined (rules, about, opening hours...), so the neutral banner fits every panel.
+    return MessageSpec(embeds=(embed,), rows=rows_of(*buttons), banner=ui.banner("general-response"))
 
 
 def build_panel(ui: Ui, panel: InfoPanelDef) -> MessageSpec:

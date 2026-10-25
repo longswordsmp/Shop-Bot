@@ -3,7 +3,8 @@
 The report is operator output (admin-only, ephemeral). It can be long on large servers, so its lines are
 grouped into embed fields with ``chunk_lines``; fields are packed into embeds (25 fields each), embeds into
 messages (10 embeds and 6000 characters each), and any remainder goes into additional messages. No line
-is ever cut: a single line longer than a field value is split across consecutive lines.
+is ever cut: a single line longer than a field value is split across consecutive lines. The staff-dashboard
+banner tops the first message only (the following messages continue the report).
 """
 
 from __future__ import annotations
@@ -13,6 +14,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field, replace
 from typing import Any
 
+from shopbot.config.banner_ids import BannerId
 from shopbot.ui import limits
 from shopbot.ui.spec import EmbedField, EmbedSpec, MessageSpec
 from shopbot.ui.style import Ui, chunk_lines
@@ -141,6 +143,11 @@ def pack_fields(
     return messages
 
 
+def notice_message(ui: Ui, title: str, *, tone: str, banner: BannerId) -> MessageSpec:
+    """A one-line operator reply to /setup (no server, a run already in progress)."""
+    return MessageSpec(embeds=(ui.operator_embed(title, tone=tone),), banner=ui.banner(banner))
+
+
 def report_messages(ui: Ui, op: Op, report: SetupReport) -> list[MessageSpec]:
     counts = report.count_values()
     if report.dry_run:
@@ -150,7 +157,7 @@ def report_messages(ui: Ui, op: Op, report: SetupReport) -> list[MessageSpec]:
         title = op("server.setup.title")
         summary = op("server.setup.summary", **counts)
     tone = "danger" if counts["failed"] else ("warning" if report.lines["problems"] else "success")
-    return pack_fields(
+    messages = pack_fields(
         ui,
         title=title,
         description=summary,
@@ -158,3 +165,5 @@ def report_messages(ui: Ui, op: Op, report: SetupReport) -> list[MessageSpec]:
         fields=report_fields(report, op),
         tone=tone,
     )
+    messages[0] = replace(messages[0], banner=ui.banner("staff-dashboard"))
+    return messages

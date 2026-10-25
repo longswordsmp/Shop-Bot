@@ -1,9 +1,10 @@
 """Pure view builders for the admin tools (operator text only; no Discord calls).
 
-Every builder takes the ``Ui`` (for operator embeds) and the operator-text function (``app.op``) plus plain
-data, and returns ``MessageSpec``/``ModalSpec`` objects that respect Discord's limits: long lists are split
+Every builder takes the ``Ui`` (for operator embeds and banners) and the operator-text function (``app.op``) plus
+plain data, and returns ``MessageSpec``/``ModalSpec`` objects that respect Discord's limits: long lists are split
 into fields and pages, never cut mid-text except operator diagnostics (audit details, task errors) that are
-explicitly clipped.
+explicitly clipped. Every reply carries the banner of its kind (dashboard, confirmation, error...); a reply split
+across several messages shows it on the first message only, and a paginated message keeps it on every page.
 """
 
 from __future__ import annotations
@@ -15,6 +16,7 @@ from typing import Any, Protocol
 
 from discord.utils import escape_markdown
 
+from shopbot.config.banner_ids import BannerId
 from shopbot.config.readiness import FeatureStatus, Problem
 from shopbot.db.repos.audit import AuditEvent
 from shopbot.db.repos.tasks import Task
@@ -182,16 +184,29 @@ def page_footer(op: OpFn, page: int, pages: int) -> str | None:
 
 
 def paged_messages(
-    ui: Ui, op: OpFn, title: str, description: str | None, sections: Sequence[Section], *, tone: str = "info"
+    ui: Ui,
+    op: OpFn,
+    title: str,
+    description: str | None,
+    sections: Sequence[Section],
+    *,
+    tone: str = "info",
+    banner: BannerId,
 ) -> list[MessageSpec]:
-    """Several messages (one embed each) when a list does not fit one message; for one-shot replies."""
+    """Several messages (one embed each) when a list does not fit one message; for one-shot replies. The ``banner``
+    tops the first message only."""
     pages = pack_sections(op, sections) or [()]
     specs: list[MessageSpec] = []
     for index, fields in enumerate(pages, start=1):
         embed = _embed(ui, title, description if index == 1 else None, tone=tone, fields=fields)
         if embed.is_empty():
             embed = replace(embed, description=op("admin.list.empty"))
-        specs.append(MessageSpec(embeds=(with_footer(embed, page_footer(op, index, len(pages))),)))
+        specs.append(
+            MessageSpec(
+                embeds=(with_footer(embed, page_footer(op, index, len(pages))),),
+                banner=ui.banner(banner) if index == 1 else None,
+            )
+        )
     return specs
 
 
@@ -202,8 +217,11 @@ def _embed(
     return ui.operator_embed(clip(title, limits.EMBED_TITLE), description, tone=tone, fields=fields)
 
 
-def simple(ui: Ui, op: OpFn, title: str, description: str | None = None, *, tone: str = "info") -> MessageSpec:
-    return MessageSpec(embeds=(_embed(ui, title, description, tone=tone),))
+def simple(
+    ui: Ui, op: OpFn, title: str, description: str | None = None, *, tone: str = "info", banner: BannerId
+) -> MessageSpec:
+    """A one-embed operator reply under ``banner``."""
+    return MessageSpec(embeds=(_embed(ui, title, description, tone=tone),), banner=ui.banner(banner))
 
 
 # --------------------------------------------------------------------------------------------------
@@ -299,7 +317,10 @@ def status_overview(ui: Ui, op: OpFn, snap: StatusSnapshot) -> MessageSpec:
     ]
     healthy = len(ready) == len(enabled) and snap.guild_available and not snap.missing_permissions
     tone = "success" if healthy and not snap.unknown_keys else "warning"
-    return MessageSpec(embeds=(_embed(ui, op("admin.status.title"), description, tone=tone, fields=fields),))
+    return MessageSpec(
+        embeds=(_embed(ui, op("admin.status.title"), description, tone=tone, fields=fields),),
+        banner=ui.banner("staff-dashboard"),
+    )
 
 
 def status_feature(ui: Ui, op: OpFn, feature: str, status: FeatureStatus, page: int) -> MessageSpec:
@@ -321,13 +342,15 @@ def status_feature(ui: Ui, op: OpFn, feature: str, status: FeatureStatus, page: 
         ui, op("admin.status.feature_title", feature=feature), "\n".join(parts), tone=tone, fields=pages[page - 1]
     )
     embed = with_footer(embed, page_footer(op, page, len(pages)))
-    return MessageSpec(embeds=(embed,), rows=pager_rows(op, "status", feature, page, len(pages)))
+    return MessageSpec(
+        embeds=(embed,), rows=pager_rows(op, "status", feature, page, len(pages)), banner=ui.banner("staff-dashboard")
+    )
 
 
 def unknown_feature(ui: Ui, op: OpFn, feature: str, features: Sequence[str]) -> MessageSpec:
     known = op("admin.known_features", features=", ".join(f"`{name}`" for name in features))
     title = clip(op("admin.unknown_feature", feature=escape_markdown(feature)), limits.EMBED_TITLE)
-    return simple(ui, op, title, clip(known, limits.EMBED_DESCRIPTION), tone="danger")
+    return simple(ui, op, title, clip(known, limits.EMBED_DESCRIPTION), tone="danger", banner="error")
 
 
 # --------------------------------------------------------------------------------------------------
@@ -340,7 +363,7 @@ def unknown_key(ui: Ui, op: OpFn, key: str, suggestions: Sequence[str]) -> Messa
         op("admin.content.did_you_mean", suggestions=", ".join(f"`{s}`" for s in suggestions)) if suggestions else None
     )
     title = clip(op("admin.content.unknown_key", content_key=escape_markdown(key)), limits.EMBED_TITLE)
-    return simple(ui, op, title, description, tone="danger")
+    return simple(ui, op, title, description, tone="danger", banner="error")
 
 
 def content_modal(op: OpFn, token: str, key: str, current: str | None) -> ModalSpec:
@@ -390,8 +413,10 @@ def list_field(op: OpFn, name: str, lines: Sequence[str]) -> list[EmbedField]:
     return [EmbedField(clip(name, limits.EMBED_FIELD_NAME), bounded_list(op, lines, LIST_FIELD_BUDGET))]
 
 
-def _value_reply(ui: Ui, op: OpFn, title: str, value: str | None, fields: list[EmbedField], tone: str) -> Reply:
-    """An embed with fields plus the exact value (code block if the 6000-character total allows)."""
+def _value_reply(
+    ui: Ui, op: OpFn, title: str, value: str | None, fields: list[EmbedField], tone: str, banner: BannerId
+) -> Reply:
+    """An embed with fields plus the exact value (code block if the 6000-character total allows), under ``banner``."""
     title = clip(title, limits.EMBED_TITLE)
     budget = limits.EMBED_TOTAL_CHARS - _embed_text(title, fields) - MESSAGE_MARGIN
     if value is None:
@@ -399,7 +424,7 @@ def _value_reply(ui: Ui, op: OpFn, title: str, value: str | None, fields: list[E
     else:
         description, attachment = _value_display(op, value, budget)
     embed = _embed(ui, title, description, tone=tone, fields=fields)
-    return Reply(MessageSpec(embeds=(embed,)), attachment)
+    return Reply(MessageSpec(embeds=(embed,), banner=ui.banner(banner)), attachment)
 
 
 def content_saved(
@@ -414,7 +439,7 @@ def content_saved(
     fields = list_field(op, op("admin.content.readiness"), [change_line(op, c) for c in changes])
     fields += list_field(op, op("admin.content.panels"), panels)
     title = op("admin.content.saved_title", content_key=key)
-    return _value_reply(ui, op, title, value, fields, "success")
+    return _value_reply(ui, op, title, value, fields, "success", "successful-confirmation")
 
 
 def panel_refresh_lines(op: OpFn, failed: int, error_id: str | None) -> list[str]:
@@ -461,7 +486,11 @@ def edit_text_choices(ui: Ui, op: OpFn, found: Sequence[tuple[str, str]]) -> Mes
         options=options,
         placeholder=clip(op("admin.edit.placeholder"), limits.SELECT_PLACEHOLDER),
     )
-    return MessageSpec(embeds=(_embed(ui, op("admin.edit.title"), description),), rows=((select,),))
+    return MessageSpec(
+        embeds=(_embed(ui, op("admin.edit.title"), description),),
+        rows=((select,),),
+        banner=ui.banner("general-response"),
+    )
 
 
 def content_invalid(ui: Ui, op: OpFn, key: str, value: str, problems: Sequence[str]) -> Reply:
@@ -470,7 +499,7 @@ def content_invalid(ui: Ui, op: OpFn, key: str, value: str, problems: Sequence[s
         lines.append(op("admin.content.submitted_value"))
     fields = list_field(op, op("admin.content.problems"), lines)
     title = op("admin.content.invalid_title", content_key=key)
-    return _value_reply(ui, op, title, value or None, fields, "danger")
+    return _value_reply(ui, op, title, value or None, fields, "danger", "rejected-or-unsuccessful-submission")
 
 
 def _source_text(op: OpFn, source: str | None, fallback: str | None) -> str:
@@ -514,13 +543,14 @@ def content_show(ui: Ui, op: OpFn, info: KeyInfo) -> Reply:
     title = op("admin.content.show_title", content_key=definition.key)
     if info.shown is None:
         embed = _embed(ui, clip(title, limits.EMBED_TITLE), op("admin.content.unset_value"), tone=tone, fields=fields)
-        return Reply(MessageSpec(embeds=(embed,)))
-    return _value_reply(ui, op, title, info.shown, fields, tone)
+        return Reply(MessageSpec(embeds=(embed,), banner=ui.banner("staff-dashboard")))
+    return _value_reply(ui, op, title, info.shown, fields, tone, "staff-dashboard")
 
 
 def content_cleared(ui: Ui, op: OpFn, result: ClearResult) -> MessageSpec:
     if not result.removed:
-        return simple(ui, op, op("admin.content.no_override", content_key=result.key), tone="warning")
+        no_override = op("admin.content.no_override", content_key=result.key)
+        return simple(ui, op, no_override, tone="warning", banner="general-response")
     description = op("admin.content.cleared_now", source=_source_text(op, result.source_after, None))
     fields = list_field(op, op("admin.content.readiness"), [change_line(op, c) for c in result.changes])
     embed = _embed(
@@ -530,7 +560,7 @@ def content_cleared(ui: Ui, op: OpFn, result: ClearResult) -> MessageSpec:
         tone="success",
         fields=fields,
     )
-    return MessageSpec(embeds=(embed,))
+    return MessageSpec(embeds=(embed,), banner=ui.banner("successful-confirmation"))
 
 
 def content_missing(
@@ -554,7 +584,11 @@ def content_missing(
         fields=pages[page - 1],
     )
     embed = with_footer(embed, page_footer(op, page, len(pages)))
-    return MessageSpec(embeds=(embed,), rows=pager_rows(op, "miss", scope_arg(feature), page, len(pages)))
+    return MessageSpec(
+        embeds=(embed,),
+        rows=pager_rows(op, "miss", scope_arg(feature), page, len(pages)),
+        banner=ui.banner("staff-dashboard"),
+    )
 
 
 def key_line(op: OpFn, row: KeyRow) -> str:
@@ -592,12 +626,18 @@ def content_keys(
     description = op("admin.content.keys_summary", total=len(rows), configured=configured, missing=missing)
     embed = _embed(ui, op("admin.content.keys_title"), description, fields=pages[page - 1])
     embed = with_footer(embed, page_footer(op, page, len(pages)))
-    return MessageSpec(embeds=(embed,), rows=pager_rows(op, "keys", scope_arg(feature), page, len(pages)))
+    return MessageSpec(
+        embeds=(embed,),
+        rows=pager_rows(op, "keys", scope_arg(feature), page, len(pages)),
+        banner=ui.banner("staff-dashboard"),
+    )
 
 
 def content_export(ui: Ui, op: OpFn, *, total: int, configured: int, overrides: int) -> MessageSpec:
     description = op("admin.content.export_summary", total=total, configured=configured, overrides=overrides)
-    return simple(ui, op, op("admin.content.export_title"), description, tone="success")
+    return simple(
+        ui, op, op("admin.content.export_title"), description, tone="success", banner="successful-confirmation"
+    )
 
 
 # --------------------------------------------------------------------------------------------------
@@ -608,9 +648,12 @@ def content_export(ui: Ui, op: OpFn, *, total: int, configured: int, overrides: 
 def reload_report(ui: Ui, op: OpFn, report: ReloadReport) -> list[MessageSpec]:
     features = Section(op("admin.status.features"), tuple(feature_status_line(op, f) for f in report.features))
     if report.ok:
-        return paged_messages(ui, op, op("admin.reload.ok_title"), op("admin.reload.hint"), [features], tone="success")
+        hint = op("admin.reload.hint")
+        title = op("admin.reload.ok_title")
+        return paged_messages(ui, op, title, hint, [features], tone="success", banner="successful-confirmation")
     errors = Section(op("admin.reload.errors"), tuple(escape_markdown(e) for e in report.errors))
-    return paged_messages(ui, op, op("admin.reload.failed_title"), None, [errors, features], tone="danger")
+    title = op("admin.reload.failed_title")
+    return paged_messages(ui, op, title, None, [errors, features], tone="danger", banner="error")
 
 
 def backup_report(ui: Ui, op: OpFn, *, path: str, size: int, kept: int, removed: int) -> MessageSpec:
@@ -620,7 +663,7 @@ def backup_report(ui: Ui, op: OpFn, *, path: str, size: int, kept: int, removed:
             op("admin.backup.private"),
         ]
     )
-    return simple(ui, op, op("admin.backup.title"), description, tone="success")
+    return simple(ui, op, op("admin.backup.title"), description, tone="success", banner="successful-confirmation")
 
 
 # --------------------------------------------------------------------------------------------------
@@ -654,9 +697,9 @@ def audit_line(op: OpFn, event: AuditEvent) -> str:
 
 def audit_list(ui: Ui, op: OpFn, events: Sequence[AuditEvent]) -> list[MessageSpec]:
     if not events:
-        return [simple(ui, op, op("admin.audit.title"), op("admin.audit.empty"))]
+        return [simple(ui, op, op("admin.audit.title"), op("admin.audit.empty"), banner="activity-log")]
     section = Section(op("admin.audit.events"), tuple(audit_line(op, e) for e in events))
-    return paged_messages(ui, op, op("admin.audit.title"), None, [section])
+    return paged_messages(ui, op, op("admin.audit.title"), None, [section], banner="activity-log")
 
 
 def task_line(op: OpFn, task: Task) -> str:
@@ -682,6 +725,7 @@ def tasks_list(ui: Ui, op: OpFn, tasks: Sequence[Task], counts: dict[str, int]) 
         failed=counts.get("failed", 0),
     )
     if not tasks:
-        return [simple(ui, op, op("admin.tasks.title"), "\n".join([summary, op("admin.tasks.empty")]))]
+        empty = "\n".join([summary, op("admin.tasks.empty")])
+        return [simple(ui, op, op("admin.tasks.title"), empty, banner="staff-dashboard")]
     section = Section(op("admin.tasks.list"), tuple(task_line(op, t) for t in tasks))
-    return paged_messages(ui, op, op("admin.tasks.title"), summary, [section])
+    return paged_messages(ui, op, op("admin.tasks.title"), summary, [section], banner="staff-dashboard")
