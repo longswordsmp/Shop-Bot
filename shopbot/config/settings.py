@@ -39,6 +39,8 @@ TONES = ("primary", "info", "success", "warning", "danger", "neutral")
 RESERVED_TICKET_CATEGORY_IDS = frozenset({"checkout"})
 MAX_FORM_FIELDS = 5
 CHANNEL_PATTERN_PLACEHOLDERS = frozenset({"prefix", "number", "user"})
+# checkout.customer_role_on: the order status that makes a member a customer.
+CUSTOMER_ROLE_TRIGGERS = ("paid", "fulfilled")
 
 # Discord permission flag names accepted in server.roles[].permissions.
 GUILD_PERMISSION_NAMES = frozenset(
@@ -448,6 +450,10 @@ class CheckoutSettings:
     submission_form: tuple[FormField, ...] = ()
     fulfillment_options: tuple[FulfillmentOption, ...] = ()
     fees: tuple[FeeDef, ...] = ()
+    # Customer role (operations package): role key given when an order reaches ``customer_role_on`` ("" = off).
+    customer_role: str = ""
+    customer_role_on: str = "fulfilled"
+    customer_role_remove_on_refund: bool = True
 
     def fulfillment(self, option_id: str | None) -> FulfillmentOption | None:
         return next((o for o in self.fulfillment_options if o.id == option_id), None)
@@ -639,7 +645,32 @@ class MyOrdersSettings:
 
 @dataclass(frozen=True)
 class OperationsSettings:
-    """[operations]: staff alerts, reminders, Owner alerts and record-handling options."""
+    """[operations]: staff alerts, reminders, Owner alerts and record-handling options.
+
+    ``staff_channel``: channel key of the staff alert channel (#staff-chat). ``ping_roles``: role keys mentioned on
+    alerts that need attention. ``owner_dm_alerts``: the Owner (OWNER_ID) also receives order alerts and critical
+    failure alerts by direct message (falling back to the staff channel). Reminder thresholds are minutes; 0 = off.
+    """
+
+    staff_channel: str = ""
+    ping_roles: tuple[str, ...] = ()
+    owner_dm_alerts: bool = False
+    unclaimed_order_minutes: int = 0
+    unpaid_order_minutes: int = 0
+    unfulfilled_order_minutes: int = 0
+    unanswered_ticket_minutes: int = 0
+    reminder_repeat_minutes: int = 0
+
+    def reminders_enabled(self) -> bool:
+        return any(
+            minutes > 0
+            for minutes in (
+                self.unclaimed_order_minutes,
+                self.unpaid_order_minutes,
+                self.unfulfilled_order_minutes,
+                self.unanswered_ticket_minutes,
+            )
+        )
 
 
 @dataclass(frozen=True)
@@ -929,6 +960,9 @@ def parse_settings(data: dict[str, Any]) -> Settings:
         submission_form=_form(co, "submission_form"),
         fulfillment_options=tuple(options),
         fees=tuple(fees),
+        customer_role=co.str_("customer_role", "", pattern=KEY_PATTERN),
+        customer_role_on=co.str_("customer_role_on", "fulfilled", choices=CUSTOMER_ROLE_TRIGGERS),
+        customer_role_remove_on_refund=co.bool_("customer_role_remove_on_refund", True),
     )
     co.finish()
     _unique(checkout.fulfillment_options, lambda x: x.id, "checkout.fulfillment_options", errors)
@@ -1184,5 +1218,20 @@ def _parse_my_orders(r: _Reader) -> MyOrdersSettings:
     )
 
 
+_MAX_MINUTES = 525_600  # one year
+
+
 def _parse_operations(r: _Reader) -> OperationsSettings:
-    return _finish(r, OperationsSettings())
+    return _finish(
+        r,
+        OperationsSettings(
+            staff_channel=r.str_("staff_channel", "", pattern=KEY_PATTERN),
+            ping_roles=r.keys_("ping_roles"),
+            owner_dm_alerts=r.bool_("owner_dm_alerts", False),
+            unclaimed_order_minutes=r.int_("unclaimed_order_minutes", 0, min_=0, max_=_MAX_MINUTES),
+            unpaid_order_minutes=r.int_("unpaid_order_minutes", 0, min_=0, max_=_MAX_MINUTES),
+            unfulfilled_order_minutes=r.int_("unfulfilled_order_minutes", 0, min_=0, max_=_MAX_MINUTES),
+            unanswered_ticket_minutes=r.int_("unanswered_ticket_minutes", 0, min_=0, max_=_MAX_MINUTES),
+            reminder_repeat_minutes=r.int_("reminder_repeat_minutes", 0, min_=0, max_=_MAX_MINUTES),
+        ),
+    )

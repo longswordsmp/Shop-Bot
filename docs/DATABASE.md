@@ -582,3 +582,69 @@ Constraints:
 - `CHECK ((status = 'open') = (decided_at IS NULL))`
 - `CHECK ((status = 'open') = (decided_by IS NULL))`
 - `CHECK (status != 'open' OR reason IS NULL)`
+
+## `order_handling`
+
+| Column | Type | Not null | Default | Key |
+|---|---|---|---|---|
+| `order_id` | INTEGER |  |  | PK |
+| `claimed_by` | INTEGER |  |  |  |
+| `claimed_at` | INTEGER |  |  |  |
+| `unclaimed_at` | INTEGER |  |  |  |
+| `tracking` | TEXT |  |  |  |
+| `tracking_by` | INTEGER |  |  |  |
+| `tracking_at` | INTEGER |  |  |  |
+| `version` | INTEGER | yes | 1 |  |
+| `updated_at` | INTEGER | yes |  |  |
+
+Constraints:
+
+- `tracking TEXT CHECK (tracking IS NULL OR length(tracking) BETWEEN 1 AND 1000)`
+- `version INTEGER NOT NULL DEFAULT 1 CHECK (version >= 1)`
+- `CHECK ((claimed_by IS NULL) = (claimed_at IS NULL))`
+- `CHECK ((tracking IS NULL) = (tracking_at IS NULL))`
+
+## `order_activity`
+
+| Column | Type | Not null | Default | Key |
+|---|---|---|---|---|
+| `id` | INTEGER |  |  | PK |
+| `order_id` | INTEGER | yes |  |  |
+| `kind` | TEXT | yes |  |  |
+| `actor_id` | INTEGER |  |  |  |
+| `text` | TEXT |  |  |  |
+| `created_at` | INTEGER | yes |  |  |
+
+Indexes: `idx_order_activity_order`
+
+Constraints:
+
+- `kind TEXT NOT NULL CHECK (kind IN ('claim', 'unclaim', 'note', 'correction', 'tracking', 'rejection'))`
+- `text TEXT CHECK (text IS NULL OR length(text) BETWEEN 1 AND 1000)`
+- `CHECK (kind IN ('claim', 'unclaim') OR text IS NOT NULL)`
+
+## `ticket_replies`
+
+| Column | Type | Not null | Default | Key |
+|---|---|---|---|---|
+| `ticket_id` | INTEGER |  |  | PK |
+| `awaiting_since` | INTEGER |  |  |  |
+| `last_customer_message_at` | INTEGER |  |  |  |
+| `last_staff_reply_at` | INTEGER |  |  |  |
+| `updated_at` | INTEGER | yes |  |  |
+
+## `operations_reminders`
+
+| Column | Type | Not null | Default | Key |
+|---|---|---|---|---|
+| `kind` | TEXT | yes |  | PK |
+| `target_id` | INTEGER | yes |  | PK |
+| `since` | INTEGER | yes |  |  |
+| `sent_count` | INTEGER | yes | 0 |  |
+| `last_sent_at` | INTEGER |  |  |  |
+
+Constraints:
+
+- `kind TEXT NOT NULL CHECK (kind IN ('unclaimed', 'unpaid', 'unfulfilled', 'unanswered'))`
+- `target_id INTEGER NOT NULL CHECK (target_id > 0)`
+- `sent_count INTEGER NOT NULL DEFAULT 0 CHECK (sent_count >= 0)`

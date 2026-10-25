@@ -15,10 +15,10 @@ Amounts stored in an order are written in the ORDER's currency (``order_money``)
 ``checkout.currency_exponent`` applies only while that is still the configured shop currency. Amounts of an
 unsubmitted cart use the configured currency (``money``).
 
-Large orders: the order views (``order_messages``) and the staff controls (``staff_messages``) budget Discord's
-limits (6000 characters and 10 cards per message, 25 fields per card). When the order lines do not fit next to the
-configured text, the main message keeps the totals, the payment instructions and the buttons, and the lines are
-sent as separate messages; configured text is never cut.
+Large orders: the order views (``order_messages``) and the staff controls (``staff_views.staff_messages``) budget
+Discord's limits (6000 characters and 10 cards per message, 25 fields per card). When the order lines do not fit next
+to the configured text, the main message keeps the totals, the payment instructions and the buttons, and the lines
+are sent as separate messages; configured text is never cut.
 """
 
 from __future__ import annotations
@@ -213,12 +213,24 @@ def credit_return_form_id(order_id: int) -> str:
     return cid(STAFF_ROUTE, "creturnform", order_id)
 
 
+# Management actions on the live order record (``staff_views``: claim/unclaim, note, correction, tracking, details).
+MANAGEMENT_ACTIONS = frozenset({"claim", "unclaim", "note", "correct", "track", "details"})
 # Staff-channel actions whose custom_id carries the order id as its first argument (the controls of an order).
-ORDER_CONTROL_ACTIONS = frozenset({*STAFF_ACTION_TARGETS, "refund", "creturn"})
+ORDER_CONTROL_ACTIONS = frozenset({*STAFF_ACTION_TARGETS, "refund", "creturn", *MANAGEMENT_ACTIONS})
 
 
 def list_page_id(page: int, status: str, user_id: int) -> str:
     return cid(STAFF_ROUTE, "lpage", page, status or "all", user_id)
+
+
+def list_filter_id(user_id: int) -> str:
+    """The order list's status filter (keeps the member filter of the list it is on)."""
+    return cid(STAFF_ROUTE, "lfilter", user_id)
+
+
+def list_view_id() -> str:
+    """The order list's menu that shows an order's full record privately."""
+    return cid(STAFF_ROUTE, "lview")
 
 
 # -- small helpers ------------------------------------------------------------------------------------------
@@ -1189,8 +1201,9 @@ def order_cancel_confirm(ui: Ui, order: m.Order) -> MessageSpec:
 
 
 def staff_buttons(ui: Ui, order: m.Order, *, staff_confirms_payment: bool, credit_refunds: bool) -> list[ButtonSpec]:
-    """The controls for the order's current status. Status buttons carry that status (a click after the order
-    changed acts on nothing). ``credit_refunds``: refunds to store credit are possible for this order now."""
+    """The status and refund controls for the order's current status. Status buttons carry that status (a click after
+    the order changed acts on nothing). ``credit_refunds``: refunds to store credit are possible for this order now.
+    The live record (``staff_views.staff_messages``) adds the management buttons after these."""
     buttons: list[ButtonSpec] = []
     status = order.status
 
@@ -1217,52 +1230,6 @@ def staff_buttons(ui: Ui, order: m.Order, *, staff_confirms_payment: bool, credi
     if status in m.TRANSITIONS[m.CANCELLED]:
         buttons.append(action(m.CANCELLED, k.STAFF_BUTTON_CANCEL, "secondary" if status == m.PENDING else "danger"))
     return buttons
-
-
-def staff_messages(
-    ui: Ui, settings: Settings, view: m.OrderView, *, staff_confirms_payment: bool, credit_refunds: bool
-) -> list[MessageSpec]:
-    """The order controls in the staff channel (edited in place on every status change), then - only when the order
-    lines do not fit next to the configured text - the lines as separate messages. Nothing is cut."""
-    order = view.order
-    fmt = order_money(ui, settings, order.currency)
-    status = _text(ui, k.status_label_key(order.status))
-    total = fmt(order.total_minor)
-    title = _text(ui, k.STAFF_TITLE, order_number=str(order.number), total=total, status=status)
-    description = _text(
-        ui,
-        k.STAFF_DESCRIPTION,
-        order_number=str(order.number),
-        user_mention=user_mention(order.user_id),
-        channel_mention=channel_mention(view.channel_id),
-        total=total,
-        status=status,
-    )
-    line_fields = _order_line_fields(ui, view, fmt)
-    total_fields = _order_total_fields(ui, view, fmt)
-    if order.refunded_minor > 0:
-        total_fields.append(_field(ui, k.STAFF_REFUNDED_FIELD, fmt(order.refunded_minor), inline=True))
-    if order.credit_returned_minor > 0:
-        returned = _optional_field(ui, k.STAFF_CREDIT_RETURNED_FIELD, fmt(order.credit_returned_minor), inline=True)
-        if returned is not None:
-            total_fields.append(returned)
-    head = ui.embed(title=title, description=description, tone=_STATUS_TONES.get(order.status, "info"), timestamp=True)
-    buttons = staff_buttons(ui, order, staff_confirms_payment=staff_confirms_payment, credit_refunds=credit_refunds)
-    rows = rows_of(*buttons)
-    full = _spread(head, line_fields + total_fields)
-    if _fits(full):
-        return [MessageSpec(embeds=tuple(full), rows=rows)]
-    main = MessageSpec(embeds=tuple(_spread(head, total_fields)), rows=rows)
-    return [main, *_pack_fields(line_fields, head.color)]
-
-
-def staff_message(
-    ui: Ui, settings: Settings, view: m.OrderView, *, staff_confirms_payment: bool, credit_refunds: bool
-) -> MessageSpec:
-    """The order controls in the staff channel (see ``staff_messages``)."""
-    return staff_messages(
-        ui, settings, view, staff_confirms_payment=staff_confirms_payment, credit_refunds=credit_refunds
-    )[0]
 
 
 def ordered_answers(settings: Settings, order: m.Order) -> list[tuple[str, str]]:
@@ -1442,7 +1409,8 @@ def order_list_page(
     status: str,
     user_id: int,
 ) -> MessageSpec:
-    """Staff order list (operator text) with previous/next buttons when there is more than one page."""
+    """Staff order list (operator text): a status filter, a menu that opens an order's full record, and
+    previous/next buttons when there is more than one page."""
     lines = [
         op(
             "checkout.list.line",
@@ -1456,19 +1424,46 @@ def order_list_page(
     ]
     description = "\n".join(lines) if lines else op("checkout.list.empty")
     embed = ui.operator_embed(op("checkout.list.title", total=total), description)
-    if pages <= 1:
-        return MessageSpec(embeds=(embed,))
-    embed = replace(embed, footer_text=op("checkout.list.page", page=page + 1, pages=pages))
-    rows = rows_of(
-        ButtonSpec(
-            label=op("checkout.list.previous"),
-            custom_id=list_page_id(max(0, page - 1), status, user_id),
-            disabled=page <= 0,
-        ),
-        ButtonSpec(
-            label=op("checkout.list.next"),
-            custom_id=list_page_id(min(pages - 1, page + 1), status, user_id),
-            disabled=page >= pages - 1,
-        ),
+    if pages > 1:
+        embed = replace(embed, footer_text=op("checkout.list.page", page=page + 1, pages=pages))
+    filter_options = (
+        SelectOptionSpec(label=op("checkout.list.filter_all"), value="all", default=not status),
+        *(SelectOptionSpec(label=s, value=s, default=s == status) for s in m.ORDER_STATUSES),
     )
-    return MessageSpec(embeds=(embed,), rows=rows)
+    rows: list[tuple[Component, ...]] = [
+        (
+            SelectSpec(
+                custom_id=list_filter_id(user_id),
+                options=filter_options,
+                placeholder=op("checkout.list.filter_placeholder"),
+            ),
+        )
+    ]
+    if orders:
+        view_options = tuple(
+            SelectOptionSpec(label=op("checkout.list.view_option", number=o.number, status=o.status), value=str(o.id))
+            for o in orders
+        )
+        rows.append(
+            (
+                SelectSpec(
+                    custom_id=list_view_id(), options=view_options, placeholder=op("checkout.list.view_placeholder")
+                ),
+            )
+        )
+    if pages > 1:
+        rows.extend(
+            rows_of(
+                ButtonSpec(
+                    label=op("checkout.list.previous"),
+                    custom_id=list_page_id(max(0, page - 1), status, user_id),
+                    disabled=page <= 0,
+                ),
+                ButtonSpec(
+                    label=op("checkout.list.next"),
+                    custom_id=list_page_id(min(pages - 1, page + 1), status, user_id),
+                    disabled=page >= pages - 1,
+                ),
+            )
+        )
+    return MessageSpec(embeds=(embed,), rows=tuple(rows))

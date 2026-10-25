@@ -20,6 +20,7 @@ from tests.checkout.util import (
     audit_actions,
     balance,
     channel,
+    control_ids,
     error_text,
     give_credits,
     make_env,
@@ -29,6 +30,7 @@ from tests.checkout.util import (
     place_order,
     press,
     product,
+    reject,
     render,
     staff_message,
     start,
@@ -97,7 +99,7 @@ async def test_concurrent_staff_clicks_apply_once(co: TestEnv) -> None:
     control = staff_message(co, placed)
     results = await asyncio.gather(
         press(co, s1, control, views.staff_action_id(m.PAID, placed.id)),
-        press(co, s2, control, views.staff_action_id(m.REJECTED, placed.id)),
+        reject(co, s2, control, placed.id),
     )
     texts = sorted(op_text(r) or "" for r in results)
     current = await order(co, placed.id)
@@ -138,7 +140,7 @@ async def test_each_status_change_updates_views_and_notifies_once(co: TestEnv) -
             co, k.STAFF_TITLE, order_number="1", total=money(co, 1000), status=status
         )
     control = staff_message(co, await order(co, placed.id))
-    assert control.custom_ids() == [
+    assert control_ids(control) == [
         views.refund_id(placed.id, views.MODE_MONEY),
         views.refund_id(placed.id, views.MODE_CREDIT),
     ]
@@ -164,7 +166,7 @@ async def test_paid_buttons_and_stock_commit(co: TestEnv) -> None:
     await press(co, staffer, staff_message(co, placed), views.staff_action_id(m.PAID, placed.id))
     paid = await order(co, placed.id)
     assert paid.paid_at == co.clock.now()
-    assert staff_message(co, paid).custom_ids() == [
+    assert control_ids(staff_message(co, paid)) == [
         views.staff_action_id(m.PROCESSING, placed.id, m.PAID),
         views.staff_action_id(m.FULFILLED, placed.id, m.PAID),
         views.refund_id(placed.id, views.MODE_MONEY),
@@ -184,7 +186,7 @@ async def test_paid_buttons_and_stock_commit(co: TestEnv) -> None:
     assert (stock.stock_on_hand, stock.reserved) == (1, 0)
     assert await ticket_status(co, placed.ticket_id or 0) == "closed"
     # a paid-then-cancelled order can still be refunded
-    assert staff_message(co, cancelled).custom_ids() == [
+    assert control_ids(staff_message(co, cancelled)) == [
         views.refund_id(placed.id, views.MODE_MONEY),
         views.refund_id(placed.id, views.MODE_CREDIT),
     ]
@@ -201,7 +203,10 @@ async def test_rejection_releases_stock_and_returns_credits(co: TestEnv) -> None
     await submit(co, customer, message, session.id)
     placed = await order(co, 1)
     assert await balance(co, customer.id) == 0 and (await product(co, p1.id)).reserved == 2
-    rejected = await press(co, staffer, staff_message(co, placed), views.staff_action_id(m.REJECTED, placed.id))
+    form = await press(co, staffer, staff_message(co, placed), views.staff_action_id(m.REJECTED, placed.id))
+    assert form.response.modal is not None  # the reject button opens the reason form; nothing changes yet
+    assert (await order(co, placed.id)).status == m.PENDING
+    rejected = await reject(co, staffer, staff_message(co, placed), placed.id)
     assert op_text(rejected) == co.app.op("checkout.op.status_changed", number=1, status=m.REJECTED)
     current = await order(co, placed.id)
     assert current.status == m.REJECTED and current.closed_at is not None
@@ -212,7 +217,7 @@ async def test_rejection_releases_stock_and_returns_credits(co: TestEnv) -> None
     assert payment is not None and payment.status == "cancelled"
     assert customer.dms[-1].embeds[0].description == _notification(co, m.REJECTED, current, ch.id)
     assert await ticket_status(co, placed.ticket_id or 0) == "closed"
-    assert staff_message(co, current).custom_ids() == []
+    assert control_ids(staff_message(co, current)) == []
     entries = await co.app.db.run(credits_repo.order_entries, GUILD_ID, placed.id)
     assert [e.kind for e in entries] == ["order_debit", "order_return"]
 
@@ -328,7 +333,7 @@ async def test_partial_and_full_refunds(co: TestEnv) -> None:
     assert co.app.op("checkout.op.fully_refunded", number=1) in (op_text(last) or "")
     done = await order(co, placed.id)
     assert done.status == m.REFUNDED and done.refunded_minor == done.total_minor == 2000
-    assert staff_message(co, done).custom_ids() == []
+    assert control_ids(staff_message(co, done)) == []
     assert await ticket_status(co, placed.ticket_id or 0) == "closed"
     # partial refund: the refund notification; the refund that completes it: the 'refunded' notification
     assert customer.dms[-1].embeds[0].description == _notification(co, m.REFUNDED, placed, ch.id)

@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING, Any, Literal
 import discord
 
 from shopbot.config.content import MissingContent
+from shopbot.core.events import FAILURE
 from shopbot.core.ratelimit import Cooldowns, InFlight, SlidingWindowLimiter
 from shopbot.features import core_keys as ck
 from shopbot.logging_setup import log_event
@@ -426,6 +427,7 @@ class Router:
                 error_id=error_id,
             )
             await ctx.fail(ck.ERROR_GENERIC, error_id=error_id)
+            await self._report_failure(route, error_id, exc)
             return
         except discord.NotFound as exc:
             log_event(log, logging.WARNING, "discord_not_found", route=route.route, action=route.action, code=exc.code)
@@ -444,10 +446,21 @@ class Router:
             )
             log.exception("handler failure %s", error_id)
             await ctx.fail(ck.ERROR_GENERIC, error_id=error_id)
+            await self._report_failure(route, error_id, exc)
             return
         if not ctx.responded:
             log_event(log, logging.DEBUG, "interaction_auto_ack", route=route.route, action=route.action)
             await ctx.ack()
+
+    async def _report_failure(self, route: Route, error_id: str, exc: BaseException) -> None:
+        """Tell interested features (operations: audit + staff alert) about an unexpected handler failure."""
+        await self.app.events.publish(
+            FAILURE,
+            kind="interaction",
+            source=f"{route.route}:{route.action}",
+            error_id=error_id,
+            error=type(exc).__name__,
+        )
 
 
 async def _noop(ctx: Ctx) -> None:

@@ -18,6 +18,11 @@ _REDACTED = "[REDACTED]"
 _RESERVED = frozenset(vars(logging.makeLogRecord({})).keys()) | {"message", "asctime"}
 
 
+def redact(text: str) -> str:
+    """``text`` with token-shaped strings replaced (for operator-visible output such as audit embeds)."""
+    return _TOKEN_PATTERN.sub(_REDACTED, text)
+
+
 class RedactingFilter(logging.Filter):
     """Removes known secret values and token-shaped strings from log records."""
 

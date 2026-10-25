@@ -1,8 +1,9 @@
-"""``/order`` staff commands: lookup, list, status, refund, cancel, note.
+"""Staff order commands: ``/orders`` (browse orders, filter by status and member, paginated; open a record from the
+list) and ``/order`` (lookup, view, list, status, refund, cancel, note).
 
 Hidden from non-staff by default permissions (manage_messages); authorized by ``require_staff`` with the checkout
-staff roles. Status changes and refunds go through the same code path as the staff order-control buttons. Replies
-are private operator text.
+staff roles on every invocation. Status changes, refunds and notes go through the same code path as the buttons of
+the live order record. Replies are private operator text.
 """
 
 from __future__ import annotations
@@ -14,6 +15,7 @@ from discord import app_commands
 
 from shopbot.commands import app_of, reply, reply_operator, require_staff
 from shopbot.features.checkout import content_keys as k
+from shopbot.features.checkout import handling_repo as h
 from shopbot.features.checkout import models as m
 from shopbot.features.checkout import service, staff
 
@@ -25,6 +27,7 @@ StatusChoice = Literal[
 ]
 TargetChoice = Literal["paid", "processing", "fulfilled", "rejected", "cancelled"]
 OrderNumber = app_commands.Range[int, 1, 2_000_000_000]
+NOTE_MAX = h.NOTE_MAX
 
 
 def staff_role_keys(app: App) -> tuple[str, ...]:
@@ -129,8 +132,26 @@ async def order_note(interaction: discord.Interaction[Any], number: int, text: s
     order = await _order(interaction, app, number)
     if order is None:
         return
-    await service.add_note(app, order.id, actor_id=interaction.user.id, note=text)
-    await _send(interaction, app, staff.OpReply(app.op("checkout.op.note_added", number=number), "success"))
+    await _defer(interaction)
+    await _send(interaction, app, await staff.note(app, order, actor_id=interaction.user.id, text=text))
+
+
+def build_orders_command() -> app_commands.Command[Any, ..., None]:
+    """A fresh ``/orders`` command (browse orders; the same list as ``/order list``)."""
+
+    @app_commands.command(name="orders", description="Browse orders: filter by status or member, open a record.")
+    @app_commands.describe(status="Only orders with this status", member="Only orders of this member")
+    @app_commands.guild_only()
+    @app_commands.default_permissions(manage_messages=True)
+    @require_staff(staff_role_keys)
+    async def orders(
+        interaction: discord.Interaction[Any],
+        status: StatusChoice | None = None,
+        member: discord.Member | discord.User | None = None,
+    ) -> None:
+        await order_list(interaction, status, member)
+
+    return orders
 
 
 def build_group() -> app_commands.Group:
@@ -143,6 +164,12 @@ def build_group() -> app_commands.Group:
     @app_commands.describe(number="Order number")
     @require_staff(staff_role_keys)
     async def lookup(interaction: discord.Interaction[Any], number: OrderNumber) -> None:
+        await order_lookup(interaction, number)
+
+    @group.command(name="view", description="Show everything about an order (same as lookup).")
+    @app_commands.describe(number="Order number")
+    @require_staff(staff_role_keys)
+    async def view(interaction: discord.Interaction[Any], number: OrderNumber) -> None:
         await order_lookup(interaction, number)
 
     @group.command(name="list", description="List orders (newest first, 10 per page).")
@@ -194,7 +221,7 @@ def build_group() -> app_commands.Group:
     async def note(
         interaction: discord.Interaction[Any],
         number: OrderNumber,
-        text: app_commands.Range[str, 1, 500],
+        text: app_commands.Range[str, 1, NOTE_MAX],
     ) -> None:
         await order_note(interaction, number, text)
 
@@ -205,3 +232,4 @@ def register(app: App) -> None:
     if app.bot is None:
         raise RuntimeError("register() requires app.bot")
     app.bot.tree.add_command(build_group(), guild=app.guild_object)
+    app.bot.tree.add_command(build_orders_command(), guild=app.guild_object)

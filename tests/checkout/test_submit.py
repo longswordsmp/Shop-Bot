@@ -15,6 +15,7 @@ from tests.checkout.util import (
     balance,
     channel,
     component,
+    control_ids,
     error_text,
     give_credits,
     go,
@@ -77,7 +78,7 @@ async def test_submit_creates_the_order_atomically(co: TestEnv) -> None:
         total=money(co, 2800),
         status=status,
     )
-    assert control.custom_ids() == [
+    assert control_ids(control) == [
         views.staff_action_id(m.PAID, placed.id),
         views.staff_action_id(m.REJECTED, placed.id),
         views.staff_action_id(m.CANCELLED, placed.id),

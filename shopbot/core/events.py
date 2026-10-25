@@ -20,6 +20,20 @@ Handler = Callable[..., Awaitable[None]]
 # before (Product | None for "add"), after (Product), actor_id (int).
 PRODUCT_CHANGED = "catalog.product_changed"
 
+# checkout: published from the order's durable follow-up steps (so they are published again when a follow-up is
+# retried after a crash: handlers must be idempotent, e.g. schedule a task with a dedupe key).
+# ORDER_SUBMITTED payload: order_id (int). ORDER_STATUS_CHANGED payload: order_id (int), status (str, the new status),
+# actor_id (int | None; None = automatic).
+ORDER_SUBMITTED = "checkout.order_submitted"
+ORDER_STATUS_CHANGED = "checkout.order_status_changed"
+
+# A failure staff should hear about (the operations feature posts a #staff-chat alert). Published by the router
+# (interaction handler errors), the command tree (command errors), the scheduler (a task failed permanently), the
+# notifier (a customer notification could not be delivered by DM nor in the fallback channel) and features. The
+# payload never carries private data: kind ("interaction" | "command" | "task" | "notification" | "role") plus
+# identifiers - source (route/command/task kind), error_id, error (exception type name), task_id, attempts, user_id.
+FAILURE = "bot.failure"
+
 
 class EventBus:
     def __init__(self) -> None:

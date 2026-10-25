@@ -20,6 +20,7 @@ from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING, Any
 
 from shopbot.core.clock import Clock
+from shopbot.core.events import FAILURE
 from shopbot.db.database import Database
 from shopbot.db.repos import tasks as task_repo
 from shopbot.db.repos.tasks import Task
@@ -226,3 +227,12 @@ class Scheduler:
                     target_id=task.id,
                     details={"kind": task.kind, "attempts": task.attempts, "error": error[:300]},
                 )
+            # Operations alerts staff (and the Owner): identifiers only, never the error text.
+            await self._app.events.publish(
+                FAILURE,
+                kind="task",
+                source=task.kind,
+                task_id=task.id,
+                attempts=task.attempts,
+                error=error.split(":", 1)[0][:100],
+            )

@@ -149,6 +149,7 @@ async def test_scheduler_permanent_failure_and_recovery(tenv: TestEnv) -> None:
     await app.scheduler.run_due()
     failed = await app.db.run(task_repo.list_tasks, status="failed")
     assert [t.id for t in failed] == [task_id]
+    await app.scheduler.run_due()  # the staff alert about the failure (operations) is a task of its own
 
     # A task left 'running' by a crash is recovered to pending.
     async def ok(app_: object, task: task_repo.Task) -> None:

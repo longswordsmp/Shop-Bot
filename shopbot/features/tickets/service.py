@@ -1178,6 +1178,18 @@ async def render_transcript(app: App, ticket: Ticket) -> tuple[bytes, str] | Non
     return document.encode("utf-8"), transcript_filename(app, ticket.number)
 
 
+# Order channels are closed with the order's status as their reason; its name is the order's final status.
+_ORDER_STATUS_LABEL = "checkout.status_label.{status}"
+
+
+def _final_status(app: App, ticket: Ticket) -> str | None:
+    """The configured name of an order channel's final order status (None for support tickets or unknown reasons)."""
+    if ticket.kind != KIND_ORDER or not ticket.close_reason:
+        return None
+    key = _ORDER_STATUS_LABEL.format(status=ticket.close_reason)
+    return app.content.get(key) if key in app.content.registry else None
+
+
 async def generate_transcript(
     app: App, ticket_id: int, *, force: bool = False, requested_by: int | None = None
 ) -> bool:
@@ -1223,7 +1235,16 @@ async def generate_transcript(
         else:
             closer_id = requested_by or _bot_user_id(app)
         try:
-            spec = views.transcript_post(app.ui, t, number=ticket.number, user_id=ticket.user_id, closer_id=closer_id)
+            spec = views.transcript_post(
+                app.ui,
+                t,
+                number=ticket.number,
+                user_id=ticket.user_id,
+                closer_id=closer_id,
+                closed_at=ticket.closed_at,
+                final_status=_final_status(app, ticket),
+                close_reason=ticket.close_reason,
+            )
             message = await target.send(file=discord.File(io.BytesIO(data), filename=filename), **send_kwargs(spec))
         except MissingContent as exc:
             log_event(log, logging.ERROR, "content_missing_at_runtime", key=exc.key, where="tickets.transcript")
