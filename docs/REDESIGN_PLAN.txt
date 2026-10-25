@@ -1,0 +1,675 @@
+AMAZONYAARTS DISCORD SERVER: PROFESSIONAL REDESIGN PLAN
+=======================================================
+
+Status: PLAN FOR APPROVAL. Nothing below is built yet. Tell me what to change, then I build it in the order
+of section 15.
+
+How to read the message mock-ups:
+  [BANNER: NAME]     the banner picture shown on top (your 31 banners)
+  ┃ ...              the single embed card under it (one card per message, never several small ones)
+  :dot_blue: etc.    our own custom emoji icons (section 9), drawn in the brand colours
+  [ Button ]         a button; (link) = opens a channel or website
+  {order_number}     filled in by the bot
+
+
+-----------------------------------------------------------------------------------------------------------
+1. WHAT MAKES IT PROFESSIONAL (the rules every message follows)
+-----------------------------------------------------------------------------------------------------------
+
+One message = one card.
+  Banner picture on top, then ONE embed. Sections inside the card are separated by a bold heading with one
+  small custom icon. No stacks of small embeds.
+
+Card anatomy (always in this order):
+  Title           short, no emoji, e.g. "Order #1042 · Payment submitted"
+  First line      one sentence that says what this is and what to do now
+  Sections        bold heading with one icon, then 1-4 short lines or a compact table
+  Details         key facts as fields (Order number, Total, Status) where the reader scans
+  Footer          "AmazonYaarts" plus the date and time on every order and status message
+
+Icons, not emoji spam.
+  Our own icon set (section 9): flat, rounded, in the brand colours (orange #FF9900, blue #146EB4, navy #232F3E).
+  At most one icon per heading or status line. Never inside a sentence. No 🔥🎉✨ decoration.
+
+Colours of the card edge:
+  orange = panels and next steps · blue = information and status · green = success (paid, shipped, delivered)
+  red = errors, cancelled, rejected · navy = closed and archived
+
+Voice:
+  Calm, short and specific, like a good online store's help page. "We" and "you". No exclamation marks, no hype
+  ("amazing", "insane deal"). Amounts always exact ($42.00). Every message ends with the next step.
+
+Privacy:
+  Addresses and gift card codes are only ever typed into private forms and shown only to staff who need them,
+  never in a channel, never in logs.
+
+Buttons:
+  Verb first, 1-3 words ("Verify", "Start order", "Submit gift card"). Discord only allows blurple, green, red and
+  grey buttons: blurple = main action, green = confirm, red = cancel or destructive, grey = secondary.
+
+Channel names: one emoji + thin dot + name (your choice), every channel has a one-line topic.
+
+
+-----------------------------------------------------------------------------------------------------------
+2. SERVER LAYOUT (what /setup creates)
+-----------------------------------------------------------------------------------------------------------
+
+📌 INFORMATION                       visible to everyone, read-only
+   📜・welcome                       Rules and verification. Read them, then press Verify to unlock the shop.
+   🧭・how-to-order                  How ordering works, from choosing items to tracking your package.
+   ❔・faq                           Answers about ordering, payment, shipping, tracking and problems.
+   🚚・shipping                      Where we ship, delivery options and prices.
+   📣・announcements                 News, restocks and updates from our team.
+
+🛍️ SHOP                             members only, read-only
+   🏷️・catalog                       Every item with its price and availability. Press Buy to order.
+   ✨・new-arrivals                  New items and restocks. Turn alerts on or off here.
+   ⭐・reviews                       Verified reviews from customers who received their order.
+
+🧾 ORDERS                            members only, read-only; private tickets are created here
+   🛒・place-order                   Start an order or report a problem. Both open a private ticket.
+   (private) order-1042-name         only the customer and staff
+   (private) report-0007-name        only the customer and staff
+
+🔒 STAFF                             Staff and Owner only
+   📋・orders                        One live record per order with the staff controls.
+   💬・staff-chat                    Alerts, reminders and team discussion.
+   🗂️・bot-log                       What the bot and staff did, with who and when.
+   📁・transcripts                   A transcript of every closed ticket.
+
+Roles: Owner · Staff · Payments (new: the only role that can see and redeem gift cards, Owner by default) ·
+Customer (after the first delivered order) · Member (after Verify) · Restock Alerts (opt-in).
+
+
+-----------------------------------------------------------------------------------------------------------
+3. THE WHOLE JOURNEY AT A GLANCE
+-----------------------------------------------------------------------------------------------------------
+
+ 1  Joins          sees only INFORMATION; gets a welcome mention in #welcome that disappears after 30 seconds
+ 2  Verifies       reads the rules, presses Verify → Member role → SHOP and ORDERS appear
+ 3  Browses        #catalog cards (price, availability, Buy), #shipping (countries, prices), #faq
+ 4  Starts order   Buy on an item or Start order in #place-order → private order ticket
+ 5  Items          chooses items and quantities in the ticket's live order panel
+ 6  Address        picks the country (only countries we ship to), fills in the address form
+ 7  Delivery       Standard $5.00 or Expedited $15.00; extras: Shipping protection $3.00, Discreet packaging $2.00
+ 8  Review         full receipt: items, shipping, extras, total, address → Confirm order
+ 9  Payment        buys a DoorDash eGift card for exactly the total, enters the code in a private form
+10  Order placed   automatic message: order placed, payment being verified, tracking number will be posted here
+11  Verified       staff redeem the card → "Payment confirmed"
+12  Shipped        staff add carrier + tracking number → posted in the ticket and sent by DM
+13  Delivered      staff mark delivered (or the customer confirms) → Customer role
+14  Review         7 days later: "How was your order?" → review in #reviews
+15  After          /myorders any time; Report a problem in #place-order; ticket closes with a transcript
+
+
+-----------------------------------------------------------------------------------------------------------
+4. INFORMATION AND SHOP CHANNELS (exact wording)
+-----------------------------------------------------------------------------------------------------------
+
+4.1  Welcome mention (posted in 📜・welcome when someone joins, deleted after 30 seconds)
+     Plain message, no banner, so it is light:
+       "{mention} welcome to AmazonYaarts. Read the rules below and press **Verify** to unlock the shop."
+
+4.2  📜・welcome panel
+
+[BANNER: WELCOME]
+┃ Welcome to AmazonYaarts
+┃ We sell and ship right here on Discord. Every order is placed in your own private ticket, and you can follow it
+┃ from payment to delivery.
+┃
+┃ :ic_info: **Before you start**
+┃ Read the rules below. Pressing **Verify** means you agree to them and unlocks the shop channels.
+┃
+┃ :ic_shield: **Server rules**
+┃ **1. Be respectful.** No harassment, hate speech, threats or discrimination.
+┃ **2. No spam or advertising.** This includes members' direct messages.
+┃ **3. Keep it private.** Never post addresses, gift card codes or passwords in a channel.
+┃ **4. Orders and support in tickets.** Use #place-order; our team only handles orders there.
+┃ **5. Staff never DM you first** about payments or codes. Report anyone who does.
+┃ **6. Follow Discord's Terms of Service** and Community Guidelines.
+┃
+┃ :ic_compass: **After verifying**
+┃ Browse #catalog · check #shipping · start an order in #place-order
+┃
+┃ footer: AmazonYaarts · Secure orders in private tickets
+  [ ✓ Verify ]  (green, our check icon)
+
+4.3  Replies to Verify (private, only the member sees them)
+  Verified:
+[BANNER: REQUEST CONFIRMED]
+┃ You're verified
+┃ Thanks, {name}. The shop channels are now open to you.
+┃ :ic_tag: #catalog: browse items and prices
+┃ :ic_truck: #shipping: where we ship and what it costs
+┃ :ic_cart: #place-order: start your first order
+  [ Catalog ](link) [ How to order ](link)
+
+  Already verified:
+[BANNER: RESPONSE]
+┃ You're already verified
+┃ You have full access. Start an order any time in #place-order.
+
+  Role could not be given (rare):
+[BANNER: SOMETHING WENT WRONG]
+┃ Verification didn't go through
+┃ We couldn't give you access just now. Please try again in a minute. If it keeps happening, contact our
+┃ team and mention reference {error_id}.
+
+4.4  🧭・how-to-order panel
+
+[BANNER: HOW IT WORKS]
+┃ How to order
+┃ Ordering takes a few minutes and happens in a private ticket that only you and our team can see.
+┃
+┃ :step_1: **Choose your items**
+┃ Browse #catalog and press **Buy** on an item, or press **Start order** in #place-order.
+┃ :step_2: **Add your shipping address**
+┃ Pick your country and fill in the address form. Only our team can see it.
+┃ :step_3: **Choose delivery and extras**
+┃ Standard or Expedited shipping, plus Shipping protection and Discreet packaging if you want them.
+┃ :step_4: **Review your order**
+┃ Check every line and the total, then press **Confirm order**.
+┃ :step_5: **Pay with a DoorDash gift card**
+┃ Buy a DoorDash eGift card for the exact total and enter its code in the private payment form.
+┃ :step_6: **Track your package**
+┃ Your tracking number is posted in your ticket as soon as your order ships. /myorders shows every order.
+┃
+┃ Questions? See #faq.
+  [ Catalog ](link) [ Place an order ](link) [ FAQ ](link)
+
+4.5  ❔・faq panel (one card, questions as fields)
+
+[BANNER: FAQ]
+┃ Frequently asked questions
+┃ Can't find your answer? Open a ticket with **Report a problem** in #place-order.
+┃
+┃ :ic_cart: **Ordering**
+┃ **How do I order?** Press **Buy** on an item in #catalog or **Start order** in #place-order. A private ticket
+┃ opens and guides you step by step.
+┃ **Can I order several items at once?** Yes. Add as many items as you like before you confirm.
+┃ **Can I have two orders open?** One open order at a time. Start the next one when it is delivered or closed.
+┃
+┃ :ic_gift: **Payment**
+┃ **How do I pay?** With a DoorDash eGift card for the exact order total. Buy it at doordash.com/gift-cards
+┃ (choose "DoorDash eGift Card", not another brand), then enter the code in your ticket's payment form.
+┃ **Is my code safe?** Only our payments team can see it, and it is deleted once redeemed. Never post a code in a
+┃ channel or send it by DM; our team will never ask you to.
+┃ **When is my payment confirmed?** Usually within a few hours. You'll get a message in your ticket and by DM.
+┃
+┃ :ic_truck: **Shipping**
+┃ **Where do you ship?** Every country in the Americas and Europe; in the US every state except Alaska and North
+┃ Dakota. See #shipping.
+┃ **What does shipping cost?** Standard $5.00 or Expedited $15.00. Optional: Shipping protection $3.00, Discreet
+┃ packaging $2.00.
+┃ **What is Shipping protection?** If your package is lost or arrives damaged, we replace it or refund you in store
+┃ credit. Without it, we can't cover carrier losses.    ← YOUR POLICY: please confirm (section 14)
+┃ **What is Discreet packaging?** A plain outer box with no logos or product names.   ← please confirm
+┃
+┃ :ic_box: **Orders and tracking**
+┃ **Where is my tracking number?** In your ticket as soon as your order ships, and by DM. /myorders shows it too.
+┃ **What do the statuses mean?** Payment submitted → Payment confirmed → Shipped → Delivered.
+┃
+┃ :ic_alert: **Cancellations and problems**
+┃ **Can I cancel?** Yes, until your payment is confirmed: press **Cancel order** in your ticket.
+┃ **Something went wrong with my order?** Press **Report a problem** in #place-order and choose the order.
+
+4.6  🚚・shipping panel (countries with our dots; one card)
+
+[BANNER: SHIPPING INFORMATION]
+┃ Shipping
+┃ We ship to every country in the Americas and Europe. Check your country below before you order.
+┃
+┃ :dot_blue: we ship everywhere in this country   :dot_yellow: we ship, with exceptions   :dot_grey: not available
+┃
+┃ North America
+┃ :dot_blue: Canada  :dot_yellow: United States (not Alaska or North Dakota)  :dot_blue: Mexico
+┃ Central America
+┃ :dot_blue: Belize  :dot_blue: Costa Rica  :dot_blue: El Salvador  :dot_blue: Guatemala  :dot_blue: Honduras
+┃ :dot_blue: Nicaragua  :dot_blue: Panama
+┃ Caribbean
+┃ :dot_blue: Antigua and Barbuda  :dot_blue: Bahamas  :dot_blue: Barbados  :dot_blue: Cuba*  :dot_blue: Dominica
+┃ :dot_blue: Dominican Republic  :dot_blue: Grenada  :dot_blue: Haiti  :dot_blue: Jamaica  :dot_blue: Saint Kitts and Nevis
+┃ :dot_blue: Saint Lucia  :dot_blue: Saint Vincent and the Grenadines  :dot_blue: Trinidad and Tobago
+┃ South America
+┃ :dot_blue: Argentina  :dot_blue: Bolivia  :dot_blue: Brazil  :dot_blue: Chile  :dot_blue: Colombia  :dot_blue: Ecuador
+┃ :dot_blue: Guyana  :dot_blue: Paraguay  :dot_blue: Peru  :dot_blue: Suriname  :dot_blue: Uruguay  :dot_blue: Venezuela
+┃ Europe
+┃ :dot_blue: Albania · Andorra · Austria · Belgium · Bosnia and Herzegovina · Bulgaria · Croatia · Cyprus · Czechia ·
+┃ Denmark · Estonia · Finland · France · Germany · Greece · Hungary · Iceland · Ireland · Italy · Kosovo · Latvia ·
+┃ Liechtenstein · Lithuania · Luxembourg · Malta · Moldova · Monaco · Montenegro · Netherlands · North Macedonia ·
+┃ Norway · Poland · Portugal · Romania · San Marino · Serbia · Slovakia · Slovenia · Spain · Sweden · Switzerland ·
+┃ Ukraine · United Kingdom · Vatican City            (* see section 14: Cuba, Russia, Belarus)
+┃ Not available
+┃ :dot_grey: Alaska and North Dakota (US) · all other countries
+┃
+┃ :ic_truck: **Delivery options**        Standard  $5.00
+┃                                         Expedited $15.00
+┃ :ic_shield: **Extras**                  Shipping protection $3.00 · Discreet packaging $2.00
+┃ :ic_clock: **Processing**              Orders ship after payment is confirmed. Delivery times depend on your
+┃                                         country and the carrier.   ← add your real times if you want (section 14)
+┃ :ic_location: **Tracking**             Posted in your ticket and sent by DM when your order ships.
+
+  Built from settings: each country is one line of data (country code, group, status, note), so adding or removing a
+  country is one line; names are standard English country names and can be renamed.
+
+4.7  📣・announcements (posted by staff with /announce; same card style)
+
+[BANNER: ANNOUNCEMENTS]
+┃ {title typed by staff}
+┃ {message typed by staff}
+┃ optional fields typed by staff, optional image under the text
+┃ footer: AmazonYaarts · {date}
+  optional ping: @Restock Alerts (only when staff choose it)
+
+4.8  🏷️・catalog
+  Header (first message):
+[BANNER: EXPLORE THE CATALOG]
+┃ Catalog
+┃ Every item we sell, with its price and availability. Press **Buy** to add an item to your order.
+┃ :dot_blue: in stock   :dot_yellow: only a few left   :dot_grey: sold out
+┃ Prices are in USD. Shipping and extras are added at checkout (see #shipping).
+
+  One card per item (separate messages, no banner, so the catalog stays compact):
+┃ {item name}                                      (card edge: green in stock, orange few left, red sold out)
+┃ {item description}
+┃ Price   $12.00          Availability   :dot_blue: In stock
+┃ [item picture]
+  [ Buy ]   (disabled and grey when sold out: "Sold out")
+
+4.9  ✨・new-arrivals
+  Panel:
+[BANNER: NEW ARRIVALS]
+┃ New arrivals and restocks
+┃ We post here when a new item arrives or a sold-out item is back.
+┃ :ic_bell: Turn on **Restock Alerts** to be mentioned when that happens. Turn it off any time.
+  [ Turn alerts on ] [ Turn alerts off ]
+
+  Update post:
+[BANNER: NEW ARRIVALS]
+┃ New: {item name}          or          Back in stock: {item name}
+┃ {item description}
+┃ Price $12.00 · :dot_blue: In stock
+┃ [item picture]
+  [ Buy ]    (@Restock Alerts mentioned above the card)
+
+  Replies: "Restock Alerts is on. We'll mention you when new items arrive." / "Restock Alerts is off."
+
+4.10 ⭐・reviews (one card per review)
+[BANNER: CUSTOMER REVIEWS]
+┃ ★★★★★  5 out of 5
+┃ "{comment}"
+┃ :ic_check: Verified purchase · Order #1042 · {Month Year}
+┃ footer: {customer display name}
+
+4.11 🛒・place-order panel
+[BANNER: START HERE]
+┃ Place an order
+┃ Press **Start order** to open your private order ticket. Only you and our team can see it.
+┃
+┃ :ic_list: **What to expect**
+┃ 1. Choose your items and quantities
+┃ 2. Add your shipping address and choose delivery
+┃ 3. Review the total and confirm
+┃ 4. Pay with a DoorDash eGift card for the exact total
+┃ 5. Get your tracking number in the ticket once it ships
+┃
+┃ :ic_gift: **Payment**: DoorDash eGift card only. Never post a code in a channel.
+┃ :ic_alert: **Problem with an order?** Press **Report a problem**.
+  [ Start order ] (blurple)   [ Report a problem ] (grey)
+
+
+-----------------------------------------------------------------------------------------------------------
+5. ORDERING, STEP BY STEP (exact wording)
+-----------------------------------------------------------------------------------------------------------
+
+The order lives in ONE live card in the ticket that changes as the customer moves through the steps (banner
+changes with the step). Every step has Back and Cancel. A progress line shows "Step 2 of 5" with our step icons.
+
+5.1  Private replies to Start order / Buy
+  Ticket created:        "Your order ticket is ready: #order-1042-name. Continue there."   [ Open ticket ]
+  Already open:          "You already have an order in progress: #order-1042-name."        [ Open ticket ]
+  Item added (Buy):      "{item} is in your cart in #order-1042-name."                       [ Open ticket ]
+  One order at a time:   "Your order #1042 is still open. You can start a new one when it is delivered or closed."
+
+5.2  First message in the ticket
+[BANNER: YOUR REQUEST]
+┃ Order ticket #1042
+┃ Hi {mention}, this is your private order ticket. Only you and our team can see it.
+┃ :ic_lock: Never post your address or gift card code in this chat. The bot asks for them in private forms.
+┃ :ic_info: Questions? Write them here and our team will answer.
+┃ Ticket  #1042        Opened  {date}
+
+5.3  Step 1 of 5 · Items
+[BANNER: SELECTION & CART]
+┃ Your cart
+┃ Choose an item from the menu, then enter the quantity. Repeat for every item.
+┃
+┃ :ic_cart: **Items**
+┃ 2 × Item A      $12.00 each      $24.00
+┃ 1 × Item B      $8.00            $8.00
+┃ **Subtotal**                     **$32.00**
+┃
+┃ :step_1: Items  ·  Address  ·  Delivery  ·  Review  ·  Payment
+  [ Choose an item ▾ ]   [ Change quantity ▾ ]
+  [ Continue ] [ Cancel ]
+
+  Quantity form:    title "Quantity" · label "How many?" · hint "Enter a whole number. 0 removes the item."
+  Not enough stock: "Only {n} of {item} are available right now. Choose a smaller quantity."
+
+5.4  Step 2 of 5 · Shipping address
+[BANNER: DETAILS & OPTIONS]
+┃ Shipping address
+┃ Choose your country, then fill in your address. Only our team can see it.
+┃ :ic_location: **Country**     {selected or "not chosen yet"}
+┃ :ic_home: **Address**         {"added" or "not added yet"}   (the full address is never shown in the channel)
+  [ Region ▾ ] → [ Country ▾ ]   (only countries we ship to; Europe split into two menus of ≤25)
+  [ Enter address ] [ Back ] [ Continue ] [ Cancel ]
+
+  Address form (private):  Full name · Street and number · City · State / province / region · Postal code
+  US check: "We can't ship to Alaska or North Dakota. Please use an address in another state." (form refused,
+  answers kept so the customer can correct them)
+
+5.5  Step 3 of 5 · Delivery and extras
+[BANNER: DETAILS & OPTIONS]
+┃ Delivery and extras
+┃ Choose how fast you want it and add extras if you like.
+┃
+┃ :ic_truck: **Delivery**
+┃ ( ) Standard    $5.00
+┃ ( ) Expedited   $15.00
+┃ :ic_shield: **Extras**
+┃ [ ] Shipping protection   $3.00   Lost or damaged packages are replaced or refunded in store credit.
+┃ [ ] Discreet packaging    $2.00   Plain box, no logos or product names.
+  [ Standard · $5.00 ▾ ]  (menu)
+  [ Shipping protection: Off ] [ Discreet packaging: Off ]   (toggle buttons; turn green with "On")
+  [ Back ] [ Continue ] [ Cancel ]
+
+5.6  Step 4 of 5 · Review (the receipt)
+[BANNER: REVIEW & SUMMARY]
+┃ Review your order
+┃ Check everything below. You can still go back and change it.
+┃
+┃ :ic_cart: **Items**
+┃ 2 × Item A                           $24.00
+┃ 1 × Item B                            $8.00
+┃ :ic_truck: Expedited shipping        $15.00
+┃ :ic_shield: Shipping protection       $3.00
+┃ :ic_lock: Discreet packaging          $2.00
+┃ ─────────────────────────────────────────────
+┃ **Total**                            **$52.00**
+┃
+┃ :ic_location: **Ship to**   {Name}, {City}, {Country}  (street only visible to staff)
+┃ :ic_gift: **Payment**       DoorDash eGift card for exactly **$52.00** (next step)
+  [ Confirm order ] (green) [ Back ] [ Cancel order ] (red)
+
+  Price changed meanwhile: "The total changed to $54.00 because a price was updated. Please check and confirm
+  again." (nothing is placed until confirmed)
+
+5.7  Step 5 of 5 · Payment
+[BANNER: REQUEST PROCESSING]
+┃ Pay for order #1042
+┃ Pay with a DoorDash eGift card worth exactly **$52.00**.
+┃
+┃ :step_1: Open DoorDash gift cards and choose **DoorDash eGift Card** (not another brand).
+┃ :step_2: Set the amount to **$52.00** and buy it. You'll receive the card by email or text.
+┃ :step_3: Press **Submit gift card** below and enter the code (and PIN if your card has one).
+┃
+┃ :ic_lock: Only our payments team can see your code. It is deleted as soon as it is redeemed. Never post it in
+┃ this chat, and never send it to anyone by DM.
+  [ Buy a DoorDash gift card ](link: https://www.doordash.com/gift-cards/) [ Submit gift card ] [ Cancel order ]
+
+  Gift card form (private):  title "DoorDash gift card" ·
+     "Gift card code or PIN" (required) · "Card amount (USD)" (required, e.g. 52.00) ·
+     "Where did you buy it?" (e.g. doordash.com, Target, Walmart)
+  Several cards: if the amount is below the total, the panel shows "Received $25.00 of $52.00. Submit another
+  card for the remaining $27.00." Overpayment becomes store credit.   ← please confirm (section 14)
+  Code pasted in chat by mistake: the bot deletes the message at once and replies privately:
+     "For your safety we removed your message: it looked like a gift card code. Use **Submit gift card**."
+
+5.8  Order placed (automatic, the moment the card is submitted; in the ticket + by DM)
+[BANNER: PENDING REVIEW]
+┃ Order #1042 placed
+┃ Thank you, {name}. We've received your order and your DoorDash gift card.
+┃
+┃ :ic_clock: **What happens now**
+┃ Our team is verifying your payment. As soon as your order has been confirmed and shipped, your **tracking
+┃ number will be sent in this ticket**. You'll also get a DM.
+┃
+┃ Order   #1042        Total   $52.00        Status   Payment submitted
+┃ footer: AmazonYaarts · {date and time}
+
+5.9  Payment confirmed (staff redeemed the card)
+[BANNER: REQUEST CONFIRMED]
+┃ Payment confirmed
+┃ Your payment for order #1042 is confirmed. We're preparing your order now.
+┃ Your tracking number will be posted here as soon as it ships.
+┃ Status   Payment confirmed
+
+5.10 Payment problem (card already used, wrong amount, not a DoorDash card)
+[BANNER: REQUEST UNSUCCESSFUL]
+┃ We couldn't accept this gift card
+┃ {reason chosen by staff: "The card was already redeemed." / "The amount was lower than shown." /
+┃ "It isn't a DoorDash eGift card."}
+┃ Your order is on hold. Submit a valid DoorDash eGift card for **$52.00**, or cancel the order.
+  [ Submit gift card ] [ Cancel order ]
+
+5.11 Shipped (staff enter carrier and tracking number; in the ticket + by DM)
+[BANNER: DISPATCHED]
+┃ Order #1042 shipped
+┃ Your order is on its way.
+┃ :ic_truck: **Carrier**            {carrier}
+┃ :ic_location: **Tracking number** {tracking number}
+┃ Track it on the carrier's website. Delivery times depend on your country and the carrier.
+  [ Track package ](link to the carrier when known)
+
+5.12 Delivered
+[BANNER: REQUEST RESOLVED]
+┃ Order #1042 delivered
+┃ Your package was delivered. We hope you enjoy it.
+┃ Problem with it? Press **Report a problem** in #place-order within 14 days.   ← your window (section 14)
+  The member gets the Customer role.
+
+5.13 Review request (7 days after delivery; DM, or in the ticket if DMs are closed)
+[BANNER: CUSTOMER REVIEWS]
+┃ How was your order?
+┃ Rate order #1042 from 1 to 5 stars. Your review is posted in #reviews with a verified-purchase badge.
+  [ ★1 ] [ ★2 ] [ ★3 ] [ ★4 ] [ ★5 ]   [ No thanks ]
+  Thanks: "Thank you for your review. It's now live in #reviews."
+
+5.14 Other order messages
+  Cancel question:   "Cancel order #1042? Your cart and address will be removed." [ Yes, cancel ] [ Keep order ]
+  Cancelled:         "Order #1042 cancelled. Nothing was charged." (before payment) /
+                     "Order #1042 cancelled. Your payment is returned as store credit." (after payment) ← confirm
+  Cart reminder:     "Your cart in order #1042 will expire in 1 hour if you don't continue." (in the ticket)
+  Cart expired:      "Your unfinished order #1042 expired after 24 hours. Start a new one in #place-order."
+  Payment reminder:  "We're still waiting for the gift card for order #1042 ($52.00). Press Submit gift card when
+                     you're ready." (after 24 hours)
+
+5.15 /myorders (private)
+[BANNER: YOUR ACCOUNT]
+┃ Your orders
+┃ #1042   $52.00   Shipped     {date}    Tracking {number}
+┃ #1031   $18.00   Delivered   {date}
+┃ Page 1 of 1
+  [ Previous ] [ Next ]
+
+
+-----------------------------------------------------------------------------------------------------------
+6. PROBLEMS AND SUPPORT (Report a problem)
+-----------------------------------------------------------------------------------------------------------
+
+  Step (private):
+[BANNER: SUPPORT REQUEST]
+┃ Report a problem
+┃ Choose the order it's about and what happened. A private ticket opens with our team.
+  [ Order #1042 · Shipped ▾ ] [ What happened? ▾ ]  (Not received · Arrived damaged · Wrong item · Something else)
+  [ Continue ]
+  Form: "Describe what happened" (photos can be posted in the ticket afterwards)
+
+  Report ticket:   "Report #0007 · Order #1042 · Arrived damaged" with the description; staff buttons Resolve /
+                   Reject (reason). Customer gets "Report #0007 resolved: {staff message}" or
+                   "Report #0007 closed: {reason}". Ticket closes with a transcript in 📁・transcripts.
+
+
+-----------------------------------------------------------------------------------------------------------
+7. STAFF SIDE
+-----------------------------------------------------------------------------------------------------------
+
+7.1  📋・orders record (one live card per order; banner follows the status)
+┃ Order #1042 · $52.00 · Payment submitted
+┃ Customer  @name        Ticket  #order-1042-name        Claimed by  -
+┃ Items     2 × Item A, 1 × Item B
+┃ Delivery  Expedited · Shipping protection · Discreet packaging
+┃ Ship to   {City}, {Country}            (full address: Details button, private)
+┃ Payment   DoorDash eGift · 1 card · $52.00 declared · not redeemed yet
+┃ Timeline  20:14 Placed · 20:15 Payment submitted
+  [ Claim ] [ Reveal gift card ] [ Payment confirmed ] [ Card problem ]
+  [ Mark shipped ] [ Mark delivered ] [ Note ] [ Details ] [ Cancel order ]
+
+  Reveal gift card (Payments role only): private reply with the code, "Redeem it now in the shop's DoorDash
+  account, then press Payment confirmed." Every reveal is logged (who, when) without the code. The code is
+  deleted when staff press Payment confirmed or Card problem, or after 7 days.
+  Mark shipped form: Carrier · Tracking number · Tracking link (optional).
+
+7.2  💬・staff-chat alerts (@Staff)
+  "New order #1042 · $52.00 · payment submitted · @name"    [ Open record ] [ Open ticket ]
+  Reminders: not claimed after 1 hour · payment not verified after 2 hours · paid but not shipped after 48 hours ·
+  ticket unanswered after 4 hours. Failures (a DM that couldn't be delivered, a task that failed).
+
+7.3  🗂️・bot-log entries (one compact card each; codes and addresses never appear)
+  "Payment confirmed · Order #1042 · by @staff · 20:41"
+
+7.4  📁・transcripts
+  "Transcript · Order ticket #1042 · @name · closed by @staff · Delivered"  + the transcript file
+
+
+-----------------------------------------------------------------------------------------------------------
+8. ERRORS AND SHORT REPLIES
+-----------------------------------------------------------------------------------------------------------
+  All private, one card, banner SOMETHING WENT WRONG or RESPONSE, title "Action not completed":
+  Generic:           "Something went wrong on our side. Please try again. If it keeps happening, contact our team
+                      with reference {error_id}."
+  Too fast:          "You're doing that a little too quickly. Try again in {seconds} seconds."
+  Not allowed:       "This is only available to our team."
+  Gone:              "This order or item no longer exists. It may have been closed or replaced."
+  Unavailable:       "This isn't available right now. Please try again later."
+  Busy:              "We're still working on your previous click."
+
+
+-----------------------------------------------------------------------------------------------------------
+9. OUR CUSTOM EMOJI SET
+-----------------------------------------------------------------------------------------------------------
+
+  Uploaded automatically by the bot as application emojis (they belong to the bot, work in every channel and DM,
+  use none of the server's emoji slots, and need no extra permission). Drawn by us as simple flat icons, 128×128,
+  brand colours, consistent stroke and corner radius, so they look like one family.
+
+  Status dots:   dot_blue (ships / in stock) · dot_yellow (with exceptions / few left) · dot_grey (not available)
+  Order status:  st_submitted (yellow clock) · st_confirmed (blue check) · st_shipped (orange truck) ·
+                 st_delivered (green box) · st_cancelled (red cross)
+  Steps:         step_1 … step_6 (navy circle, white number)
+  Sections:      ic_cart · ic_box · ic_truck · ic_shield (protection) · ic_lock (discreet / privacy) ·
+                 ic_gift (gift card) · ic_location · ic_home · ic_clock · ic_info · ic_alert · ic_check ·
+                 ic_tag · ic_bell · ic_list · ic_compass · ic_star
+  About 35 icons. If an icon is missing (for example the upload failed), the bot falls back to a plain dot, never
+  to nothing.
+
+
+-----------------------------------------------------------------------------------------------------------
+10. /reset AND /setup
+-----------------------------------------------------------------------------------------------------------
+
+/reset (Owner only)
+  1. Shows privately exactly what will be deleted: every channel and category, and every role the bot is allowed to
+     delete. Never deleted: @everyone, bot and integration roles, the Server Booster role, roles above the bot.
+  2. A confirmation form: type "RESET {server name}". Anything else cancels.
+  3. Before deleting: a database backup is made; the order, product and review data are KEPT (choose "also wipe
+     orders and products" in the form if you really want a blank shop).
+  4. Deletes channels, then categories, then roles, at a safe pace (Discord rate limits); progress and the result
+     are sent to you by DM because the channel you ran it in disappears too.
+  5. Forgets every channel, role and panel the bot had recorded, so the next /setup builds everything new.
+  6. Logged (who, when, what) in the new #bot-log after /setup.
+
+/setup (unchanged idea, new look)
+  Creates the layout of section 2 with the new names and topics, sets permissions, uploads the custom emojis,
+  and posts every panel. Running it again fixes anything missing and never duplicates.
+
+
+-----------------------------------------------------------------------------------------------------------
+11. WELCOME MENTION (how the 30 seconds work)
+-----------------------------------------------------------------------------------------------------------
+  - Needs the "Server Members Intent" switched on in the Discord Developer Portal (Bot tab). I'll add it to the
+    setup checklist; the bot tells you in /status if it is off.
+  - On join: post the mention in 📜・welcome, schedule its deletion for 30 seconds later (saved in the database, so a
+    restart in between still deletes it). Many joins at once are grouped, so the channel never floods.
+  - The member is pinged (Discord notifies them) and sees the panel right under it; after 30 seconds the channel is
+    clean again.
+
+
+-----------------------------------------------------------------------------------------------------------
+12. HOW IT IS BUILT (code quality)
+-----------------------------------------------------------------------------------------------------------
+  - A layout module ("card builder") that every message uses: title, intro, sections with icons, receipts/tables,
+    fields, footers, the progress line. One place decides spacing and style, so every message looks the same.
+  - Emoji registry: icons are referenced in text as {icon_truck} etc.; the bot fills in the real emoji; checked at
+    startup and in the offline checker.
+  - Order flow as an explicit state machine: Cart → Address → Delivery → Review → Awaiting payment → Payment
+    submitted → Payment confirmed → Shipped → Delivered (plus Cancelled, Card problem, Refunded). Every transition is
+    checked, saved in one database transaction, logged, and drives the ticket card, the staff record, DMs and alerts.
+  - Shipping data: countries as data (ISO country code, group, status, note), validated at startup; the address
+    form checks the country and US states.
+  - Gift card codes: encrypted in the database with a secret key you add on Railway (GIFT_CARD_KEY), shown only to
+    the Payments role, deleted after redemption, never logged; codes pasted in chat are deleted automatically.
+  - Prices as data: Standard $5, Expedited $15, Shipping protection $3, Discreet packaging $2 in settings.toml.
+  - Every text stays editable: right-click → Apps → Edit text, or /content set.
+  - Tests for every step and message (as now: 1,900+ tests), the offline preview shows every screen with banners
+    and icons, the limits checker proves every message fits Discord.
+
+
+-----------------------------------------------------------------------------------------------------------
+13. BEFORE WE BUILD: THINGS YOU SHOULD KNOW
+-----------------------------------------------------------------------------------------------------------
+  1. Gift card payment looks like a scam to many buyers. The US Federal Trade Commission tells consumers that
+     "no real business … will ever tell you to buy a gift card to pay them". DoorDash's terms say gift cards may not
+     be resold and are redeemed into your own account; DoorDash can deactivate cards it suspects. You also end up
+     with DoorDash credit, not money, and a stolen or already-used card can be reversed after you ship.
+     My recommendation: add a normal payment option (Stripe, PayPal or Square payment link) next to the gift card,
+     and keep the gift card flow strict (only DoorDash eGift cards, redeem before shipping, never ship before the
+     card is redeemed). If you keep gift cards only, the plan above is the safest way to do it.
+  2. The banners show Amazon's logo and the "amazon" wordmark. Using another company's logo can make customers think
+     you are Amazon or partnered with Amazon, and can get the server reported. A version of the banners without
+     the Amazon logo would be safer.
+  3. Cuba, Russia and Belarus: shipping to them is restricted by sanctions and most carriers don't accept parcels.
+     "Every country in the Americas" includes Cuba; I suggest listing Cuba (and Russia/Belarus, which are not on the
+     Europe list above) as not available unless you know your carrier delivers there.
+  4. Shipping protection and Discreet packaging are promises to customers: the text in 4.5 and 5.5 must match what
+     you really do.
+
+
+-----------------------------------------------------------------------------------------------------------
+14. DECISIONS I NEED FROM YOU (I'll use the defaults shown if you don't say otherwise)
+-----------------------------------------------------------------------------------------------------------
+  a. What do you sell? (one line, used in #welcome and the catalog header)            default: product-neutral
+  b. Shipping protection: what does it cover?            default: lost/damaged → replaced or store credit
+  c. Discreet packaging: plain box, no logos or product names?                               default: yes
+  d. Refunds after payment: store credit (gift cards can't be returned to DoorDash)?          default: store credit
+  e. Several gift cards per order allowed? Overpayment as store credit?                      default: yes / yes
+  f. Problem report window after delivery                                                     default: 14 days
+  g. Delivery times to show on #shipping (e.g. US 3-7 business days, Europe 7-14)              default: none shown
+  h. Cuba / Russia / Belarus                                                                   default: not available
+  i. Add a card payment option (Stripe/PayPal/Square) next to gift cards?                      default: no
+  j. Payments role = Owner only?                                                               default: Owner only
+
+
+-----------------------------------------------------------------------------------------------------------
+15. BUILD ORDER (after you approve) AND HOW I VERIFY EACH PART
+-----------------------------------------------------------------------------------------------------------
+  1. Card builder + icon set + channel names/topics + /reset          → tests, preview screenshots of every panel
+  2. All information/shop panels rewritten as single cards            → preview + limits check
+  3. New order flow: address, delivery, extras, review, gift card payment, order placed, shipped, delivered
+                                                                       → end-to-end tests of every path
+  4. Staff side: record card, reveal/redeem, mark shipped, alerts      → tests, permission tests
+  5. Welcome mention with 30-second removal                            → tests incl. restart
+  6. Full review by independent reviewers, fixes, push; then you run /reset and /setup on Railway and test with a
+     second account using the checklist in docs/MORNING.md (I can't log into your Discord, so that last check is
+     yours).
