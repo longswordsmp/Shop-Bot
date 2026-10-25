@@ -7,7 +7,17 @@ python3.12 -m venv .venv
 .venv/bin/pip install -r requirements.txt -r requirements-dev.txt
 ```
 
-## Gates (run all before pushing; each exits non-zero on failure)
+## Run everything
+
+```bash
+scripts/quality.sh
+```
+
+Runs every gate below in order and stops at the first failure (non-zero exit). The same script runs on GitHub
+Actions for every push and pull request (`.github/workflows/ci.yml`), so a broken commit is visible before it is
+deployed.
+
+## Gates (each exits non-zero on failure)
 
 | Check | Command |
 |---|---|
@@ -18,6 +28,8 @@ python3.12 -m venv .venv
 | Configuration + Discord limits + handler coverage | `.venv/bin/python -m tools.check_limits --all-features` |
 | Content checklist | `.venv/bin/python -m tools.checklist --write` |
 | Secrets scan | `python -m tools.secret_scan` (scans tracked files for token-shaped strings and `.env` files) |
+| Syntax/import check | `python -m compileall -q shopbot tools tests` |
+| Generated docs current | `python -m tools.reference_docs` then no diff in `docs/` |
 
 `tools.check_limits` exits 1 on any Discord limit violation, invalid configured value, or a component that no
 handler would receive. States whose text is not configured yet are reported as *incomplete* (they are never
