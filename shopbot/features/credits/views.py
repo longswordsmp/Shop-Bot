@@ -3,6 +3,9 @@ checker all render through these functions.
 
 Customer messages (balance reply, adjustment notice, the balance button) use content keys only. The staff
 history pages and command replies use operator text (``op``).
+
+Banners: the member's balance reply and adjustment notice show ``account-and-personal-records``; the staff history
+(every page) ``staff-dashboard``; staff command replies choose theirs (``operator_reply``).
 """
 
 from __future__ import annotations
@@ -12,6 +15,7 @@ from dataclasses import dataclass, replace
 
 import discord
 
+from shopbot.config.banner_ids import BannerId
 from shopbot.config.content import ContentStore, MissingContent
 from shopbot.features.credits import repo
 from shopbot.features.credits.content_keys import (
@@ -55,7 +59,7 @@ def balance_reply(ui: Ui, *, amount: str) -> MessageSpec:
     )
     if embed is None:
         raise MissingContent(BALANCE_DESCRIPTION)
-    return MessageSpec(embeds=(embed,))
+    return MessageSpec(embeds=(embed,), banner=ui.banner("account-and-personal-records"))
 
 
 def notice_configured(content: ContentStore) -> bool:
@@ -71,7 +75,8 @@ def adjusted_notice(ui: Ui, *, amount: str, balance: str) -> MessageSpec | None:
     description = ui.text(NOTICE_DESCRIPTION, amount=amount, balance=balance)
     if not title and not description:
         return None
-    return MessageSpec(embeds=(ui.embed(title=title, description=description, tone="info", timestamp=True),))
+    embed = ui.embed(title=title, description=description, tone="info", timestamp=True)
+    return MessageSpec(embeds=(embed,), banner=ui.banner("account-and-personal-records"))
 
 
 # -- staff (operator text) ---------------------------------------------------------------------------
@@ -125,8 +130,9 @@ def history_view(ui: Ui, op: OpText, amount: AmountFormat, page: HistoryPage) ->
     description = summary if page.entries else f"{summary}\n{op('credits.history.empty')}"
     fields = [_entry_field(op, amount, entry) for entry in page.entries]
     embed = ui.operator_embed(op("credits.history.title"), description, tone="info", fields=fields)
+    banner = ui.banner("staff-dashboard")
     if page.pages <= 1:
-        return MessageSpec(embeds=(embed,))
+        return MessageSpec(embeds=(embed,), banner=banner)
     embed = replace(embed, footer_text=op("credits.history.page", page=page.page + 1, pages=page.pages))
     last = page.pages - 1
     # With at least two pages the two targets always differ (custom_ids must be unique in a message).
@@ -140,8 +146,11 @@ def history_view(ui: Ui, op: OpText, amount: AmountFormat, page: HistoryPage) ->
         custom_id=history_page_id(page.user_id, min(last, page.page + 1)),
         disabled=page.page >= last,
     )
-    return MessageSpec(embeds=(embed,), rows=rows_of(previous, following))
+    return MessageSpec(embeds=(embed,), rows=rows_of(previous, following), banner=banner)
 
 
-def operator_reply(ui: Ui, title: str, lines: list[str], *, tone: str = "info") -> MessageSpec:
-    return MessageSpec(embeds=(ui.operator_embed(title, "\n".join(lines) or None, tone=tone),))
+def operator_reply(ui: Ui, title: str, lines: list[str], *, tone: str = "info", banner_id: BannerId) -> MessageSpec:
+    """A staff reply (operator text) with the banner that fits it (lookup, result or refusal)."""
+    return MessageSpec(
+        embeds=(ui.operator_embed(title, "\n".join(lines) or None, tone=tone),), banner=ui.banner(banner_id)
+    )

@@ -6,6 +6,13 @@ optional text is omitted). Customer data (the comment, the reviewer's name) is e
 ``discord.utils.escape_markdown`` and never pings: embeds do not mention, and only the explicit
 ``mention_user_ids`` of a spec are allowed to ping. The staff approval message is a business message (content keys
 ``reviews.approval.*``); staff command output, the staff reject form and staff replies use operator text (``op``).
+
+Banners (shown above the embeds, never inside one): the request and the published review show ``reviews``. The
+request message is later replaced by thanks (``successful-confirmation``), thanks while approval is pending
+(``pending-review``), declined (``general-response``) or expired (``cancellation``); every state sets its own banner,
+so an edit swaps it. The approval message follows its state (``APPROVAL_BANNERS``). Customer notices: approved
+``successful-confirmation``, rejected ``rejected-or-unsuccessful-submission``. Staff replies choose theirs
+(``operator_reply``/``operator_list``).
 """
 
 from __future__ import annotations
@@ -14,6 +21,7 @@ from collections.abc import Callable, Sequence
 
 from discord.utils import escape_markdown
 
+from shopbot.config.banner_ids import BannerId
 from shopbot.config.content import MissingContent
 from shopbot.config.settings import ReviewSettings
 from shopbot.features.reviews import content_keys as k
@@ -114,7 +122,7 @@ def prompt_view(ui: Ui, settings: ReviewSettings, *, review_id: int, order_numbe
         placeholder=_text(ui, k.PROMPT_SELECT_PLACEHOLDER),
     )
     decline = ButtonSpec(label=_text(ui, k.BUTTON_DECLINE), custom_id=decline_id(review_id), style="secondary")
-    return MessageSpec(embeds=(embed,), rows=rows_of(select, decline))
+    return MessageSpec(embeds=(embed,), rows=rows_of(select, decline), banner=ui.banner("reviews"))
 
 
 def comment_modal(ui: Ui, settings: ReviewSettings, *, review_id: int) -> ModalSpec:
@@ -162,7 +170,7 @@ def published_view(ui: Ui, *, rating: int, user_name: str, order_number: str, co
     fields = (field,) if verified is None else (field, verified)
     description = escape(comment) if comment else None
     embed = ui.embed(title=title, description=description, fields=fields, tone="primary", timestamp=True)
-    return MessageSpec(embeds=(embed,))
+    return MessageSpec(embeds=(embed,), banner=ui.banner("reviews"))
 
 
 # -- staff approval message (business message: content keys) ---------------------------------------------
@@ -172,6 +180,13 @@ _APPROVAL_TONES = {
     k.STATE_APPROVED: "success",
     k.STATE_REJECTED: "danger",
     k.STATE_REMOVED: "neutral",
+}
+# The approval message is one message whose banner follows its state.
+APPROVAL_BANNERS: dict[str, BannerId] = {
+    k.STATE_PENDING: "pending-review",
+    k.STATE_APPROVED: "successful-confirmation",
+    k.STATE_REJECTED: "rejected-or-unsuccessful-submission",
+    k.STATE_REMOVED: "cancellation",
 }
 
 
@@ -226,7 +241,7 @@ def approval_view(
         tone=_APPROVAL_TONES[state],
         timestamp=True,
     )
-    return MessageSpec(embeds=(embed,), rows=rows)
+    return MessageSpec(embeds=(embed,), rows=rows, banner=ui.banner(APPROVAL_BANNERS[state]))
 
 
 def reject_modal(op: OpText, *, review_id: int, order_number: str, max_length: int) -> ModalSpec:
@@ -256,7 +271,8 @@ def approved_notice(ui: Ui, *, order_number: str, review_link: str) -> MessageSp
     if description is None:
         return None
     title = ui.text(k.notice_key(k.STATE_APPROVED, "title"), **values)
-    return MessageSpec(embeds=(ui.embed(title=title, description=description, tone="success", timestamp=True),))
+    embed = ui.embed(title=title, description=description, tone="success", timestamp=True)
+    return MessageSpec(embeds=(embed,), banner=ui.banner("successful-confirmation"))
 
 
 def rejected_notice(ui: Ui, *, order_number: str, reason: str | None) -> MessageSpec | None:
@@ -270,7 +286,7 @@ def rejected_notice(ui: Ui, *, order_number: str, reason: str | None) -> Message
     reason_field = ui.field(k.NOTICE_REJECTED_REASON_FIELD, reason) if reason else None
     fields = (reason_field,) if reason_field is not None else ()
     embed = ui.embed(title=title, description=description, fields=fields, tone="warning", timestamp=True)
-    return MessageSpec(embeds=(embed,))
+    return MessageSpec(embeds=(embed,), banner=ui.banner("rejected-or-unsuccessful-submission"))
 
 
 # -- replies to the customer -----------------------------------------------------------------------------
@@ -280,35 +296,43 @@ def thanks_view(ui: Ui, *, order_number: str, pending_approval: bool = False) ->
     """Replaces the request after a submitted review (no components). While the review waits for staff approval
     the 'pending' text is shown (it falls back to the normal thank-you text)."""
     key = k.THANKS_PENDING if pending_approval else k.THANKS
-    return MessageSpec(embeds=(_description_embed(ui, key, tone="success", order_number=order_number),))
+    banner = ui.banner("pending-review" if pending_approval else "successful-confirmation")
+    return MessageSpec(embeds=(_description_embed(ui, key, tone="success", order_number=order_number),), banner=banner)
 
 
 def declined_view(ui: Ui, *, order_number: str) -> MessageSpec:
     """Replaces the request after the customer declined (no components)."""
-    return MessageSpec(embeds=(_description_embed(ui, k.DECLINED, tone="neutral", order_number=order_number),))
+    embed = _description_embed(ui, k.DECLINED, tone="neutral", order_number=order_number)
+    return MessageSpec(embeds=(embed,), banner=ui.banner("general-response"))
 
 
 def already_reviewed_view(ui: Ui, *, order_number: str) -> MessageSpec:
     """Private reply to a second rating/comment on a finished review."""
-    return MessageSpec(embeds=(_description_embed(ui, k.ALREADY_REVIEWED, tone="info", order_number=order_number),))
+    embed = _description_embed(ui, k.ALREADY_REVIEWED, tone="info", order_number=order_number)
+    return MessageSpec(embeds=(embed,), banner=ui.banner("general-response"))
 
 
 def expired_view(ui: Ui, *, order_number: str) -> MessageSpec:
     """Replaces the request when the order can no longer be reviewed (no components)."""
-    return MessageSpec(embeds=(_description_embed(ui, k.EXPIRED, tone="warning", order_number=order_number),))
+    embed = _description_embed(ui, k.EXPIRED, tone="warning", order_number=order_number)
+    return MessageSpec(embeds=(embed,), banner=ui.banner("cancellation"))
 
 
 # -- staff (operator text) ---------------------------------------------------------------------------------
 
 
-def operator_reply(ui: Ui, title: str, lines: Sequence[str], *, tone: str = "info") -> MessageSpec:
-    return MessageSpec(embeds=(ui.operator_embed(title, "\n".join(lines) or None, tone=tone),))
+def operator_reply(ui: Ui, title: str, lines: Sequence[str], *, tone: str = "info", banner_id: BannerId) -> MessageSpec:
+    """A staff reply (operator text) with the banner that fits its outcome (``service.StaffResult.banner``)."""
+    return MessageSpec(
+        embeds=(ui.operator_embed(title, "\n".join(lines) or None, tone=tone),), banner=ui.banner(banner_id)
+    )
 
 
 def operator_list(ui: Ui, title: str, lines: Sequence[str], empty: str) -> MessageSpec:
-    """Staff list output split into embeds that fit Discord's limits (never cut)."""
+    """Staff list output split into embeds that fit Discord's limits (never cut), with the ``staff-dashboard``
+    banner (the banner is an attachment, not one of the 10 embeds)."""
     if not lines:
-        return operator_reply(ui, title, [empty])
+        return operator_reply(ui, title, [empty], banner_id="staff-dashboard")
     blocks = chunk_lines(lines, 4000)
     embeds = [ui.operator_embed(title, block) for block in blocks]
     # 10 embeds per message and 6000 characters across them: keep the first blocks that fit.
@@ -319,4 +343,4 @@ def operator_list(ui: Ui, title: str, lines: Sequence[str], empty: str) -> Messa
             break
         kept.append(embed)
         total += embed.text_length()
-    return MessageSpec(embeds=tuple(kept))
+    return MessageSpec(embeds=tuple(kept), banner=ui.banner("staff-dashboard"))

@@ -55,6 +55,7 @@ from typing import TYPE_CHECKING
 
 import discord
 
+from shopbot.config.banner_ids import BannerId
 from shopbot.config.content import MissingContent
 from shopbot.core.events import FAILURE
 from shopbot.core.notifier import Delivery
@@ -807,6 +808,12 @@ class StaffResult:
 
     lines: list[str]
     tone: str = "info"
+
+    @property
+    def banner(self) -> BannerId:
+        """Every staff action reports a refusal or failure with the warning or danger tone, an applied action with
+        the success tone: ``error`` for the former, ``general-response`` otherwise."""
+        return "error" if self.tone in ("warning", "danger") else "general-response"
 
 
 def _member(user_id: int) -> str:

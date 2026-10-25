@@ -117,7 +117,7 @@ async def history_view(app: App, user_id: int, page: int) -> MessageSpec:
 async def balance_view(app: App, user_id: int) -> MessageSpec:
     minor = await get_balance(app, user_id)
     line = app.op("credits.cmd.balance", member=f"<@{user_id}>", balance=operator_amount(app, minor))
-    return views.operator_reply(app.ui, app.op("credits.cmd.balance_title"), [line])
+    return views.operator_reply(app.ui, app.op("credits.cmd.balance_title"), [line], banner_id="staff-dashboard")
 
 
 # -- staff adjustment ------------------------------------------------------------------------------
@@ -131,7 +131,8 @@ class AdjustResult:
 
 
 def _rejected(app: App, line: str) -> AdjustResult:
-    return AdjustResult(views.operator_reply(app.ui, app.op("credits.cmd.rejected_title"), [line], tone="warning"))
+    title = app.op("credits.cmd.rejected_title")
+    return AdjustResult(views.operator_reply(app.ui, title, [line], tone="warning", banner_id="error"))
 
 
 async def adjust(
@@ -211,7 +212,7 @@ async def adjust(
         balance=operator_amount(app, result.balance_minor),
         entry_id=entry.id,
     )
-    spec = views.operator_reply(app.ui, title, [line, notified], tone="success")
+    spec = views.operator_reply(app.ui, title, [line, notified], tone="success", banner_id="successful-confirmation")
     return AdjustResult(spec, entry=entry, balance_minor=result.balance_minor)
 
 

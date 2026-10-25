@@ -20,8 +20,8 @@ from typing import TYPE_CHECKING, Any, Literal
 import discord
 from discord import app_commands
 
-from shopbot.commands import app_of, reply, reply_operator, require_staff
-from shopbot.features.reviews import service
+from shopbot.commands import app_of, reply, require_staff
+from shopbot.features.reviews import service, views
 from shopbot.features.reviews.content_keys import REVIEWS
 
 if TYPE_CHECKING:
@@ -41,8 +41,17 @@ async def _ready(interaction: discord.Interaction[Any]) -> App | None:
     app = app_of(interaction)
     if app.ready(REVIEWS):
         return app
-    await reply_operator(interaction, app.op("command.feature_disabled", feature=REVIEWS), tone="warning")
+    title = app.op("command.feature_disabled", feature=REVIEWS)
+    await reply(interaction, views.operator_reply(app.ui, title, [], tone="warning", banner_id="error"), ephemeral=True)
     return None
+
+
+async def _reply_result(
+    interaction: discord.Interaction[Any], app: App, title: str, result: service.StaffResult
+) -> None:
+    """The operator reply of a staff command, with the banner that fits its outcome."""
+    spec = views.operator_reply(app.ui, title, result.lines, tone=result.tone, banner_id=result.banner)
+    await reply(interaction, spec, ephemeral=True)
 
 
 async def _defer(interaction: discord.Interaction[Any]) -> None:
@@ -64,7 +73,7 @@ async def review_remove(interaction: discord.Interaction[Any], order_number: int
         return
     await _defer(interaction)
     result = await service.remove_review(app, order_number, actor_id=interaction.user.id)
-    await reply_operator(interaction, app.op("reviews.cmd.remove_title"), "\n".join(result.lines), tone=result.tone)
+    await _reply_result(interaction, app, app.op("reviews.cmd.remove_title"), result)
 
 
 async def review_resend(interaction: discord.Interaction[Any], order_number: int) -> None:
@@ -73,7 +82,7 @@ async def review_resend(interaction: discord.Interaction[Any], order_number: int
         return
     await _defer(interaction)
     result = await service.resend_prompt(app, order_number, actor_id=interaction.user.id)
-    await reply_operator(interaction, app.op("reviews.cmd.resend_title"), "\n".join(result.lines), tone=result.tone)
+    await _reply_result(interaction, app, app.op("reviews.cmd.resend_title"), result)
 
 
 async def review_decide(
@@ -87,7 +96,7 @@ async def review_decide(
     result = await service.decide_by_order(
         app, order_number, approve=approve, actor_id=interaction.user.id, reason=cleaned or None
     )
-    await reply_operator(interaction, app.op("reviews.decision.title"), "\n".join(result.lines), tone=result.tone)
+    await _reply_result(interaction, app, app.op("reviews.decision.title"), result)
 
 
 def build_review_group() -> app_commands.Group:

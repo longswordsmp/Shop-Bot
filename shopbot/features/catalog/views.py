@@ -15,9 +15,16 @@ Live listing layout
 The first listing message is the header card (with the private-browsing button). Every following message holds
 up to ``catalog.products_per_listing_message`` product cards (1 = one message per product) and, while the checkout
 feature is on, one buy button per card (5 per row, in card order). A message is split earlier when it would
-exceed 10 cards, 6000 embed characters, or Discord's upload limits for the product images it attaches. Each card's
-color shows its availability (success: available, warning: low stock, danger: out of stock); the buy button of an
-out-of-stock product is disabled.
+exceed 10 cards, 6000 embed characters, or Discord's upload limits for the files it attaches (product images and
+the message's banner). Each card's color shows its availability (success: available, warning: low stock, danger: out
+of stock); the buy button of an out-of-stock product is disabled.
+
+Banners
+-------
+Only the first listing message (the header) shows the ``catalog`` banner; the product-card messages show none.
+Private browsing shows ``catalog`` on every page (paging edits the same message). Staff messages: product details,
+product list -> ``staff-dashboard``; the remove confirmation -> ``general-response`` (the second message of
+/product view, the customer card preview, shows none). Banners are never shown inside an embed.
 """
 
 from __future__ import annotations
@@ -28,6 +35,7 @@ from types import EllipsisType
 
 import discord
 
+from shopbot.config.banner_ids import BannerId
 from shopbot.config.content import MissingContent
 from shopbot.config.settings import Settings
 from shopbot.core.money import currency_exponent, format_amount
@@ -47,6 +55,7 @@ from shopbot.ui.limits import (
     EMBEDS_PER_MESSAGE,
     FILES_PER_MESSAGE,
     FILES_TOTAL_BYTES,
+    message_files,
 )
 from shopbot.ui.spec import (
     ButtonSpec,
@@ -258,22 +267,25 @@ class _Card:
     file: FileSpec | None
 
 
-def _card_message(cards: Sequence[_Card]) -> MessageSpec:
+def _card_message(cards: Sequence[_Card], banner: FileSpec | None = None) -> MessageSpec:
     return MessageSpec(
         embeds=tuple(c.embed for c in cards),
         rows=rows_of(*(c.button for c in cards)),
         files=tuple(c.file for c in cards if c.file is not None),
+        banner=banner,
     )
 
 
-def _fits(cards: Sequence[_Card], card: _Card, per_message: int) -> bool:
+def _fits(cards: Sequence[_Card], card: _Card, per_message: int, banner: FileSpec | None = None) -> bool:
+    """Whether ``card`` can join the message holding ``cards``. ``banner``: the banner of that message; its file
+    counts toward the upload limits like the product images (``message_files``, as the limits checker counts)."""
     if len(cards) >= min(per_message, EMBEDS_PER_MESSAGE):
         return False
     if sum(c.embed.text_length() for c in cards) + card.embed.text_length() > EMBED_TOTAL_CHARS:
         return False
     if card.file is not None:
-        files = [c.file for c in cards if c.file is not None]
-        if len(files) + 1 > FILES_PER_MESSAGE or sum(f.size for f in files) + card.file.size > FILES_TOTAL_BYTES:
+        files = message_files(_card_message([*cards, card], banner))
+        if len(files) > FILES_PER_MESSAGE or sum(f.size for f in files) > FILES_TOTAL_BYTES:
             return False
     return True
 
@@ -292,15 +304,17 @@ def listing_messages(
     refresh loads the bytes only for messages it actually sends or edits). Every message manages its attachments
     (``files`` is a tuple), so an edit keeps, replaces or removes a product image. Without products: the header and
     the "empty" card. ``buy``: show the buy buttons (the caller passes whether checkout is ready; None = whenever the
-    checkout feature is switched on, as in previews).
+    checkout feature is switched on, as in previews). Only the first message (the header) carries the ``catalog``
+    banner; the card messages carry none.
     """
     catalog = settings.catalog
     header = listing_header_embed(ui)
+    banner = ui.banner("catalog")
     products = [p for p in products if p.listed]
     if not products:
-        return [MessageSpec(embeds=(header, empty_embed(ui)), files=())]
+        return [MessageSpec(embeds=(header, empty_embed(ui)), files=(), banner=banner)]
     head_rows = rows_of(browse_button(ui)) if catalog.browse_enabled else ()
-    specs = [MessageSpec(embeds=(header,), rows=head_rows, files=())]
+    specs = [MessageSpec(embeds=(header,), rows=head_rows, files=(), banner=banner)]
     if buy is None:
         buy = settings.features.checkout
     current: list[_Card] = []
@@ -312,7 +326,7 @@ def listing_messages(
             button=buy_button(ui, product) if buy else None,
             file=files[0] if files else None,
         )
-        if current and not _fits(current, card, catalog.products_per_listing_message):
+        if current and not _fits(current, card, catalog.products_per_listing_message):  # card messages: no banner
             specs.append(_card_message(current))
             current = []
         current.append(card)
@@ -336,6 +350,7 @@ def browse_page(
     image: ProductImage | None = None,
     buy: bool = False,
     low_stock_threshold: int = 0,
+    banner_id: BannerId = "catalog",
 ) -> MessageSpec:
     """One page of private browsing: the product card of ``product`` (page ``page`` of ``total``).
 
@@ -346,9 +361,12 @@ def browse_page(
     ``image`` is the product's uploaded image (with its bytes): it is attached and shown. The page always manages
     its attachments, so paging from a product with an uploaded image to one without removes the image.
     With ``product`` None (nothing to browse) the "empty" card is shown and no buttons.
+    Every page shows the ``banner_id`` banner (paging keeps it; another feature embedding the browser may pass its
+    own).
     """
+    banner = ui.banner(banner_id)
     if product is None or total <= 0:
-        return MessageSpec(embeds=(empty_embed(ui),), files=())
+        return MessageSpec(embeds=(empty_embed(ui),), files=(), banner=banner)
     indicator = ui.page_indicator(page + 1, total) if total > 1 else None
     image_url, files = embed_image(product, image)
     embed = product_embed(
@@ -365,7 +383,7 @@ def browse_page(
         nav = [previous, following]
     actions = ([buy_button(ui, product)] if buy else []) + list(extra_buttons)
     rows = rows_of(*nav) + rows_of(*actions)
-    return MessageSpec(embeds=(embed,), rows=rows, files=tuple(files))
+    return MessageSpec(embeds=(embed,), rows=rows, files=tuple(files), banner=banner)
 
 
 # ---------------------------------------------------------------------------------------------------
@@ -513,8 +531,13 @@ def product_details_embed(
 def product_details_message(
     ui: Ui, op: OperatorText, money: MoneyFormat, product: Product, image: ProductImage | None = None
 ) -> MessageSpec:
+    """Staff details of a product (the first message of /product view: it shows the ``staff-dashboard`` banner)."""
     _, files = embed_image(product, image)
-    return MessageSpec(embeds=(product_details_embed(ui, op, money, product, image),), files=tuple(files))
+    return MessageSpec(
+        embeds=(product_details_embed(ui, op, money, product, image),),
+        files=tuple(files),
+        banner=ui.banner("staff-dashboard"),
+    )
 
 
 def _image_value(op: OperatorText, url: str | None, image: ProductImage | None) -> str | None:
@@ -541,7 +564,7 @@ def remove_confirm(ui: Ui, op: OperatorText, product: Product) -> MessageSpec:
         ButtonSpec(label=op("catalog.remove.button_remove"), custom_id=remove_custom_id(product.id), style="danger"),
         ButtonSpec(label=op("catalog.remove.button_keep"), custom_id=remove_cancel_custom_id(product.id)),
     )
-    return MessageSpec(embeds=(embed,), rows=rows)
+    return MessageSpec(embeds=(embed,), rows=rows, banner=ui.banner("general-response"))
 
 
 def product_list_page(
@@ -554,7 +577,8 @@ def product_list_page(
     total: int,
     include_archived: bool,
 ) -> MessageSpec:
-    """Staff product list (``ADMIN_PAGE_SIZE`` per page) with previous/next buttons for managers."""
+    """Staff product list (``ADMIN_PAGE_SIZE`` per page) with previous/next buttons for managers (every page shows
+    the ``staff-dashboard`` banner)."""
     pages = max(1, -(-total // ADMIN_PAGE_SIZE))
     lines = []
     for product in products:
@@ -593,5 +617,5 @@ def product_list_page(
                 disabled=page >= pages - 1,
             ),
         )
-        return MessageSpec(embeds=(embed,), rows=buttons)
-    return MessageSpec(embeds=(embed,))
+        return MessageSpec(embeds=(embed,), rows=buttons, banner=ui.banner("staff-dashboard"))
+    return MessageSpec(embeds=(embed,), banner=ui.banner("staff-dashboard"))
