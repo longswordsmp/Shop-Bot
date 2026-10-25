@@ -165,13 +165,12 @@ async def test_stock_change_edits_in_place(tenv: TestEnv) -> None:
     assert message.embeds[0].color is not None and message.embeds[0].color.value == danger
 
 
-async def test_empty_catalog_shows_header_and_empty_card_without_button(tenv: TestEnv) -> None:
+async def test_empty_catalog_shows_the_header_with_the_empty_text_and_no_button(tenv: TestEnv) -> None:
     channel = await listing_channel(tenv)
     await service.request_listing_refresh(tenv.app)
     message = channel.messages[0]
-    assert [e.description for e in message.embeds] == [
-        tenv.text(keys.LISTING_DESCRIPTION),
-        tenv.text(keys.LISTING_EMPTY),
+    assert [e.description for e in message.embeds] == [  # one card: the empty text is its last paragraph
+        f"{tenv.text(keys.LISTING_DESCRIPTION)}\n\n{tenv.text(keys.LISTING_EMPTY)}"
     ]
     assert buttons(message) == []
 

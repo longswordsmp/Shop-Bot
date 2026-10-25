@@ -1,7 +1,7 @@
 """Content keys of ``/myorders``: the customer's private list of their own orders.
 
-Stage names and the timeline line format are the checkout feature's (``checkout.ticket.stage.*``,
-``checkout.ticket.timeline_entry``), so an order's stages read the same in its ticket and here. Prices use
+Stage names are the checkout feature's (``checkout.ticket.stage.*``), so an order's status reads the same in its
+ticket and here. Prices use
 ``common.money_format``; paging uses the shared previous/next buttons and the optional page indicator.
 """
 
@@ -20,10 +20,7 @@ LIST_TITLE = "my_orders.list.title"
 LIST_DESCRIPTION = "my_orders.list.description"
 EMPTY = "my_orders.empty.description"
 ORDER_TITLE = "my_orders.order.title"
-ORDER_NUMBER_FIELD = "my_orders.order.number_field"
-ORDER_STATUS_FIELD = "my_orders.order.status_field"
-ORDER_TOTAL_FIELD = "my_orders.order.total_field"
-ORDER_TIMELINE_FIELD = "my_orders.order.timeline_field"
+ORDER_SUMMARY = "my_orders.order.summary"
 ORDER_TICKET_FIELD = "my_orders.order.ticket_field"
 ORDER_TRACKING_FIELD = "my_orders.order.tracking_field"
 
@@ -61,8 +58,8 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             Kind.DESCRIPTION,
             FEATURE,
             group,
-            "Optional text under the /myorders title when the member has orders. {count} is their number. One card "
-            "per order follows (newest first), with previous/next buttons when there is more than one page.",
+            "Optional text under the /myorders title when the member has orders. {count} is their number. The orders "
+            "follow (newest first), with previous/next buttons when there is more than one page.",
             required=False,
             placeholders=("count",),
         ),
@@ -78,44 +75,24 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             Kind.TITLE,
             FEATURE,
             group,
-            f"Title of each order's card in /myorders. {order_doc}",
+            f"Heading of each order in /myorders, shown in bold. {order_doc}",
             placeholders=ORDER_PLACEHOLDERS,
         ),
         ck(
-            ORDER_NUMBER_FIELD,
-            Kind.FIELD_NAME,
+            ORDER_SUMMARY,
+            Kind.DESCRIPTION,
             FEATURE,
             group,
-            "Name of the field showing the order number (the order's reference) on each order card.",
-        ),
-        ck(
-            ORDER_STATUS_FIELD,
-            Kind.FIELD_NAME,
-            FEATURE,
-            group,
-            "Name of the field showing the order's current stage (checkout.ticket.stage.*) on each order card.",
-        ),
-        ck(
-            ORDER_TOTAL_FIELD,
-            Kind.FIELD_NAME,
-            FEATURE,
-            group,
-            "Name of the field showing the order total (common.money_format) on each order card.",
-        ),
-        ck(
-            ORDER_TIMELINE_FIELD,
-            Kind.FIELD_NAME,
-            FEATURE,
-            group,
-            "Name of the field listing the order's stages so far on each order card (each written with "
-            "checkout.ticket.timeline_entry).",
+            f"Line under each order's heading in /myorders, e.g. '{{total}} · placed {{date}}'. {order_doc}",
+            placeholders=ORDER_PLACEHOLDERS,
         ),
         ck(
             ORDER_TICKET_FIELD,
             Kind.FIELD_NAME,
             FEATURE,
             group,
-            "Optional name of a field linking the order's ticket while it is still open (omitted when empty).",
+            "Optional label of the line linking the order's ticket while it is still open, e.g. 'Ticket' (the line "
+            "is omitted when empty).",
             required=False,
         ),
         ck(
@@ -123,8 +100,8 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             Kind.FIELD_NAME,
             FEATURE,
             group,
-            "Optional name of the field showing the tracking details staff recorded for the order (shown only when "
-            "there are tracking details; omitted when empty).",
+            "Optional label of the line showing the tracking details staff recorded for the order, e.g. 'Tracking' "
+            "(shown only when there are tracking details; omitted when empty).",
             required=False,
         ),
     ]

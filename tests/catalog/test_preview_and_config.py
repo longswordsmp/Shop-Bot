@@ -81,7 +81,8 @@ async def test_every_preview_state_is_valid_routed_and_synthetic(tenv: TestEnv) 
     browse = by_name["browse_first"]
     assert isinstance(browse, MessageSpec) and browse.files and browse.embeds[0].image_url.startswith("attachment://")  # type: ignore[union-attr]
     empty = by_name["listing_empty"]
-    assert isinstance(empty, MessageSpec) and empty.embeds[1].description == tenv.text(keys.LISTING_EMPTY)
+    assert isinstance(empty, MessageSpec) and len(empty.embeds) == 1
+    assert (empty.embeds[0].description or "").endswith(tenv.text(keys.LISTING_EMPTY))
 
 
 async def test_preview_skips_listing_states_without_listing_channel(tmp_path: Path) -> None:

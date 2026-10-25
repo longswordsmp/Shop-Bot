@@ -3,10 +3,8 @@
 - ``Texts`` resolves the content keys of one panel build: at runtime a missing required key raises
   ``MissingContent`` and a ``{channel_<key>}`` link to a channel that does not exist raises ``ChannelNotCreated``
   (nothing incomplete is ever posted); the preview shows ``[content.key]`` markers instead.
-- ``Block`` / ``build_embeds`` / ``pack_messages`` turn the resolved text into embeds and messages that respect
-  Discord's limits (25 fields, 4096-character descriptions and 6000 characters per embed; 10 embeds and 6000
-  characters per message) without ever cutting text: a block that does not fit one embed continues in the next
-  embed, and embeds that do not fit one message continue in the next message.
+- ``Card`` / ``Block`` (``shopbot.ui.card``) turn the resolved text into one card, as embeds and messages that respect
+  Discord's limits without ever cutting text.
 - ``guide_messages`` puts the guide's banner picture on its first message only (later messages continue it).
 - ``publish_guide`` keeps one guide as an ordered series of messages (``<prefix><index>`` records): edited in
   place, re-posted in order when one was deleted or moved, surplus messages of an earlier, longer configuration
@@ -21,7 +19,7 @@ import re
 import weakref
 from collections import Counter
 from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 import discord
@@ -36,8 +34,9 @@ from shopbot.db.repos import state
 from shopbot.features.server_keys import channel_mentions, channel_placeholder, channel_placeholders, channel_url
 from shopbot.logging_setup import log_event
 from shopbot.ui import limits
+from shopbot.ui.card import Block, block_messages
 from shopbot.ui.discord_render import RenderError
-from shopbot.ui.spec import Component, EmbedField, EmbedSpec, MessageSpec, PreviewState
+from shopbot.ui.spec import Component, MessageSpec, PreviewState
 from shopbot.ui.style import Ui
 
 if TYPE_CHECKING:
@@ -180,123 +179,8 @@ def preview_channel_url(app: App, channel_key: str) -> str:
 
 
 # ---------------------------------------------------------------------------------------------------
-# Layout: blocks -> embeds -> messages
+# Layout: blocks -> embeds -> messages (``shopbot.ui.card``)
 # ---------------------------------------------------------------------------------------------------
-
-
-@dataclass(frozen=True)
-class Block:
-    """One card of a guide: title and description on its first embed, then ``lines`` (appended to the
-    description) or ``fields``. A block that does not fit one embed continues in further embeds (without
-    repeating its title)."""
-
-    tone: str
-    title: str | None = None
-    description: str | None = None
-    fields: tuple[EmbedField, ...] = ()
-    lines: tuple[str, ...] = ()
-
-    def __post_init__(self) -> None:
-        if self.fields and self.lines:
-            raise ValueError("a block holds fields or lines, not both")
-
-    def is_empty(self) -> bool:
-        return not (self.title or self.description or self.fields or self.lines)
-
-
-class _EmbedBuilder:
-    def __init__(self, ui: Ui) -> None:
-        self.ui = ui
-        self.embeds: list[EmbedSpec] = []
-        self._branded = False
-        self._reset("primary", None, None, branding=False)
-
-    def _reset(self, tone: str, title: str | None, description: str | None, *, branding: bool) -> None:
-        self.tone = tone
-        self.title = title
-        self.description = description
-        self.fields: list[EmbedField] = []
-        self.has_lines = False
-        self.branding = branding
-
-    def _spec(self, description: str | None, fields: Sequence[EmbedField]) -> EmbedSpec:
-        return self.ui.embed(
-            title=self.title,
-            description=description,
-            tone=self.tone,
-            fields=fields,
-            panel=self.branding,
-            branding_text=self.branding,
-        )
-
-    def _length(self, description: str | None, fields: Sequence[EmbedField]) -> int:
-        return self._spec(description, fields).text_length()
-
-    def _pending(self) -> bool:
-        return bool(self.title or self.description or self.fields)
-
-    def flush(self) -> None:
-        if self._pending():
-            self.embeds.append(self._spec(self.description, self.fields))
-        self._reset(self.tone, None, None, branding=False)
-
-    def start(self, block: Block) -> None:
-        self.flush()
-        branding = not self._branded
-        self._branded = True
-        self._reset(block.tone, block.title, block.description, branding=branding)
-
-    def add_line(self, line: str) -> None:
-        separator = "\n" if self.has_lines else ("\n\n" if self.description else "")
-        candidate = f"{self.description or ''}{separator}{line}"
-        fits = (
-            len(candidate) <= limits.EMBED_DESCRIPTION
-            and self._length(candidate, self.fields) <= limits.EMBED_TOTAL_CHARS
-        )
-        if not fits and self._pending():
-            self.flush()
-            candidate = line
-        self.description = candidate
-        self.has_lines = True
-
-    def add_field(self, item: EmbedField) -> None:
-        full = len(self.fields) >= limits.EMBED_FIELDS
-        too_long = self._length(self.description, [*self.fields, item]) > limits.EMBED_TOTAL_CHARS
-        if (full or too_long) and self._pending():
-            self.flush()
-        self.fields.append(item)
-
-
-def build_embeds(ui: Ui, blocks: Iterable[Block]) -> list[EmbedSpec]:
-    """Embeds for ``blocks`` in order. The first embed carries the branding (author, footer, panel images)."""
-    builder = _EmbedBuilder(ui)
-    for block in blocks:
-        if block.is_empty():
-            continue
-        builder.start(block)
-        for line in block.lines:
-            builder.add_line(line)
-        for item in block.fields:
-            builder.add_field(item)
-    builder.flush()
-    return builder.embeds
-
-
-def pack_messages(embeds: Sequence[EmbedSpec]) -> list[tuple[EmbedSpec, ...]]:
-    """Group embeds into messages of at most 10 embeds and 6000 characters, keeping their order."""
-    messages: list[tuple[EmbedSpec, ...]] = []
-    current: list[EmbedSpec] = []
-    used = 0
-    for embed in embeds:
-        length = embed.text_length()
-        if current and (len(current) >= limits.EMBEDS_PER_MESSAGE or used + length > limits.EMBED_TOTAL_CHARS):
-            messages.append(tuple(current))
-            current, used = [], 0
-        current.append(embed)
-        used += length
-    if current:
-        messages.append(tuple(current))
-    return messages
 
 
 def guide_messages(
@@ -304,12 +188,7 @@ def guide_messages(
 ) -> list[MessageSpec]:
     """The messages of a guide; the ``banner`` picture tops the first message only and ``rows`` (link buttons) are
     attached to the last message."""
-    specs = [MessageSpec(embeds=group) for group in pack_messages(build_embeds(ui, blocks))]
-    if specs:
-        specs[0] = replace(specs[0], banner=ui.banner(banner))
-    if specs and rows:
-        specs[-1] = replace(specs[-1], rows=rows)
-    return specs
+    return block_messages(ui, blocks, rows, banner=banner)
 
 
 def preview_states(feature: str, name: str, note: str, specs: Sequence[MessageSpec]) -> list[PreviewState]:

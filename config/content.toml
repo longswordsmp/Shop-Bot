@@ -14,37 +14,37 @@
 
 # Optional author line at the top of every customer-facing embed (uses the logo as icon).
 # author · max 256 characters · optional
-branding.author_name = "AmazonYaarts"
+branding.author_name = ""
 
 # Optional footer on every customer-facing embed.
 # footer · max 2048 characters · optional
-branding.footer_text = ""
+branding.footer_text = "AmazonYaarts"
 
 # --- Shared buttons ---
 
 # Back button in multi-step workflows.
 # button_label · max 80 characters · optional
-common.button.back = "⬅️ Back"
+common.button.back = "Back"
 
 # Cancel button on prompts and workflows.
 # button_label · max 80 characters · optional
-common.button.cancel = "❌ Cancel"
+common.button.cancel = "Cancel"
 
 # Confirm button on confirmation prompts.
 # button_label · max 80 characters · optional
-common.button.confirm = "✅ Confirm"
+common.button.confirm = "Confirm"
 
 # Continue button in multi-step workflows.
 # button_label · max 80 characters · optional
-common.button.continue = "➡️ Continue"
+common.button.continue = "Continue"
 
 # Next-page button in paginated lists.
 # button_label · max 80 characters · optional
-common.button.next_page = "▶️ Next"
+common.button.next_page = "Next"
 
 # Previous-page button in paginated lists.
 # button_label · max 80 characters · optional
-common.button.previous_page = "◀️ Previous"
+common.button.previous_page = "Previous"
 
 # --- Error messages (shown privately to the person who clicked) ---
 
@@ -104,11 +104,11 @@ common.progress_format = "{bar} Step {current} of {total}"
 
 # Name of the 'catalog' channel category.
 # category_name · max 100 characters · required
-server.category.catalog.name = "📦 CATALOG"
+server.category.catalog.name = "🏬 SHOP"
 
 # Name of the 'purchase' channel category.
 # category_name · max 100 characters · required
-server.category.purchase.name = "🛒 PURCHASE"
+server.category.purchase.name = "🧾 ORDERS"
 
 # Name of the 'staff' channel category.
 # category_name · max 100 characters · required
@@ -116,87 +116,87 @@ server.category.staff.name = "🔒 STAFF"
 
 # Name of the 'start_here' channel category.
 # category_name · max 100 characters · required
-server.category.start_here.name = "📌 START HERE"
+server.category.start_here.name = "📌 INFORMATION"
 
 # --- Channel names ---
 
 # Name of the 'announcements' channel.
 # channel_name · max 100 characters · required
-server.channel.announcements.name = "announcements"
+server.channel.announcements.name = "📣・announcements"
 
 # Name of the 'bot_log' channel.
 # channel_name · max 100 characters · required
-server.channel.bot_log.name = "bot-log"
+server.channel.bot_log.name = "📒・bot-log"
 
 # Name of the 'catalog' channel.
 # channel_name · max 100 characters · required
-server.channel.catalog.name = "catalog"
+server.channel.catalog.name = "📦・catalog"
 
 # Name of the 'faq' channel.
 # channel_name · max 100 characters · required
-server.channel.faq.name = "faq"
+server.channel.faq.name = "❔・faq"
 
 # Name of the 'how_to_buy' channel.
 # channel_name · max 100 characters · required
-server.channel.how_to_buy.name = "how-to-buy"
+server.channel.how_to_buy.name = "🧭・how-to-order"
 
 # Name of the 'new_arrivals' channel.
 # channel_name · max 100 characters · required
-server.channel.new_arrivals.name = "new-arrivals"
+server.channel.new_arrivals.name = "✨・new-arrivals"
 
 # Name of the 'orders' channel.
 # channel_name · max 100 characters · required
-server.channel.orders.name = "orders"
+server.channel.orders.name = "📋・orders"
 
 # Name of the 'purchase' channel.
 # channel_name · max 100 characters · required
-server.channel.purchase.name = "purchase"
+server.channel.purchase.name = "🛒・place-order"
 
 # Name of the 'reviews' channel.
 # channel_name · max 100 characters · required
-server.channel.reviews.name = "reviews"
+server.channel.reviews.name = "⭐・reviews"
 
 # Name of the 'shipping' channel.
 # channel_name · max 100 characters · required
-server.channel.shipping.name = "shipping"
+server.channel.shipping.name = "🚚・shipping"
 
 # Name of the 'staff_chat' channel.
 # channel_name · max 100 characters · required
-server.channel.staff_chat.name = "staff-chat"
+server.channel.staff_chat.name = "💬・staff-chat"
 
 # Name of the 'transcripts' channel.
 # channel_name · max 100 characters · required
-server.channel.transcripts.name = "transcripts"
+server.channel.transcripts.name = "📁・transcripts"
 
 # Name of the 'welcome' channel.
 # channel_name · max 100 characters · required
-server.channel.welcome.name = "welcome"
+server.channel.welcome.name = "📜・welcome"
 
 # --- Channel topics ---
 
 # Optional topic (description) of the 'announcements' channel.
 # channel_topic · max 1024 characters · optional
-server.channel.announcements.topic = "News and updates from our team."
+server.channel.announcements.topic = "News, restocks and updates from our team."
 
 # Optional topic (description) of the 'bot_log' channel.
 # channel_topic · max 1024 characters · optional
-server.channel.bot_log.topic = "Audit log of orders, tickets, staff actions, setup changes and failures."
+server.channel.bot_log.topic = "What the bot and staff did, with who and when."
 
 # Optional topic (description) of the 'catalog' channel.
 # channel_topic · max 1024 characters · optional
-server.channel.catalog.topic = "One card per product with its price, availability and a Buy button."
+server.channel.catalog.topic = "Every item with its price and availability. Press Buy to order."
 
 # Optional topic (description) of the 'faq' channel.
 # channel_topic · max 1024 characters · optional
-server.channel.faq.topic = "Answers to common questions about ordering, payment, order status and problems."
+server.channel.faq.topic = "Answers about ordering, payment, shipping, tracking and problems."
 
 # Optional topic (description) of the 'how_to_buy' channel.
 # channel_topic · max 1024 characters · optional
-server.channel.how_to_buy.topic = "How to place an order, step by step."
+server.channel.how_to_buy.topic = "How ordering works, from choosing items to tracking your package."
 
 # Optional topic (description) of the 'new_arrivals' channel.
 # channel_topic · max 1024 characters · optional
-server.channel.new_arrivals.topic = "New products and restocks; turn Restock Alerts on or off with the button here."
+server.channel.new_arrivals.topic = "New items and restocks. Turn alerts on or off here."
 
 # Optional topic (description) of the 'orders' channel.
 # channel_topic · max 1024 characters · optional
@@ -204,27 +204,27 @@ server.channel.orders.topic = "One live record per order with the staff controls
 
 # Optional topic (description) of the 'purchase' channel.
 # channel_topic · max 1024 characters · optional
-server.channel.purchase.topic = "Start an order or report a problem; both continue in a private ticket."
+server.channel.purchase.topic = "Start an order or report a problem. Both open a private ticket."
 
 # Optional topic (description) of the 'reviews' channel.
 # channel_topic · max 1024 characters · optional
-server.channel.reviews.topic = "Verified reviews from customers who completed an order."
+server.channel.reviews.topic = "Verified reviews from customers who received their order."
 
 # Optional topic (description) of the 'shipping' channel.
 # channel_topic · max 1024 characters · optional
-server.channel.shipping.topic = "Where we ship and which regions we cannot ship to."
+server.channel.shipping.topic = "Where we ship, delivery options and prices."
 
 # Optional topic (description) of the 'staff_chat' channel.
 # channel_topic · max 1024 characters · optional
-server.channel.staff_chat.topic = "Staff discussion, order and report alerts, reminders and failure alerts."
+server.channel.staff_chat.topic = "Alerts, reminders and team discussion."
 
 # Optional topic (description) of the 'transcripts' channel.
 # channel_topic · max 1024 characters · optional
-server.channel.transcripts.topic = "Transcripts of closed order tickets and report tickets."
+server.channel.transcripts.topic = "A transcript of every closed ticket."
 
 # Optional topic (description) of the 'welcome' channel.
 # channel_topic · max 1024 characters · optional
-server.channel.welcome.topic = "Read the server rules and accept them with the button to unlock the shop."
+server.channel.welcome.topic = "Rules and verification. Read them, then press Verify to unlock the shop."
 
 # --- Role names ---
 
@@ -252,49 +252,30 @@ server.role.staff.name = "Staff"
 # Feature: verification
 # ==================================================================================================
 
-# --- Verification: private replies after the 'I agree' button ---
-
-# Private reply to a member who clicks the 'I agree' button although they already have the Member role (nothing changes). {user_name} is the member's display name, {user_mention} mentions them (mentions do not ping in embeds). You may write {channel_<key>} (for example {channel_catalog}) for a clickable link to a channel from server.channels.
-# description · max 4096 characters · required · placeholders: {user_name}, {user_mention}, {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-verification.already_verified.description = "Hi {user_name}, you already have the **Member** role, so there's nothing more to do. Browse {channel_catalog} or start an order in {channel_purchase}."
-
-# Optional title of the private reply to a member who clicks the 'I agree' button although they already have the Member role. {user_name} is the member's display name.
-# title · max 256 characters · optional · placeholders: {user_name}
-verification.already_verified.title = "You're already a member"
-
-# Private confirmation (only the member sees it) after they accepted the rules and received the Member role; the member-only channels are visible from now on. {user_name} is the member's display name, {user_mention} mentions them (mentions do not ping in embeds). You may write {channel_<key>} (for example {channel_catalog}) for a clickable link to a channel from server.channels.
-# description · max 4096 characters · required · placeholders: {user_name}, {user_mention}, {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-verification.confirmed.description = '''
-Thanks for accepting the rules. You now have the **Member** role and these channels are open to you:
-• {channel_catalog}: browse our products
-• {channel_new_arrivals}: new products and restocks
-• {channel_reviews}: reviews from our customers
-• {channel_purchase}: start an order or report a problem
-
-First order? {channel_how_to_buy} walks you through it.'''
-
-# Optional title of the private confirmation shown after the member accepted the rules and received the Member role. {user_name} is the member's display name.
-# title · max 256 characters · optional · placeholders: {user_name}
-verification.confirmed.title = "Welcome, {user_name}"
-
 # --- Verification: welcome panel ---
+
+# Optional heading of the closing section of the welcome panel that /setup posts in the 'welcome' channel (what to do after verifying), shown in bold.
+# title · max 256 characters · optional
+verification.after.heading = "{icon_compass} AFTER VERIFYING"
+
+# Optional closing section of the welcome panel that /setup posts in the 'welcome' channel, below the rules (e.g. where to go after verifying). You may write {channel_<key>} (for example {channel_catalog}) for a clickable link to a channel from server.channels.
+# description · max 4096 characters · optional · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+verification.after.text = "Browse {channel_catalog} · check {channel_shipping} · start an order in {channel_purchase}"
 
 # Optional emoji shown on the 'I agree' button.
 # emoji · max 100 characters · optional
-verification.button.emoji = "✅"
+verification.button.emoji = "{icon_check}"
 
 # Label of the button under the welcome panel that /setup posts in the 'welcome' channel; it accepts the rules and grants the Member role (the specification calls it "I agree, enter the server").
 # button_label · max 80 characters · required
-verification.button.label = "I agree, enter the server"
+verification.button.label = "Verify"
 
 # Short introduction to the server on the first card of the welcome panel that /setup posts in the 'welcome' channel. You may write {channel_<key>} (for example {channel_catalog}) for a clickable link to a channel from server.channels.
 # description · max 4096 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
 verification.welcome.description = '''
-We sell right here on Discord: browse our products, order in your own private order ticket and follow each order from payment to dispatch.
+We sell and ship right here on Discord. Every order is placed in your own private ticket, and you can follow it from payment to delivery.
 
-To enter the shop, read the rules below and press **I agree, enter the server**. You get the **Member** role, which unlocks the catalog, new arrivals, reviews and purchase channels.
-
-New here? {channel_how_to_buy} explains how ordering works, {channel_shipping} shows where we ship and {channel_faq} answers common questions.'''
+Read the rules below. Pressing **Verify** means you agree to them and unlocks the shop.'''
 
 # Optional large image (https:// URL) at the bottom of the first card of the welcome panel that /setup posts in the 'welcome' channel. If empty, the branding banner is used when branding.panel_banner is on.
 # url · max 2048 characters · optional
@@ -308,73 +289,96 @@ verification.welcome.thumbnail_url = ""
 # title · max 256 characters · required
 verification.welcome.title = "Welcome to AmazonYaarts"
 
+# --- Verification: private replies after the 'I agree' button ---
+
+# Private reply to a member who clicks the 'I agree' button although they already have the Member role (nothing changes). {user_name} is the member's display name, {user_mention} mentions them (mentions do not ping in embeds). You may write {channel_<key>} (for example {channel_catalog}) for a clickable link to a channel from server.channels.
+# description · max 4096 characters · required · placeholders: {user_name}, {user_mention}, {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+verification.already_verified.description = "You have full access. Start an order any time in {channel_purchase}."
+
+# Optional title of the private reply to a member who clicks the 'I agree' button although they already have the Member role. {user_name} is the member's display name.
+# title · max 256 characters · optional · placeholders: {user_name}
+verification.already_verified.title = "You're already verified"
+
+# Private confirmation (only the member sees it) after they accepted the rules and received the Member role; the member-only channels are visible from now on. {user_name} is the member's display name, {user_mention} mentions them (mentions do not ping in embeds). You may write {channel_<key>} (for example {channel_catalog}) for a clickable link to a channel from server.channels.
+# description · max 4096 characters · required · placeholders: {user_name}, {user_mention}, {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+verification.confirmed.description = '''
+Thanks, {user_name}. The shop channels are now open to you.
+
+{icon_tag} {channel_catalog}: browse items and prices
+{icon_truck} {channel_shipping}: where we ship and what it costs
+{icon_cart} {channel_purchase}: start your first order'''
+
+# Optional title of the private confirmation shown after the member accepted the rules and received the Member role. {user_name} is the member's display name.
+# title · max 256 characters · optional · placeholders: {user_name}
+verification.confirmed.title = "You're verified"
+
 # --- Verification: direct message (verification.dm_confirmation) ---
 
 # Direct message confirming a successful verification, sent in addition to the private confirmation when verification.dm_confirmation and features.dm_notifications are on (required then). {user_name} is the member's display name, {user_mention} mentions them (mentions do not ping in embeds). You may write {channel_<key>} (for example {channel_catalog}) for a clickable link to a channel from server.channels.
 # description · max 4096 characters · optional · placeholders: {user_name}, {user_mention}, {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-verification.dm.description = "Hi {user_name}, thanks for accepting the rules. You now have the **Member** role and can see the shop channels: browse {channel_catalog} or start an order in {channel_purchase}. {channel_how_to_buy} explains each step."
+verification.dm.description = "Thanks, {user_name}. The AmazonYaarts shop channels are now open to you. Start an order any time in {channel_purchase}."
 
 # Optional title of the direct message confirming a successful verification. {user_name} is the member's display name.
 # title · max 256 characters · optional · placeholders: {user_name}
-verification.dm.title = "Welcome to AmazonYaarts"
+verification.dm.title = "You're verified"
 
 # --- Verification: server rules (on the welcome panel) ---
 
-# Heading of rule 1 of 6 on the rules card (for example a number and a short title). Links cannot be shown in headings.
+# Name of rule 1 of 6, shown in bold before its text (for example a number and a short title). Links cannot be shown here.
 # field_name · max 256 characters · required
-verification.rule.1.name = "1. Be respectful"
+verification.rule.1.name = "1. Be respectful."
 
-# Text of rule 1 of 6 on the rules card. You may write {channel_<key>} (for example {channel_catalog}) for a clickable link to a channel from server.channels.
+# Text of rule 1 of 6, after its name on the same line. You may write {channel_<key>} (for example {channel_catalog}) for a clickable link to a channel from server.channels.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-verification.rule.1.value = "Treat everyone with respect. No harassment, hate speech, threats or discrimination."
+verification.rule.1.value = "No harassment, hate speech, threats or discrimination."
 
-# Heading of rule 2 of 6 on the rules card (for example a number and a short title). Links cannot be shown in headings.
+# Name of rule 2 of 6, shown in bold before its text (for example a number and a short title). Links cannot be shown here.
 # field_name · max 256 characters · required
-verification.rule.2.name = "2. No spam or advertising"
+verification.rule.2.name = "2. No spam or advertising."
 
-# Text of rule 2 of 6 on the rules card. You may write {channel_<key>} (for example {channel_catalog}) for a clickable link to a channel from server.channels.
+# Text of rule 2 of 6, after its name on the same line. You may write {channel_<key>} (for example {channel_catalog}) for a clickable link to a channel from server.channels.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-verification.rule.2.value = "Don't spam or flood channels, and don't advertise other servers, shops or services, here or in members' direct messages."
+verification.rule.2.value = "This includes other members' direct messages."
 
-# Heading of rule 3 of 6 on the rules card (for example a number and a short title). Links cannot be shown in headings.
+# Name of rule 3 of 6, shown in bold before its text (for example a number and a short title). Links cannot be shown here.
 # field_name · max 256 characters · required
-verification.rule.3.name = "3. Stay safe"
+verification.rule.3.name = "3. Keep it private."
 
-# Text of rule 3 of 6 on the rules card. You may write {channel_<key>} (for example {channel_catalog}) for a clickable link to a channel from server.channels.
+# Text of rule 3 of 6, after its name on the same line. You may write {channel_<key>} (for example {channel_catalog}) for a clickable link to a channel from server.channels.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-verification.rule.3.value = "No scams or impersonation. Never share personal or payment details in public, and never post card numbers or passwords anywhere in Discord."
+verification.rule.3.value = "Never post addresses, gift card codes or passwords in a channel."
 
-# Heading of rule 4 of 6 on the rules card (for example a number and a short title). Links cannot be shown in headings.
+# Name of rule 4 of 6, shown in bold before its text (for example a number and a short title). Links cannot be shown here.
 # field_name · max 256 characters · required
-verification.rule.4.name = "4. Orders and support in tickets"
+verification.rule.4.name = "4. Orders and support in tickets."
 
-# Text of rule 4 of 6 on the rules card. You may write {channel_<key>} (for example {channel_catalog}) for a clickable link to a channel from server.channels.
+# Text of rule 4 of 6, after its name on the same line. You may write {channel_<key>} (for example {channel_catalog}) for a clickable link to a channel from server.channels.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-verification.rule.4.value = "Handle orders, payments and problems only in your private order ticket or report ticket, so our team can help you and your details stay private."
+verification.rule.4.value = "Use {channel_purchase}; our team only handles orders there."
 
-# Heading of rule 5 of 6 on the rules card (for example a number and a short title). Links cannot be shown in headings.
+# Name of rule 5 of 6, shown in bold before its text (for example a number and a short title). Links cannot be shown here.
 # field_name · max 256 characters · required
-verification.rule.5.name = "5. Follow staff instructions"
+verification.rule.5.name = "5. Staff never DM you first"
 
-# Text of rule 5 of 6 on the rules card. You may write {channel_<key>} (for example {channel_catalog}) for a clickable link to a channel from server.channels.
+# Text of rule 5 of 6, after its name on the same line. You may write {channel_<key>} (for example {channel_catalog}) for a clickable link to a channel from server.channels.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-verification.rule.5.value = "Please follow the instructions of our staff. If you disagree with a decision, raise it politely and privately with our team."
+verification.rule.5.value = "about payments or codes. Report anyone who does."
 
-# Heading of rule 6 of 6 on the rules card (for example a number and a short title). Links cannot be shown in headings.
+# Name of rule 6 of 6, shown in bold before its text (for example a number and a short title). Links cannot be shown here.
 # field_name · max 256 characters · required
-verification.rule.6.name = "6. Follow Discord's rules"
+verification.rule.6.name = "6. Follow Discord's rules."
 
-# Text of rule 6 of 6 on the rules card. You may write {channel_<key>} (for example {channel_catalog}) for a clickable link to a channel from server.channels.
+# Text of rule 6 of 6, after its name on the same line. You may write {channel_<key>} (for example {channel_catalog}) for a clickable link to a channel from server.channels.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-verification.rule.6.value = "Follow Discord's Terms of Service and Community Guidelines at all times."
+verification.rule.6.value = "That means the Terms of Service and the Community Guidelines."
 
-# Optional text above the list of rules on the rules card. You may write {channel_<key>} (for example {channel_catalog}) for a clickable link to a channel from server.channels.
+# Optional text above the list of rules. You may write {channel_<key>} (for example {channel_catalog}) for a clickable link to a channel from server.channels.
 # description · max 4096 characters · optional · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-verification.rules.description = "By pressing the button below, you agree to follow these rules."
+verification.rules.description = ""
 
-# Optional heading of the rules card (the second card of the welcome panel that /setup posts in the 'welcome' channel).
+# Optional heading of the rules on the welcome panel that /setup posts in the 'welcome' channel, shown in bold (it may start with an icon, e.g. {icon_shield}).
 # title · max 256 characters · optional
-verification.rules.title = "Server rules"
+verification.rules.title = "{icon_shield} SERVER RULES"
 
 # ==================================================================================================
 # Feature: how_to_buy
@@ -382,82 +386,85 @@ verification.rules.title = "Server rules"
 
 # --- How to buy guide ---
 
+# Optional closing line at the bottom of the step-by-step guide posted in the how_to_buy channel, below the steps (e.g. where to find answers). You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
+# description · max 4096 characters · optional · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+how_to_buy.closing = "Questions? See {channel_faq}."
+
 # Introduction at the top of the step-by-step guide posted in the how_to_buy channel, above the steps. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # description · max 4096 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-how_to_buy.introduction = '''
-Ordering takes four steps and happens in a private order ticket that only you and our team can see.
-To see the catalog and purchase channels, accept the rules in {channel_welcome} first.'''
+how_to_buy.introduction = "Ordering takes a few minutes and happens in a private ticket that only you and our team can see."
 
 # Title of the step-by-step guide posted in the how_to_buy channel.
 # title · max 256 characters · required
-how_to_buy.title = "How to place an order"
+how_to_buy.title = "How to order"
 
 # --- How to buy guide: channel link buttons ---
 
 # Optional emoji on the link button that opens the 'catalog' channel.
 # emoji · max 100 characters · optional
-how_to_buy.link.catalog.emoji = "📦"
+how_to_buy.link.catalog.emoji = "{icon_tag}"
 
 # Label of the link button under the step-by-step guide posted in the how_to_buy channel that opens the 'catalog' channel.
 # button_label · max 80 characters · required
-how_to_buy.link.catalog.label = "Browse the catalog"
+how_to_buy.link.catalog.label = "Catalog"
 
 # Optional emoji on the link button that opens the 'faq' channel.
 # emoji · max 100 characters · optional
-how_to_buy.link.faq.emoji = "❓"
+how_to_buy.link.faq.emoji = "{icon_info}"
 
 # Label of the link button under the step-by-step guide posted in the how_to_buy channel that opens the 'faq' channel.
 # button_label · max 80 characters · required
-how_to_buy.link.faq.label = "Read the FAQ"
+how_to_buy.link.faq.label = "FAQ"
 
 # Optional emoji on the link button that opens the 'purchase' channel.
 # emoji · max 100 characters · optional
-how_to_buy.link.purchase.emoji = "🛒"
+how_to_buy.link.purchase.emoji = "{icon_cart}"
 
 # Label of the link button under the step-by-step guide posted in the how_to_buy channel that opens the 'purchase' channel.
 # button_label · max 80 characters · required
-how_to_buy.link.purchase.label = "Start an order"
+how_to_buy.link.purchase.label = "Place an order"
 
 # --- How to buy guide: steps ---
 
-# Heading of step 1 of 4 in the step-by-step guide posted in the how_to_buy channel (write the step number yourself if you want one shown; channel links do not work in headings).
+# Heading of step 1 of 5 in the step-by-step guide posted in the how_to_buy channel, shown in bold. Start it with a step-number icon if you want one shown, e.g. {icon_step_1} (channel links do not work in headings).
 # field_name · max 256 characters · required
-how_to_buy.step.1.name = "1. Find what you want"
+how_to_buy.step.1.name = "{icon_step_1} Choose your items"
 
-# Explanation of step 1 of 4 in the step-by-step guide posted in the how_to_buy channel. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
+# Explanation of step 1 of 5 in the step-by-step guide posted in the how_to_buy channel. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-how_to_buy.step.1.value = '''
-Browse {channel_catalog}. Each product card shows its description, price and availability. Sold-out products can't be ordered until they are back in stock.
-Want to hear about new products and restocks? Press the button in {channel_new_arrivals} to turn on **Restock Alerts**.'''
+how_to_buy.step.1.value = "Browse {channel_catalog} and press **Buy** on an item, or press **Start order** in {channel_purchase}. Your private order ticket opens."
 
-# Heading of step 2 of 4 in the step-by-step guide posted in the how_to_buy channel (write the step number yourself if you want one shown; channel links do not work in headings).
+# Heading of step 2 of 5 in the step-by-step guide posted in the how_to_buy channel, shown in bold. Start it with a step-number icon if you want one shown, e.g. {icon_step_2} (channel links do not work in headings).
 # field_name · max 256 characters · required
-how_to_buy.step.2.name = "2. Open your order ticket"
+how_to_buy.step.2.name = "{icon_step_2} Choose your delivery"
 
-# Explanation of step 2 of 4 in the step-by-step guide posted in the how_to_buy channel. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
+# Explanation of step 2 of 5 in the step-by-step guide posted in the how_to_buy channel. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-how_to_buy.step.2.value = "Press **Buy** on a product card to add it to your cart, or **Start an order** in {channel_purchase}. Either one opens your private order ticket. If you already have an unfinished order, it continues in its ticket and you get a link to it. You can have one open order at a time."
+how_to_buy.step.2.value = "Pick Standard or Expedited shipping. Prices and the countries we ship to are listed in {channel_shipping}."
 
-# Heading of step 3 of 4 in the step-by-step guide posted in the how_to_buy channel (write the step number yourself if you want one shown; channel links do not work in headings).
+# Heading of step 3 of 5 in the step-by-step guide posted in the how_to_buy channel, shown in bold. Start it with a step-number icon if you want one shown, e.g. {icon_step_3} (channel links do not work in headings).
 # field_name · max 256 characters · required
-how_to_buy.step.3.name = "3. Build your cart and submit"
+how_to_buy.step.3.name = "{icon_step_3} Review and place your order"
 
-# Explanation of step 3 of 4 in the step-by-step guide posted in the how_to_buy channel. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
+# Explanation of step 3 of 5 in the step-by-step guide posted in the how_to_buy channel. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-how_to_buy.step.3.value = '''
-A panel in your ticket guides you: add products and quantities to your cart, review your order, then press **Submit order** and enter your name, shipping address and any delivery notes (only our team sees them).
-Our team then posts the payment instructions in your ticket and confirms your payment there. Never share card numbers or passwords in Discord.
-A cart that is not submitted expires after 24 hours without activity.'''
+how_to_buy.step.3.value = "Check every line and the total, then press **Submit order** and enter your shipping address in the private form."
 
-# Heading of step 4 of 4 in the step-by-step guide posted in the how_to_buy channel (write the step number yourself if you want one shown; channel links do not work in headings).
+# Heading of step 4 of 5 in the step-by-step guide posted in the how_to_buy channel, shown in bold. Start it with a step-number icon if you want one shown, e.g. {icon_step_4} (channel links do not work in headings).
 # field_name · max 256 characters · required
-how_to_buy.step.4.name = "4. Track your order"
+how_to_buy.step.4.name = "{icon_step_4} Pay with a DoorDash eGift card"
 
-# Explanation of step 4 of 4 in the step-by-step guide posted in the how_to_buy channel. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
+# Explanation of step 4 of 5 in the step-by-step guide posted in the how_to_buy channel. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-how_to_buy.step.4.value = '''
-Each status update (paid, processing, completed) is shown on the panel in your ticket and sent to you by direct message, or posted in your ticket if your DMs are closed. Use **/myorders** at any time to see your orders, their timeline and any tracking details.
-Something wrong? Use **Report a Problem** in {channel_purchase}.'''
+how_to_buy.step.4.value = "Our team posts the payment steps in your ticket: a DoorDash eGift card for the exact order total."
+
+# Heading of step 5 of 5 in the step-by-step guide posted in the how_to_buy channel, shown in bold. Start it with a step-number icon if you want one shown, e.g. {icon_step_5} (channel links do not work in headings).
+# field_name · max 256 characters · required
+how_to_buy.step.5.name = "{icon_step_5} Track your package"
+
+# Explanation of step 5 of 5 in the step-by-step guide posted in the how_to_buy channel. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
+# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+how_to_buy.step.5.value = "Your tracking number is posted in your ticket as soon as your order ships. **/myorders** shows all your orders."
 
 # ==================================================================================================
 # Feature: faq
@@ -467,290 +474,251 @@ Something wrong? Use **Report a Problem** in {channel_purchase}.'''
 
 # Optional introduction at the top of the FAQ posted in the faq channel, above the first section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # description · max 4096 characters · optional · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-faq.introduction = "Quick answers about ordering from our shop. For the step-by-step guide, see {channel_how_to_buy}. To check where we ship, see {channel_shipping}."
+faq.introduction = "Can't find your answer? Ask in your order ticket, or press **Report a problem** in {channel_purchase}."
 
 # Optional title at the top of the FAQ posted in the faq channel.
 # title · max 256 characters · optional
-faq.title = "How can we help?"
+faq.title = "Frequently asked questions"
 
-# --- FAQ section 'cancellations' ---
+# --- FAQ section 'ordering' ---
 
-# Answer to question 1 of 2 in the 'cancellations' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
+# Answer to question 1 of 3 in the 'ordering' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-faq.section.cancellations.q.1.answer = '''
-• **Before you submit:** press **Cancel** on the panel in your order ticket, then **Confirm**.
-• **After you submit:** press **Cancel order** in your order ticket while the order is still waiting for payment. If you have already sent a payment, do not cancel: write to our team in your ticket instead.
-• **After your payment is confirmed:** you can no longer cancel it yourself. Ask our team in your order ticket.'''
+faq.section.ordering.q.1.answer = "Press **Buy** on an item in {channel_catalog}, or **Start order** in {channel_purchase}. A private ticket opens that only you and our team can see, and it guides you step by step. The full guide is in {channel_how_to_buy}."
 
-# Question 1 of 2 in the 'cancellations' section (channel links do not work in questions).
+# Question 1 of 3 in the 'ordering' section (channel links do not work in questions).
 # field_name · max 256 characters · required
-faq.section.cancellations.q.1.question = "Can I cancel my order?"
+faq.section.ordering.q.1.question = "How do I order?"
 
-# Answer to question 2 of 2 in the 'cancellations' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
+# Answer to question 2 of 3 in the 'ordering' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-faq.section.cancellations.q.2.answer = "An order you have not submitted expires after 24 hours without activity, and its ticket closes. A warning is posted in your order ticket 1 hour before, and any change you make in the panel resets the timer. You can start a new order in {channel_purchase} at any time."
+faq.section.ordering.q.2.answer = "Yes. Add as many items as you like, up to 20 different ones, before you confirm your order."
 
-# Question 2 of 2 in the 'cancellations' section (channel links do not work in questions).
+# Question 2 of 3 in the 'ordering' section (channel links do not work in questions).
 # field_name · max 256 characters · required
-faq.section.cancellations.q.2.question = "What happens if I leave an order unfinished?"
+faq.section.ordering.q.2.question = "Can I order several items at once?"
 
-# Title of the 'cancellations' section of the FAQ posted in the faq channel (e.g. the topic: general questions, order status...).
+# Answer to question 3 of 3 in the 'ordering' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
+# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+faq.section.ordering.q.3.answer = "One at a time. When your order is completed or closed, you can start the next one."
+
+# Question 3 of 3 in the 'ordering' section (channel links do not work in questions).
+# field_name · max 256 characters · required
+faq.section.ordering.q.3.question = "Can I have more than one order open?"
+
+# Heading of the 'ordering' section of the FAQ posted in the faq channel, shown in bold (e.g. the topic: ordering, payment...). It may start with one of the bot's icons, e.g. {icon_cart}.
 # title · max 256 characters · required
-faq.section.cancellations.title = "❌ Cancellations"
+faq.section.ordering.title = "{icon_cart} ORDERING"
 
-# --- FAQ section 'general' ---
+# --- FAQ section 'payment' ---
 
-# Answer to question 1 of 3 in the 'general' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
+# Answer to question 1 of 3 in the 'payment' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-faq.section.general.q.1.answer = "Read the server rules in {channel_welcome} and press **I agree, enter the server**. You get the **Member** role right away, which unlocks the catalog, new arrivals, reviews and purchase channels."
+faq.section.payment.q.1.answer = "With a DoorDash eGift card for the exact order total, in US dollars. After you place your order, our team posts the payment steps in your order ticket. Please wait for them before you buy a card."
 
-# Question 1 of 3 in the 'general' section (channel links do not work in questions).
+# Question 1 of 3 in the 'payment' section (channel links do not work in questions).
 # field_name · max 256 characters · required
-faq.section.general.q.1.question = "How do I get access to the shop?"
+faq.section.payment.q.1.question = "How do I pay?"
 
-# Answer to question 2 of 3 in the 'general' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
+# Answer to question 2 of 3 in the 'payment' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-faq.section.general.q.2.answer = '''
-Press **Turn alerts on or off** in {channel_new_arrivals} to get the **Restock Alerts** role. You are then mentioned there when a new product is added or a sold-out product is back in stock. Press the same button again to turn the alerts off.
-News from our team is posted in {channel_announcements}.'''
+faq.section.payment.q.2.answer = "Only you and our team can see your order ticket. Never post a gift card code, card number or password in a public channel, and never send one by DM: our team will never ask you to."
 
-# Question 2 of 3 in the 'general' section (channel links do not work in questions).
+# Question 2 of 3 in the 'payment' section (channel links do not work in questions).
 # field_name · max 256 characters · required
-faq.section.general.q.2.question = "How do I hear about new products and restocks?"
+faq.section.payment.q.2.question = "Is my payment safe?"
 
-# Answer to question 3 of 3 in the 'general' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
+# Answer to question 3 of 3 in the 'payment' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-faq.section.general.q.3.answer = '''
-• **About an open order:** write in your order ticket.
-• **Anything else:** press **Report a Problem** in {channel_purchase}, choose **not about an order** and **Something else**, and write your question. A private report ticket opens where our team can help you.'''
+faq.section.payment.q.3.answer = "As soon as our team has checked it. You get a message in your order ticket and by DM."
 
-# Question 3 of 3 in the 'general' section (channel links do not work in questions).
+# Question 3 of 3 in the 'payment' section (channel links do not work in questions).
 # field_name · max 256 characters · required
-faq.section.general.q.3.question = "How do I contact our team?"
+faq.section.payment.q.3.question = "When is my payment confirmed?"
 
-# Title of the 'general' section of the FAQ posted in the faq channel (e.g. the topic: general questions, order status...).
+# Heading of the 'payment' section of the FAQ posted in the faq channel, shown in bold (e.g. the topic: ordering, payment...). It may start with one of the bot's icons, e.g. {icon_cart}.
 # title · max 256 characters · required
-faq.section.general.title = "❓ General questions"
-
-# --- FAQ section 'order_status' ---
-
-# Answer to question 1 of 3 in the 'order_status' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
-# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-faq.section.order_status.q.1.answer = '''
-• The panel in your order ticket shows the current status and a timeline of each step.
-• You get a direct message each time the status changes (or a mention in your order ticket if your DMs are closed).
-• Use **/myorders** to privately see all your orders with their status, timeline and tracking details.'''
-
-# Question 1 of 3 in the 'order_status' section (channel links do not work in questions).
-# field_name · max 256 characters · required
-faq.section.order_status.q.1.question = "How do I check the status of my order?"
-
-# Answer to question 2 of 3 in the 'order_status' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
-# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-faq.section.order_status.q.2.answer = '''
-• **Pending payment:** your order is submitted and waiting for payment.
-• **Paid:** our team has confirmed your payment.
-• **Processing:** our team is preparing your order.
-• **Completed:** your order has been dispatched.
-An order can also be **Cancelled**, **Rejected** (our team could not accept it) or **Refunded**.'''
-
-# Question 2 of 3 in the 'order_status' section (channel links do not work in questions).
-# field_name · max 256 characters · required
-faq.section.order_status.q.2.question = "What do the order statuses mean?"
-
-# Answer to question 3 of 3 in the 'order_status' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
-# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-faq.section.order_status.q.3.answer = '''
-When our team adds tracking details to your order, they are sent to you with the message that your order is completed, or right away if it is already completed. You can also see them with **/myorders**.
-If your order does not arrive, press **Report a Problem** in {channel_purchase} and choose **Order not received**.'''
-
-# Question 3 of 3 in the 'order_status' section (channel links do not work in questions).
-# field_name · max 256 characters · required
-faq.section.order_status.q.3.question = "When do I get tracking details?"
-
-# Title of the 'order_status' section of the FAQ posted in the faq channel (e.g. the topic: general questions, order status...).
-# title · max 256 characters · required
-faq.section.order_status.title = "📦 Order status"
+faq.section.payment.title = "{icon_gift} PAYMENT"
 
 # --- FAQ section 'problems' ---
 
 # Answer to question 1 of 2 in the 'problems' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-faq.section.problems.q.1.answer = "Press **Report a Problem** in {channel_purchase}. Choose the order it is about (paid, processing and completed orders are listed) or **not about an order**, then the issue: **Order not received**, **Item arrived damaged**, **Wrong item received** or **Something else**. Press **Continue** and describe what happened in the form. A private report ticket opens, where you can also upload photos or screenshots."
+faq.section.problems.q.1.answer = "Yes, until your payment is confirmed: press **Cancel order** in your order ticket. If you have already paid, write to our team in your ticket instead."
 
 # Question 1 of 2 in the 'problems' section (channel links do not work in questions).
 # field_name · max 256 characters · required
-faq.section.problems.q.1.question = "How do I report a problem?"
+faq.section.problems.q.1.question = "Can I cancel my order?"
 
 # Answer to question 2 of 2 in the 'problems' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-faq.section.problems.q.2.answer = "Our team reviews your report and resolves or rejects it. A rejection always includes a reason. The decision is shown in your report ticket and sent to you by direct message if your DMs are open. You can have one open report at a time."
+faq.section.problems.q.2.answer = "Press **Report a problem** in {channel_purchase} and choose the order and what happened. A private ticket opens with our team, where you can also add photos."
 
 # Question 2 of 2 in the 'problems' section (channel links do not work in questions).
 # field_name · max 256 characters · required
-faq.section.problems.q.2.question = "What happens after I send a report?"
+faq.section.problems.q.2.question = "Something went wrong with my order?"
 
-# Title of the 'problems' section of the FAQ posted in the faq channel (e.g. the topic: general questions, order status...).
+# Heading of the 'problems' section of the FAQ posted in the faq channel, shown in bold (e.g. the topic: ordering, payment...). It may start with one of the bot's icons, e.g. {icon_cart}.
 # title · max 256 characters · required
-faq.section.problems.title = "⚠️ Problems with an order"
+faq.section.problems.title = "{icon_alert} CANCELLATIONS AND PROBLEMS"
 
-# --- FAQ section 'transactions' ---
+# --- FAQ section 'shipping' ---
 
-# Answer to question 1 of 3 in the 'transactions' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
+# Answer to question 1 of 4 in the 'shipping' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-faq.section.transactions.q.1.answer = '''
-• Press **Buy** on a product in {channel_catalog}, or **Start an order** in {channel_purchase}. Your private order ticket opens.
-• Add products to your cart (up to 20 different items) and review your order.
-• Press **Submit order** and enter your full name, shipping address and any delivery notes.
-You can have one open order at a time. If you already have one, you get a link to its ticket instead. The full guide is in {channel_how_to_buy}.'''
+faq.section.shipping.q.1.answer = "To the Americas and Europe; every country is listed in {channel_shipping}. In the United States we ship to every state except Alaska and North Dakota."
 
-# Question 1 of 3 in the 'transactions' section (channel links do not work in questions).
+# Question 1 of 4 in the 'shipping' section (channel links do not work in questions).
 # field_name · max 256 characters · required
-faq.section.transactions.q.1.question = "How do I place an order?"
+faq.section.shipping.q.1.question = "Where do you ship?"
 
-# Answer to question 2 of 3 in the 'transactions' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
+# Answer to question 2 of 4 in the 'shipping' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-faq.section.transactions.q.2.answer = '''
-Prices are in US dollars (USD) and payment is manual. After you submit your order, our team posts the payment instructions in your order ticket, including any shipping costs. Please wait for them before you send a payment. Our team then confirms your payment in the ticket.
-If your order is still unpaid after 24 hours, you get a reminder.
-**Never share card numbers or passwords in Discord.**'''
+faq.section.shipping.q.2.answer = "You choose Standard or Expedited shipping while placing your order. The prices are listed in {channel_shipping} and shown in your order before you confirm it."
 
-# Question 2 of 3 in the 'transactions' section (channel links do not work in questions).
+# Question 2 of 4 in the 'shipping' section (channel links do not work in questions).
 # field_name · max 256 characters · required
-faq.section.transactions.q.2.question = "How do I pay?"
+faq.section.shipping.q.2.question = "What does shipping cost?"
 
-# Answer to question 3 of 3 in the 'transactions' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
+# Answer to question 3 of 4 in the 'shipping' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-faq.section.transactions.q.3.answer = "Only you and our team can see your order ticket. The name, address and delivery notes you enter when you submit are shown to our team only. Other customers never see your tickets or orders, and **/myorders** replies only to you."
+faq.section.shipping.q.3.answer = "Orders ship once your payment is confirmed. Delivery time depends on your country and the carrier."
 
-# Question 3 of 3 in the 'transactions' section (channel links do not work in questions).
+# Question 3 of 4 in the 'shipping' section (channel links do not work in questions).
 # field_name · max 256 characters · required
-faq.section.transactions.q.3.question = "Who can see my order and shipping details?"
+faq.section.shipping.q.3.question = "How long does delivery take?"
 
-# Title of the 'transactions' section of the FAQ posted in the faq channel (e.g. the topic: general questions, order status...).
+# Answer to question 4 of 4 in the 'shipping' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
+# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+faq.section.shipping.q.4.answer = "Only our team. You enter it in a private form, and it is never posted in a channel."
+
+# Question 4 of 4 in the 'shipping' section (channel links do not work in questions).
+# field_name · max 256 characters · required
+faq.section.shipping.q.4.question = "Who can see my address?"
+
+# Heading of the 'shipping' section of the FAQ posted in the faq channel, shown in bold (e.g. the topic: ordering, payment...). It may start with one of the bot's icons, e.g. {icon_cart}.
 # title · max 256 characters · required
-faq.section.transactions.title = "🛒 Ordering and payment"
+faq.section.shipping.title = "{icon_truck} SHIPPING"
+
+# --- FAQ section 'tracking' ---
+
+# Answer to question 1 of 2 in the 'tracking' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
+# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+faq.section.tracking.q.1.answer = "When your order ships, our team adds the tracking number: it is posted in your order ticket and sent to you by DM. **/myorders** shows it too."
+
+# Question 1 of 2 in the 'tracking' section (channel links do not work in questions).
+# field_name · max 256 characters · required
+faq.section.tracking.q.1.question = "Where is my tracking number?"
+
+# Answer to question 2 of 2 in the 'tracking' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
+# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+faq.section.tracking.q.2.answer = "**Pending payment**: placed, waiting for your payment. **Paid**: payment confirmed. **Processing**: being prepared. **Completed**: shipped. An order can also be **Cancelled**, **Rejected** or **Refunded**."
+
+# Question 2 of 2 in the 'tracking' section (channel links do not work in questions).
+# field_name · max 256 characters · required
+faq.section.tracking.q.2.question = "What do the order statuses mean?"
+
+# Heading of the 'tracking' section of the FAQ posted in the faq channel, shown in bold (e.g. the topic: ordering, payment...). It may start with one of the bot's icons, e.g. {icon_cart}.
+# title · max 256 characters · required
+faq.section.tracking.title = "{icon_box} ORDERS AND TRACKING"
 
 # ==================================================================================================
 # Feature: shipping
 # ==================================================================================================
 
-# --- Shipping region lines ---
+# --- Shipping delivery options ---
 
-# How one region line is written, e.g. '{indicator} {name}'. {indicator} is the status indicator, {name} the region name. Must contain {indicator} and {name}. Required once regions are configured.
-# format · max 100 characters · required · placeholders: {indicator}, {name}
-shipping.format.region = "{indicator} **{name}**"
+# Heading of the delivery options and their prices (checkout.fulfillment_options). It may start with one of the bot's icons, e.g. {icon_truck}.
+# field_name · max 256 characters · required
+shipping.delivery.heading = "{icon_truck} DELIVERY OPTIONS"
 
-# How a region line with a note is written, e.g. '{indicator} {name} ({note})'. Must contain {indicator}, {name} and {note}. Required once any region has a note.
-# format · max 100 characters · optional · placeholders: {indicator}, {name}, {note}
-shipping.format.region_with_note = "{indicator} **{name}** ({note})"
+# How one delivery option is written, e.g. '{label}: **{price}**'. {label} is the option's name (checkout.fulfillment.<id>.label), {price} its price, {description} its description (empty when it has none).
+# format · max 100 characters · required · placeholders: {label}, {price}, {description}
+shipping.format.delivery = "**{label}** · {price}"
+
+# --- Shipping countries ---
+
+# How a country with excluded areas is written, e.g. '{country} (except {areas})'. Must contain {country} and {areas}.
+# format · max 100 characters · required · placeholders: {country}, {areas}
+shipping.format.excluded = "{country} (except {areas})"
+
+# How the last of several excluded areas is joined, e.g. '{areas} and {last}' (gives 'Alaska and North Dakota'; other areas are separated by commas). Must contain {areas} and {last}.
+# format · max 100 characters · required · placeholders: {areas}, {last}
+shipping.format.last_area = "{areas} and {last}"
+
+# Heading of the country group 'caribbean' (AG, BS, BB, DM, DO, GD, ...), shown in bold above its countries.
+# field_name · max 256 characters · required
+shipping.group.caribbean.name = "CARIBBEAN"
+
+# Heading of the country group 'central_america' (BZ, CR, SV, GT, HN, NI, ...), shown in bold above its countries.
+# field_name · max 256 characters · required
+shipping.group.central_america.name = "CENTRAL AMERICA"
+
+# Heading of the country group 'europe' (AL, AD, AT, BE, BA, BG, ...), shown in bold above its countries.
+# field_name · max 256 characters · required
+shipping.group.europe.name = "EUROPE"
+
+# Heading of the country group 'north_america' (CA, US, MX), shown in bold above its countries.
+# field_name · max 256 characters · required
+shipping.group.north_america.name = "NORTH AMERICA"
+
+# Heading of the country group 'south_america' (AR, BO, BR, CL, CO, EC, ...), shown in bold above its countries.
+# field_name · max 256 characters · required
+shipping.group.south_america.name = "SOUTH AMERICA"
+
+# Heading of the countries we do not ship to (shipping.not_available), e.g. 'Not available'. Required when countries are listed there or shipping.not_available.others is set.
+# field_name · max 256 characters · required
+shipping.not_available.heading = "NOT AVAILABLE"
+
+# Optional last item of the not-available list, e.g. 'every country not listed above'.
+# field_value · max 1024 characters · optional
+shipping.not_available.others = "every country not listed above"
 
 # --- Shipping information ---
 
-# Heading of information section 1 of 2 (e.g. delivery or fulfillment options), shown below the region list.
+# Heading of information section 1 of 2 (e.g. processing times or tracking), shown in bold below the delivery options. It may start with one of the bot's icons, e.g. {icon_truck}.
 # field_name · max 256 characters · required
-shipping.info.1.name = "How shipping works"
+shipping.info.1.name = "{icon_clock} PROCESSING"
 
 # Text of information section 1 of 2. You can link channels with {channel_<key>} (e.g. {channel_faq}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-shipping.info.1.value = '''
-• You enter your shipping address when you submit your order. Only our team can see it.
-• Our team confirms the shipping costs and delivery details in your order ticket.
-• When tracking details are available, we send them to you. You can also see them with **/myorders**.'''
+shipping.info.1.value = "Orders ship once your payment is confirmed. Delivery times depend on your country and the carrier."
 
-# Heading of information section 2 of 2 (e.g. delivery or fulfillment options), shown below the region list.
+# Heading of information section 2 of 2 (e.g. processing times or tracking), shown in bold below the delivery options. It may start with one of the bot's icons, e.g. {icon_truck}.
 # field_name · max 256 characters · required
-shipping.info.2.name = "Questions about shipping?"
+shipping.info.2.name = "{icon_location} TRACKING"
 
 # Text of information section 2 of 2. You can link channels with {channel_<key>} (e.g. {channel_faq}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-shipping.info.2.value = "Check {channel_faq} first. If you have an open order, ask in your order ticket. Otherwise, press **Report a Problem** in {channel_purchase}, choose **not about an order** and **Something else**, and our team can help you in a private report ticket."
+shipping.info.2.value = "Your tracking number is posted in your order ticket and sent to you by DM as soon as your order ships. Questions? See {channel_faq}."
 
 # --- Shipping header ---
 
-# Introduction at the top of the shipping information posted in the shipping channel. You can link channels with {channel_<key>} (e.g. {channel_faq}); they become clickable #channel links.
+# Introduction at the top of the shipping card posted in the shipping channel. You can link channels with {channel_<key>} (e.g. {channel_faq}); they become clickable #channel links.
 # description · max 4096 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-shipping.introduction = "Check the lists below to see whether we ship to your region before you place an order. Shipping costs and delivery details are confirmed by our team in your order ticket."
+shipping.introduction = "We ship to the Americas and Europe. Find your country below before you order."
 
-# Title of the shipping information posted in the shipping channel.
+# Optional line under the introduction explaining the status dots, e.g. '{icon_dot_blue} We ship everywhere · {icon_dot_yellow} Some areas excluded · {icon_dot_grey} Not available'.
+# description · max 4096 characters · optional
+shipping.legend = "{icon_dot_blue} We ship everywhere   {icon_dot_yellow} Some areas excluded   {icon_dot_grey} Not available"
+
+# Title of the shipping card posted in the shipping channel.
 # title · max 256 characters · required
-shipping.title = "Where we ship"
+shipping.title = "Shipping"
 
-# --- Shipping regions ---
+# --- Shipping status dots ---
 
-# Name of the region 'alaska' (listed under the 'none' status).
+# Dot shown before the countries where we ship everywhere in the country, e.g. {icon_dot_blue}. Required while such countries are listed.
 # field_name · max 256 characters · required
-shipping.region.alaska.name = "Alaska"
+shipping.status.full.indicator = "{icon_dot_blue}"
 
-# Optional short note next to the region 'alaska' (written with shipping.format.region_with_note). You can link channels with {channel_<key>} (e.g. {channel_faq}); they become clickable #channel links.
-# field_name · max 256 characters · optional · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-shipping.region.alaska.note = ""
-
-# Name of the region 'americas' (listed under the 'full' status).
+# Dot shown before the countries where we do not ship to the country, e.g. {icon_dot_blue}. Required while such countries are listed.
 # field_name · max 256 characters · required
-shipping.region.americas.name = "Rest of the Americas"
+shipping.status.none.indicator = "{icon_dot_grey}"
 
-# Optional short note next to the region 'americas' (written with shipping.format.region_with_note). You can link channels with {channel_<key>} (e.g. {channel_faq}); they become clickable #channel links.
-# field_name · max 256 characters · optional · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-shipping.region.americas.note = "Canada, Mexico, Central America, South America and the Caribbean"
-
-# Name of the region 'europe' (listed under the 'full' status).
+# Dot shown before the countries where we ship to the country except some areas, e.g. {icon_dot_blue}. Required while such countries are listed.
 # field_name · max 256 characters · required
-shipping.region.europe.name = "Europe"
-
-# Optional short note next to the region 'europe' (written with shipping.format.region_with_note). You can link channels with {channel_<key>} (e.g. {channel_faq}); they become clickable #channel links.
-# field_name · max 256 characters · optional · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-shipping.region.europe.note = ""
-
-# Name of the region 'north_dakota' (listed under the 'none' status).
-# field_name · max 256 characters · required
-shipping.region.north_dakota.name = "North Dakota"
-
-# Optional short note next to the region 'north_dakota' (written with shipping.format.region_with_note). You can link channels with {channel_<key>} (e.g. {channel_faq}); they become clickable #channel links.
-# field_name · max 256 characters · optional · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-shipping.region.north_dakota.note = ""
-
-# Name of the region 'rest_of_world' (listed under the 'none' status).
-# field_name · max 256 characters · required
-shipping.region.rest_of_world.name = "Rest of the world"
-
-# Optional short note next to the region 'rest_of_world' (written with shipping.format.region_with_note). You can link channels with {channel_<key>} (e.g. {channel_faq}); they become clickable #channel links.
-# field_name · max 256 characters · optional · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-shipping.region.rest_of_world.note = ""
-
-# Name of the region 'united_states' (listed under the 'full' status).
-# field_name · max 256 characters · required
-shipping.region.united_states.name = "United States"
-
-# Optional short note next to the region 'united_states' (written with shipping.format.region_with_note). You can link channels with {channel_<key>} (e.g. {channel_faq}); they become clickable #channel links.
-# field_name · max 256 characters · optional · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-shipping.region.united_states.note = "all states except Alaska and North Dakota"
-
-# --- Shipping availability statuses ---
-
-# Optional explanation at the top of the 'full' card (fully supported), above its regions. The card is shown when it has regions or this explanation. You can link channels with {channel_<key>} (e.g. {channel_faq}); they become clickable #channel links.
-# description · max 4096 characters · optional · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-shipping.status.full.description = ""
-
-# Indicator (emoji) of the 'full' status (fully supported), written at the start of each of its regions (as {indicator} in shipping.format.region).
-# emoji · max 100 characters · required
-shipping.status.full.indicator = "✅"
-
-# Title of the card listing the regions that are 'full' (fully supported). {indicator} is replaced with this status's indicator. Required while 'full' is listed in shipping.statuses.
-# title · max 256 characters · required · placeholders: {indicator}
-shipping.status.full.label = "{indicator} We ship to"
-
-# Optional explanation at the top of the 'none' card (not supported), above its regions. The card is shown when it has regions or this explanation. You can link channels with {channel_<key>} (e.g. {channel_faq}); they become clickable #channel links.
-# description · max 4096 characters · optional · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-shipping.status.none.description = ""
-
-# Indicator (emoji) of the 'none' status (not supported), written at the start of each of its regions (as {indicator} in shipping.format.region).
-# emoji · max 100 characters · required
-shipping.status.none.indicator = "❌"
-
-# Title of the card listing the regions that are 'none' (not supported). {indicator} is replaced with this status's indicator. Required while 'none' is listed in shipping.statuses.
-# title · max 256 characters · required · placeholders: {indicator}
-shipping.status.none.label = "{indicator} We do not ship to"
+shipping.status.partial.indicator = "{icon_dot_yellow}"
 
 # ==================================================================================================
 # Feature: tickets
@@ -806,23 +774,23 @@ tickets.user_removed.description = "{user_mention} has been removed from this ti
 
 # Claim button on the ticket welcome message (staff take ownership of the ticket).
 # button_label · max 80 characters · required
-tickets.button.claim = "🙋 Claim ticket"
+tickets.button.claim = "Claim ticket"
 
 # Close button on the ticket welcome message.
 # button_label · max 80 characters · required
-tickets.button.close = "🔒 Close ticket"
+tickets.button.close = "Close ticket"
 
 # Delete button on the ticket-closed message (staff only; asks for confirmation).
 # button_label · max 80 characters · required
-tickets.button.delete = "🗑️ Delete ticket"
+tickets.button.delete = "Delete ticket"
 
 # Reopen button on the ticket-closed message. Needed when tickets.allow_reopen = true.
 # button_label · max 80 characters · required
-tickets.button.reopen = "🔓 Reopen ticket"
+tickets.button.reopen = "Reopen ticket"
 
 # Transcript button on the ticket-closed message (staff only; posts a transcript to the transcript channel). Needed when tickets.transcript_channel is set.
 # button_label · max 80 characters · required
-tickets.button.transcript = "📄 Transcript"
+tickets.button.transcript = "Transcript"
 
 # Unclaim button that replaces the claim button while a staff member has claimed the ticket.
 # button_label · max 80 characters · required
@@ -918,19 +886,19 @@ tickets.transcript_dm.title = "📄 Your ticket #{number} transcript"
 
 # Availability of a product with limited stock that can still be ordered (its card uses the success color). {count} is the number of units that can still be ordered (stock minus units held by pending orders).
 # field_value · max 1024 characters · required · placeholders: {count}
-catalog.availability.in_stock = "{count} in stock"
+catalog.availability.in_stock = "{icon_dot_blue} In stock ({count})"
 
 # Optional: availability of a product with only 1 to catalog.low_stock_threshold units left (its card uses the warning color). {count} is the number of units that can still be ordered. If empty, catalog.availability.in_stock is shown.
 # field_value · max 1024 characters · optional; falls back to catalog.availability.in_stock · placeholders: {count}
-catalog.availability.low_stock = "Low stock: only {count} left"
+catalog.availability.low_stock = "{icon_dot_yellow} Only {count} left"
 
 # Availability of a product whose stock is used up (still listed, cannot be ordered; its buy button is disabled and its card uses the danger color).
 # field_value · max 1024 characters · required
-catalog.availability.out_of_stock = "Sold out"
+catalog.availability.out_of_stock = "{icon_dot_grey} Sold out"
 
 # Availability of a product without a stock limit (its card uses the success color).
 # field_value · max 1024 characters · required
-catalog.availability.unlimited = "In stock"
+catalog.availability.unlimited = "{icon_dot_blue} In stock"
 
 # Name of the availability field on every product card. The value is one of the catalog.availability.* texts.
 # field_name · max 256 characters · required
@@ -948,7 +916,7 @@ catalog.field.price = "Price"
 
 # Button under the listing's header card that opens a private, page-by-page view of the products (only when catalog.browse_enabled is true).
 # button_label · max 80 characters · optional
-catalog.button.browse = "Browse privately"
+catalog.button.browse = ""
 
 # --- Catalog: buy button on product cards ---
 
@@ -958,7 +926,7 @@ catalog.button.buy = "Buy"
 
 # Optional emoji shown on the buy button.
 # emoji · max 100 characters · optional
-catalog.button.buy_emoji = "🛒"
+catalog.button.buy_emoji = "{icon_cart}"
 
 # Optional: label used instead of catalog.button.buy for a product whose name makes that label longer than Discord's 80 characters. Required only when such a product exists (the listing reports it).
 # button_label · max 80 characters · optional
@@ -969,21 +937,19 @@ catalog.button.buy_short = "Buy"
 # Text of the header card at the top of the product listing channel.
 # description · max 4096 characters · required
 catalog.listing.description = '''
-Each product has its own card below with its description, price and availability.
+Every item we sell, with its price and availability. Press **Buy** to add an item to your order.
 
-• Press **Buy** on a card to open your private order ticket (only you and our team can see it) with that item in your cart. If you are already building an order, the item is added to that cart instead.
-• In your ticket you can add more items and change quantities before you submit.
-• Sold-out items stay listed, but their **Buy** button is turned off.
+{icon_dot_blue} In stock   {icon_dot_yellow} Only a few left   {icon_dot_grey} Sold out
 
-Prices are in US dollars. Shipping costs are confirmed by our team in your order ticket.'''
+Prices are in US dollars. Shipping is added when you order.'''
 
 # Shown below the listing header, and in private browsing, when no product is currently offered.
 # description · max 4096 characters · required
-catalog.listing.empty = "No products are available right now. Please check back soon, or turn on Restock Alerts in the new-arrivals channel to hear when new products arrive."
+catalog.listing.empty = "No items are available right now. Turn on **Restock Alerts** in the new-arrivals channel to hear when new items arrive."
 
 # Title of the header card: the first message of the product listing channel (each product follows in its own message).
 # title · max 256 characters · required
-catalog.listing.title = "Our products"
+catalog.listing.title = "Catalog"
 
 # ==================================================================================================
 # Feature: new_arrivals
@@ -997,66 +963,59 @@ new_arrivals.button.toggle = "Turn alerts on or off"
 
 # Optional emoji shown on the panel's button.
 # emoji · max 100 characters · optional
-new_arrivals.button.toggle_emoji = "🔔"
+new_arrivals.button.toggle_emoji = "{icon_bell}"
 
 # Text of the notification panel: what members receive when they turn notifications on, and that the same button turns them off again. {role} shows the notification role as a mention (it displays the role's name and pings nobody). Channel links such as {channel_catalog} become clickable #channel links once /setup created the channel.
 # description · max 4096 characters · required · placeholders: {role}, {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
 new_arrivals.panel.description = '''
-New products and restocks are posted in this channel. Press the button below to get the {role} role, and you will be mentioned whenever:
-• a new product is added to {channel_catalog}
-• a sold-out product is back in stock
+We post here when a new item arrives or a sold-out item is back.
 
-Press the same button again at any time to turn the alerts off.'''
+**{icon_bell} RESTOCK ALERTS**
+Turn on {role} to be mentioned when that happens. Press the button again any time to turn it off.'''
 
 # Title of the persistent panel in the new-arrivals channel that lets members turn product notifications on or off.
 # title · max 256 characters · required
-new_arrivals.panel.title = "Restock Alerts"
+new_arrivals.panel.title = "New arrivals and restocks"
 
 # --- New arrivals: automatic product updates (posted in the new-arrivals channel) ---
 
 # Optional label of a link button under each product update that opens the catalog listing channel (catalog.listing_channel). If empty, the updates have no button.
 # button_label · max 80 characters · optional
-new_arrivals.button.view_catalog = "Browse the catalog"
+new_arrivals.button.view_catalog = "Catalog"
 
 # Optional small text at the bottom of a new-product update.
 # footer · max 2048 characters · optional
-new_arrivals.new_product.footer = "Turn Restock Alerts on or off with the panel in this channel."
+new_arrivals.new_product.footer = "Turn Restock Alerts on or off in this channel"
 
 # Title of the update posted automatically when a product is added to the catalog or switched back on (new_arrivals.announce_new_products). {name} is the product name. Below it the update shows the product's description, image, price and availability exactly like its catalog card.
 # title · max 256 characters · required · placeholders: {name}
-new_arrivals.new_product.title = "🆕 New arrival: {name}"
+new_arrivals.new_product.title = "New: {name}"
 
 # Optional small text at the bottom of a restock update.
 # footer · max 2048 characters · optional
-new_arrivals.restock.footer = "Stock is not held in carts: it is reserved when you submit your order."
+new_arrivals.restock.footer = "Stock is reserved when you place your order"
 
 # Title of the update posted automatically when a sold-out product can be ordered again (new_arrivals.announce_restocks). {name} is the product name. Below it the update shows the product's description, image, price and availability exactly like its catalog card.
 # title · max 256 characters · required · placeholders: {name}
-new_arrivals.restock.title = "🔄 Back in stock: {name}"
+new_arrivals.restock.title = "Back in stock: {name}"
 
 # --- New arrivals: private confirmations (shown only to the member who clicked) ---
 
 # Private confirmation shown after a member turned notifications on (they now have the notification role and are mentioned in product updates). {role} shows the notification role as a mention (it displays the role's name and pings nobody). Channel links such as {channel_catalog} become clickable #channel links once /setup created the channel.
 # description · max 4096 characters · required · placeholders: {role}, {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-new_arrivals.subscribed.description = '''
-You now have the {role} role. You will be mentioned in {channel_new_arrivals} whenever a new product is added or a sold-out product is back in stock.
-
-To stop the alerts, press the same button again.'''
+new_arrivals.subscribed.description = "We'll mention you in {channel_new_arrivals} when new items arrive or sold-out items are back. Press the button again to turn it off."
 
 # Optional title of the private confirmation shown after a member turned notifications on.
 # title · max 256 characters · optional
-new_arrivals.subscribed.title = "🔔 Restock Alerts turned on"
+new_arrivals.subscribed.title = "Restock Alerts is on"
 
 # Private confirmation shown after a member turned notifications off (the notification role was removed; clicking the button again turns them back on). {role} shows the notification role as a mention (it displays the role's name and pings nobody). Channel links such as {channel_catalog} become clickable #channel links once /setup created the channel.
 # description · max 4096 characters · required · placeholders: {role}, {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-new_arrivals.unsubscribed.description = '''
-The {role} role was removed, so you will no longer be mentioned. Updates are still posted in {channel_new_arrivals} if you want to check them yourself.
-
-Press the same button again at any time to turn the alerts back on.'''
+new_arrivals.unsubscribed.description = "We won't mention you anymore. Updates are still posted in {channel_new_arrivals}."
 
 # Optional title of the private confirmation shown after a member turned notifications off.
 # title · max 256 characters · optional
-new_arrivals.unsubscribed.title = "🔕 Restock Alerts turned off"
+new_arrivals.unsubscribed.title = "Restock Alerts is off"
 
 # ==================================================================================================
 # Feature: checkout
@@ -1095,7 +1054,7 @@ checkout.button.remove_credits = "Remove store credit"
 
 # Button in the review step that submits the order.
 # button_label · max 80 characters · required
-checkout.button.submit = "✅ Submit order"
+checkout.button.submit = "Submit order"
 
 # Optional name of a field showing how much store credit the customer could apply (shown while credits are not applied).
 # field_name · max 256 characters · optional
@@ -1130,7 +1089,7 @@ checkout.review.total_field = "Total"
 
 # Button under a submitted order that lets the customer cancel it while it is not paid yet.
 # button_label · max 80 characters · required
-checkout.button.cancel_order = "❌ Cancel order"
+checkout.button.cancel_order = "Cancel order"
 
 # Question asking the customer to confirm cancelling an unfinished order (shared confirm/cancel buttons).
 # description · max 4096 characters · required
@@ -1148,7 +1107,7 @@ checkout.cancel_confirm.title = "Cancel this order?"
 checkout.cancelled.description = '''
 This order was cancelled before it was submitted, so no payment is due. This ticket is now closed, but you can still read it.
 
-To order again, press **Start an order** in the purchase channel.'''
+To order again, press **Start order** in the place-order channel.'''
 
 # Optional title of the workflow message after the customer cancelled an unfinished order (the channel is then closed). Also used after staff closed the ticket of an unfinished order when checkout.staff_closed.title is empty.
 # title · max 256 characters · optional
@@ -1159,7 +1118,7 @@ checkout.cancelled.title = "Order cancelled"
 checkout.expired.description = '''
 This order was closed because it was not submitted and had no activity for 24 hours. No payment is due.
 
-To order again, press **Start an order** in the purchase channel.'''
+To order again, press **Start order** in the place-order channel.'''
 
 # Optional title of the workflow message when an unfinished order expired after checkout.session_expiry_minutes without activity.
 # title · max 256 characters · optional
@@ -1183,7 +1142,7 @@ checkout.order_cancel_confirm.title = "Cancel order #{order_number}?"
 checkout.staff_closed.description = '''
 Our team closed this ticket before the order was submitted, so the order was cancelled and no payment is due. You can still read this ticket.
 
-To order again, press **Start an order** in the purchase channel.'''
+To order again, press **Start order** in the place-order channel.'''
 
 # Optional title of the workflow message after staff closed the ticket of an unfinished (never submitted) order with /ticket close. Empty = checkout.cancelled.title.
 # title · max 256 characters · optional; falls back to checkout.cancelled.title
@@ -1193,11 +1152,11 @@ checkout.staff_closed.title = "Ticket closed by our team"
 
 # Button that opens the order details form. Needed when a form is defined.
 # button_label · max 80 characters · optional
-checkout.button.enter_details = "📝 Enter details"
+checkout.button.enter_details = "Enter details"
 
 # Button that opens the second part of the details form (Discord forms hold at most 5 fields; used when checkout.details_form plus an option's form have more than 5 fields together).
 # button_label · max 80 characters · optional
-checkout.button.enter_more_details = "📝 More details"
+checkout.button.enter_more_details = "More details"
 
 # Optional text of the details step.
 # description · max 4096 characters · optional
@@ -1215,26 +1174,29 @@ checkout.details.title = "Your order details"
 
 # Button on the shop panel that opens a private order channel for the customer. The panel also shows the catalog's browse button (catalog.button.browse) and the credits balance button when those are configured.
 # button_label · max 80 characters · required
-checkout.button.start = "🛒 Start an order"
+checkout.button.start = "Start order"
 
 # Text of the shop panel.
 # description · max 4096 characters · required
 checkout.panel.description = '''
-Press **Start an order** to open your private order ticket. Only you and our team can see it.
+Press **Start order** to open your private order ticket. Only you and our team can see it.
 
-**How it works**
-• Choose your items and quantities in your ticket
-• Review your order, press **Submit order** and enter your shipping details
-• Our team posts the payment instructions in your ticket and confirms your payment there
-• You get a message each time your order status changes
+**{icon_list} WHAT TO EXPECT**
+1. Choose your items and quantities
+2. Choose Standard or Expedited shipping
+3. Review the total and submit your order with your shipping address
+4. Pay with a DoorDash eGift card for the exact total
+5. Get your tracking number in the ticket once it ships
 
-You can also press **Buy** under an item in the catalog. You can have one open order at a time; use /myorders to check your orders.
+**{icon_gift} PAYMENT**
+DoorDash eGift card only. Never post a code in a channel.
 
-Problem with an order? Press **Report a Problem**.'''
+**{icon_alert} SUPPORT**
+Problem with an order? Press **Report a problem**. Check your orders any time with **/myorders**.'''
 
 # Title of the shop panel (the message with the start button).
 # title · max 256 characters · required
-checkout.panel.title = "Order from AmazonYaarts"
+checkout.panel.title = "Place an order"
 
 # --- Checkout: private replies to the start button ---
 
@@ -1329,7 +1291,7 @@ checkout.error.cart_full = "Your cart is full: it can hold up to {max} different
 
 # Shown when the customer tries to cancel an order that can no longer be cancelled by them (it was already paid, cancelled or handled).
 # description · max 4096 characters · required
-checkout.error.order_not_cancellable = "This order can no longer be cancelled here: its payment was already confirmed, or it is already closed. For help, write to our team in your order ticket, or press **Report a Problem** in the purchase channel."
+checkout.error.order_not_cancellable = "This order can no longer be cancelled here: its payment was already confirmed, or it is already closed. For help, write to our team in your order ticket, or press **Report a problem** in the place-order channel."
 
 # Shown when the customer asks for more units than are available (when adding to the cart, or when submitting if someone else bought them first). {name} is the product name, {available} the units still available.
 # description · max 4096 characters · required · placeholders: {name}, {available}
@@ -1347,12 +1309,32 @@ checkout.error.quantity_invalid = "You can order at most {max} of this item. Ple
 
 # Shown when the customer uses a control of an order workflow that was already submitted, cancelled or expired.
 # description · max 4096 characters · required
-checkout.error.session_closed = "This order panel is no longer active because the order was already submitted, cancelled or expired. See the latest messages in your order ticket, or start a new order from the purchase channel."
+checkout.error.session_closed = "This order panel is no longer active because the order was already submitted, cancelled or expired. See the latest messages in your order ticket, or start a new order from the place-order channel."
+
+# --- Checkout: fulfillment option 'expedited' ---
+
+# Optional small text under the 'expedited' option in the menu (e.g. its fee or delivery time).
+# option_description · max 100 characters · optional
+checkout.fulfillment.expedited.description = "Faster tracked shipping, handled first."
+
+# Name of the 'expedited' fulfillment option (menu option, and the chosen-option field).
+# option_label · max 100 characters · required
+checkout.fulfillment.expedited.label = "Expedited shipping"
+
+# --- Checkout: fulfillment option 'standard' ---
+
+# Optional small text under the 'standard' option in the menu (e.g. its fee or delivery time).
+# option_description · max 100 characters · optional
+checkout.fulfillment.standard.description = "Our regular tracked shipping."
+
+# Name of the 'standard' fulfillment option (menu option, and the chosen-option field).
+# option_label · max 100 characters · required
+checkout.fulfillment.standard.label = "Standard shipping"
 
 # --- Checkout: order workflow - fulfillment option ---
 
 # Name of the field showing the chosen fulfillment option (its label). Needed when checkout.fulfillment_options are defined.
-# field_name · max 256 characters · optional
+# field_name · max 256 characters · required
 checkout.fulfillment_step.chosen_field = "Delivery option"
 
 # Optional text of the fulfillment step.
@@ -1360,15 +1342,15 @@ checkout.fulfillment_step.chosen_field = "Delivery option"
 checkout.fulfillment_step.description = "Choose how you would like to receive your order from the menu below, then press **Continue**."
 
 # Name of the field showing the chosen option's fee (fee_minor, written with common.money_format; shown only when that fee is above 0). Needed when an option has a fee.
-# field_name · max 256 characters · optional
+# field_name · max 256 characters · required
 checkout.fulfillment_step.fee_field = "Delivery fee"
 
 # Greyed-out text of the fulfillment option menu (if empty, Discord would show its own default text). Needed when checkout.fulfillment_options are defined.
-# select_placeholder · max 150 characters · optional
+# select_placeholder · max 150 characters · required
 checkout.fulfillment_step.select_placeholder = "Choose a delivery option"
 
 # Title of the step where the customer chooses a fulfillment option (delivery, pickup, ...). Needed when checkout.fulfillment_options are defined.
-# title · max 256 characters · optional
+# title · max 256 characters · required
 checkout.fulfillment_step.title = "Choose a delivery option"
 
 # --- Checkout: customer notifications (direct message, or the order channel) ---
@@ -1378,7 +1360,7 @@ checkout.fulfillment_step.title = "Choose a delivery option"
 checkout.notify.cancelled.description = '''
 Your order **#{order_number}** ({total}) has been cancelled, and its ticket {channel_mention} is now closed.
 
-If you did not expect this or have questions, press **Report a Problem** in the purchase channel.'''
+If you did not expect this or have questions, press **Report a problem** in the place-order channel.'''
 
 # Optional title of the notification sent when an order becomes 'cancelled'. {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention.
 # title · max 256 characters · optional · placeholders: {order_number}, {total}, {channel_mention}
@@ -1389,7 +1371,7 @@ checkout.notify.cancelled.title = "Order #{order_number} cancelled"
 checkout.notify.expired.description = '''
 Your order **#{order_number}** ({total}) was not paid in time and has expired. Its ticket {channel_mention} is now closed.
 
-You can place a new order at any time from the purchase channel.'''
+You can place a new order at any time from the place-order channel.'''
 
 # Optional title of the notification sent when an order becomes 'expired'. {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention.
 # title · max 256 characters · optional · placeholders: {order_number}, {total}, {channel_mention}
@@ -1402,7 +1384,7 @@ Your order **#{order_number}** has been completed and dispatched. Thank you for 
 
 Tracking details, when our team adds them, are shown below or sent to you in a separate message. In 7 days we will ask you to rate your order.
 
-Something wrong with your order? Press **Report a Problem** in the purchase channel.'''
+Something wrong with your order? Press **Report a problem** in the place-order channel.'''
 
 # Optional title of the notification sent when an order becomes 'fulfilled'. {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention.
 # title · max 256 characters · optional · placeholders: {order_number}, {total}, {channel_mention}
@@ -1456,7 +1438,7 @@ checkout.notify.processing.title = "Order #{order_number} is being prepared"
 checkout.notify.refund.description = '''
 Our team recorded a partial refund of **{amount}** for your order **#{order_number}**.
 
-If you have questions, press **Report a Problem** in the purchase channel. Your order ticket: {channel_mention}'''
+If you have questions, press **Report a problem** in the place-order channel. Your order ticket: {channel_mention}'''
 
 # Optional title of the notification sent when staff record a partial refund. {order_number} is the order number, {amount} the refunded amount, {channel_mention} links the order channel.
 # title · max 256 characters · optional · placeholders: {order_number}, {amount}, {channel_mention}
@@ -1467,7 +1449,7 @@ checkout.notify.refund.title = "Refund for order #{order_number}"
 checkout.notify.refunded.description = '''
 Your order **#{order_number}** ({total}) has been fully refunded.
 
-If you have questions about your refund, press **Report a Problem** in the purchase channel. Your order ticket: {channel_mention}'''
+If you have questions about your refund, press **Report a problem** in the place-order channel. Your order ticket: {channel_mention}'''
 
 # Optional title of the notification sent when an order becomes 'refunded'. {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention.
 # title · max 256 characters · optional · placeholders: {order_number}, {total}, {channel_mention}
@@ -1478,7 +1460,7 @@ checkout.notify.refunded.title = "Order #{order_number} refunded"
 checkout.notify.rejected.description = '''
 Sorry, our team could not accept your order **#{order_number}** ({total}). If our team gave a reason, it is shown below.
 
-The order ticket {channel_mention} is now closed. You can place a new order at any time from the purchase channel.'''
+The order ticket {channel_mention} is now closed. You can place a new order at any time from the place-order channel.'''
 
 # Optional title of the notification sent when an order becomes 'rejected'. {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention.
 # title · max 256 characters · optional · placeholders: {order_number}, {total}, {channel_mention}
@@ -1706,7 +1688,7 @@ checkout.staff.timeline_line = "{time} · **{stage}** {actor}"
 checkout.status.cancelled.description = '''
 This order was cancelled. This ticket is now closed, but you can still read it.
 
-If you have questions, press **Report a Problem** in the purchase channel.'''
+If you have questions, press **Report a problem** in the place-order channel.'''
 
 # Title of the order workflow message once the order is 'cancelled' (the order was cancelled (by the customer before paying, or by staff)). {order_number} is the order number, {total} the order total written with common.money_format.
 # title · max 256 characters · required · placeholders: {order_number}, {total}
@@ -1717,7 +1699,7 @@ checkout.status.cancelled.title = "Order #{order_number} cancelled"
 checkout.status.expired.description = '''
 This order was not paid in time, so it expired. This ticket is now closed, but you can still read it.
 
-You can place a new order at any time from the purchase channel.'''
+You can place a new order at any time from the place-order channel.'''
 
 # Title of the order workflow message once the order is 'expired' (the order was not paid within checkout.payment_expiry_minutes). {order_number} is the order number, {total} the order total written with common.money_format. Needed when checkout.payment_expiry_minutes is above 0.
 # title · max 256 characters · optional · placeholders: {order_number}, {total}
@@ -1728,7 +1710,7 @@ checkout.status.expired.title = "Order #{order_number} expired"
 checkout.status.fulfilled.description = '''
 Your order has been completed and dispatched. Thank you for your order.
 
-This ticket is now closed, but you can still read it. If something is wrong with your order, press **Report a Problem** in the purchase channel.'''
+This ticket is now closed, but you can still read it. If something is wrong with your order, press **Report a problem** in the place-order channel.'''
 
 # Title of the order workflow message once the order is 'fulfilled' (the order was delivered/completed). {order_number} is the order number, {total} the order total written with common.money_format.
 # title · max 256 characters · required · placeholders: {order_number}, {total}
@@ -1755,7 +1737,7 @@ checkout.status.processing.title = "Order #{order_number} is being prepared"
 checkout.status.refunded.description = '''
 This order has been fully refunded. This ticket is closed, but you can still read it.
 
-If you have questions about your refund, press **Report a Problem** in the purchase channel.'''
+If you have questions about your refund, press **Report a problem** in the place-order channel.'''
 
 # Title of the order workflow message once the order is 'refunded' (the order was fully refunded). {order_number} is the order number, {total} the order total written with common.money_format.
 # title · max 256 characters · required · placeholders: {order_number}, {total}
@@ -1766,7 +1748,7 @@ checkout.status.refunded.title = "Order #{order_number} refunded"
 checkout.status.rejected.description = '''
 Our team could not accept this order. We sent you a message about it, with the reason if our team gave one.
 
-This ticket is now closed, but you can still read it. You can place a new order at any time from the purchase channel.'''
+This ticket is now closed, but you can still read it. You can place a new order at any time from the place-order channel.'''
 
 # Title of the order workflow message once the order is 'rejected' (staff rejected the order before payment). {order_number} is the order number, {total} the order total written with common.money_format.
 # title · max 256 characters · required · placeholders: {order_number}, {total}
@@ -1951,43 +1933,31 @@ my_orders.command.description = "See your orders with their status, timeline and
 
 # Text of the /myorders reply when the member has no order yet.
 # description · max 4096 characters · required
-my_orders.empty.description = "You have not submitted an order yet. Browse the catalog to find something you like. Once you submit an order, it shows up here with its status and timeline."
+my_orders.empty.description = "You haven't placed an order yet. Browse the catalog and press **Buy** on an item to start one."
 
-# Optional text under the /myorders title when the member has orders. {count} is their number. One card per order follows (newest first), with previous/next buttons when there is more than one page.
+# Optional text under the /myorders title when the member has orders. {count} is their number. The orders follow (newest first), with previous/next buttons when there is more than one page.
 # description · max 4096 characters · optional · placeholders: {count}
 my_orders.list.description = "Newest first. Only you can see this message."
 
 # Title of the private /myorders reply (also when the member has no order yet). {count} is the number of the member's orders.
 # title · max 256 characters · required · placeholders: {count}
-my_orders.list.title = "Your orders ({count})"
+my_orders.list.title = "Your orders"
 
-# Name of the field showing the order number (the order's reference) on each order card.
-# field_name · max 256 characters · required
-my_orders.order.number_field = "Order number"
+# Line under each order's heading in /myorders, e.g. '{total} · placed {date}'. {order_number} is the order number, {status} its current stage name (checkout.ticket.stage.*), {total} the total (common.money_format), {date} the date it was submitted (shown by Discord in the reader's time zone).
+# description · max 4096 characters · required · placeholders: {order_number}, {status}, {total}, {date}
+my_orders.order.summary = "{total} · placed {date}"
 
-# Name of the field showing the order's current stage (checkout.ticket.stage.*) on each order card.
-# field_name · max 256 characters · required
-my_orders.order.status_field = "Status"
-
-# Optional name of a field linking the order's ticket while it is still open (omitted when empty).
+# Optional label of the line linking the order's ticket while it is still open, e.g. 'Ticket' (the line is omitted when empty).
 # field_name · max 256 characters · optional
-my_orders.order.ticket_field = "Order ticket"
+my_orders.order.ticket_field = "Ticket"
 
-# Name of the field listing the order's stages so far on each order card (each written with checkout.ticket.timeline_entry).
-# field_name · max 256 characters · required
-my_orders.order.timeline_field = "Timeline"
-
-# Title of each order's card in /myorders. {order_number} is the order number, {status} its current stage name (checkout.ticket.stage.*), {total} the total (common.money_format), {date} the date it was submitted (shown by Discord in the reader's time zone).
+# Heading of each order in /myorders, shown in bold. {order_number} is the order number, {status} its current stage name (checkout.ticket.stage.*), {total} the total (common.money_format), {date} the date it was submitted (shown by Discord in the reader's time zone).
 # title · max 256 characters · required · placeholders: {order_number}, {status}, {total}, {date}
-my_orders.order.title = "Order #{order_number} · {status}"
+my_orders.order.title = "#{order_number} · {status}"
 
-# Name of the field showing the order total (common.money_format) on each order card.
-# field_name · max 256 characters · required
-my_orders.order.total_field = "Total"
-
-# Optional name of the field showing the tracking details staff recorded for the order (shown only when there are tracking details; omitted when empty).
+# Optional label of the line showing the tracking details staff recorded for the order, e.g. 'Tracking' (shown only when there are tracking details; omitted when empty).
 # field_name · max 256 characters · optional
-my_orders.order.tracking_field = "Tracking details"
+my_orders.order.tracking_field = "Tracking"
 
 # ==================================================================================================
 # Feature: credits
@@ -2152,7 +2122,7 @@ reviews.notice.approved.title = "Your review of order #{order_number} is publish
 
 # Optional text of the private message telling the customer their review was not approved (it is not published). Sent by direct message when features.dm_notifications is on, otherwise (or when direct messages are closed) in the order channel with a mention (notifications.fallback_to_channel). If empty, no message is sent. {order_number} is the number of the reviewed order.
 # description · max 4096 characters · optional · placeholders: {order_number}
-reviews.notice.rejected.description = "Thank you for your feedback on order #{order_number}. Our team decided not to publish this review. If something is wrong with your order, press **Report a Problem** in the purchase channel and our team will help."
+reviews.notice.rejected.description = "Thank you for your feedback on order #{order_number}. Our team decided not to publish this review. If something is wrong with your order, press **Report a problem** in the place-order channel and our team will help."
 
 # Optional heading under which the reason the staff member gave in the reject form is shown in that message (exactly as written). If empty, or when no reason was given, the reason is not shown to the customer.
 # field_name · max 256 characters · optional
@@ -2178,7 +2148,7 @@ reviews.published.verified_field = "Verified purchase"
 
 # Optional verification marker text shown under reviews.published.verified_field on every published review (for example that the reviewer bought the order). Set it together with reviews.published.verified_field. {order_number} is the number of the reviewed order.
 # field_value · max 1024 characters · optional · placeholders: {order_number}
-reviews.published.verified_value = "Completed order #{order_number}"
+reviews.published.verified_value = "{icon_check} Order #{order_number}"
 
 # --- Reviews: rating options ---
 
@@ -2188,7 +2158,7 @@ reviews.rating.1.description = "Very unhappy with this order."
 
 # Optional text shown as the rating on a published review with rating 1 of 5 (for example a row of stars). If empty, the option label (reviews.rating.1.label) is shown instead.
 # field_value · max 1024 characters · optional; falls back to reviews.rating.1.label
-reviews.rating.1.display = "⭐ 1/5"
+reviews.rating.1.display = "★☆☆☆☆  1 out of 5"
 
 # Optional emoji shown next to the option for rating 1 of 5 in the rating selection menu.
 # emoji · max 100 characters · optional
@@ -2204,7 +2174,7 @@ reviews.rating.2.description = "Several things did not go well."
 
 # Optional text shown as the rating on a published review with rating 2 of 5 (for example a row of stars). If empty, the option label (reviews.rating.2.label) is shown instead.
 # field_value · max 1024 characters · optional; falls back to reviews.rating.2.label
-reviews.rating.2.display = "⭐⭐ 2/5"
+reviews.rating.2.display = "★★☆☆☆  2 out of 5"
 
 # Optional emoji shown next to the option for rating 2 of 5 in the rating selection menu.
 # emoji · max 100 characters · optional
@@ -2220,7 +2190,7 @@ reviews.rating.3.description = "It was fine, but could be better."
 
 # Optional text shown as the rating on a published review with rating 3 of 5 (for example a row of stars). If empty, the option label (reviews.rating.3.label) is shown instead.
 # field_value · max 1024 characters · optional; falls back to reviews.rating.3.label
-reviews.rating.3.display = "⭐⭐⭐ 3/5"
+reviews.rating.3.display = "★★★☆☆  3 out of 5"
 
 # Optional emoji shown next to the option for rating 3 of 5 in the rating selection menu.
 # emoji · max 100 characters · optional
@@ -2236,7 +2206,7 @@ reviews.rating.4.description = "Happy overall, with a small thing to improve."
 
 # Optional text shown as the rating on a published review with rating 4 of 5 (for example a row of stars). If empty, the option label (reviews.rating.4.label) is shown instead.
 # field_value · max 1024 characters · optional; falls back to reviews.rating.4.label
-reviews.rating.4.display = "⭐⭐⭐⭐ 4/5"
+reviews.rating.4.display = "★★★★☆  4 out of 5"
 
 # Optional emoji shown next to the option for rating 4 of 5 in the rating selection menu.
 # emoji · max 100 characters · optional
@@ -2252,7 +2222,7 @@ reviews.rating.5.description = "Everything went very well."
 
 # Optional text shown as the rating on a published review with rating 5 of 5 (for example a row of stars). If empty, the option label (reviews.rating.5.label) is shown instead.
 # field_value · max 1024 characters · optional; falls back to reviews.rating.5.label
-reviews.rating.5.display = "⭐⭐⭐⭐⭐ 5/5"
+reviews.rating.5.display = "★★★★★  5 out of 5"
 
 # Optional emoji shown next to the option for rating 5 of 5 in the rating selection menu.
 # emoji · max 100 characters · optional
@@ -2314,11 +2284,11 @@ problems.choose.type_placeholder = "Choose the type of problem"
 
 # Reject button on the report panel (staff only; opens a form for the reason, required when problems.require_reason_on_reject = true).
 # button_label · max 80 characters · required
-problems.button.reject = "⛔ Reject"
+problems.button.reject = "Reject"
 
 # Resolve button on the report panel (staff only; opens a form for an optional note to the customer).
 # button_label · max 80 characters · required
-problems.button.resolve = "✅ Resolve"
+problems.button.resolve = "Resolve"
 
 # Channel-name prefix of problem-report tickets ({prefix} in tickets.channel_name_pattern). Discord lower-cases channel names and replaces spaces with dashes.
 # channel_prefix · max 60 characters · required
@@ -2364,11 +2334,11 @@ problems.ticket.type_field = "Problem type"
 
 # Label of the Report a Problem button on the #purchase panel (next to the Start button). The button appears once the Report a Problem feature is fully configured (run /setup to update the panel).
 # button_label · max 80 characters · required
-problems.button.report = "Report a Problem"
+problems.button.report = "Report a problem"
 
 # Optional emoji on the Report a Problem button.
 # emoji · max 100 characters · optional
-problems.button.report_emoji = "⚠️"
+problems.button.report_emoji = ""
 
 # --- Report a Problem: private replies ---
 

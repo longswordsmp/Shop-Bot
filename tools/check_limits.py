@@ -82,7 +82,7 @@ async def run_checks(config_dir: Path, *, all_features: bool, fixtures: bool = F
     try:
         store = app.content
         assert isinstance(store, TrackingContentStore)
-        for problem in store.value_problems():
+        for problem in store.value_problems(check_icons=True):
             report.value_problems.append((problem.key, problem.message))
         for module in app.modules:
             if module.preview is None:

@@ -183,7 +183,7 @@ def panel(ui: Ui, settings: TicketSettings, *, style: str | None = None) -> Mess
                     label=_text(ui, k.category_key(category.id, "button_label")),
                     value=category.id,
                     description=ui.content.get(k.category_key(category.id, "select_description")),
-                    emoji=ui.content.get(k.category_key(category.id, "button_emoji")),
+                    emoji=ui.content.render(k.category_key(category.id, "button_emoji")),
                 )
             )
         select = SelectSpec(

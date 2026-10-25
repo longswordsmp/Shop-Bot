@@ -70,7 +70,12 @@ async def test_placeholders_render_in_text_kinds_only_and_unknown_icons_are_prob
         # Rendering: a key with and without declared placeholders.
         app.content.replace(file_values={**tenv.content, "branding.footer_text": "{icon_truck} x"})
         assert app.content.render_icons("{icon_truck} Delivery") == "<:truck:111111111111111111> Delivery"
-        assert app.content.render_icons("{icon_missing} Delivery") == " Delivery"
+        assert app.content.render_icons("{icon_missing} Delivery") == "Delivery"
+        # A button emoji that is an icon: the uploaded emoji, or no emoji at all until it is uploaded.
+        app.content.replace(file_values={**tenv.content, "verification.button.emoji": "{icon_truck}"})
+        assert app.content.render("verification.button.emoji") == "<:truck:111111111111111111>"
+        app.icons.ids.clear()
+        assert app.content.render("verification.button.emoji") is None
     finally:
         await tenv.close()
 

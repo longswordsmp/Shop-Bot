@@ -8,88 +8,94 @@ guide that is not finished never blocks the others.
 |---|---|---|---|---|
 | `how_to_buy` | `features.how_to_buy` | `[how_to_buy]` | `how_to_buy` | `how_to_buy:0`, `how_to_buy:1`, ... |
 | `faq` | `features.faq` | `[faq]` + `[[faq.sections]]` | `faq` | `faq:0`, `faq:1`, ... |
-| `shipping` | `features.shipping` | `[shipping]` + `[[shipping.regions]]` | `shipping` | `shipping:0`, ... |
+| `shipping` | `features.shipping` | `[shipping]` + `[[shipping.groups]]` | `shipping` | `shipping:0`, ... |
 
 ## What customers see
 
-- **#how-to-buy** — one embed: the configured title and introduction, then one field per step of the customer
-  workflow (finding items, starting a private ticket, completing the steps, checking the result — you write the
-  steps), and a row of **link buttons** that open the configured channels (shipped: `#catalog`, `#purchase`,
-  `#faq`).
-- **#faq** — an optional header (title and/or introduction), then **one embed per section** (e.g. general
-  questions, transactions, order status, cancellations, problems) with its questions as fields.
-- **#shipping** — a header (title, introduction), then **one card per availability status** — fully supported
-  (green/success color), partially supported (warning color), unsupported (danger color) — listing its regions,
-  each line written with the status indicator, plus optional information sections (delivery or fulfillment
-  options, extra location information) before or after the region list. Nothing is built in: statuses, regions,
-  names, notes and information all come from your configuration.
+Every guide is **one card** (one embed under its banner picture): a title, an introduction, then sections, each
+a bold heading (usually starting with one of the bot's icons, e.g. `{icon_truck}`) over a few lines.
 
-**Clickable channel links:** introductions, step texts, answers, status explanations, region notes and
-information texts may contain `{channel_<key>}` (for example `{channel_catalog}`), which becomes a clickable
-`#channel` link to the channel /setup created for that key. Discord does not render links in titles, field
-headings, questions, region names or button labels, so those keys do not accept them: a `{channel_<key>}` written
-there is reported by `/status` (it would otherwise reach customers as raw text) and the guide stays hidden until
-it is removed.
+- **#how-to-buy** — the configured title and introduction, one section per step (its name in bold, usually with
+  a step-number icon, over its text), an optional closing line, and a row of **link buttons** that open the
+  configured channels (shipped: `#catalog`, `#purchase`, `#faq`).
+- **#faq** — an optional title and introduction, then one section per topic (e.g. ordering, payment, shipping,
+  tracking, problems): its heading, then each question in bold followed by its answer.
+- **#shipping** — the title, introduction and an optional legend, then one section per country group (e.g. North
+  America, Europe) listing its countries after a status dot: `{icon_dot_blue}` we ship everywhere in the country,
+  `{icon_dot_yellow}` we ship except some areas (e.g. "United States (except Alaska and North Dakota)"), then the
+  countries listed as not available (`{icon_dot_grey}`). Below: the delivery options with their prices (from
+  `[[checkout.fulfillment_options]]`) and the information sections (processing, tracking). Country names are
+  standard English names; the address step uses the same countries.
 
-**Long content is never cut.** A guide that does not fit one embed continues in the next embed (25 fields,
-4096-character descriptions, 6000 characters per embed), and a message holds at most 10 embeds and 6000
-characters, then further messages follow. A section that continues in another embed does not repeat its title.
-The branding (author line, footer, panel thumbnail/banner from `[branding]`) appears once, on the first embed.
-Link buttons are attached to the last message of the how-to-buy guide. Panels carry no timestamp, so running
-/setup again with unchanged text changes nothing.
+**Clickable channel links:** introductions, step texts, answers, the closing line and information texts may
+contain `{channel_<key>}` (for example `{channel_catalog}`), which becomes a clickable `#channel` link to the
+channel /setup created for that key. Discord does not render links in titles, headings, questions, group names or
+button labels, so those keys do not accept them: a `{channel_<key>}` written there is reported by `/status` (it
+would otherwise reach customers as raw text) and the guide stays hidden until it is removed.
+
+**Long content is never cut.** A card that does not fit one embed (4096-character descriptions, 6000 characters
+per embed) continues in the next embed of the same colour without repeating its title, and a message holds at most
+10 embeds and 6000 characters, then further messages follow. The branding (author line, footer) appears once, on
+the first embed. Link buttons are attached to the last message of the how-to-buy guide. Panels carry no
+timestamp, so running /setup again with unchanged text changes nothing.
 
 ## Settings
 
 ```toml
 [how_to_buy]
 channel = "how_to_buy"                    # channel key from [[server.channels]]
-steps = 4                                 # 1-25 numbered steps
+steps = 5                                 # 1-25 numbered steps
 link_channels = ["catalog", "purchase", "faq"]   # channel keys shown as link buttons (max 25, in order)
 
 [faq]
 channel = "faq"
 [[faq.sections]]                          # one per topic, in display order (max 25)
-id = "general"                            # internal key, never shown
-questions = 1                             # 1-25
+id = "ordering"                           # internal key, never shown
+questions = 3                             # 1-25
 
 [shipping]
 channel = "shipping"
-statuses = ["full", "partial", "none"]    # enabled availability categories, in display order
-info_sections = 0                         # 0-25 information fields
-info_position = "after"                   # "before" or "after" the region list
-[[shipping.regions]]                      # one per region (max 500); none are shipped
-id = "region_a"                           # internal key, never shown
-status = "full"                           # must be listed in `statuses`
+info_sections = 2                         # 0-10 information sections after the delivery options
+not_available = ["CU", "RU", "BY"]        # countries listed as not available (any country in no group is too)
+[shipping.excluded_areas]                 # parts of a country we do not ship to (US: state codes; others: names)
+US = ["AK", "ND"]
+[shipping.country_names]                  # optional renames, e.g. CZ = "Czech Republic"
+[[shipping.groups]]                       # one per heading on #shipping, in display order (max 20)
+id = "north_america"                      # internal key, never shown (heading: shipping.group.<id>.name)
+countries = ["CA", "US", "MX"]            # two-letter country codes (ISO 3166-1, plus XK for Kosovo)
 ```
 
 Checks that keep a guide hidden (listed by `/status` and the /setup report): its channel is not set or not
 defined in `server.channels`; a link channel is not defined, or is a staff/admin channel customers cannot open;
-the FAQ has no sections; a region uses a status that is not enabled; a region line format lacks a required
-placeholder; a region has a note but `shipping.format.region_with_note` is empty; a channel link is written where
-Discord cannot show it. Wrong types, out-of-range numbers, unknown
-statuses, duplicate ids and unknown settings are configuration errors (the bot refuses to load the file).
+the FAQ has no sections; #shipping has no country groups; a country format lacks a required placeholder; a channel
+link is written where Discord cannot show it. Wrong types, out-of-range numbers, unknown country or state codes, a
+country in two groups (or both in a group and in `not_available`), excluded areas of a country we do not ship to,
+duplicate ids and unknown settings are configuration errors (the bot refuses to load the file).
 
 ## Content keys
 
 | Keys | Kind | Required |
 |---|---|---|
 | `how_to_buy.title`, `how_to_buy.introduction` | title, description | required |
-| `how_to_buy.step.<n>.name` / `.value` (n = 1..steps) | field name, field value | required |
+| `how_to_buy.step.<n>.name` / `.value` (n = 1..steps) | heading, text | required |
+| `how_to_buy.closing` | description | optional |
 | `how_to_buy.link.<channel>.label` / `.emoji` | button label, emoji | label required, emoji optional |
 | `faq.title`, `faq.introduction` | title, description | optional |
-| `faq.section.<id>.title` | title | required |
-| `faq.section.<id>.q.<n>.question` / `.answer` | field name, field value | required |
+| `faq.section.<id>.title` | heading | required |
+| `faq.section.<id>.q.<n>.question` / `.answer` | question (bold), answer | required |
 | `shipping.title`, `shipping.introduction` | title, description | required |
-| `shipping.status.<status>.label` (placeholder `{indicator}`) / `.indicator` | title, emoji | required for every enabled status |
-| `shipping.status.<status>.description` | description | optional (a status card with no regions is shown only when it has one) |
-| `shipping.format.region` (`{indicator}`, `{name}`) | format | required once regions exist; must contain both placeholders |
-| `shipping.format.region_with_note` (`{indicator}`, `{name}`, `{note}`) | format | required once any region has a note |
-| `shipping.region.<id>.name` / `.note` | short text (256) | name required, note optional |
-| `shipping.info.<n>.name` / `.value` (n = 1..info_sections) | field name, field value | required |
+| `shipping.legend` | description | optional |
+| `shipping.status.full/partial/none.indicator` | short text (the dot icon) | required while such countries are listed |
+| `shipping.group.<id>.name` | heading | required |
+| `shipping.format.excluded` (`{country}`, `{areas}`) | format | required once a country has excluded areas |
+| `shipping.format.last_area` (`{areas}`, `{last}`) | format | required once a country has several excluded areas |
+| `shipping.not_available.heading` / `.others` | heading, text | heading required when countries are listed there |
+| `shipping.delivery.heading`, `shipping.format.delivery` (`{label}`, `{price}`, `{description}`) | heading, format | required with delivery options |
+| `shipping.info.<n>.name` / `.value` (n = 1..info_sections) | heading, text | required |
 
-The region line formats are content keys because their separators are visible text (for example
-`{indicator} {name}` and `{indicator} {name} ({note})`). The full list with descriptions is generated in
-`config/content.toml` (`python -m tools.checklist --template`).
+The formats are content keys because their words are visible text (for example `{country} (except {areas})` and
+`{areas} and {last}`). The full list with descriptions is generated in `config/content.toml`
+(`python -m tools.checklist --template`).
 
 ## Commands
 

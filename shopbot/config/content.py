@@ -25,6 +25,7 @@ _CUSTOM_EMOJI_RE = re.compile(r"^<a?:[A-Za-z0-9_]{2,32}:\d{15,21}>$")
 # The bot's custom icons (``shopbot.ui.icons``): a global placeholder every key may use where Discord shows custom
 # emojis (``ICON_KINDS``); the whole value of an emoji key may be one icon (a button's emoji).
 ICON_RE = re.compile(r"\{icon_([a-z0-9_]{2,32})\}")
+_ICON_USE_RE = re.compile(r"\{icon_([a-z0-9_]{2,32})\}( ?)")
 ICON_KINDS = frozenset({Kind.TITLE, Kind.DESCRIPTION, Kind.FIELD_NAME, Kind.FIELD_VALUE, Kind.EMOJI})
 IconText = Callable[[str], str]
 OPERATOR_PREFIX = "operator."
@@ -188,6 +189,8 @@ class ContentStore:
         if text is None:
             return None
         definition = self._definition(key)
+        if definition.kind is Kind.EMOJI:
+            return self._emoji(text)
         text = self.render_icons(text) if definition.kind in ICON_KINDS else text
         allowed = set(definition.placeholders)
         if definition.fallback is not None:
@@ -209,11 +212,26 @@ class ContentStore:
 
     def render_icons(self, text: str) -> str:
         """``text`` with every ``{icon_<name>}`` replaced by the icon (its fallback while it is not uploaded; nothing
-        for an unknown icon), so no raw placeholder reaches a customer."""
+        for an unknown icon), so no raw placeholder reaches a customer. An icon that shows nothing also takes the space
+        after it, so "{icon_truck} **Delivery**" never starts with a stray space."""
         if "{icon_" not in text:
             return text
         icons = self._icons
-        return ICON_RE.sub(lambda m: icons(m.group(1)) if icons is not None else "", text)
+
+        def substitute(match: re.Match[str]) -> str:
+            shown = icons(match.group(1)) if icons is not None else ""
+            return shown + match.group(2) if shown else ""
+
+        return _ICON_USE_RE.sub(substitute, text)
+
+    def _emoji(self, value: str) -> str | None:
+        """An emoji key's value as a button or option emoji: an icon becomes its uploaded emoji, and None while it is
+        not uploaded (a fallback such as a plain dot is not an emoji Discord accepts on a button)."""
+        match = ICON_RE.fullmatch(value)
+        if match is None:
+            return value
+        shown = self._icons(match.group(1)) if self._icons is not None else ""
+        return shown if _CUSTOM_EMOJI_RE.match(shown) else None
 
     def icon_names(self) -> Collection[str] | None:
         return self._icon_names() if self._icon_names is not None else None
@@ -272,12 +290,16 @@ class ContentStore:
         value = self._overrides.get(OPERATOR_PREFIX + key) or self._file.get(OPERATOR_PREFIX + key)
         return value or None
 
-    def value_problems(self) -> list[ValueProblem]:
+    def value_problems(self, *, check_icons: bool = False) -> list[ValueProblem]:
+        """Every configured value that breaks its key's constraints. ``check_icons`` also reports icon names that do
+        not exist; readiness leaves it off (an unknown or missing icon only shows nothing, it never breaks a
+        message), while ``/content set`` and the offline checker report it."""
         problems: list[ValueProblem] = []
+        icons = self.icon_names() if check_icons else None
         for definition in self.registry.all():
             value = self.raw(definition.key)
             if value is None:
                 continue
-            for message in validate_value(definition, value, self.icon_names()):
+            for message in validate_value(definition, value, icons):
                 problems.append(ValueProblem(definition.key, message))
         return problems

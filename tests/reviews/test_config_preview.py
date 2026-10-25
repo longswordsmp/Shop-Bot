@@ -330,7 +330,7 @@ async def test_preview_uses_exact_configured_text(tenv: TestEnv) -> None:
     assert isinstance(published, MessageSpec)
     card = published.embeds[0]
     assert card.title == rendered(tenv, k.PUBLISHED_TITLE, rating=5, user_name="[sample member]", order_number=number)
-    assert card.description == "[sample review comment]"
+    assert card.description == "> [sample review comment]"  # the comment is a quote
     assert [(f.name, f.value) for f in card.fields] == [
         (tenv.text(k.PUBLISHED_RATING_FIELD), tenv.text(k.rating_key(5, "display"))),
         (tenv.text(k.PUBLISHED_VERIFIED_FIELD), rendered(tenv, k.PUBLISHED_VERIFIED_VALUE, order_number=number)),

@@ -17,11 +17,12 @@ default to 0, meaning "disabled" — the bot never invents an expiry or auto-clo
 from __future__ import annotations
 
 import re
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass, field
 from typing import Any, TypeVar
 
 from shopbot.config.banner_ids import BANNER_IDS
+from shopbot.core.countries import AREA_CODES, COUNTRIES
 
 T = TypeVar("T")
 
@@ -552,11 +553,9 @@ MAX_GUIDE_STEPS = 25
 MAX_GUIDE_LINKS = 25
 MAX_FAQ_SECTIONS = 25
 MAX_FAQ_QUESTIONS = 25
-MAX_SHIPPING_REGIONS = 500
-MAX_SHIPPING_INFO_SECTIONS = 25
-# Availability categories of [shipping]: fully supported, partially supported, unsupported.
-SHIPPING_STATUSES = ("full", "partial", "none")
-SHIPPING_INFO_POSITIONS = ("before", "after")
+MAX_SHIPPING_GROUPS = 20
+MAX_SHIPPING_INFO_SECTIONS = 10
+COUNTRY_CODE_PATTERN = re.compile(r"^[A-Z]{2}$")
 
 
 @dataclass(frozen=True)
@@ -585,22 +584,39 @@ class FaqSettings:
 
 
 @dataclass(frozen=True)
-class ShippingRegion:
+class ShippingGroup:
+    """Countries we ship to, shown together on #shipping (name: content key shipping.group.<id>.name)."""
+
     id: str
-    status: str = ""
+    countries: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
 class ShippingSettings:
-    """[shipping]: the fulfillment/regions panel."""
+    """[shipping]: where we ship (#shipping and the address step).
+
+    A country is *available* when it is in one of ``groups``; *partly available* when it also has
+    ``excluded_areas`` (e.g. US states); every other country is not available (``not_available`` lists the ones
+    #shipping names explicitly)."""
 
     channel: str = ""
-    # Enabled availability categories, in display order (subset of SHIPPING_STATUSES).
-    statuses: tuple[str, ...] = SHIPPING_STATUSES
-    regions: tuple[ShippingRegion, ...] = ()
-    # Extra information fields (content keys shipping.info.<n>.name/.value), shown before or after the regions.
+    groups: tuple[ShippingGroup, ...] = ()
+    excluded_areas: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
+    not_available: tuple[str, ...] = ()
+    country_names: Mapping[str, str] = field(default_factory=dict)
+    # Extra information sections (content keys shipping.info.<n>.name/.value), shown after the countries.
     info_sections: int = 0
-    info_position: str = "after"
+
+    def country_name(self, code: str) -> str:
+        return self.country_names.get(code) or COUNTRIES.get(code, code)
+
+    def ships_to(self, code: str) -> bool:
+        return any(code in group.countries for group in self.groups)
+
+    @property
+    def countries(self) -> tuple[str, ...]:
+        """Every country we ship to, in display order."""
+        return tuple(code for group in self.groups for code in group.countries)
 
 
 ANNOUNCEMENT_MAX_FIELDS = 3  # the /announce form holds title + message + these fields (Discord: 5 inputs)
@@ -1176,36 +1192,75 @@ def _parse_faq(r: _Reader) -> FaqSettings:
 
 
 def _parse_shipping(r: _Reader) -> ShippingSettings:
-    statuses = r.keys_("statuses") if "statuses" in r._data else SHIPPING_STATUSES
-    for status in statuses:
-        if status not in SHIPPING_STATUSES:
-            r.error("statuses", f"'{status}' is not one of {list(SHIPPING_STATUSES)}")
-    regions = tuple(
-        _finish(
-            g,
-            ShippingRegion(
-                id=g.str_("id", "", pattern=KEY_PATTERN, allow_empty=False),
-                status=g.str_("status", "", choices=SHIPPING_STATUSES, allow_empty=False),
-            ),
+    groups: list[ShippingGroup] = []
+    for g in r.tables("groups"):
+        group = ShippingGroup(
+            id=g.str_("id", "", pattern=KEY_PATTERN, allow_empty=False),
+            countries=g.strs_("countries"),
         )
-        for g in r.tables("regions")
-    )
-    for index, region in enumerate(regions):
-        if not region.id:
-            r.error(f"regions[{index}].id", "is required")
-        if not region.status:
-            r.error(f"regions[{index}].status", f"is required (one of {list(SHIPPING_STATUSES)})")
-    if len(regions) > MAX_SHIPPING_REGIONS:
-        r.error("regions", f"at most {MAX_SHIPPING_REGIONS} regions")
-    _unique(regions, lambda x: x.id, r._p("regions"), r._errors)
+        if not group.id:
+            g.error("id", "is required")
+        if not group.countries:
+            g.error("countries", 'list at least one country code, e.g. ["CA", "US"]')
+        _country_codes(g, "countries", group.countries)
+        groups.append(_finish(g, group))
+    if len(groups) > MAX_SHIPPING_GROUPS:
+        r.error("groups", f"at most {MAX_SHIPPING_GROUPS} groups")
+    _unique(tuple(groups), lambda x: x.id, r._p("groups"), r._errors)
+    shipped = [code for group in groups for code in group.countries]
+    for code in sorted({c for c in shipped if shipped.count(c) > 1}):
+        r.error("groups", f"{code} is listed in more than one group")
+    not_available = r.strs_("not_available")
+    _country_codes(r, "not_available", not_available)
+    for code in not_available:
+        if code in shipped:
+            r.error("not_available", f"{code} is also listed in a group (we ship there)")
+    areas_table = r.table("excluded_areas")
+    excluded: dict[str, tuple[str, ...]] = {}
+    for code in list(areas_table._data):
+        areas = areas_table.strs_(code)
+        if not COUNTRY_CODE_PATTERN.match(code) or code not in COUNTRIES:
+            areas_table.error(code, "is not a country code (two capital letters, e.g. US)")
+            continue
+        if code not in shipped:
+            areas_table.error(code, "is not in any [[shipping.groups]] (we do not ship there at all)")
+        known = AREA_CODES.get(code)
+        for area in areas:
+            if known is not None and area not in known:
+                areas_table.error(code, f"'{area}' is not a state code of {code} (e.g. \"AK\")")
+            elif not area.strip():
+                areas_table.error(code, "contains an empty name")
+        if len(set(areas)) != len(areas):
+            areas_table.error(code, "contains duplicates")
+        if areas:
+            excluded[code] = areas
+    areas_table.finish()
+    names_table = r.table("country_names")
+    names: dict[str, str] = {}
+    for code in list(names_table._data):
+        name = names_table.str_(code, "", allow_empty=False, max_len=60)
+        if code not in COUNTRIES:
+            names_table.error(code, "is not a country code (two capital letters, e.g. CZ)")
+        elif name:
+            names[code] = name
+    names_table.finish()
     value = ShippingSettings(
         channel=r.str_("channel", "", pattern=KEY_PATTERN),
-        statuses=tuple(s for s in statuses if s in SHIPPING_STATUSES),
-        regions=regions,
+        groups=tuple(groups),
+        excluded_areas=excluded,
+        not_available=not_available,
+        country_names=names,
         info_sections=r.int_("info_sections", 0, min_=0, max_=MAX_SHIPPING_INFO_SECTIONS),
-        info_position=r.str_("info_position", "after", choices=SHIPPING_INFO_POSITIONS, allow_empty=False),
     )
     return _finish(r, value)
+
+
+def _country_codes(r: _Reader, key: str, codes: tuple[str, ...]) -> None:
+    for code in codes:
+        if not COUNTRY_CODE_PATTERN.match(code) or code not in COUNTRIES:
+            r.error(key, f"'{code}' is not a country code (two capital letters, e.g. US, CA, DE)")
+    if len(set(codes)) != len(codes):
+        r.error(key, "contains duplicates")
 
 
 def _parse_announcements(r: _Reader) -> AnnouncementSettings:

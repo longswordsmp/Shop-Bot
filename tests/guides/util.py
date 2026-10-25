@@ -29,13 +29,9 @@ BASE_OVERRIDES: dict[str, Any] = {
     },
     "shipping": {
         "channel": "shipping",
-        "statuses": ["full", "partial", "none"],
-        "regions": [
-            {"id": "north", "status": "full"},
-            {"id": "south", "status": "partial"},
-            {"id": "east", "status": "none"},
-            {"id": "west", "status": "full"},
-        ],
+        "groups": [{"id": "north", "countries": ["CA", "US", "MX"]}, {"id": "europe", "countries": ["DE", "FR"]}],
+        "excluded_areas": {"US": ["AK", "ND"]},
+        "not_available": ["CU", "RU"],
         "info_sections": 2,
     },
 }

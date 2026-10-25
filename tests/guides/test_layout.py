@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from shopbot.features import core_keys as ck
-from shopbot.features.guides.common import Block, build_embeds, guide_messages, pack_messages
+from shopbot.features.guides.common import guide_messages
 from shopbot.ui import limits
+from shopbot.ui.card import PARAGRAPH, Block, Card, Section, build_embeds, card_embeds, card_messages, pack_messages
 from shopbot.ui.limits import validate_message
 from shopbot.ui.spec import ButtonSpec, EmbedField, EmbedSpec, MessageSpec, rows_of
 from tests.helpers import TestEnv
@@ -106,8 +107,40 @@ def test_empty_blocks_are_skipped(tenv: TestEnv) -> None:
     assert embeds[0].footer_text  # the first shown embed gets the branding
 
 
-def test_fields_and_lines_cannot_be_mixed() -> None:
-    import pytest
+def test_a_card_is_one_embed_with_bold_section_headings_and_blank_lines_between_sections(tenv: TestEnv) -> None:
+    card = Card(
+        title="[title]",
+        intro="[intro]",
+        sections=(
+            Section("[icon] [first]", ("[line 1]", "[line 2]")),
+            Section(None, ("[plain]",)),
+            Section("[empty]", ()),  # a heading alone is still shown
+            Section(None, ()),  # nothing at all: skipped
+        ),
+        fields=(EmbedField("[order]", "[1042]", inline=True),),
+        timestamp=True,
+    )
+    embeds = card_embeds(tenv.app.ui, card)
+    assert len(embeds) == 1
+    assert embeds[0].description == ("[intro]\n\n**[icon] [first]**\n[line 1]\n[line 2]\n\n[plain]\n\n**[empty]**")
+    assert embeds[0].fields == (EmbedField("[order]", "[1042]", inline=True),)
+    assert embeds[0].timestamp is not None
 
-    with pytest.raises(ValueError):
-        Block(tone="info", fields=(field(1),), lines=("x",))
+
+def test_a_long_card_continues_in_the_next_embed_without_its_title_and_nothing_is_cut(tenv: TestEnv) -> None:
+    lines = tuple(f"[line {n}] " + "x" * 300 for n in range(40))
+    card = Card(title="[title]", intro="[intro]", sections=(Section("[heading]", lines),), timestamp=True)
+    specs = card_messages(tenv.app.ui, card, banner="faq")
+    assert_valid(specs)
+    embeds = [embed for spec in specs for embed in spec.embeds]
+    assert len(embeds) > 1 and embeds[0].title == "[title]" and all(e.title is None for e in embeds[1:])
+    assert embeds[0].timestamp is not None and all(e.timestamp is None for e in embeds[1:])
+    text = "\n".join(e.description or "" for e in embeds)
+    assert all(line in text for line in lines)
+    assert not any((e.description or "").startswith("\n") for e in embeds)
+
+
+def test_lines_come_before_the_fields_of_the_same_card(tenv: TestEnv) -> None:
+    block = Block(tone="info", description="[intro]", lines=("[a]", PARAGRAPH, "[b]"), fields=(field(1),))
+    (embed,) = build_embeds(tenv.app.ui, [block])
+    assert embed.description == "[intro]\n\n[a]\n\n[b]" and embed.fields == (field(1),)

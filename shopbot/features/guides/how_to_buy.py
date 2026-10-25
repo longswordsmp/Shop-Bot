@@ -1,7 +1,7 @@
-"""#how-to-buy: the step-by-step guide to the customer workflow, with link buttons to the relevant channels.
+"""#how-to-buy: the step-by-step guide to ordering as one card, with link buttons to the relevant channels.
 
-One clean embed: the configured title and introduction, then one field per numbered step (finding items, starting
-a private ticket, completing the steps, checking the result - the owner writes them). Link buttons (one per
+The configured title and introduction, then one section per numbered step (its name in bold, usually starting with
+a step-number icon such as {icon_step_1}, over its text), then an optional closing line. Link buttons (one per
 ``how_to_buy.link_channels`` entry) open the configured channels. A guide too long for one message continues in
 further messages (never cut); the link buttons are attached to the last one.
 """
@@ -16,7 +16,8 @@ from shopbot.config.content_keys import ContentKey, Kind, ck
 from shopbot.config.settings import HowToBuySettings, Settings
 from shopbot.features.guides import common
 from shopbot.features.server_keys import PRIVATE_ACCESS, channel_placeholders, effective_access, reference_problems
-from shopbot.ui.spec import ButtonSpec, EmbedField, MessageSpec, PreviewState, rows_of
+from shopbot.ui.card import Card, Section
+from shopbot.ui.spec import ButtonSpec, MessageSpec, PreviewState, rows_of
 from shopbot.ui.style import Ui
 
 if TYPE_CHECKING:
@@ -29,6 +30,7 @@ PREFIX = "how_to_buy:"
 
 TITLE = "how_to_buy.title"
 INTRODUCTION = "how_to_buy.introduction"
+CLOSING = "how_to_buy.closing"
 
 
 def step_name_key(number: int) -> str:
@@ -70,6 +72,15 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             f"Introduction at the top of {where}, above the steps.{link_doc}",
             placeholders=links,
         ),
+        ck(
+            CLOSING,
+            Kind.DESCRIPTION,
+            HOW_TO_BUY,
+            group,
+            f"Optional closing line at the bottom of {where}, below the steps (e.g. where to find answers).{link_doc}",
+            required=False,
+            placeholders=links,
+        ),
     ]
     steps_group = "How to buy guide: steps"
     for number in range(1, s.steps + 1):
@@ -79,8 +90,9 @@ def content_keys(settings: Settings) -> list[ContentKey]:
                 Kind.FIELD_NAME,
                 HOW_TO_BUY,
                 steps_group,
-                f"Heading of step {number} of {s.steps} in {where} (write the step number yourself if you want "
-                "one shown; channel links do not work in headings).",
+                f"Heading of step {number} of {s.steps} in {where}, shown in bold. Start it with a step-number "
+                f"icon if you want one shown, e.g. {{icon_step_{min(number, 6)}}} (channel links do not work in "
+                "headings).",
             ),
             ck(
                 step_value_key(number),
@@ -140,14 +152,17 @@ def guide_messages(
 ) -> list[MessageSpec]:
     """The guide's messages. Raises ``MissingContent``/``ChannelNotCreated`` at runtime when text or a channel
     is missing (nothing incomplete is posted)."""
-    steps = tuple(
-        EmbedField(texts.required(step_name_key(n)), texts.required(step_value_key(n))) for n in range(1, s.steps + 1)
-    )
-    block = common.Block(
+    sections = [
+        Section(texts.required(step_name_key(n)), (texts.required(step_value_key(n)),)) for n in range(1, s.steps + 1)
+    ]
+    closing = texts.optional(CLOSING)
+    if closing:
+        sections.append(Section(None, (closing,)))
+    card = Card(
         tone="primary",
         title=texts.required(TITLE),
-        description=texts.required(INTRODUCTION),
-        fields=steps,
+        intro=texts.required(INTRODUCTION),
+        sections=tuple(sections),
     )
     buttons = [
         ButtonSpec(
@@ -158,7 +173,7 @@ def guide_messages(
         )
         for key in s.link_channels
     ]
-    return common.guide_messages(ui, [block], rows_of(*buttons), banner="how-it-works")
+    return common.guide_messages(ui, [card.block()], rows_of(*buttons), banner="how-it-works")
 
 
 # -- runtime ---------------------------------------------------------------------------------------------------

@@ -47,9 +47,11 @@ async def test_configured_previews_use_the_runtime_views(tmp_path: Path) -> None
         ]
         faq_spec = by_name[("faq", "faq")]
         assert isinstance(faq_spec, MessageSpec)
-        assert [e.title for e in faq_spec.embeds][1:] == [
-            tenv.text(faq.section_title_key(s)) for s in ("general", "orders")
-        ]
+        assert len(faq_spec.embeds) == 1  # one card
+        assert all(
+            f"**{tenv.text(faq.section_title_key(s))}**" in (faq_spec.embeds[0].description or "")
+            for s in ("general", "orders")
+        )
         assert ("shipping", "shipping") in by_name
     finally:
         await tenv.close()
@@ -61,7 +63,7 @@ async def test_previews_include_multi_message_examples(tmp_path: Path) -> None:
         names = {s.name for s in states_of(tenv)}
         assert {"example_many_sections_message_1", "example_many_sections_message_2"} <= names
         assert {"example_long_section_message_1", "example_long_section_message_2"} <= names
-        assert {"example_regions_message_1", "example_regions_message_2"} <= names
+        assert {"example_countries_message_1", "example_countries_message_2"} <= names
         assert {"example_longest_message_1", "example_longest_message_2"} <= names
         many = [s for s in states_of(tenv) if s.name.startswith("example_many_sections")]
         assert all("Synthetic example" in s.note for s in many)
@@ -83,7 +85,7 @@ async def test_preview_without_text_shows_markers_instead_of_inventing_wording(t
         guide = next(s.spec for s in states if s.name == "guide")
         assert isinstance(guide, MessageSpec)
         assert guide.embeds[0].title == f"[{how_to_buy.TITLE}]"
-        assert guide.embeds[0].fields[0].name == f"[{how_to_buy.step_name_key(1)}]"
+        assert f"**[{how_to_buy.step_name_key(1)}]**" in (guide.embeds[0].description or "")
         assert next(b.url for row in guide.rows for b in row) == "https://example.com/channel/catalog"
     finally:
         await tenv.close()

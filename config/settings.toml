@@ -239,8 +239,8 @@ button_style = "success"             # color of the "I agree" button: primary, s
 
 [how_to_buy]
 channel = "how_to_buy"
-steps = 4                            # numbered steps (1-25): finding items, starting a private ticket, completing the
-                                     # steps, checking the result. Text: how_to_buy.step.<n>.name / .value
+steps = 5                            # numbered steps (1-25), from choosing items to tracking the package.
+                                     # Text: how_to_buy.step.<n>.name / .value
 link_channels = ["catalog", "purchase", "faq"]   # channel keys shown as link buttons under the guide (max 25);
                                      # button labels: how_to_buy.link.<channel>.label (+ optional .emoji)
 
@@ -250,19 +250,19 @@ channel = "faq"
 # its questions/answers are content keys faq.section.<id>.title and faq.section.<id>.q.<n>.question / .answer.
 # `questions` = number of questions in the section (1-25). Long sections continue in further embeds/messages.
 [[faq.sections]]
-id = "general"
+id = "ordering"
 questions = 3
 
 [[faq.sections]]
-id = "transactions"
+id = "payment"
 questions = 3
 
 [[faq.sections]]
-id = "order_status"
-questions = 3
+id = "shipping"
+questions = 4
 
 [[faq.sections]]
-id = "cancellations"
+id = "tracking"
 questions = 2
 
 [[faq.sections]]
@@ -271,37 +271,45 @@ questions = 2
 
 [shipping]
 channel = "shipping"
-statuses = ["full", "none"]          # enabled availability categories, in display order:
-                                     # full = fully supported, partial = partially supported, none = unsupported.
-                                     # Labels/indicators: shipping.status.<status>.label / .indicator / .description
-info_sections = 2                    # extra information fields (0-25), e.g. delivery or fulfillment options.
-                                     # Text: shipping.info.<n>.name / .value
-info_position = "after"              # "before" or "after" the region list
-# One [[shipping.regions]] per region, in display order. `id` is an internal key; the visible name is
-# shipping.region.<id>.name (optional note: shipping.region.<id>.note). `status` must be listed in `statuses` above.
-[[shipping.regions]]
-id = "united_states"
-status = "full"
+info_sections = 2                    # information sections after the delivery options (0-10), e.g. processing and
+                                     # tracking. Text: shipping.info.<n>.name / .value
+# Countries listed as not available on #shipping (every country that is in no group below is not available either).
+# Cuba, Russia and Belarus: shipping there is restricted by sanctions and most carriers refuse parcels.
+not_available = ["CU", "RU", "BY"]
 
-[[shipping.regions]]
-id = "americas"
-status = "full"
+# Parts of a country we do not ship to (US states by their two-letter code). The country shows a yellow dot and
+# "(except ...)" on #shipping, and the address step refuses addresses there.
+[shipping.excluded_areas]
+US = ["AK", "ND"]
 
-[[shipping.regions]]
+# Country names are standard English names; rename one here, e.g. CZ = "Czech Republic".
+[shipping.country_names]
+
+# Countries we ship to, one [[shipping.groups]] per heading on #shipping, in display order. `countries` are
+# two-letter country codes (ISO 3166-1, plus XK for Kosovo). The heading is shipping.group.<id>.name.
+[[shipping.groups]]
+id = "north_america"
+countries = ["CA", "US", "MX"]
+
+[[shipping.groups]]
+id = "central_america"
+countries = ["BZ", "CR", "SV", "GT", "HN", "NI", "PA"]
+
+[[shipping.groups]]
+id = "caribbean"
+countries = ["AG", "BS", "BB", "DM", "DO", "GD", "HT", "JM", "KN", "LC", "VC", "TT"]
+
+[[shipping.groups]]
+id = "south_america"
+countries = ["AR", "BO", "BR", "CL", "CO", "EC", "GY", "PY", "PE", "SR", "UY", "VE"]
+
+[[shipping.groups]]
 id = "europe"
-status = "full"
-
-[[shipping.regions]]
-id = "alaska"
-status = "none"
-
-[[shipping.regions]]
-id = "north_dakota"
-status = "none"
-
-[[shipping.regions]]
-id = "rest_of_world"
-status = "none"
+countries = [
+  "AL", "AD", "AT", "BE", "BA", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR", "HU", "IS", "IE", "IT",
+  "XK", "LV", "LI", "LT", "LU", "MT", "MD", "MC", "ME", "NL", "MK", "NO", "PL", "PT", "RO", "SM", "RS", "SK", "SI",
+  "ES", "SE", "CH", "UA", "GB", "VA",
+]
 
 [announcements]
 channel = "announcements"            # channel key /announce posts to
@@ -502,11 +510,15 @@ style = "paragraph"
 required = false
 min_length = 0
 max_length = 500
-# Fulfillment options (delivery, pickup, ...) are business decisions. Labels live in content.toml
-# checkout.fulfillment.<id>.label / .description. Example:
-# [[checkout.fulfillment_options]]
-# id = "option_a"
-# fee_minor = 0
+# Delivery options the customer chooses from (also listed with their prices on #shipping). fee_minor is in cents.
+# Labels live in content.toml checkout.fulfillment.<id>.label / .description.
+[[checkout.fulfillment_options]]
+id = "standard"
+fee_minor = 500
+
+[[checkout.fulfillment_options]]
+id = "expedited"
+fee_minor = 1500
 # Optional fees. kind = "flat" (amount_minor) or "percent" (basis_points, 100 = 1%):
 # [[checkout.fees]]
 # id = "service"

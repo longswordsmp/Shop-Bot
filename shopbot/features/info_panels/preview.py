@@ -22,7 +22,7 @@ EXAMPLE_PANEL = InfoPanelDef(key="example", channel="", fields=2, inline_fields=
 def preview(app: App) -> list[PreviewState]:
     states: list[PreviewState] = []
     for panel in app.settings.info_panels:
-        text = resolve_panel_text(app.content.get, panel, preview=True)
+        text = resolve_panel_text(app.content.render, panel, preview=True)
         states.append(
             PreviewState(
                 feature=INFO_PANELS,

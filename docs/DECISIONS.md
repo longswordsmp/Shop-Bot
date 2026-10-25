@@ -167,8 +167,9 @@ how you want to operate** (each is one line in `config/settings.toml`).
 | `verification.dm_confirmation` | false | Confirmation only privately in Discord, no DM |
 | `how_to_buy.steps` / `link_channels` | 4 / catalog, purchase, faq | Guide size and its link buttons |
 | `faq.sections` | general, transactions, order_status, cancellations, problems (3/3/3/2/2 questions) | Adjust counts |
-| `shipping.statuses` / regions | full, none / United States (all states except Alaska and North Dakota), the rest of the Americas (Canada, Mexico, Central and South America, the Caribbean) and Europe fully supported; Alaska, North Dakota and the rest of the world not supported | The owner's delivery area |
-| `shipping.info_sections` | 2 | How shipping works; where to ask |
+| `shipping.groups` / `excluded_areas` / `not_available` | North America, Central America, the Caribbean, South America and Europe (44 countries); in the US every state except Alaska and North Dakota; Cuba, Russia and Belarus listed as not available (sanctions; most carriers refuse parcels) | The owner's delivery area |
+| `shipping.info_sections` | 2 | Processing; tracking |
+| `checkout.fulfillment_options` | Standard $5.00, Expedited $15.00 | The owner's delivery prices |
 | `catalog.products_per_listing_message` | 1 | One #catalog message per item |
 | `catalog.browse_enabled` | false | No extra private browsing button (the spec only asks for per-item Buy buttons) |
 | `catalog.low_stock_threshold` | 3 | 1-3 units left shows "low stock" |

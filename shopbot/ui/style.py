@@ -114,7 +114,7 @@ class Ui:
             fields=tuple(fields),
             author_name=author,
             author_icon_url=(branding.logo_url or None) if author else None,
-            footer_text="\n".join(footer_parts) or None,
+            footer_text=" · ".join(footer_parts) or None,
             footer_icon_url=(branding.footer_icon_url or None) if footer_parts else None,
             thumbnail_url=thumbnail_url or None,
             image_url=image_url or None,
@@ -180,7 +180,7 @@ class Ui:
         values: dict[str, str | int] | None = None,
     ) -> ButtonSpec | None:
         label = self.content.render(label_key, **(values or {})) if label_key else None
-        emoji = self.content.get(emoji_key) if emoji_key else None
+        emoji = self.content.render(emoji_key) if emoji_key else None
         if not label and not emoji:
             return None
         return ButtonSpec(label=label, custom_id=custom_id, style=style, emoji=emoji, disabled=disabled)
@@ -190,7 +190,7 @@ class Ui:
         url = self.content.get(url_key)
         if not label or not url:
             return None
-        emoji = self.content.get(emoji_key) if emoji_key else None
+        emoji = self.content.render(emoji_key) if emoji_key else None
         return ButtonSpec(label=label, style="link", url=url, emoji=emoji)
 
     def option(

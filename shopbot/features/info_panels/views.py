@@ -111,4 +111,4 @@ def panel_message(ui: Ui, text: PanelText, *, inline_fields: bool) -> MessageSpe
 
 def build_panel(ui: Ui, panel: InfoPanelDef) -> MessageSpec:
     """The live panel message. Raises ``MissingContent`` if required text is not configured."""
-    return panel_message(ui, resolve_panel_text(ui.content.get, panel), inline_fields=panel.inline_fields)
+    return panel_message(ui, resolve_panel_text(ui.content.render, panel), inline_fields=panel.inline_fields)

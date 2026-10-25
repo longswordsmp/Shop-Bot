@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -9,7 +10,7 @@ import pytest
 from shopbot.config.content_keys import Kind
 from shopbot.features.guides import faq, how_to_buy, shipping
 from shopbot.features.server_keys import channel_placeholders
-from tests.guides.util import guide_env, problem_keys, problems
+from tests.guides.util import apply_settings, guide_env, problem_keys, problems
 from tests.helpers import TestEnv, make_settings
 
 
@@ -61,32 +62,34 @@ async def test_shipping_keys(genv: TestEnv) -> None:
     links = channel_placeholders(genv.app.settings)
     assert definition(genv, shipping.TITLE) == (Kind.TITLE, True, "shipping", ())
     assert definition(genv, shipping.INTRODUCTION) == (Kind.DESCRIPTION, True, "shipping", links)
+    assert definition(genv, shipping.LEGEND)[:2] == (Kind.DESCRIPTION, False)
     for status in ("full", "partial", "none"):
-        assert definition(genv, shipping.status_label_key(status)) == (Kind.TITLE, True, "shipping", ("indicator",))
-        assert definition(genv, shipping.status_indicator_key(status)) == (Kind.EMOJI, True, "shipping", ())
-        assert definition(genv, shipping.status_description_key(status)) == (
-            Kind.DESCRIPTION,
-            False,
-            "shipping",
-            links,
-        )
-    assert definition(genv, shipping.FORMAT_REGION) == (Kind.FORMAT, True, "shipping", ("indicator", "name"))
-    assert definition(genv, shipping.FORMAT_REGION_WITH_NOTE)[:2] == (Kind.FORMAT, False)
-    assert definition(genv, shipping.region_name_key("north"))[:2] == (Kind.FIELD_NAME, True)
-    assert definition(genv, shipping.region_note_key("north"))[:2] == (Kind.FIELD_NAME, False)
+        assert definition(genv, shipping.status_indicator_key(status))[:2] == (Kind.FIELD_NAME, True)
+    for group in ("north", "europe"):
+        assert definition(genv, shipping.group_name_key(group))[:2] == (Kind.FIELD_NAME, True)
+    assert definition(genv, shipping.FORMAT_EXCLUDED) == (Kind.FORMAT, True, "shipping", ("country", "areas"))
+    assert definition(genv, shipping.FORMAT_LAST_AREA) == (Kind.FORMAT, True, "shipping", ("areas", "last"))
+    assert definition(genv, shipping.NOT_AVAILABLE_HEADING)[:2] == (Kind.FIELD_NAME, True)
+    assert definition(genv, shipping.NOT_AVAILABLE_OTHERS)[:2] == (Kind.FIELD_VALUE, False)
+    assert not definition(genv, shipping.DELIVERY_HEADING)[1]  # no delivery options configured here
     assert definition(genv, shipping.info_name_key(2))[:2] == (Kind.FIELD_NAME, True)
     assert definition(genv, shipping.info_value_key(2)) == (Kind.FIELD_VALUE, True, "shipping", links)
     assert genv.app.content.registry.get(shipping.info_name_key(3)) is None
     assert genv.app.ready("shipping")
 
 
-async def test_disabled_statuses_have_no_keys_and_no_regions_need_no_format(tmp_path: Path) -> None:
-    tenv = await guide_env(tmp_path, {"shipping": {"statuses": ["full"], "regions": []}})
+async def test_unused_statuses_and_formats_are_optional(tmp_path: Path) -> None:
+    tenv = await guide_env(tmp_path)
     try:
-        registry = tenv.app.content.registry
-        assert registry.get(shipping.status_label_key("partial")) is None
-        assert registry.get(shipping.status_label_key("full")) is not None
-        assert not definition(tenv, shipping.FORMAT_REGION)[1]  # optional without regions
+        settings = tenv.app.settings
+        apply_settings(
+            tenv, replace(settings, shipping=replace(settings.shipping, excluded_areas={}, not_available=()))
+        )
+        assert not definition(tenv, shipping.status_indicator_key("partial"))[1]
+        assert not definition(tenv, shipping.status_indicator_key("none"))[1]
+        assert definition(tenv, shipping.status_indicator_key("full"))[1]
+        assert not definition(tenv, shipping.FORMAT_EXCLUDED)[1] and not definition(tenv, shipping.FORMAT_LAST_AREA)[1]
+        assert not definition(tenv, shipping.NOT_AVAILABLE_HEADING)[1]
         assert tenv.app.ready("shipping")
     finally:
         await tenv.close()
@@ -102,9 +105,9 @@ async def test_disabled_statuses_have_no_keys_and_no_regions_need_no_format(tmp_
         ("faq", faq.answer_key("general", 2)),
         ("shipping", shipping.INTRODUCTION),
         ("shipping", shipping.status_indicator_key("none")),
-        ("shipping", shipping.region_name_key("west")),
+        ("shipping", shipping.group_name_key("europe")),
         ("shipping", shipping.info_value_key(1)),
-        ("shipping", shipping.FORMAT_REGION),
+        ("shipping", shipping.FORMAT_EXCLUDED),
     ],
 )
 async def test_missing_required_text_makes_only_that_guide_not_ready(tmp_path: Path, feature: str, key: str) -> None:
@@ -123,8 +126,8 @@ async def test_optional_text_can_stay_empty(tmp_path: Path) -> None:
         faq.TITLE: "",
         faq.INTRODUCTION: "",
         how_to_buy.link_emoji_key("faq"): "",
-        shipping.status_description_key("none"): "",
-        shipping.region_note_key("north"): "",
+        shipping.LEGEND: "",
+        shipping.NOT_AVAILABLE_OTHERS: "",
     }
     tenv = await guide_env(tmp_path, content=empty)
     try:
@@ -160,13 +163,9 @@ def test_settings_problems_for_channels() -> None:
     assert any(p.startswith("shipping.channel: set the channel key") for p in shipping.settings_problems(settings))
 
 
-def test_region_with_a_disabled_status_is_a_problem() -> None:
-    settings = make_settings(
-        {"shipping": {"channel": "catalog", "statuses": ["full"], "regions": [{"id": "a", "status": "none"}]}}
-    )
-    assert any(
-        p.startswith("shipping.regions[0].status: 'none' is not enabled") for p in shipping.settings_problems(settings)
-    )
+def test_shipping_without_groups_is_a_problem() -> None:
+    settings = make_settings({"shipping": {"channel": "catalog", "groups": []}})
+    assert any(p.startswith("shipping.groups: add at least one") for p in shipping.settings_problems(settings))
 
 
 async def test_settings_problems_block_readiness(tmp_path: Path) -> None:
@@ -183,29 +182,16 @@ async def test_settings_problems_block_readiness(tmp_path: Path) -> None:
 @pytest.mark.parametrize(
     ("content", "expected"),
     [
-        ({shipping.FORMAT_REGION: "[line] {indicator}"}, "shipping.format.region must contain {name}"),
-        ({shipping.FORMAT_REGION: "[line] {name}"}, "shipping.format.region must contain {indicator}"),
-        (
-            {shipping.FORMAT_REGION_WITH_NOTE: "[line] {indicator} {name}"},
-            "shipping.format.region_with_note must contain {note}",
-        ),
-        ({shipping.FORMAT_REGION_WITH_NOTE: ""}, "configure shipping.format.region_with_note: region"),
+        ({shipping.FORMAT_EXCLUDED: "[line] {country}"}, "shipping.format.excluded must contain {areas}"),
+        ({shipping.FORMAT_EXCLUDED: "[line] {areas}"}, "shipping.format.excluded must contain {country}"),
+        ({shipping.FORMAT_LAST_AREA: "[line] {areas}"}, "shipping.format.last_area must contain {last}"),
     ],
 )
-async def test_region_line_formats_are_checked(tmp_path: Path, content: dict[str, str], expected: str) -> None:
+async def test_country_line_formats_are_checked(tmp_path: Path, content: dict[str, str], expected: str) -> None:
     tenv = await guide_env(tmp_path, content=content)
     try:
         assert not tenv.app.ready("shipping")
         assert any(p.startswith(expected) for p in problems(tenv, "shipping")), problems(tenv, "shipping")
-    finally:
-        await tenv.close()
-
-
-async def test_no_note_means_the_note_format_is_not_needed(tmp_path: Path) -> None:
-    notes = {shipping.region_note_key(r): "" for r in ("north", "south", "east", "west")}
-    tenv = await guide_env(tmp_path, content={**notes, shipping.FORMAT_REGION_WITH_NOTE: ""})
-    try:
-        assert tenv.app.ready("shipping")
     finally:
         await tenv.close()
 
@@ -228,7 +214,7 @@ async def test_unknown_placeholders_in_guide_text_are_invalid(tmp_path: Path) ->
         ("how_to_buy", how_to_buy.link_label_key("catalog")),
         ("faq", faq.question_key("general", 1)),
         ("faq", faq.section_title_key("orders")),
-        ("shipping", shipping.region_name_key("north")),
+        ("shipping", shipping.group_name_key("north")),
         ("shipping", shipping.info_name_key(1)),
     ],
 )

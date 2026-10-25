@@ -1,17 +1,19 @@
 """Pure builders of the ``/myorders`` reply (also used by the preview and the limits checker).
 
-The reply is one private message: a list card (title, optional text, page indicator) and one card per order (newest
-first) with its number, current stage, total and timeline, plus a link to its ticket while it is open and the
-tracking details staff recorded. Orders are split into pages of at most ``my_orders.orders_per_page`` cards that
-also fit Discord's limits (6000 characters and 10 cards per message); nothing is cut. Customer data (tracking text)
-is escaped; configured text is used exactly as written. Every page (and the empty reply) shows the
-``account-and-personal-records`` banner (paging edits the same message, so the banner stays).
+The reply is one private card: the title, optional text and page indicator, then one section per order (newest
+first): its number and current stage in bold, its total and date, a link to its ticket while it is open, and the
+tracking details staff recorded. Orders are split into pages of at most ``my_orders.orders_per_page`` that also fit
+one embed; nothing is cut. Customer data (tracking text) is escaped; configured text is used exactly as written.
+Every page (and the empty reply) shows the ``account-and-personal-records`` banner (paging edits the same message,
+so the banner stays).
 """
 
 from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
+
+from discord.utils import escape_markdown
 
 from shopbot.config.banner_ids import BannerId
 from shopbot.config.content import MissingContent
@@ -20,10 +22,11 @@ from shopbot.features import core_keys as core
 from shopbot.features.checkout import views as checkout_views
 from shopbot.features.my_orders import content_keys as k
 from shopbot.features.my_orders.repo import CustomerOrder
+from shopbot.ui.card import Card, Section, card_message
 from shopbot.ui.custom_ids import cid
-from shopbot.ui.limits import EMBED_FIELD_VALUE, EMBED_TOTAL_CHARS, EMBEDS_PER_MESSAGE
-from shopbot.ui.spec import ButtonSpec, EmbedField, EmbedSpec, MessageSpec, rows_of
-from shopbot.ui.style import Ui, chunk_lines
+from shopbot.ui.limits import EMBED_DESCRIPTION
+from shopbot.ui.spec import ButtonSpec, MessageSpec, rows_of
+from shopbot.ui.style import Ui
 
 ROUTE = k.ROUTE
 BANNER: BannerId = "account-and-personal-records"
@@ -41,10 +44,6 @@ def _text(ui: Ui, key: str, /, **values: str | int) -> str:
     return text
 
 
-def _field(ui: Ui, key: str, value: str, *, inline: bool = False) -> EmbedField:
-    return EmbedField(name=_text(ui, key), value=value, inline=inline)
-
-
 def _optional_name(ui: Ui, key: str) -> str | None:
     return ui.text(key)
 
@@ -56,82 +55,75 @@ def _button(ui: Ui, key: str, custom_id: str, *, disabled: bool) -> ButtonSpec:
     return button
 
 
-def order_card(ui: Ui, settings: Settings, item: CustomerOrder) -> EmbedSpec:
-    """One order: number, current stage, total, timeline, the ticket link (while open) and tracking details."""
+def order_section(ui: Ui, settings: Settings, item: CustomerOrder) -> Section:
+    """One order: its heading (number and current stage), the total and date, the ticket link (while open) and the
+    tracking details."""
     order = item.order
-    total = checkout_views.order_money(ui, settings, order.currency)(order.total_minor)
-    stage = checkout_views.stage_name(ui, order.status)
-    title = _text(
-        ui,
-        k.ORDER_TITLE,
-        order_number=str(order.number),
-        status=stage or "",
-        total=total,
-        date=f"<t:{order.created_at}:d>",
-    )
-    fields = [_field(ui, k.ORDER_NUMBER_FIELD, str(order.number), inline=True)]
-    if stage is not None:
-        fields.append(_field(ui, k.ORDER_STATUS_FIELD, stage, inline=True))
-    fields.append(_field(ui, k.ORDER_TOTAL_FIELD, total, inline=True))
-    lines = checkout_views.timeline_lines(ui, item.timeline)
-    if lines:
-        name = _text(ui, k.ORDER_TIMELINE_FIELD)
-        fields += [EmbedField(name=name, value=block) for block in chunk_lines(lines, EMBED_FIELD_VALUE)]
-    ticket_name = _optional_name(ui, k.ORDER_TICKET_FIELD)
-    if ticket_name and item.channel_id is not None:
-        fields.append(EmbedField(name=ticket_name, value=checkout_views.channel_mention(item.channel_id)))
-    tracking_name = _optional_name(ui, k.ORDER_TRACKING_FIELD)
-    if tracking_name and item.tracking:
-        fields += checkout_views.answer_fields(tracking_name, item.tracking)
-    return ui.embed(title=title, fields=fields, tone=checkout_views.status_tone(order.status), branding_text=False)
+    values: dict[str, str | int] = {
+        "order_number": str(order.number),
+        "status": checkout_views.stage_name(ui, order.status) or "",
+        "total": checkout_views.order_money(ui, settings, order.currency)(order.total_minor),
+        "date": f"<t:{order.created_at}:d>",
+    }
+    lines = [_text(ui, k.ORDER_SUMMARY, **values)]
+    ticket_label = _optional_name(ui, k.ORDER_TICKET_FIELD)
+    if ticket_label and item.channel_id is not None:
+        lines.append(f"{ticket_label}: {checkout_views.channel_mention(item.channel_id)}")
+    tracking_label = _optional_name(ui, k.ORDER_TRACKING_FIELD)
+    if tracking_label and item.tracking:
+        lines.append(f"{tracking_label}: {escape_markdown(item.tracking)}")
+    return Section(_text(ui, k.ORDER_TITLE, **values), tuple(lines))
 
 
-def _list_card(ui: Ui, count: int, footer: str | None) -> EmbedSpec:
-    return ui.embed(
-        title=_text(ui, k.LIST_TITLE, count=count),
-        description=ui.text(k.LIST_DESCRIPTION, count=count),
-        tone="primary",
-        footer_extra=footer,
-        timestamp=True,
-    )
+def _section_length(section: Section) -> int:
+    return len(section.heading or "") + 6 + sum(len(line) + 1 for line in section.lines)
 
 
 @dataclass(frozen=True)
 class Pages:
-    """The member's order cards split into pages (lists of card indexes)."""
+    """The member's orders split into pages (lists of section indexes)."""
 
-    cards: tuple[EmbedSpec, ...]
+    sections: tuple[Section, ...]
     pages: tuple[tuple[int, ...], ...]
 
 
 def paginate(ui: Ui, settings: Settings, items: Sequence[CustomerOrder]) -> Pages:
-    """Split the order cards into pages: at most ``orders_per_page`` cards, and only as many as fit one message next
-    to the list card (a card that does not fit with any other gets a page of its own)."""
-    cards = tuple(order_card(ui, settings, item) for item in items)
+    """Split the orders into pages: at most ``orders_per_page`` orders, and only as many as fit one embed's text next
+    to the title and introduction (an order that does not fit with any other gets a page of its own; a single order
+    longer than one embed continues in the next embed of the same message)."""
+    sections = tuple(order_section(ui, settings, item) for item in items)
     per_page = settings.my_orders.orders_per_page
-    # Budget with the widest page indicator this list can show (the indicator is the only part that varies).
-    widest = ui.page_indicator(max(1, len(cards)), max(1, len(cards)))
-    base = _list_card(ui, len(cards), widest).text_length()
+    budget = EMBED_DESCRIPTION - len(ui.text(k.LIST_DESCRIPTION, count=len(sections)) or "") - 2
     pages: list[tuple[int, ...]] = []
     current: list[int] = []
-    used = base
-    for index, card in enumerate(cards):
-        size = card.text_length()
-        full = len(current) >= per_page or len(current) + 1 >= EMBEDS_PER_MESSAGE or used + size > EMBED_TOTAL_CHARS
-        if current and full:
+    used = 0
+    for index, section in enumerate(sections):
+        size = _section_length(section)
+        if current and (len(current) >= per_page or used + size > budget):
             pages.append(tuple(current))
-            current, used = [], base
+            current, used = [], 0
         current.append(index)
         used += size
     if current:
         pages.append(tuple(current))
-    return Pages(cards=cards, pages=tuple(pages))
+    return Pages(sections=sections, pages=tuple(pages))
+
+
+def _list_card(ui: Ui, count: int, sections: Sequence[Section], footer: str | None) -> Card:
+    return Card(
+        tone="primary",
+        title=_text(ui, k.LIST_TITLE, count=count),
+        intro=ui.text(k.LIST_DESCRIPTION, count=count),
+        sections=tuple(sections),
+        timestamp=True,
+        footer_extra=footer,
+    )
 
 
 def empty_message(ui: Ui) -> MessageSpec:
     """The reply of a member without any order."""
-    card = ui.embed(title=_text(ui, k.LIST_TITLE, count=0), description=_text(ui, k.EMPTY), tone="neutral")
-    return MessageSpec(embeds=(card,), banner=ui.banner(BANNER))
+    card = Card(tone="neutral", title=_text(ui, k.LIST_TITLE, count=0), intro=_text(ui, k.EMPTY))
+    return card_message(ui, card, banner=BANNER)
 
 
 def my_orders_message(
@@ -145,11 +137,11 @@ def my_orders_message(
     count = len(split.pages)
     page = min(max(0, page), count - 1)
     indicator = ui.page_indicator(page + 1, count) if count > 1 else None
-    embeds = [_list_card(ui, len(items), indicator), *(split.cards[i] for i in split.pages[page])]
+    card = _list_card(ui, len(items), [split.sections[i] for i in split.pages[page]], indicator)
     if count <= 1:
-        return MessageSpec(embeds=tuple(embeds), banner=ui.banner(BANNER))
+        return card_message(ui, card, banner=BANNER)
     rows = rows_of(
         _button(ui, core.BUTTON_PREV, page_id(user_id, max(0, page - 1)), disabled=page <= 0),
         _button(ui, core.BUTTON_NEXT, page_id(user_id, min(count - 1, page + 1)), disabled=page >= count - 1),
     )
-    return MessageSpec(embeds=tuple(embeds), rows=rows, banner=ui.banner(BANNER))
+    return card_message(ui, card, rows, banner=BANNER)

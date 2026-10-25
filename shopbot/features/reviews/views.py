@@ -104,7 +104,7 @@ def rating_options(ui: Ui, scale: int) -> tuple[SelectOptionSpec, ...]:
             label=_text(ui, k.rating_key(rating, "label")),
             value=str(rating),
             description=ui.content.get(k.rating_key(rating, "description")),
-            emoji=ui.content.get(k.rating_key(rating, "emoji")),
+            emoji=ui.content.render(k.rating_key(rating, "emoji")),
         )
         for rating in range(scale, 0, -1)
     )
@@ -157,7 +157,12 @@ def verified_field(ui: Ui, *, order_number: str) -> EmbedField | None:
     value = ui.text(k.PUBLISHED_VERIFIED_VALUE, order_number=order_number)
     if not name or not value:
         return None
-    return EmbedField(name=name, value=value)
+    return EmbedField(name=name, value=value, inline=True)
+
+
+def quoted(text: str) -> str:
+    """Customer text as a quote block (escaped first: it is customer data)."""
+    return "\n".join(f"> {line}" if line.strip() else ">" for line in escape(text).splitlines())
 
 
 def published_view(ui: Ui, *, rating: int, user_name: str, order_number: str, comment: str | None) -> MessageSpec:
@@ -165,10 +170,10 @@ def published_view(ui: Ui, *, rating: int, user_name: str, order_number: str, co
     verification marker. ``user_name`` and ``comment`` are raw customer data (escaped here); an empty comment is
     omitted."""
     title = _text(ui, k.PUBLISHED_TITLE, rating=rating, user_name=escape(user_name), order_number=order_number)
-    field = EmbedField(name=_text(ui, k.PUBLISHED_RATING_FIELD), value=rating_display(ui, rating))
+    field = EmbedField(name=_text(ui, k.PUBLISHED_RATING_FIELD), value=rating_display(ui, rating), inline=True)
     verified = verified_field(ui, order_number=order_number)
     fields = (field,) if verified is None else (field, verified)
-    description = escape(comment) if comment else None
+    description = quoted(comment) if comment else None
     embed = ui.embed(title=title, description=description, fields=fields, tone="primary", timestamp=True)
     return MessageSpec(embeds=(embed,), banner=ui.banner("reviews"))
 

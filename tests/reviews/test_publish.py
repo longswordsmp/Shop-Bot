@@ -67,7 +67,7 @@ async def test_missing_reviews_channel_is_retried_until_published(tmp_path: Path
         tenv.clock.advance(3600)
         await tenv.app.scheduler.run_due()
         (post,) = reviews_channel(tenv).messages
-        assert only_embed(post).description == "[kept]"
+        assert only_embed(post).description == "> [kept]"
         published = await review_of(tenv, order)
         assert (published.status, published.published_message_id) == (repo.PUBLISHED, post.id)
         done = await task(tenv, service.publish_dedupe(review.id))

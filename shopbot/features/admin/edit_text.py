@@ -7,15 +7,16 @@ The message itself does not record which keys built it, so keys are found from w
 message (embed author, title, description, field names and values, footer; button labels, select placeholders and
 options) is compared with every key's current value. A value's ``{placeholders}`` (data such as an order number or a
 channel link) and its icons (``{icon_<name>}``) match any text. A key matches when its value is a whole text of the
-message, or appears inside a longer one (descriptions often join several values) and has at least
-``MIN_SEARCH_LITERAL`` characters of its own, so short words such as "Yes" do not match every description. Keys
-are listed in the order their text appears.
+message, a whole line of one, or a bold part of a line (a card's section headings, the rule names), or appears
+inside a longer text (descriptions often join several values) and has at least ``MIN_SEARCH_LITERAL`` characters of
+its own, so short words such as "Yes" do not match every description. Keys are listed in the order their text
+appears.
 """
 
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Iterator, Mapping
 from typing import Any
 
 import discord
@@ -23,6 +24,7 @@ import discord
 from shopbot.config.content_keys import ContentKey, Kind
 
 PLACEHOLDER_RE = re.compile(r"\{([a-z][a-z0-9_]*)\}")
+_BOLD_RE = re.compile(r"\*\*(.+?)\*\*")
 MIN_WHOLE_LITERAL = 2  # fixed characters a value needs to be recognised as a whole text
 MIN_SEARCH_LITERAL = 10  # fixed characters a value needs to be recognised inside a longer text
 SKIPPED_KINDS = frozenset({Kind.EMOJI, Kind.URL})  # not shown as text
@@ -88,10 +90,25 @@ def find_keys(texts: list[str], values: Mapping[str, str], definitions: Iterable
     return [key for _, _, key in found]
 
 
+def _parts(text: str) -> Iterator[tuple[int, str]]:
+    """The lines of ``text`` and the bold parts of each line (a card's section headings, rule names), with their
+    offsets: each counts as a whole text of its own."""
+    offset = 0
+    for line in text.split("\n"):
+        yield offset, line
+        for match in _BOLD_RE.finditer(line):
+            yield offset + match.start(1), match.group(1)
+        offset += len(line) + 1
+
+
 def _first_position(texts: list[str], pattern: re.Pattern[str], literal: int) -> tuple[int, int] | None:
     for index, text in enumerate(texts):
-        if literal >= MIN_WHOLE_LITERAL and pattern.fullmatch(text):
-            return index, 0
+        if literal >= MIN_WHOLE_LITERAL:
+            if pattern.fullmatch(text):
+                return index, 0
+            for offset, part in _parts(text):
+                if pattern.fullmatch(part):
+                    return index, offset
         if literal >= MIN_SEARCH_LITERAL:
             match = pattern.search(text)
             if match is not None:

@@ -49,7 +49,7 @@ async def test_every_page_shows_the_account_banner_and_paging_keeps_it(bn: TestE
         await make_order(bn, customer.id)
     first = reply(await run_my_orders(bn, customer))
     assert banner_names(first) == [name(bn, "account-and-personal-records")]
-    assert len(first.embeds) == 2  # the list card and one order: the banner is not an embed
+    assert len(first.embeds) == 1  # one card with the orders: the banner is not an embed
 
     for page in (1, 2, 0):
         await click(bn.app, user=customer, custom_id=views.page_id(customer.id, page), message=first)

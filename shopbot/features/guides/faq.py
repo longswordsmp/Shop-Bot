@@ -1,9 +1,8 @@
-"""#faq: organized question-and-answer embeds, one per configured section.
+"""#faq: the questions and answers as one card.
 
-An optional header (title and/or introduction) is followed by one embed per ``[[faq.sections]]`` entry: the
-section title, then its questions as fields (question = field name, answer = field value). A section that does
-not fit one embed (25 fields / 6000 characters) continues in the next embed; a message holds at most 10 embeds and
-6000 characters, then further messages follow. Nothing is ever cut.
+An optional title and introduction, then one section per ``[[faq.sections]]`` entry: the section's heading in bold
+(usually starting with one of the bot's icons), then its questions in bold, each followed by its answer. A FAQ
+longer than one embed continues in the next embed and message; nothing is ever cut.
 """
 
 from __future__ import annotations
@@ -16,7 +15,8 @@ from shopbot.config.content_keys import ContentKey, Kind, ck
 from shopbot.config.settings import FaqSection, FaqSettings, Settings
 from shopbot.features.guides import common
 from shopbot.features.server_keys import channel_placeholders, reference_problems
-from shopbot.ui.spec import EmbedField, MessageSpec, PreviewState
+from shopbot.ui.card import PARAGRAPH, Card, Section, heading
+from shopbot.ui.spec import MessageSpec, PreviewState
 from shopbot.ui.style import Ui
 
 if TYPE_CHECKING:
@@ -76,7 +76,8 @@ def content_keys(settings: Settings) -> list[ContentKey]:
                 Kind.TITLE,
                 FAQ,
                 section_group,
-                f"Title of the '{sid}' section of {where} (e.g. the topic: general questions, order status...).",
+                f"Heading of the '{sid}' section of {where}, shown in bold (e.g. the topic: ordering, payment...). "
+                "It may start with one of the bot's icons, e.g. {icon_cart}.",
             )
         )
         for number in range(1, section.questions + 1):
@@ -119,20 +120,25 @@ def content_problems(settings: Settings, content: ContentStore) -> list[str]:
 # -- views -----------------------------------------------------------------------------------------------------
 
 
-def _section_block(texts: common.Texts, section: FaqSection) -> common.Block:
-    fields = tuple(
-        EmbedField(texts.required(question_key(section.id, n)), texts.required(answer_key(section.id, n)))
-        for n in range(1, section.questions + 1)
-    )
-    return common.Block(tone="info", title=texts.required(section_title_key(section.id)), fields=fields)
+def faq_section(texts: common.Texts, section: FaqSection) -> Section:
+    lines: list[str] = []
+    for n in range(1, section.questions + 1):
+        if lines:
+            lines.append(PARAGRAPH)
+        lines += [heading(texts.required(question_key(section.id, n))), texts.required(answer_key(section.id, n))]
+    return Section(texts.required(section_title_key(section.id)), tuple(lines))
 
 
 def faq_messages(ui: Ui, s: FaqSettings, texts: common.Texts) -> list[MessageSpec]:
     """The FAQ's messages. Raises ``MissingContent``/``ChannelNotCreated`` at runtime when text or a channel
     is missing (nothing incomplete is posted)."""
-    blocks = [common.Block(tone="primary", title=texts.optional(TITLE), description=texts.optional(INTRODUCTION))]
-    blocks += [_section_block(texts, section) for section in s.sections]
-    return common.guide_messages(ui, blocks, banner="faq")
+    card = Card(
+        tone="info",
+        title=texts.optional(TITLE),
+        intro=texts.optional(INTRODUCTION),
+        sections=tuple(faq_section(texts, section) for section in s.sections),
+    )
+    return common.guide_messages(ui, [card.block()], banner="faq")
 
 
 # -- runtime ---------------------------------------------------------------------------------------------------
@@ -170,15 +176,15 @@ def preview(app: App) -> list[PreviewState]:
     states += common.preview_states(
         FAQ,
         "example_many_sections",
-        "Synthetic example (not your configuration): 14 sections (15 embeds with the header) do not fit one "
-        "message (10 embeds / 6000 characters), so the FAQ continues in further messages.",
+        "Synthetic example (not your configuration): 14 sections of 6 long answers do not fit one embed "
+        "(4096 characters), so the FAQ continues in further embeds and messages.",
         faq_messages(app.ui, EXAMPLE_MANY_SECTIONS, common.sample_texts(_sample_with(250))),
     )
     states += common.preview_states(
         FAQ,
         "example_long_section",
-        "Synthetic example (not your configuration): a section with 25 long answers does not fit one embed "
-        "(6000 characters), so it continues in the next embeds and messages without being cut.",
+        "Synthetic example (not your configuration): a section with 25 long answers does not fit one embed, so it "
+        "continues in the next embeds and messages without being cut.",
         faq_messages(app.ui, EXAMPLE_LONG_SECTION, common.sample_texts(_sample_with(1000))),
     )
     return states

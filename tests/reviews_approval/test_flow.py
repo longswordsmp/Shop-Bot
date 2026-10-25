@@ -56,7 +56,7 @@ async def test_without_approval_reviews_are_published_immediately(tmp_path: Path
         post = only_message(reviews_channel(tenv))
         card = only_embed(post)
         assert card.title == published_title(tenv, rating=4, user_name="Ada", number=order.number)
-        assert card.description == "Great"
+        assert card.description == "> Great"
         assert field_pairs(card) == [
             (tenv.text(k.PUBLISHED_RATING_FIELD), tenv.text(k.rating_key(4, "display"))),
             (tenv.text(k.PUBLISHED_VERIFIED_FIELD), rendered(tenv, k.PUBLISHED_VERIFIED_VALUE, order_number=number)),
@@ -178,7 +178,7 @@ async def test_approve_publishes_and_notifies(ap: TestEnv) -> None:
     post = only_message(reviews_channel(ap))
     card = only_embed(post)
     assert card.title == published_title(ap, rating=4, user_name="Ada", number=order.number)
-    assert card.description == "[kept comment]"
+    assert card.description == "> [kept comment]"
     assert field_pairs(card)[1] == (
         ap.text(k.PUBLISHED_VERIFIED_FIELD),
         rendered(ap, k.PUBLISHED_VERIFIED_VALUE, order_number=number),

@@ -8,11 +8,10 @@ import pytest
 
 from shopbot.config.loader import load_config
 from shopbot.config.settings import (
-    SHIPPING_STATUSES,
     FaqSection,
     HowToBuySettings,
     SettingsError,
-    ShippingRegion,
+    ShippingGroup,
     parse_settings,
 )
 from shopbot.features.guides import faq, how_to_buy, shipping
@@ -32,19 +31,22 @@ def test_defaults_without_sections() -> None:
     settings = parse_settings(base_settings_dict())
     assert settings.how_to_buy == HowToBuySettings(channel="", steps=4, link_channels=())
     assert settings.faq.sections == ()
-    assert settings.shipping.statuses == SHIPPING_STATUSES
-    assert settings.shipping.regions == () and settings.shipping.info_sections == 0
-    assert settings.shipping.info_position == "after"
+    assert settings.shipping.groups == () and settings.shipping.not_available == ()
+    assert dict(settings.shipping.excluded_areas) == {} and settings.shipping.info_sections == 0
 
 
 def test_valid_sections_are_parsed() -> None:
-    settings = guide_settings({"shipping": {"statuses": ["partial", "full"], "info_position": "before"}})
+    settings = guide_settings({"shipping": {"country_names": {"CZ": "Czech Republic"}}})
     assert settings.how_to_buy.steps == 3
     assert settings.how_to_buy.link_channels == ("catalog", "purchase", "faq")
     assert settings.faq.sections == (FaqSection("general", 2), FaqSection("orders", 1))
-    assert settings.shipping.statuses == ("partial", "full")  # display order is the configured order
-    assert settings.shipping.regions[0] == ShippingRegion("north", "full")
-    assert settings.shipping.info_position == "before"
+    assert settings.shipping.groups[0] == ShippingGroup("north", ("CA", "US", "MX"))  # in the configured order
+    assert settings.shipping.countries == ("CA", "US", "MX", "DE", "FR")
+    assert dict(settings.shipping.excluded_areas) == {"US": ("AK", "ND")}
+    assert settings.shipping.ships_to("US") and not settings.shipping.ships_to("CU")
+    assert (
+        settings.shipping.country_name("CZ") == "Czech Republic" and settings.shipping.country_name("DE") == "Germany"
+    )
 
 
 @pytest.mark.parametrize(
@@ -86,17 +88,33 @@ def test_faq_errors(table: dict[str, Any], expected: str) -> None:
 @pytest.mark.parametrize(
     ("table", "expected"),
     [
-        ({"statuses": ["full", "some"]}, "shipping.statuses: 'some' is not one of"),
-        ({"statuses": ["full", "full"]}, "shipping.statuses: contains duplicates"),
-        ({"regions": [{"id": "a", "status": "maybe"}]}, "shipping.regions[0].status: must be one of"),
-        ({"regions": [{"id": "a"}]}, "shipping.regions[0].status: is required"),
-        ({"regions": [{"status": "full"}]}, "shipping.regions[0].id: is required"),
-        ({"regions": [{"id": "a", "status": "full"}] * 2}, "shipping.regions: duplicate id 'a'"),
-        ({"regions": [{"id": f"r{n}", "status": "full"} for n in range(501)]}, "shipping.regions: at most 500"),
-        ({"info_sections": 26}, "shipping.info_sections: must be <= 25"),
+        ({"groups": [{"id": "a", "countries": ["XX"]}]}, "shipping.groups[0].countries: 'XX' is not a country code"),
+        ({"groups": [{"id": "a", "countries": ["us"]}]}, "shipping.groups[0].countries: 'us' is not a country code"),
+        ({"groups": [{"id": "a", "countries": []}]}, "shipping.groups[0].countries: list at least one"),
+        ({"groups": [{"countries": ["US"]}]}, "shipping.groups[0].id: is required"),
+        ({"groups": [{"id": "a", "countries": ["US", "US"]}]}, "shipping.groups[0].countries: contains duplicates"),
+        (
+            {"groups": [{"id": "a", "countries": ["US"]}, {"id": "b", "countries": ["US"]}]},
+            "shipping.groups: US is listed in more than one group",
+        ),
+        ({"groups": [{"id": "a", "countries": ["US"]}] * 2}, "shipping.groups: duplicate id 'a'"),
+        ({"groups": [{"id": f"g{n}", "countries": ["US"]} for n in range(21)]}, "shipping.groups: at most 20"),
+        (
+            {"groups": [{"id": "a", "countries": ["US"]}], "not_available": ["US"]},
+            "shipping.not_available: US is also listed in a group",
+        ),
+        ({"not_available": ["ZZ"]}, "shipping.not_available: 'ZZ' is not a country code"),
+        ({"excluded_areas": {"US": ["AK"]}}, "shipping.excluded_areas.US: is not in any [[shipping.groups]]"),
+        (
+            {"groups": [{"id": "a", "countries": ["US"]}], "excluded_areas": {"US": ["XX"]}},
+            "shipping.excluded_areas.US: 'XX' is not a state code of US",
+        ),
+        ({"excluded_areas": {"Narnia": ["x"]}}, "shipping.excluded_areas.Narnia: is not a country code"),
+        ({"country_names": {"QQ": "x"}}, "shipping.country_names.QQ: is not a country code"),
+        ({"info_sections": 11}, "shipping.info_sections: must be <= 10"),
         ({"info_sections": -1}, "shipping.info_sections: must be >= 0"),
-        ({"info_position": "middle"}, "shipping.info_position: must be one of"),
-        ({"regions": [{"id": "a", "status": "full", "name": "A"}]}, "shipping.regions[0].name: unknown setting"),
+        ({"regions": []}, "shipping.regions: unknown setting"),
+        ({"groups": [{"id": "a", "countries": ["US"], "name": "A"}]}, "shipping.groups[0].name: unknown setting"),
     ],
 )
 def test_shipping_errors(table: dict[str, Any], expected: str) -> None:
@@ -104,33 +122,27 @@ def test_shipping_errors(table: dict[str, Any], expected: str) -> None:
     assert any(e.startswith(expected) for e in errors), errors
 
 
-def test_empty_status_list_is_allowed() -> None:
-    settings = parse_settings(deep_merge(base_settings_dict(), {"shipping": {"statuses": []}}))
-    assert settings.shipping.statuses == ()
+def test_excluded_areas_of_other_countries_are_names() -> None:
+    table = {"groups": [{"id": "eu", "countries": ["PT"]}], "excluded_areas": {"PT": ["Azores", "Madeira"]}}
+    settings = parse_settings(deep_merge(base_settings_dict(), {"shipping": table}))
+    assert dict(settings.shipping.excluded_areas) == {"PT": ("Azores", "Madeira")}
 
 
 def test_shipped_settings_configure_the_three_guides() -> None:
     settings = load_config(ROOT / "config").settings
-    assert settings.how_to_buy.channel == "how_to_buy" and settings.how_to_buy.steps == 4
+    assert settings.how_to_buy.channel == "how_to_buy" and settings.how_to_buy.steps == 5
     assert settings.how_to_buy.link_channels == ("catalog", "purchase", "faq")
-    assert [s.id for s in settings.faq.sections] == [
-        "general",
-        "transactions",
-        "order_status",
-        "cancellations",
-        "problems",
-    ]
-    assert [s.questions for s in settings.faq.sections] == [3, 3, 3, 2, 2]
-    assert settings.shipping.statuses == ("full", "none")
-    # The owner ships to every country in the Americas and to Europe, except Alaska and North Dakota.
-    assert [(r.id, r.status) for r in settings.shipping.regions] == [
-        ("united_states", "full"),
-        ("americas", "full"),
-        ("europe", "full"),
-        ("alaska", "none"),
-        ("north_dakota", "none"),
-        ("rest_of_world", "none"),
-    ]
+    assert [s.id for s in settings.faq.sections] == ["ordering", "payment", "shipping", "tracking", "problems"]
+    assert [s.questions for s in settings.faq.sections] == [3, 3, 4, 2, 2]
+    # The owner ships to every country in the Americas and to Europe; in the US not to Alaska or North Dakota.
+    # Cuba, Russia and Belarus are listed as not available (sanctions; most carriers refuse parcels).
+    s = settings.shipping
+    assert [g.id for g in s.groups] == ["north_america", "central_america", "caribbean", "south_america", "europe"]
+    assert dict(s.excluded_areas) == {"US": ("AK", "ND")}
+    assert s.not_available == ("CU", "RU", "BY")
+    americas = {code for g in s.groups[:4] for code in g.countries}
+    assert len(americas) == 34 and "CU" not in americas  # the 35 countries of the Americas except Cuba
+    assert {"GB", "DE", "FR", "UA", "XK", "VA"} <= set(s.groups[4].countries) and len(s.groups[4].countries) == 44
     assert settings.shipping.info_sections == 2
     # The shipped structure itself is consistent.
     assert how_to_buy.settings_problems(settings) == []

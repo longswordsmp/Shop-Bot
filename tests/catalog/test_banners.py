@@ -103,7 +103,7 @@ async def test_the_empty_listing_keeps_the_banner_on_its_only_message(bn: TestEn
     channel = await listing_channel(bn)
     await service.request_listing_refresh(bn.app)
     [head] = channel.messages
-    assert banner_names(head) == [name(bn, "catalog")] and len(head.embeds) == 2
+    assert banner_names(head) == [name(bn, "catalog")] and len(head.embeds) == 1  # one card
 
     await add_product(bn, "[a]")  # the same message becomes the header of a listing with products
     await service.request_listing_refresh(bn.app)

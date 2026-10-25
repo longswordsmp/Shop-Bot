@@ -23,7 +23,7 @@ def _ephemeral(message: FakeMessage) -> FakeMessage:
 
 def _footer(tenv: TestEnv, page: int, pages: int) -> str:
     indicator = tenv.text(ck.PAGE_INDICATOR).replace("{page}", str(page)).replace("{pages}", str(pages))
-    return f"{tenv.text(ck.FOOTER_TEXT)}\n{indicator}"
+    return f"{tenv.text(ck.FOOTER_TEXT)} · {indicator}"
 
 
 async def test_browse_from_listing_opens_private_view_and_pages_in_place(tenv: TestEnv) -> None:

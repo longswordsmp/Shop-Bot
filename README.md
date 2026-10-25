@@ -33,9 +33,10 @@ Roles: **Owner** (given to `OWNER_ID`), **Staff**, **Member** (the #welcome "I a
 ## Features
 
 - **Server setup** — `/setup` creates or repairs roles, categories, channels, permissions and every panel; idempotent.
-- **#welcome** — branding, introduction, rules and an "I agree, enter the server" button that grants Member.
-- **#how-to-buy / #faq / #shipping** — step guide with channel links; FAQ sections split across embeds as needed;
-  regions grouped by fully/partially/not supported.
+- **#welcome** — one card: introduction, rules and a **Verify** button that grants Member.
+- **#how-to-order / #faq / #shipping** — one card each: numbered steps with channel links; FAQ topics with their
+  questions; every country we ship to with a blue (everywhere) or yellow (some areas excluded) dot, the delivery
+  options and prices.
 - **#announcements** — `/announce` (staff) with title, message, configured fields, image and optional role ping.
 - **#catalog** — one live embed per item with a Buy button (disabled when sold out), availability colors, uploaded
   images that stay attached; `/product add|edit|remove|list|...`.

@@ -86,7 +86,7 @@ async def test_rating_and_comment_end_to_end_in_direct_messages(rv: TestEnv) -> 
     (post,) = reviews_channel(rv).messages
     card = only_embed(post)
     assert card.title == published_title(rv, rating=4, user_name="Ada", number=order.number)
-    assert card.description == "Great \\*service\\* <@123> @everyone"
+    assert card.description == "> Great \\*service\\* <@123> @everyone"  # escaped, shown as a quote
     assert [(f.name, f.value) for f in card.fields] == [
         (rv.text(k.PUBLISHED_RATING_FIELD), rv.text(k.rating_key(4, "display"))),
         (rv.text(k.PUBLISHED_VERIFIED_FIELD), rendered(rv, k.PUBLISHED_VERIFIED_VALUE, order_number=number)),
@@ -218,7 +218,7 @@ async def test_comment_that_cannot_be_shown_is_refused(tmp_path: Path) -> None:
         assert (await review_of(tenv, order)).comment is None
         await _comment(tenv, customer, review, dm, "a" * 4000)
         (post,) = reviews_channel(tenv).messages
-        assert only_embed(post).description == "a" * 4000
+        assert only_embed(post).description == "> " + "a" * 4000
     finally:
         await tenv.close()
 

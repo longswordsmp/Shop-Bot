@@ -21,6 +21,8 @@ WELCOME_IMAGE = "verification.welcome.image_url"
 WELCOME_THUMBNAIL = "verification.welcome.thumbnail_url"
 RULES_TITLE = "verification.rules.title"
 RULES_DESCRIPTION = "verification.rules.description"
+AFTER_HEADING = "verification.after.heading"
+AFTER_TEXT = "verification.after.text"
 BUTTON_LABEL = "verification.button.label"
 BUTTON_EMOJI = "verification.button.emoji"
 
@@ -91,6 +93,7 @@ def link_keys(settings: Settings) -> tuple[str, ...]:
         WELCOME_DESCRIPTION,
         RULES_DESCRIPTION,
         *rules,
+        AFTER_TEXT,
         CONFIRMED_DESCRIPTION,
         ALREADY_DESCRIPTION,
         DM_DESCRIPTION,
@@ -160,7 +163,8 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             Kind.TITLE,
             VERIFICATION,
             g_rules,
-            f"Optional heading of the rules card (the second card of {where}).",
+            f"Optional heading of the rules on {where}, shown in bold (it may start with an icon, e.g. "
+            "{icon_shield}).",
             required=False,
         ),
         ck(
@@ -168,7 +172,24 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             Kind.DESCRIPTION,
             VERIFICATION,
             g_rules,
-            f"Optional text above the list of rules on the rules card. {_LINKS_DOC}",
+            f"Optional text above the list of rules. {_LINKS_DOC}",
+            required=False,
+            placeholders=links,
+        ),
+        ck(
+            AFTER_HEADING,
+            Kind.TITLE,
+            VERIFICATION,
+            g_panel,
+            f"Optional heading of the closing section of {where} (what to do after verifying), shown in bold.",
+            required=False,
+        ),
+        ck(
+            AFTER_TEXT,
+            Kind.DESCRIPTION,
+            VERIFICATION,
+            g_panel,
+            f"Optional closing section of {where}, below the rules (e.g. where to go after verifying). {_LINKS_DOC}",
             required=False,
             placeholders=links,
         ),
@@ -181,15 +202,15 @@ def content_keys(settings: Settings) -> list[ContentKey]:
                 Kind.FIELD_NAME,
                 VERIFICATION,
                 g_rules,
-                f"Heading of {position} on the rules card (for example a number and a short title). Links cannot "
-                "be shown in headings.",
+                f"Name of {position}, shown in bold before its text (for example a number and a short title). "
+                "Links cannot be shown here.",
             ),
             ck(
                 rule_value_key(number),
                 Kind.FIELD_VALUE,
                 VERIFICATION,
                 g_rules,
-                f"Text of {position} on the rules card. {_LINKS_DOC}",
+                f"Text of {position}, after its name on the same line. {_LINKS_DOC}",
                 placeholders=links,
             ),
         ]

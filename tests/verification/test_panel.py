@@ -41,23 +41,23 @@ async def test_publish_posts_the_welcome_card_rules_and_button(tmp_path: Path) -
         lines = await publish(tenv)
         messages = panel_messages(tenv)
         assert len(messages) == 1
-        welcome, rules = messages[0].embeds
-        assert welcome.title == tenv.text(k.WELCOME_TITLE)
-        assert welcome.description == rendered(tenv, k.WELCOME_DESCRIPTION)
-        assert welcome.image.url == tenv.text(k.WELCOME_IMAGE)
-        assert welcome.thumbnail.url == tenv.text(k.WELCOME_THUMBNAIL)
-        assert welcome.author.name == tenv.text(ck.AUTHOR_NAME)
-        assert welcome.footer.text is None  # the footer closes the message, on the rules card
-        assert rules.title == tenv.text(k.RULES_TITLE)
-        assert rules.description == rendered(tenv, k.RULES_DESCRIPTION)
-        assert rules.author.name is None
-        assert rules.footer.text == tenv.text(ck.FOOTER_TEXT)
-        assert [(f.name, f.value, f.inline) for f in rules.fields] == [
-            (tenv.text(k.rule_name_key(n)), rendered(tenv, k.rule_value_key(n)), False) for n in (1, 2, 3)
-        ]
+        (card,) = messages[0].embeds  # one card: welcome text, rules, after-verifying section
+        assert card.title == tenv.text(k.WELCOME_TITLE)
+        assert card.image.url == tenv.text(k.WELCOME_IMAGE)
+        assert card.thumbnail.url == tenv.text(k.WELCOME_THUMBNAIL)
+        assert card.author.name == tenv.text(ck.AUTHOR_NAME)
+        assert card.footer.text == tenv.text(ck.FOOTER_TEXT)
+        rules = "\n".join(
+            f"**{tenv.text(k.rule_name_key(n))}** {rendered(tenv, k.rule_value_key(n))}" for n in (1, 2, 3)
+        )
+        assert card.description == (
+            f"{rendered(tenv, k.WELCOME_DESCRIPTION)}\n\n**{tenv.text(k.RULES_TITLE)}**\n"
+            f"{rendered(tenv, k.RULES_DESCRIPTION)}\n{rules}\n\n"
+            f"**{tenv.text(k.AFTER_HEADING)}**\n{rendered(tenv, k.AFTER_TEXT)}"
+        )
+        assert card.fields == []
         primary = tenv.app.settings.branding.colors["primary"]
-        assert welcome.color is not None and welcome.color.value == primary
-        assert rules.color is not None and rules.color.value == primary
+        assert card.color is not None and card.color.value == primary
         (button,) = buttons(messages[0])
         assert messages[0].custom_ids() == [AGREE_ID]
         assert button.label == tenv.text(k.BUTTON_LABEL)
@@ -79,10 +79,11 @@ async def test_channel_placeholders_become_clickable_links(tmp_path: Path) -> No
     tenv = await verification_env(tmp_path, content=content)
     try:
         await publish(tenv)
-        welcome, rules = panel_messages(tenv)[0].embeds
+        (card,) = panel_messages(tenv)[0].embeds
         lounge, welcome_channel = channel(tenv, "lounge"), channel(tenv, "welcome")
-        assert welcome.description == f"Read <#{lounge.id}> after <#{welcome_channel.id}>. {{unknown}} stays."
-        assert rules.fields[0].value == f"See <#{channel(tenv, 'catalog').id}>"
+        description = card.description or ""
+        assert description.startswith(f"Read <#{lounge.id}> after <#{welcome_channel.id}>. {{unknown}} stays.\n\n")
+        assert f"** See <#{channel(tenv, 'catalog').id}>\n" in description
     finally:
         await tenv.close()
 
@@ -94,7 +95,7 @@ async def test_links_to_channels_that_do_not_exist_yet_are_reported(tmp_path: Pa
         await tenv.app.resources.forget("channel", "lounge")
         await tenv.app.resources.forget("channel", "catalog")
         lines = await publish(tenv)
-        assert panel_messages(tenv)[0].embeds[0].description == "Go to "
+        assert (panel_messages(tenv)[0].embeds[0].description or "").startswith("Go to \n\n")
         expected = tenv.app.op(
             "verification.publish.unresolved_links", placeholders="`{channel_catalog}`, `{channel_lounge}`"
         )
@@ -115,27 +116,27 @@ async def test_branding_images_are_used_when_no_panel_images_are_configured(tmp_
     tenv = await verification_env(tmp_path, extra, content={k.WELCOME_IMAGE: "", k.WELCOME_THUMBNAIL: ""})
     try:
         await publish(tenv)
-        welcome, rules = panel_messages(tenv)[0].embeds
-        assert welcome.thumbnail.url == "https://example.com/logo.png"
-        assert welcome.image.url == "https://example.com/banner.png"
-        assert welcome.author.icon_url == "https://example.com/logo.png"
-        assert rules.image.url is None and rules.thumbnail.url is None
+        (card,) = panel_messages(tenv)[0].embeds
+        assert card.thumbnail.url == "https://example.com/logo.png"
+        assert card.image.url == "https://example.com/banner.png"
+        assert card.author.icon_url == "https://example.com/logo.png"
     finally:
         await tenv.close()
 
 
 async def test_optional_text_is_omitted_cleanly(tmp_path: Path) -> None:
-    empty = dict.fromkeys(
-        (k.WELCOME_IMAGE, k.WELCOME_THUMBNAIL, k.RULES_TITLE, k.RULES_DESCRIPTION, k.BUTTON_EMOJI, ck.FOOTER_TEXT), ""
-    )
+    optional = (k.WELCOME_IMAGE, k.WELCOME_THUMBNAIL, k.RULES_TITLE, k.RULES_DESCRIPTION, k.BUTTON_EMOJI)
+    empty = dict.fromkeys((*optional, k.AFTER_HEADING, k.AFTER_TEXT, ck.FOOTER_TEXT), "")
     tenv = await verification_env(tmp_path, content=empty)
     try:
         await publish(tenv)
         message = panel_messages(tenv)[0]
-        welcome, rules = message.embeds
-        assert welcome.image.url is None and welcome.thumbnail.url is None
-        assert rules.title is None and rules.description is None and rules.footer.text is None
-        assert len(rules.fields) == 3
+        (card,) = message.embeds
+        assert card.image.url is None and card.thumbnail.url is None and card.footer.text is None
+        rules = "\n".join(
+            f"**{tenv.text(k.rule_name_key(n))}** {rendered(tenv, k.rule_value_key(n))}" for n in (1, 2, 3)
+        )
+        assert card.description == f"{rendered(tenv, k.WELCOME_DESCRIPTION)}\n\n{rules}"
         (button,) = buttons(message)
         assert button.emoji is None and button.label == tenv.text(k.BUTTON_LABEL)
     finally:
@@ -157,8 +158,10 @@ async def test_twenty_five_rules_fit_in_one_panel(tmp_path: Path) -> None:
     tenv = await verification_env(tmp_path, rules=25, content=short)
     try:
         await publish(tenv)
-        fields = panel_messages(tenv)[0].embeds[1].fields
-        assert [f.value for f in fields] == [f"[rule {n}]" for n in range(1, 26)]
+        (card,) = panel_messages(tenv)[0].embeds
+        description = card.description or ""
+        positions = [description.index(f"** [rule {n}]") for n in range(1, 26)]
+        assert positions == sorted(positions)
     finally:
         await tenv.close()
 
@@ -186,7 +189,7 @@ async def test_text_change_edits_the_same_message(tmp_path: Path) -> None:
         tenv.app.content.set_override(k.rule_value_key(2), "[changed rule]")
         lines = await publish(tenv)
         assert panel_messages(tenv) == [message] and len(message.edits) == 1
-        assert message.embeds[1].fields[1].value == "[changed rule]"
+        assert "** [changed rule]\n" in (message.embeds[0].description or "")
         assert message.custom_ids() == [AGREE_ID]
         assert "updated" in lines[0]
     finally:

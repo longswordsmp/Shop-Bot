@@ -180,7 +180,7 @@ Use a second (non-staff) Discord account as the "customer".
 - [ ] `/setup` twice: the second run reports nothing new to create; the Owner account has the Owner role.
 - [ ] Customer account before "I agree": sees only 📌 START HERE (read-only).
 - [ ] #welcome "I agree" → private confirmation; 📦 CATALOG and 🛒 PURCHASE appear; clicking again says already verified.
-- [ ] #how-to-buy link buttons open #catalog, #purchase, #faq; #faq and #shipping show your sections/regions.
+- [ ] #how-to-order link buttons open #catalog, #place-order, #faq; #faq shows its topics and #shipping your countries with their dots.
 
 **Catalog & new arrivals**
 - [ ] `/product add` (staff) → its own message in #catalog with a Buy button; `/product stock 0` → button disabled, red.

@@ -35,6 +35,7 @@ from shopbot.config.settings import ProblemSettings, ProblemType
 from shopbot.features import core_keys as core
 from shopbot.features.problems import content_keys as k
 from shopbot.features.tickets import content_keys as tk
+from shopbot.ui.card import with_paragraph
 from shopbot.ui.custom_ids import cid
 from shopbot.ui.limits import EMBED_FIELDS, EMBED_TOTAL_CHARS, EMBEDS_PER_MESSAGE
 from shopbot.ui.spec import (
@@ -215,10 +216,6 @@ def _button(
     return button
 
 
-def _attachments_embed(ui: Ui) -> EmbedSpec:
-    return ui.embed(description=_text(ui, k.ATTACHMENTS_NOTE), tone="info", branding_text=False)
-
-
 def type_label(ui: Ui, settings: ProblemSettings, type_id: str) -> str | None:
     """The issue type's label; None when the type is no longer configured (its field is then omitted)."""
     if settings.type(type_id) is None:
@@ -318,7 +315,7 @@ def _type_menu(ui: Ui, settings: ProblemSettings, choice: Choice) -> SelectSpec:
             label=_text(ui, k.type_key(t.id, "label")),
             value=t.id,
             description=ui.content.get(k.type_key(t.id, "description")),
-            emoji=ui.content.get(k.type_key(t.id, "emoji")),
+            emoji=ui.content.render(k.type_key(t.id, "emoji")),
             default=choice.type_sel == t.id,
         )
         for t in settings.types
@@ -346,7 +343,7 @@ def choose_message(
         disabled=not choice.complete,
     )
     return MessageSpec(
-        embeds=(main, _attachments_embed(ui)),
+        embeds=with_paragraph(main, _text(ui, k.ATTACHMENTS_NOTE)),
         rows=rows_of(order_menu, type_menu, proceed),
         banner=ui.banner("support-request"),
     )
@@ -385,7 +382,7 @@ def created_reply(ui: Ui, *, channel_id: int, number: str) -> MessageSpec:
     embed = _reply(
         ui, k.CREATED, tone="success", values={"channel_mention": channel_mention(channel_id), "number": number}
     )
-    return MessageSpec(embeds=(embed, _attachments_embed(ui)), banner=ui.banner("ticket-created"))
+    return MessageSpec(embeds=with_paragraph(embed, _text(ui, k.ATTACHMENTS_NOTE)), banner=ui.banner("ticket-created"))
 
 
 def limit_reply(ui: Ui, *, limit: int, channel_id: int | None) -> MessageSpec:
@@ -465,7 +462,7 @@ def ticket_panel(
         fields=fields,
         timestamp=True,
     )
-    embeds = (main, _attachments_embed(ui)) if data.status == k.OPEN else (main,)
+    embeds = with_paragraph(main, _text(ui, k.ATTACHMENTS_NOTE)) if data.status == k.OPEN else (main,)
     return MessageSpec(
         embeds=embeds,
         rows=panel_rows(ui, data),

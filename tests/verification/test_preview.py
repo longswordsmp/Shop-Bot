@@ -37,7 +37,7 @@ async def test_every_state_is_built_within_limits_and_routed(tmp_path: Path) -> 
         assert [s.name for s in states] == ALL_STATES
         _assert_valid(tenv, states)
         panel = _panel(states)
-        assert len(panel.embeds) == 2 and len(panel.embeds[1].fields) == 3
+        assert len(panel.embeds) == 1 and (panel.embeds[0].description or "").count("\n**") >= 3  # one card
         (row,) = panel.rows
         (button,) = row
         assert isinstance(button, ButtonSpec) and button.custom_id == AGREE_ID == views.agree_id()
@@ -61,7 +61,8 @@ async def test_twenty_five_rules_preview_within_limits(tmp_path: Path) -> None:
     try:
         states = preview(tenv.app)
         _assert_valid(tenv, states)
-        assert len(_panel(states).embeds[1].fields) == 25
+        description = _panel(states).embeds[0].description or ""
+        assert all(f"** [rule {n}]" in description for n in range(1, 26))
     finally:
         await tenv.close()
 
@@ -71,9 +72,10 @@ async def test_unset_rule_count_previews_an_example_structure(tmp_path: Path) ->
     try:
         states = preview(tenv.app)
         panel = _panel(states)
-        fields = panel.embeds[1].fields
-        assert len(fields) == EXAMPLE_RULE_COUNT
-        assert fields[0].name == f"[{k.rule_name_key(1)}]" and fields[2].value == f"[{k.rule_value_key(3)}]"
+        description = panel.embeds[0].description or ""
+        assert f"**[{k.rule_name_key(1)}]**" in description
+        assert f"**[{k.rule_name_key(EXAMPLE_RULE_COUNT)}]** [{k.rule_value_key(EXAMPLE_RULE_COUNT)}]" in description
+        assert f"[{k.rule_name_key(EXAMPLE_RULE_COUNT + 1)}]" not in description
         note = next(s.note for s in states if s.name == "welcome_panel")
         assert "verification.rules is not set" in note
         _assert_valid(tenv, states)
@@ -90,7 +92,7 @@ async def test_unconfigured_text_shows_markers_and_skips_the_replies(tmp_path: P
         assert [s.name for s in states] == ["welcome_panel"]
         panel = _panel(states)
         assert panel.embeds[0].title == f"[{k.WELCOME_TITLE}]"
-        assert panel.embeds[1].fields[1].value == f"[{k.rule_value_key(2)}]"
+        assert f"** [{k.rule_value_key(2)}]" in (panel.embeds[0].description or "")
         (row,) = panel.rows
         assert isinstance(row[0], ButtonSpec) and row[0].label == f"[{k.BUTTON_LABEL}]"
         assert validate_message(panel) == []

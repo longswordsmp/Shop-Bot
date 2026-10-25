@@ -1,8 +1,9 @@
-"""``/myorders``: a private reply with the member's own orders (newest first, paged with buttons), each with its
-number, current stage, total and timeline; never another member's data; buttons keep working after a restart."""
+"""``/myorders``: a private card with the member's own orders (newest first, paged with buttons), each with its
+number, current stage, total and date; never another member's data; buttons keep working after a restart."""
 
 from __future__ import annotations
 
+import re
 import sqlite3
 from pathlib import Path
 from typing import Any
@@ -31,7 +32,7 @@ from tests.checkout.util import (
     restarted_app,
     staff_message,
 )
-from tests.customer_panel.util import env, run_my_orders, stage, timeline_entry
+from tests.customer_panel.util import env, run_my_orders, stage
 from tests.fakes import FakeMember, FakeMessage, click, http_error
 from tests.helpers import GUILD_ID, TestEnv, make_settings
 
@@ -43,8 +44,9 @@ def _reply(interaction: Any) -> FakeMessage:
     return reply
 
 
-def _cards(reply: FakeMessage) -> list[discord.Embed]:
-    return reply.embeds[1:]
+def _text(reply: FakeMessage) -> str:
+    """The card's text (a long page may continue in a second embed)."""
+    return "\n".join(embed.description or "" for embed in reply.embeds)
 
 
 def _buttons(reply: FakeMessage) -> list[Any]:
@@ -52,8 +54,24 @@ def _buttons(reply: FakeMessage) -> list[Any]:
 
 
 def _numbers(tenv: TestEnv, reply: FakeMessage) -> list[str]:
-    name = tenv.text(k.ORDER_NUMBER_FIELD)
-    return [f.value or "" for card in _cards(reply) for f in card.fields if f.name == name]
+    """The order numbers of the headings, in display order."""
+    template = re.escape(tenv.text(k.ORDER_TITLE)).replace(re.escape("{order_number}"), r"(\d+)")
+    template = re.sub(r"\\\{[a-z_]+\\\}", ".*?", template)
+    return re.findall(rf"^\*\*{template}\*\*$", _text(reply), flags=re.MULTILINE)
+
+
+def _heading(tenv: TestEnv, order: m.Order, status: str) -> str:
+    values = _values(tenv, order, status)
+    return f"**{render(tenv, k.ORDER_TITLE, **values)}**\n{render(tenv, k.ORDER_SUMMARY, **values)}"
+
+
+def _values(tenv: TestEnv, order: m.Order, status: str) -> dict[str, str | int]:
+    return {
+        "order_number": str(order.number),
+        "status": stage(tenv, status),
+        "total": money(tenv, order.total_minor),
+        "date": f"<t:{order.created_at}:d>",
+    }
 
 
 async def _orders(tenv: TestEnv, customer: FakeMember, count: int) -> list[m.Order]:
@@ -140,27 +158,13 @@ async def test_only_the_members_own_orders_newest_first(cp: TestEnv) -> None:
     assert _numbers(cp, reply) == [str(second.number), str(first.number)]
     assert str(bobs.number) not in _numbers(cp, reply)
     assert money(cp, 3000) not in reply.text()  # nothing of Bob's order
-    newest = _cards(reply)[0]
-    fields = {f.name: f.value for f in newest.fields}
-    assert newest.title == render(
-        cp,
-        k.ORDER_TITLE,
-        order_number=str(second.number),
-        status=stage(cp, m.PENDING),
-        total=money(cp, 2000),
-        date=f"<t:{second.created_at}:d>",
-    )
-    assert fields[cp.text(k.ORDER_STATUS_FIELD)] == stage(cp, m.PENDING)
-    assert fields[cp.text(k.ORDER_TOTAL_FIELD)] == money(cp, 2000)
-    assert fields[cp.text(k.ORDER_TIMELINE_FIELD)] == timeline_entry(cp, m.PENDING, second.created_at)
-    assert fields[cp.text(k.ORDER_TICKET_FIELD)] == f"<#{ch.id}>"  # the open ticket is linked
-    cancelled = {f.name: f.value for f in _cards(reply)[1].fields}
-    assert cancelled[cp.text(k.ORDER_STATUS_FIELD)] == stage(cp, m.CANCELLED)
-    assert cancelled[cp.text(k.ORDER_TIMELINE_FIELD)].split("\n") == [
-        timeline_entry(cp, m.PENDING, first.created_at),
-        timeline_entry(cp, m.CANCELLED, first.created_at),
-    ]
-    assert cp.text(k.ORDER_TICKET_FIELD) not in cancelled  # its ticket is closed
+    text = _text(reply)
+    newest, older = _heading(cp, second, m.PENDING), _heading(cp, first, m.CANCELLED)
+    assert newest in text and older in text and text.index(newest) < text.index(older)
+    ticket = f"{cp.text(k.ORDER_TICKET_FIELD)}: <#{ch.id}>"
+    assert f"{newest}\n{ticket}" in text  # the open ticket is linked
+    assert text.count(f"{cp.text(k.ORDER_TICKET_FIELD)}: ") == 1  # the cancelled order's ticket is closed
+    assert reply.embeds[0].fields == []
     bob_reply = _reply(await run_my_orders(cp, bob))
     assert _numbers(cp, bob_reply) == [str(bobs.number)]
 
@@ -174,7 +178,6 @@ async def test_notes_and_staff_data_are_never_shown(cp: TestEnv) -> None:
     await service.add_note(cp.app, placed.id, actor_id=1, note="[internal note]")
     reply = _reply(await run_my_orders(cp, customer))
     assert "[internal note]" not in reply.text()
-    assert len(reply.embeds[1].fields[3].value.split("\n")) == 1  # the timeline holds the submission only
 
 
 async def test_tracking_details_are_shown_when_staff_recorded_them(cp: TestEnv) -> None:
@@ -191,8 +194,7 @@ async def test_tracking_details_are_shown_when_staff_recorded_them(cp: TestEnv) 
 
     await cp.app.db.transaction(add_tracking)
     reply = _reply(await run_my_orders(cp, customer))
-    fields = {f.name: f.value for f in _cards(reply)[0].fields}
-    assert fields[cp.text(k.ORDER_TRACKING_FIELD)] == checkout_views.escape("[track *123*]")
+    assert f"{cp.text(k.ORDER_TRACKING_FIELD)}: {checkout_views.escape('[track *123*]')}" in _text(reply)
 
 
 async def test_optional_fields_are_omitted_when_not_configured(tmp_path: Path) -> None:
@@ -201,15 +203,9 @@ async def test_optional_fields_are_omitted_when_not_configured(tmp_path: Path) -
         assert tenv.app.ready(k.FEATURE)
         customer = tenv.member()
         p1 = await add_product(tenv, "[p1]")
-        await place_order(tenv, customer, [(p1.id, 1)])
+        placed, _, _ = await place_order(tenv, customer, [(p1.id, 1)])
         reply = _reply(await run_my_orders(tenv, customer))
-        assert reply.embeds[0].description is None
-        assert [f.name for f in _cards(reply)[0].fields] == [
-            tenv.text(k.ORDER_NUMBER_FIELD),
-            tenv.text(k.ORDER_STATUS_FIELD),
-            tenv.text(k.ORDER_TOTAL_FIELD),
-            tenv.text(k.ORDER_TIMELINE_FIELD),
-        ]
+        assert _text(reply) == _heading(tenv, await order(tenv, placed.id), m.PENDING)  # no ticket line, no intro
     finally:
         await tenv.close()
 

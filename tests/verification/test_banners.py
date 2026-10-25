@@ -37,12 +37,12 @@ def new_picture(tenv: TestEnv, banner_id: BannerId) -> str:
     return banner_file(tenv, banner_id)
 
 
-async def test_welcome_panel_shows_the_welcome_banner_above_its_cards(benv: TestEnv) -> None:
+async def test_welcome_panel_shows_the_welcome_banner_above_its_card(benv: TestEnv) -> None:
     await publish(benv)
     (panel,) = panel_messages(benv)
     assert banner_names(panel) == [banner_file(benv, "welcome")]
     assert banner_file(benv, "welcome").startswith("banner-welcome-")
-    assert len(panel.embeds) == 2  # the banner is an attachment, never an extra card
+    assert len(panel.embeds) == 1  # one card; the banner is an attachment, never an extra card
     assert all(not (embed.image.url or "").startswith("attachment://") for embed in panel.embeds)
 
 

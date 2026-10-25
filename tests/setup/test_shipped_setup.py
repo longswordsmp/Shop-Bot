@@ -12,14 +12,14 @@ from shopbot.config.loader import load_config
 from tests.helpers import ROOT, TestEnv, banner_names, make_test_env
 from tests.setup.util import setup
 
-PANEL_CHANNELS = {  # channel name -> banner id its first bot message shows
-    "welcome": "welcome",
-    "how-to-buy": "how-it-works",
-    "faq": "faq",
-    "shipping": "shipping",
-    "catalog": "catalog",
-    "new-arrivals": "new-arrivals",
-    "purchase": "purchase-panel",
+PANEL_CHANNELS = {  # channel name (as /setup creates it) -> banner id its first bot message shows
+    "📜・welcome": "welcome",
+    "🧭・how-to-order": "how-it-works",
+    "❔・faq": "faq",
+    "🚚・shipping": "shipping",
+    "📦・catalog": "catalog",
+    "✨・new-arrivals": "new-arrivals",
+    "🛒・place-order": "purchase-panel",
 }
 
 
@@ -54,6 +54,7 @@ async def test_setup_posts_every_panel_with_its_banner(shipped: TestEnv) -> None
         assert messages, f"#{name} has no panel"
         first = messages[0]
         assert first.embeds and first.embeds[0].title, f"#{name} panel has no text"
+        assert len(first.embeds) == 1, f"#{name}: one card per message"
         names = banner_names(first)
         assert len(names) == 1 and names[0].startswith(f"banner-{banner_id}-"), (name, names)
         for later in messages[1:]:

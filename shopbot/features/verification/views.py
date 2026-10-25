@@ -11,7 +11,7 @@ Customer data (the member's display name) is escaped with ``discord.utils.escape
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 
 from discord.utils import escape_markdown
 
@@ -19,8 +19,9 @@ from shopbot.config.banner_ids import BannerId
 from shopbot.config.content import MissingContent
 from shopbot.config.settings import VerificationSettings
 from shopbot.features.verification import content_keys as k
+from shopbot.ui.card import Card, Section, card_message, heading
 from shopbot.ui.custom_ids import cid
-from shopbot.ui.spec import ButtonSpec, ButtonStyle, EmbedField, MessageSpec, rows_of
+from shopbot.ui.spec import ButtonSpec, ButtonStyle, MessageSpec, rows_of
 from shopbot.ui.style import Ui
 
 ROUTE = "verify"
@@ -62,6 +63,8 @@ class PanelText:
     image_url: str | None = None
     thumbnail_url: str | None = None
     button_emoji: str | None = None
+    after_heading: str | None = None
+    after_text: str | None = None
 
 
 def resolve_panel_text(render: Render, rule_count: int, *, preview: bool = False) -> PanelText:
@@ -91,40 +94,33 @@ def resolve_panel_text(render: Render, rule_count: int, *, preview: bool = False
         image_url=render(k.WELCOME_IMAGE),
         thumbnail_url=render(k.WELCOME_THUMBNAIL),
         button_emoji=render(k.BUTTON_EMOJI),
+        after_heading=render(k.AFTER_HEADING),
+        after_text=render(k.AFTER_TEXT),
     )
 
 
 def panel_message(ui: Ui, text: PanelText, *, button_style: str) -> MessageSpec:
-    """Two cards (welcome + rules) and the 'I agree' button, under the welcome banner picture.
-
-    The welcome card carries the branding (author line, logo thumbnail, banner); the configured footer is moved to
-    the rules card so it closes the message instead of sitting between the two cards.
-    """
-    welcome = ui.embed(
-        title=text.title,
-        description=text.description,
+    """One card under the welcome banner: the welcome text, the rules (each rule's name in bold before its text),
+    what to do after verifying, and the Verify button."""
+    rules = [text.rules_description or "", *(f"{heading(rule.name)} {rule.value}" for rule in text.rules)]
+    card = Card(
         tone="primary",
+        title=text.title,
+        intro=text.description,
+        sections=(
+            Section(text.rules_title, tuple(line for line in rules if line)),
+            Section(text.after_heading, (text.after_text or "",)) if text.after_text else Section(),
+        ),
         image_url=text.image_url,
         thumbnail_url=text.thumbnail_url,
-        panel=True,
     )
-    rules = ui.embed(
-        title=text.rules_title,
-        description=text.rules_description,
-        tone="primary",
-        fields=[EmbedField(rule.name, rule.value) for rule in text.rules],
-        branding_text=False,
-    )
-    rules = replace(rules, footer_text=welcome.footer_text, footer_icon_url=welcome.footer_icon_url)
-    welcome = replace(welcome, footer_text=None, footer_icon_url=None)
     button = ButtonSpec(
         label=text.button_label,
         custom_id=agree_id(),
         style=_BUTTON_STYLES.get(button_style, "success"),
         emoji=text.button_emoji,
     )
-    embeds = (welcome, rules) if not rules.is_empty() else (welcome,)
-    return MessageSpec(embeds=embeds, rows=rows_of(button), banner=ui.banner("welcome"))
+    return card_message(ui, card, rows_of(button), banner="welcome")
 
 
 def build_panel(ui: Ui, settings: VerificationSettings, links: Values) -> MessageSpec:

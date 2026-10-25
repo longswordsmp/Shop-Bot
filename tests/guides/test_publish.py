@@ -66,9 +66,10 @@ async def test_how_to_buy_posts_the_guide_with_channel_links(genv: TestEnv) -> N
     assert embed.title == genv.text(how_to_buy.TITLE)
     assert embed.description is not None and embed.description.startswith(genv.text(how_to_buy.INTRODUCTION)[:6])
     assert mention(genv, "catalog") in embed.description and "{channel_catalog}" not in embed.description
-    assert [f.name for f in embed.fields] == [genv.text(how_to_buy.step_name_key(n)) for n in (1, 2, 3)]
-    assert all(mention(genv, "purchase") in (f.value or "") for f in embed.fields)
-    assert all(not f.inline for f in embed.fields)
+    headings = [f"**{genv.text(how_to_buy.step_name_key(n))}**" for n in (1, 2, 3)]
+    positions = [embed.description.index(h) for h in headings]
+    assert positions == sorted(positions) and embed.fields == []  # one card: the steps in order, no fields
+    assert embed.description.count(mention(genv, "purchase")) >= 3
     assert embed.footer.text == genv.text(ck.FOOTER_TEXT)
     assert embed.color is not None and embed.color.value == genv.app.ui.color("primary")
     buttons = found[0].components()
@@ -126,7 +127,11 @@ async def test_deleted_message_is_reposted(genv: TestEnv) -> None:
 
 
 async def test_link_button_to_a_missing_channel_is_not_posted(tmp_path: Path) -> None:
-    plain = {how_to_buy.INTRODUCTION: "[intro]", **{how_to_buy.step_value_key(n): f"[step {n}]" for n in (1, 2, 3)}}
+    plain = {
+        how_to_buy.INTRODUCTION: "[intro]",
+        how_to_buy.CLOSING: "",
+        **{how_to_buy.step_value_key(n): f"[step {n}]" for n in (1, 2, 3)},
+    }
     tenv = await guide_env(tmp_path, content=plain)
     try:
         await channel(tenv, "purchase").delete()  # deleted in Discord; /setup would recreate it
@@ -250,29 +255,35 @@ async def test_changed_channel_moves_the_guide(genv: TestEnv) -> None:
 # --- #faq -------------------------------------------------------------------------------------------------------
 
 
-async def test_faq_has_one_embed_per_section(genv: TestEnv) -> None:
+async def test_faq_is_one_card_with_a_section_per_topic(genv: TestEnv) -> None:
     await faq.publish(genv.app)
     found = messages(genv, "faq")
     assert len(found) == 1
-    head, general, orders = found[0].embeds
-    assert (head.title, head.description) == (genv.text(faq.TITLE), head.description)
-    assert head.description is not None and mention(genv, "faq") in head.description
-    assert head.fields == []
-    assert general.title == genv.text(faq.section_title_key("general"))
-    assert [f.name for f in general.fields] == [genv.text(faq.question_key("general", n)) for n in (1, 2)]
-    assert all(mention(genv, "catalog") in (f.value or "") for f in general.fields)
-    assert orders.title == genv.text(faq.section_title_key("orders")) and len(orders.fields) == 1
-    assert general.color is not None and general.color.value == genv.app.ui.color("info")
-    assert head.footer.text and general.footer.text is None  # the branding appears once
+    (card,) = found[0].embeds
+    assert card.title == genv.text(faq.TITLE) and card.fields == []
+    text = card.description or ""
+    assert mention(genv, "faq") in text and mention(genv, "catalog") in text
+    order = [
+        f"**{genv.text(faq.section_title_key('general'))}**",
+        f"**{genv.text(faq.question_key('general', 1))}**",
+        f"**{genv.text(faq.question_key('general', 2))}**",
+        f"**{genv.text(faq.section_title_key('orders'))}**",
+        f"**{genv.text(faq.question_key('orders', 1))}**",
+    ]
+    positions = [text.index(item) for item in order]
+    assert positions == sorted(positions)
+    assert card.color is not None and card.color.value == genv.app.ui.color("info")
+    assert card.footer.text == genv.text(ck.FOOTER_TEXT)
 
 
 async def test_faq_without_title_and_introduction_starts_with_the_first_section(tmp_path: Path) -> None:
     tenv = await guide_env(tmp_path, content={faq.TITLE: "", faq.INTRODUCTION: ""})
     try:
         await faq.publish(tenv.app)
-        embeds = messages(tenv, "faq")[0].embeds
-        assert [e.title for e in embeds] == [tenv.text(faq.section_title_key(s)) for s in ("general", "orders")]
-        assert embeds[0].footer.text == tenv.text(ck.FOOTER_TEXT)
+        (card,) = messages(tenv, "faq")[0].embeds
+        assert card.title is None
+        assert (card.description or "").startswith(f"**{tenv.text(faq.section_title_key('general'))}**")
+        assert card.footer.text == tenv.text(ck.FOOTER_TEXT)
     finally:
         await tenv.close()
 
@@ -295,13 +306,15 @@ async def test_long_faq_is_split_into_ordered_messages_within_limits(tmp_path: P
         found = messages(tenv, "faq")
         assert len(found) > 3
         assert_within_limits(found)
-        # Every answer is present exactly once, complete, in order.
-        values = [f.value for m in found for e in m.embeds for f in e.fields]
-        expected = [tenv.text(faq.answer_key("general", n)) for n in range(1, 26)]
-        assert [v for v in values if v is not None and v.startswith("[answer general")] == expected
-        titles = [e.title for m in found for e in m.embeds if e.title]
+        # Every answer is present exactly once, complete, in order; only the first embed has the title.
+        text = "\n".join(e.description or "" for m in found for e in m.embeds)
+        answers = [tenv.text(faq.answer_key("general", n)) for n in range(1, 26)]
+        assert all(text.count(answer) == 1 for answer in answers)
+        assert [text.index(a) for a in answers] == sorted(text.index(a) for a in answers)
         sections = ["general", "orders", *(f"topic_{n}" for n in range(1, 11))]
-        assert titles == [tenv.text(faq.TITLE), *(tenv.text(faq.section_title_key(s)) for s in sections)]
+        headings = [text.index(f"**{tenv.text(faq.section_title_key(s))}**") for s in sections]
+        assert headings == sorted(headings)
+        assert [e.title for m in found for e in m.embeds if e.title] == [tenv.text(faq.TITLE)]
         assert f"{len(found)} message(s)" in lines[0]
         keys = [r.key for r in await records(tenv, faq.PREFIX)]
         assert sorted(keys) == sorted(record_key(faq.PREFIX, i) for i in range(len(found)))
@@ -357,97 +370,90 @@ async def test_deleted_first_message_reposts_the_following_ones_in_order(tmp_pat
 # --- #shipping ------------------------------------------------------------------------------------------------
 
 SHIPPING_TEXT = {
-    shipping.FORMAT_REGION: "{indicator} {name}",
-    shipping.FORMAT_REGION_WITH_NOTE: "{indicator} {name} ({note})",
     shipping.status_indicator_key("full"): "🟢",
     shipping.status_indicator_key("partial"): "🟡",
     shipping.status_indicator_key("none"): "🔴",
-    shipping.status_label_key("full"): "{indicator} [full label]",
-    shipping.status_label_key("partial"): "[partial label]",
-    shipping.status_label_key("none"): "[none label] {indicator}",
-    shipping.status_description_key("full"): "",
-    shipping.status_description_key("partial"): "[partial explanation]",
-    shipping.status_description_key("none"): "",
-    shipping.region_name_key("north"): "[north]",
-    shipping.region_name_key("south"): "[south]",
-    shipping.region_name_key("east"): "[east]",
-    shipping.region_name_key("west"): "[west]",
-    shipping.region_note_key("north"): "",
-    shipping.region_note_key("south"): "",
-    shipping.region_note_key("east"): "",
-    shipping.region_note_key("west"): "[west note]",
+    shipping.group_name_key("north"): "[north]",
+    shipping.group_name_key("europe"): "[europe]",
+    shipping.FORMAT_EXCLUDED: "{country} [except] {areas}",
+    shipping.FORMAT_LAST_AREA: "{areas} [and] {last}",
+    shipping.NOT_AVAILABLE_HEADING: "[not available]",
+    shipping.NOT_AVAILABLE_OTHERS: "[others]",
+    shipping.LEGEND: "[legend]",
 }
 
 
-async def test_shipping_lists_regions_by_status_with_indicators(tmp_path: Path) -> None:
+async def test_shipping_is_one_card_listing_countries_by_group_with_status_dots(tmp_path: Path) -> None:
     tenv = await guide_env(tmp_path, content=SHIPPING_TEXT)
     try:
         await shipping.publish(tenv.app)
         found = messages(tenv, "shipping")
         assert len(found) == 1
-        head, full, partial, none, info = found[0].embeds
-        assert head.title == tenv.text(shipping.TITLE) and head.fields == []
-        assert full.title == "🟢 [full label]" and full.description == "🟢 [north]\n🟢 [west] ([west note])"
-        assert partial.title == "[partial label]" and partial.description == "[partial explanation]\n\n🟡 [south]"
-        assert none.title == "[none label] 🔴" and none.description == "🔴 [east]"
-        colors = [e.color.value if e.color else None for e in (full, partial, none)]
-        assert colors == [tenv.app.ui.color(t) for t in ("success", "warning", "danger")]
-        assert len({*colors}) == 3  # the statuses are visually distinct
-        assert [f.name for f in info.fields] == [tenv.text(shipping.info_name_key(n)) for n in (1, 2)]
-        assert info.title is None
+        (card,) = found[0].embeds
+        assert card.title == tenv.text(shipping.TITLE) and card.fields == []
+        text = card.description or ""
+        assert "[legend]" in text
+        assert "**[north]**\n🟢 Canada · Mexico\n🟡 United States [except] Alaska [and] North Dakota" in text
+        assert "**[europe]**\n🟢 Germany · France" in text
+        assert "**[not available]**\n🔴 Cuba · Russia · [others]" in text
+        info = [f"**{tenv.text(shipping.info_name_key(n))}**" for n in (1, 2)]
+        positions = [text.index(h) for h in ("**[north]**", "**[europe]**", "**[not available]**", *info)]
+        assert positions == sorted(positions)
+        assert card.color is not None and card.color.value == tenv.app.ui.color("info")
     finally:
         await tenv.close()
 
 
-async def test_information_can_come_before_the_regions(tmp_path: Path) -> None:
-    tenv = await guide_env(tmp_path, {"shipping": {"info_position": "before"}}, content=SHIPPING_TEXT)
+async def test_delivery_options_are_listed_with_their_prices(tmp_path: Path) -> None:
+    options = [{"id": "standard", "fee_minor": 500}, {"id": "expedited", "fee_minor": 1500}]
+    content = SHIPPING_TEXT | {
+        shipping.DELIVERY_HEADING: "[delivery]",
+        shipping.FORMAT_DELIVERY: "{label}: {price}",
+        "checkout.fulfillment.standard.label": "[standard]",
+        "checkout.fulfillment.expedited.label": "[expedited]",
+    }
+    tenv = await guide_env(tmp_path, {"checkout": {"fulfillment_options": options}}, content=content)
     try:
         await shipping.publish(tenv.app)
-        embeds = messages(tenv, "shipping")[0].embeds
-        assert len(embeds) == 4
-        assert [f.name for f in embeds[0].fields] == [tenv.text(shipping.info_name_key(n)) for n in (1, 2)]
-        assert embeds[-1].title == "[none label] 🔴"
+        text = messages(tenv, "shipping")[0].embeds[0].description or ""
+        five, fifteen = tenv.app.ui.money(500), tenv.app.ui.money(1500)
+        assert f"**[delivery]**\n[standard]: {five}\n[expedited]: {fifteen}" in text
     finally:
         await tenv.close()
 
 
-async def test_status_without_regions_or_explanation_is_omitted(tmp_path: Path) -> None:
-    overrides = {"shipping": {"regions": [{"id": "north", "status": "full"}], "info_sections": 0}}
-    tenv = await guide_env(tmp_path, overrides, content=SHIPPING_TEXT | {shipping.region_name_key("north"): "[n]"})
+async def test_a_country_with_one_excluded_area_and_no_not_available_list(tmp_path: Path) -> None:
+    overrides = {"shipping": {"excluded_areas": {"US": ["AK"]}, "not_available": [], "info_sections": 0}}
+    content = SHIPPING_TEXT | {shipping.NOT_AVAILABLE_OTHERS: ""}
+    tenv = await guide_env(tmp_path, overrides, content=content)
     try:
         await shipping.publish(tenv.app)
-        titles = [e.title for e in messages(tenv, "shipping")[0].embeds]
-        # "partial" has an explanation, so it is shown (without regions); "none" has neither.
-        assert titles == [tenv.text(shipping.TITLE), "🟢 [full label]", "[partial label]"]
+        text = messages(tenv, "shipping")[0].embeds[0].description or ""
+        assert "🟡 United States [except] Alaska" in text and "[and]" not in text
+        assert "[not available]" not in text  # nothing listed there, so no heading
     finally:
         await tenv.close()
 
 
-async def test_shipping_without_regions_shows_header_and_information(tmp_path: Path) -> None:
-    content = {shipping.status_description_key(s): "" for s in ("full", "partial", "none")}
-    tenv = await guide_env(tmp_path, {"shipping": {"regions": []}}, content=content)
-    try:
-        assert tenv.app.ready("shipping")
-        await shipping.publish(tenv.app)
-        embeds = messages(tenv, "shipping")[0].embeds
-        assert [e.title for e in embeds] == [tenv.text(shipping.TITLE), None]
-        assert len(embeds[1].fields) == 2
-    finally:
-        await tenv.close()
+async def test_large_country_list_is_split_within_limits(tmp_path: Path) -> None:
+    from shopbot.core.countries import COUNTRIES
 
-
-async def test_large_region_list_is_split_within_limits(tmp_path: Path) -> None:
-    regions = [{"id": f"r{n}", "status": ("full", "partial", "none")[n % 3]} for n in range(300)]
-    names = {shipping.region_name_key(f"r{n}"): f"[region {n:03d}] " + "w" * 40 for n in range(300)}
-    tenv = await guide_env(tmp_path, {"shipping": {"regions": regions, "info_sections": 25}}, content=names)
+    codes = sorted(COUNTRIES)
+    groups = [{"id": f"g{n}", "countries": codes[n * 12 : (n + 1) * 12]} for n in range(20)]
+    names = {shipping.group_name_key(f"g{n}"): f"[group {n:02d}] " + "w" * 40 for n in range(20)}
+    infos = {shipping.info_value_key(n): f"[info {n}] " + "v" * 900 for n in range(1, 11)}
+    overrides = {"shipping": {"groups": groups, "excluded_areas": {}, "not_available": [], "info_sections": 10}}
+    tenv = await guide_env(tmp_path, overrides, content=SHIPPING_TEXT | names | infos)
     try:
         lines = await shipping.publish(tenv.app)
         found = messages(tenv, "shipping")
         assert len(found) > 1 and "message(s)" in lines[0]
         assert_within_limits(found)
         text = "\n".join(e.description or "" for m in found for e in m.embeds)
-        for n in range(300):
-            assert text.count(f"[region {n:03d}] ") == 1  # every region exactly once, never cut
+        for n in range(20):
+            assert text.count(f"[group {n:02d}] ") == 1  # every group exactly once, never cut
+        for n in range(1, 11):
+            assert text.count(f"[info {n}] ") == 1
     finally:
         await tenv.close()
 

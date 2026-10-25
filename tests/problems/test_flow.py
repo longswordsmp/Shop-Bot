@@ -68,8 +68,8 @@ async def test_report_without_an_order_opens_the_form_right_away(pr: TestEnv) ->
     # Private reply (the form came from the public panel: a new private message, the panel is never edited).
     reply = submitted.last_sent
     assert reply is not None and reply.flags.ephemeral
-    assert reply.embeds[0].description == render(pr, k.CREATED, channel_mention=ch.mention, number=number)
-    assert reply.embeds[1].description == pr.text(k.ATTACHMENTS_NOTE)
+    created = render(pr, k.CREATED, channel_mention=ch.mention, number=number)
+    assert [e.description for e in reply.embeds] == [f"{created}\n\n{pr.text(k.ATTACHMENTS_NOTE)}"]  # one card
 
     # The ticket: private to the customer and staff, in the configured category, named with the prefix.
     category = pr.app.resources.category(pr.guild, "tickets")  # type: ignore[arg-type]
@@ -95,7 +95,7 @@ async def test_report_without_an_order_opens_the_form_right_away(pr: TestEnv) ->
     assert fields[pr.text(k.FIELD_TYPE)] == label
     assert fields[pr.text(k.FIELD_STATUS)] == pr.text(k.status_key(k.OPEN))
     assert pr.text(k.FIELD_ORDER) not in fields  # not about an order
-    assert panel.embeds[1].description == pr.text(k.ATTACHMENTS_NOTE)
+    assert len(panel.embeds) == 1 and (main.description or "").endswith(f"\n\n{pr.text(k.ATTACHMENTS_NOTE)}")
     assert panel.custom_ids() == [
         views.resolve_id(report.id),
         views.reject_id(report.id),
@@ -124,8 +124,8 @@ async def test_report_about_an_order(pr: TestEnv) -> None:
     await add_order(pr, pr.member(name="someone else"))  # not theirs
 
     step = private_step(await start(pr, user))
-    assert step.embeds[0].description == render(pr, k.CHOOSE_DESCRIPTION, **channel_mentions(pr.app))
-    assert step.embeds[1].description == pr.text(k.ATTACHMENTS_NOTE)
+    choose = render(pr, k.CHOOSE_DESCRIPTION, **channel_mentions(pr.app))
+    assert [e.description for e in step.embeds] == [f"{choose}\n\n{pr.text(k.ATTACHMENTS_NOTE)}"]  # one card
     menu = step.components()[0].item
     assert [o.value for o in menu.options] == [str(newer), str(older), views.NO_ORDER]  # newest first
     total = pr.app.ui.money(2500)
@@ -184,7 +184,8 @@ async def test_picking_marks_the_choice_and_continue_works_repeatedly(pr: TestEn
     ch = await ticket_channel(pr, report)
     number = service.number_text(pr.app, (await ticket_of(pr, report)).number)
     assert step.custom_ids() == []
-    assert step.embeds[0].description == render(pr, k.CREATED, channel_mention=ch.mention, number=number)
+    created = render(pr, k.CREATED, channel_mention=ch.mention, number=number)
+    assert step.embeds[0].description == f"{created}\n\n{pr.text(k.ATTACHMENTS_NOTE)}"
     assert submitted.sent == []
 
 

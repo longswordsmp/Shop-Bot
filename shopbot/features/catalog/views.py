@@ -47,6 +47,7 @@ from shopbot.features.catalog.repo import (
     NAME_MAX,
     Product,
 )
+from shopbot.ui.card import with_paragraph
 from shopbot.ui.custom_ids import cid
 from shopbot.ui.limits import (
     BUTTON_LABEL,
@@ -228,7 +229,7 @@ def buy_button(ui: Ui, product: Product) -> ButtonSpec:
         label=label,
         custom_id=buy_custom_id(product.id),
         style="primary",
-        emoji=ui.content.get(keys.BUTTON_BUY_EMOJI),
+        emoji=ui.content.render(keys.BUTTON_BUY_EMOJI),
         disabled=not can_buy(product),
     )
 
@@ -312,7 +313,7 @@ def listing_messages(
     banner = ui.banner("catalog")
     products = [p for p in products if p.listed]
     if not products:
-        return [MessageSpec(embeds=(header, empty_embed(ui)), files=(), banner=banner)]
+        return [MessageSpec(embeds=with_paragraph(header, empty_embed(ui).description), files=(), banner=banner)]
     head_rows = rows_of(browse_button(ui)) if catalog.browse_enabled else ()
     specs = [MessageSpec(embeds=(header,), rows=head_rows, files=(), banner=banner)]
     if buy is None:
