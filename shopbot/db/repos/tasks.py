@@ -87,8 +87,7 @@ def cancel(conn: sqlite3.Connection, *, dedupe_key: str | None = None, task_id: 
         )
     elif task_id is not None:
         cur = conn.execute(
-            "UPDATE scheduled_tasks SET status = 'cancelled', updated_at = ? "
-            "WHERE id = ? AND status = 'pending'",
+            "UPDATE scheduled_tasks SET status = 'cancelled', updated_at = ? WHERE id = ? AND status = 'pending'",
             (now, task_id),
         )
     else:

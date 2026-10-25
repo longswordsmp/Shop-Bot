@@ -83,6 +83,8 @@ def compute_readiness(settings: Settings, content: ContentStore, modules: Sequen
                 problems.append(Problem(module.name, "missing_content", "not configured", definition.key))
             for message in invalid.get(definition.key, []):
                 problems.append(Problem(module.name, "invalid_content", message, definition.key))
+        for message in module.content_problems(settings, content):
+            problems.append(Problem(module.name, "invalid_content", message))
         for key in module.shared_keys(settings):
             if not content.has(key):
                 problems.append(Problem(module.name, "missing_content", "not configured (shared key)", key))

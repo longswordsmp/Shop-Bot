@@ -133,3 +133,13 @@ def rows_of(*components: Component | None, per_row: int = 5) -> tuple[tuple[Comp
     if current:
         rows.append(tuple(current))
     return tuple(rows)
+
+
+@dataclass(frozen=True)
+class PreviewState:
+    """One renderable UI state, for the offline limits checker and HTML preview."""
+
+    feature: str
+    name: str
+    note: str
+    spec: MessageSpec | ModalSpec
