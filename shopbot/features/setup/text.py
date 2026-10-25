@@ -66,6 +66,23 @@ OPERATOR_TEXT: dict[str, str] = {
     "server.setup.owner_role_would_assign": "`{item}`: would give {target} to the owner (<@{user_id}>)",
     "server.setup.owner_role_present": "`{item}`: the owner (<@{user_id}>) already has {target}",
     "server.setup.owner_not_member": "{kind} `{item}`: OWNER_ID {user_id} is not a member of this server",
+    # entry-channel safety: channels /setup does not manage that everyone can see (problems section)
+    "server.setup.public_unmanaged": (
+        '{kind} {target} ("{name}"): not managed by /setup, and `@everyone` can see it, including members who have '
+        "not accepted the rules"
+    ),
+    "server.setup.public_unmanaged_more": "… and {count} more unmanaged channels that `@everyone` can see",
+    "server.setup.public_unmanaged_hint": (
+        "Unverified members must see only the configured entry channels. Delete the channels above (for example "
+        "Discord's default #general text channel and General voice channel) or deny View Channel to `@everyone` on "
+        "them. /setup never changes or deletes channels it does not manage."
+    ),
+    "server.setup.channel_kind.text": "Text channel",
+    "server.setup.channel_kind.voice": "Voice channel",
+    "server.setup.channel_kind.stage": "Stage channel",
+    "server.setup.channel_kind.forum": "Forum channel",
+    "server.setup.channel_kind.category": "Category",
+    "server.setup.channel_kind.other": "Channel",
     # change names
     "server.setup.change.name": "name",
     "server.setup.change.permissions": "permissions",

@@ -34,6 +34,10 @@ _ERROR_KEY = re.compile(r"(^|_)error$", re.I)
 _TYPE_NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_.]*")
 MAX_DETAIL_TEXT = 300
 REDACTED = "[REDACTED]"
+# The audit-channel embed shows the details JSON in up to this many fields of this many characters (within Discord's
+# 1024-character field and 6000-character embed limits); anything longer is cut there (the database keeps it all).
+DETAIL_FIELD_TEXT = 1000
+MAX_DETAIL_FIELDS = 4
 
 
 def sanitize_details(value: Any, key: str | None = None) -> Any:
@@ -52,6 +56,17 @@ def sanitize_details(value: Any, key: str | None = None) -> Any:
         text = redact(value)
         return text if len(text) <= MAX_DETAIL_TEXT else text[:MAX_DETAIL_TEXT] + "…"
     return value
+
+
+def detail_chunks(details: dict[str, Any]) -> list[str]:
+    """The details JSON split into consecutive pieces for the audit-channel embed (operator-only diagnostic data,
+    not business text): at most ``MAX_DETAIL_FIELDS`` pieces, the last one marked with "…" when cut."""
+    text = json.dumps(details, ensure_ascii=False, sort_keys=True, default=str)
+    chunks = [text[start : start + DETAIL_FIELD_TEXT] for start in range(0, len(text), DETAIL_FIELD_TEXT)]
+    if len(chunks) > MAX_DETAIL_FIELDS:
+        chunks = chunks[:MAX_DETAIL_FIELDS]
+        chunks[-1] = chunks[-1][: DETAIL_FIELD_TEXT - 1] + "…"
+    return chunks
 
 
 class AuditLog:
@@ -115,10 +130,8 @@ class AuditLog:
         if target_type is not None:
             fields.append(EmbedField(self.app.op("audit.target"), f"{target_type} {target_id}", inline=True))
         if details:
-            text = json.dumps(details, ensure_ascii=False, sort_keys=True, default=str)
-            if len(text) > 1000:
-                text = text[:1000] + "…"  # operator-only diagnostic data, not business text
-            fields.append(EmbedField(self.app.op("audit.details"), f"```{text}```"))
+            name = self.app.op("audit.details")
+            fields.extend(EmbedField(name, f"```{chunk}```") for chunk in detail_chunks(details))
         spec = MessageSpec(embeds=(self.app.ui.operator_embed(action, tone="neutral", fields=fields),))
         try:
             await channel.send(**send_kwargs(spec))

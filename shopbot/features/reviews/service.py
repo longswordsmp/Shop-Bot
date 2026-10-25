@@ -186,9 +186,9 @@ async def deliver_prompt(app: App, review: repo.Review, order: repo.Order, *, de
         spec=replace(spec, mention_user_ids=(review.user_id,)),
         kind=PROMPT_KIND,
         dedupe_key=dedupe_key,
+        user_id=review.user_id,
     )
-    if message is None:
-        await app.events.publish(FAILURE, kind="notification", source=PROMPT_KIND, user_id=review.user_id)
+    if message is None:  # the notifier already reported the failure (FAILURE): not reported twice
         return "none"
     await app.db.transaction(
         repo.set_prompt_message, review.id, channel_id=channel.id, message_id=message.id, now=app.clock.now()

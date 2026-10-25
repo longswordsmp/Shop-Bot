@@ -78,6 +78,7 @@ from shopbot.core.permissions import missing_permissions
 from shopbot.db.repos import notifications as notif_repo
 from shopbot.db.repos import state
 from shopbot.db.repos import tasks as task_repo
+from shopbot.features.server_keys import PRIVATE_ACCESS, effective_access
 from shopbot.features.tickets import content_keys as k
 from shopbot.features.tickets import repo, transcript, views
 from shopbot.features.tickets.models import (
@@ -113,6 +114,8 @@ TASK_DELETE = "tickets.delete"
 TASK_AUTO_CLOSE = "tickets.auto_close"
 TASK_AUTO_CLOSE_WARN = "tickets.auto_close_warn"
 TASK_RECOVER_CREATING = "tickets.recover_creating"
+# Notification kind of the transcript DM (tickets.transcript_dm_user), sent through the notifier.
+TRANSCRIPT_DM_KIND = "tickets.transcript_dm"
 
 # A ticket still 'creating' this long after its row was reserved was interrupted: it is finished (its
 # channel exists) or failed by the recovery (restart recovery, and the durable tickets.recover_creating task).
@@ -129,6 +132,10 @@ LOCKED_DENY: dict[str, bool] = {"send_messages": False, "attach_files": False, "
 
 def dedupe_transcript(ticket_id: int) -> str:
     return f"tickets.transcript:{ticket_id}"
+
+
+def dedupe_transcript_dm(ticket_id: int) -> str:
+    return f"tickets.transcript_dm:{ticket_id}"
 
 
 def dedupe_delete(ticket_id: int) -> str:
@@ -1226,6 +1233,11 @@ async def generate_transcript(
                 log_event(log, logging.WARNING, "tickets_transcript_disabled", ticket_id=ticket_id)
                 await app.db.transaction(repo.set_transcript, ticket_id, status=TRANSCRIPT_SKIPPED, now=now)
             return not force
+        if effective_access(app.settings, t.transcript_channel) not in PRIVATE_ACCESS:
+            # Transcripts hold the whole conversation: never posted where non-staff could read them (like audit
+            # entries). The settings check reports it; the transcript stays outstanding until it is fixed.
+            log_event(log, logging.ERROR, "tickets_transcript_channel_not_private", key=t.transcript_channel)
+            return False
         guild = app.guild
         target = app.resources.text_channel(guild, t.transcript_channel) if guild is not None else None
         if target is None:
@@ -1282,8 +1294,10 @@ async def generate_transcript(
 
 
 async def _dm_transcript(app: App, ticket: Ticket, data: bytes, filename: str) -> None:
-    """Send the transcript file to the ticket owner by DM, at most once per ticket."""
-    dedupe_key = f"tickets.transcript_dm:{ticket.id}"
+    """Send the transcript file to the ticket owner by DM, at most once per ticket, through the notifier: a DM that
+    cannot be delivered is recorded, audited and alerted like every other undeliverable notification (there is no
+    fallback channel: the ticket is closed and the transcript itself is in the transcript channel)."""
+    dedupe_key = dedupe_transcript_dm(ticket.id)
     if await app.db.run(notif_repo.already_sent, dedupe_key) or app.bot is None:
         return
     try:
@@ -1291,27 +1305,15 @@ async def _dm_transcript(app: App, ticket: Ticket, data: bytes, filename: str) -
     except MissingContent as exc:
         log_event(log, logging.ERROR, "content_missing_at_runtime", key=exc.key, where="tickets.transcript_dm")
         return
-    status, error = "sent", None
-    try:
-        user = app.bot.get_user(ticket.user_id) or await app.bot.fetch_user(ticket.user_id)
-        await user.send(file=discord.File(io.BytesIO(data), filename=filename), **send_kwargs(spec))
-    except discord.Forbidden:
-        status, error = "failed", "dm_forbidden"
-        await app.db.transaction(state.set_dm_unavailable, ticket.user_id, app.clock.now())
-    except (discord.HTTPException, RenderError) as exc:
-        status, error = "failed", type(exc).__name__
-    log_event(log, logging.INFO, "tickets_transcript_dm", ticket_id=ticket.id, status=status, error=error)
-    await app.db.transaction(
-        notif_repo.record,
-        dedupe_key=dedupe_key,
+    delivery = await app.notifier.notify_user(
         user_id=ticket.user_id,
-        channel_id=None,
-        kind="tickets.transcript_dm",
-        delivery="dm" if status == "sent" else "none",
-        status=status,
-        error=error,
-        now=app.clock.now(),
+        spec=spec,
+        kind=TRANSCRIPT_DM_KIND,
+        dedupe_key=dedupe_key,
+        attachments=((filename, data),),
+        always_dm=True,  # tickets.transcript_dm_user asks for a direct message even if other DMs are off
     )
+    log_event(log, logging.INFO, "tickets_transcript_dm", ticket_id=ticket.id, delivery=delivery)
 
 
 # -- deletion -----------------------------------------------------------------------------------------------

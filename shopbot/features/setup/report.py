@@ -11,6 +11,7 @@ from __future__ import annotations
 from collections import Counter
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field, replace
+from typing import Any
 
 from shopbot.ui import limits
 from shopbot.ui.spec import EmbedField, EmbedSpec, MessageSpec
@@ -18,6 +19,10 @@ from shopbot.ui.style import Ui, chunk_lines
 
 SECTIONS = ("roles", "categories", "channels", "panels", "problems")
 COUNTERS = ("created", "adopted", "updated", "unchanged", "skipped", "failed")
+# Sections whose resources /setup changes; their changes are listed (by settings key) in the setup.run audit entry.
+RESOURCE_SECTIONS = ("roles", "categories", "channels")
+# At most this many changed resources per section are listed in the audit entry (the rest are counted).
+MAX_AUDIT_CHANGES = 30
 
 Op = Callable[..., str]
 
@@ -28,20 +33,49 @@ class SetupReport:
     publish: bool = True
     lines: dict[str, list[str]] = field(default_factory=lambda: {section: [] for section in SECTIONS})
     counts: Counter[str] = field(default_factory=Counter)
+    # What this run changed, per resource section: settings key -> changes, e.g. {"staff": ["updated (overwrites)"]}
+    # (internal identifiers only, never names or text). Audited, never shown to customers.
+    changes: dict[str, dict[str, list[str]]] = field(
+        default_factory=lambda: {section: {} for section in RESOURCE_SECTIONS}
+    )
+    owner_role: dict[str, str | int] | None = None  # the Owner-role assignment, when one was made or failed
+    public_unmanaged: int = 0  # unmanaged channels/categories @everyone can see
 
     def add(self, section: str, line: str, status: str | None = None) -> None:
         self.lines[section].append(line)
         if status is not None:
             self.counts[status] += 1
 
+    def change(self, section: str, key: str, what: str) -> None:
+        """Record a change of the resource ``key`` (``what``: e.g. "created", "adopted", "updated (name, topic)")."""
+        self.changes[section].setdefault(key, []).append(what)
+
     def count_values(self) -> dict[str, int]:
         return {name: self.counts.get(name, 0) for name in COUNTERS}
 
-    def audit_details(self) -> dict[str, int | bool]:
+    def summary_details(self) -> dict[str, int | bool]:
         details: dict[str, int | bool] = {"dry_run": self.dry_run, "publish": self.publish}
         details.update(self.count_values())
         details["panel_lines"] = len(self.lines["panels"])
         details["problems"] = len(self.lines["problems"])
+        if self.public_unmanaged:
+            details["public_unmanaged"] = self.public_unmanaged
+        return details
+
+    def audit_details(self) -> dict[str, Any]:
+        """The ``setup.run`` audit entry: the counts plus WHAT changed - per section a list of "<settings key>:
+        <changes>" entries (e.g. "staff_chat: updated (overwrites, topic)"), capped at ``MAX_AUDIT_CHANGES`` per
+        section - and the Owner-role assignment. The audit log sanitizes it again before storing/posting it."""
+        details: dict[str, Any] = dict(self.summary_details())
+        for section in RESOURCE_SECTIONS:
+            entries = list(self.changes[section].items())
+            if not entries:
+                continue
+            details[section] = [f"{key}: {'; '.join(whats)}" for key, whats in entries[:MAX_AUDIT_CHANGES]]
+            if len(entries) > MAX_AUDIT_CHANGES:
+                details[f"{section}_more"] = len(entries) - MAX_AUDIT_CHANGES
+        if self.owner_role is not None:
+            details["owner_role"] = dict(self.owner_role)
         return details
 
 

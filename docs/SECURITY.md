@@ -34,6 +34,14 @@
   problems if they appear in any staff/admin role list or carry permissions, so a member can never self-assign power.
 - Ticket, order and problem-report channels are created with explicit overwrites (customer + staff + bot only); the
   category's member access does not apply to them.
+- Channels the bot does not manage are outside these rules. `/setup` (and `/setup dry_run:True`) lists every channel
+  or category it does not manage that `@everyone` can see - typically Discord's default #general text channel and
+  General voice channel - as a problem, so unverified users really see only the entry channels. It never changes or
+  deletes them: delete them, or deny View Channel to `@everyone` on them.
+- Channels that receive staff-only output must be configured with `staff` or `admin` access, or the feature is not
+  ready: `audit.channel` (#bot-log), `tickets.transcript_channel` (#transcripts: whole ticket conversations),
+  `operations.staff_channel`, `checkout.staff_channel`. The audit post and the transcript post also refuse, at the
+  moment of posting, a channel that is not configured that way.
 
 ## Private data
 
@@ -45,6 +53,12 @@
   `@everyone`/roles (mentions are disabled except for explicitly targeted users/roles).
 - Logs never include tokens or full form answers. Audit details are sanitized before they are stored or posted in
   #bot-log (sensitive keys masked, error text reduced to the exception type, token-shaped strings redacted).
+- Configuration changes are audited by identifier only: `/setup` lists the settings keys of the roles, categories and
+  channels it changed with the kind of change (e.g. `staff_chat: updated (overwrites, topic)`), `/reload` lists the
+  settings sections that changed and how many content keys changed - never a setting value or a text.
+- Notification failures are audited without content (the notification's internal kind and the member's ID):
+  `notifications.dm_failed` when a direct message failed but the notification reached the member another way, and
+  `notifications.failed` (plus a #staff-chat alert) when it could not be delivered at all.
 - Staff alerts in #staff-chat and Owner DMs carry identifiers and links, never customers' form answers.
 - Uploaded product images are stored in the database (and copied by `/backup`); announcement images are kept only
   until the announcement is posted.

@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 from shopbot.config.content_keys import ContentKey, Kind, ck
 from shopbot.config.settings import Settings, TicketCategory
 from shopbot.features import core_keys as core
-from shopbot.features.server_keys import reference_problems
+from shopbot.features.server_keys import private_channel_problems, reference_problems
 
 if TYPE_CHECKING:
     from shopbot.config.content import ContentStore
@@ -555,6 +555,8 @@ def settings_problems(settings: Settings) -> list[str]:
     categories = [("tickets.closed_category", t.closed_category)]
     categories += [(f"tickets.categories '{c.id}'.discord_category", c.discord_category) for c in t.categories]
     problems.extend(reference_problems(settings, channels=channels, categories=tuple(categories)))
+    # Transcripts hold whole conversations: like the audit channel, only staff/admin may read their channel.
+    problems.extend(private_channel_problems(settings, (("tickets.transcript_channel", t.transcript_channel),)))
     role_keys = list(t.staff_roles)
     for category in t.categories:
         role_keys += [key for key in category.staff_roles if key not in role_keys]

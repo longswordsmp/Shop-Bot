@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import dataclasses
 import difflib
 import logging
 import re
@@ -390,14 +391,32 @@ class ReloadReport:
     features: tuple[FeatureLine, ...]
 
 
+def changed_sections(before: Settings, after: Settings) -> list[str]:
+    """Top-level settings sections (``[checkout]``, ``[server]``, ...) whose values differ, in schema order."""
+    return [f.name for f in dataclasses.fields(Settings) if getattr(before, f.name) != getattr(after, f.name)]
+
+
+def changed_content_count(before: Mapping[str, str], after: Mapping[str, str]) -> int:
+    """How many content keys were added, removed or changed (values are never reported)."""
+    return sum(1 for key in before.keys() | after.keys() if before.get(key) != after.get(key))
+
+
 async def reload_configuration(app: App, *, actor_id: int) -> ReloadReport:
+    settings_before = app.settings
+    content_before = app.content.all_configured_values()
     result = await app.reload_config()
+    # What changed is audited by section name and count only: settings values and text are never logged.
     await app.audit.record(
         "admin.reload",
         actor_id=actor_id,
         target_type="config",
         target_id="reload",
-        details={"ok": result.ok, "errors": len(result.errors)},
+        details={
+            "ok": result.ok,
+            "errors": len(result.errors),
+            "settings_sections_changed": changed_sections(settings_before, app.settings),
+            "content_keys_changed": changed_content_count(content_before, app.content.all_configured_values()),
+        },
     )
     return ReloadReport(ok=result.ok, errors=tuple(result.errors), features=feature_lines(app.readiness))
 

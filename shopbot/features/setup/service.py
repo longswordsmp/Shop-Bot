@@ -21,6 +21,13 @@ never cleared.
 
 Every Discord failure on a single action is reported and the run continues. ``dry_run`` computes and
 reports the plan without any Discord change or database write.
+
+Entry-channel safety: every channel or category that /setup does not manage but ``@everyone`` can see (for example
+Discord's default #general and General voice channel) is listed in the problems section, in dry runs too, with the
+advice to delete or hide it. Such channels are never changed or deleted by the bot.
+
+The ``setup.run`` audit entry (real runs only) lists what changed: per section the settings keys of created,
+re-created, adopted, updated (with the change kinds) and failed resources, and the Owner-role assignment.
 """
 
 from __future__ import annotations
@@ -61,6 +68,10 @@ SETUP_PERMISSIONS = (
     "create_public_threads",
     "create_private_threads",
 )
+
+# At most this many unmanaged channels everyone can see are listed one by one in the report (the rest are counted).
+MAX_PUBLIC_UNMANAGED_LINES = 25
+SECTION_OF_KIND = {"role": "roles", "category": "categories", "channel": "channels"}
 
 T = TypeVar("T")
 How = Literal["explicit", "recorded", "adopted", "missing", "id_not_found"]
@@ -143,6 +154,7 @@ class Reconciler:
             status=exc.status,
             code=exc.code,
         )
+        self.report.change(SECTION_OF_KIND[kind], item, f"failed ({action}, HTTP {exc.status})")
         self.problem(
             kind,
             item,
@@ -192,6 +204,7 @@ class Reconciler:
         if resolution.how == "adopted":
             template = "server.setup.would_adopt" if self.dry_run else "server.setup.adopted"
             self.ok(section, key, "adopted", template, target=target)
+            self.report.change(section, key, "adopted")
             return True
         return False
 
@@ -201,11 +214,13 @@ class Reconciler:
         else:
             template = "server.setup.recreated" if stale else "server.setup.created"
         self.ok(section, key, "created", template, target=target)
+        self.report.change(section, key, "recreated" if stale else "created")
 
     def report_updates(self, section: str, key: str, target: str, changes: list[str], *, noted: bool) -> None:
         if changes:
             template = "server.setup.would_update" if self.dry_run else "server.setup.updated"
             self.ok(section, key, "updated", template, target=target, changes=self.changes_text(changes))
+            self.report.change(section, key, f"updated ({', '.join(changes)})")
         elif not noted:
             self.ok(section, key, "unchanged", "server.setup.unchanged", target=target)
 
@@ -223,6 +238,7 @@ class Reconciler:
             await self.reconcile_category(category_def)
         for channel_def in server.channels:
             await self.reconcile_channel(channel_def)
+        self.report_public_unmanaged()
 
     # -- roles --------------------------------------------------------------------------------------
 
@@ -331,6 +347,7 @@ class Reconciler:
                 self.problem("role", key, "server.setup.owner_not_member", user_id=owner_id)
                 return
             except discord.HTTPException as exc:
+                self.report.owner_role = {"role": key, "user_id": owner_id, "result": "failed"}
                 self.failed("role", key, "assign", exc)
                 return
         target = role.mention
@@ -343,8 +360,10 @@ class Reconciler:
         try:
             await member.add_roles(role, reason=self.reason)
         except discord.HTTPException as exc:
+            self.report.owner_role = {"role": key, "user_id": owner_id, "result": "failed"}
             self.failed("role", key, "assign", exc)
             return
+        self.report.owner_role = {"role": key, "user_id": owner_id, "result": "assigned"}
         self.ok("roles", key, "updated", "server.setup.owner_role_assigned", target=target, user_id=owner_id)
 
     def role_objects(self, keys: tuple[str, ...]) -> list[discord.Role]:
@@ -575,6 +594,55 @@ class Reconciler:
         log_event(log, logging.INFO, "setup_channel_created", key=key, channel_id=channel.id)
         self.report_created("channels", key, stale, channel.mention)
 
+    # -- entry-channel safety -------------------------------------------------------------------------
+
+    def report_public_unmanaged(self) -> None:
+        """Report every channel or category /setup does not manage that ``@everyone`` can see: users who have not
+        accepted the rules must see only the configured entry channels (e.g. Discord's default #general and General
+        voice channel would break that). Reported only; unmanaged channels are never changed or deleted."""
+        everyone = self.guild.default_role
+        visible = [
+            channel
+            for channel in self.guild.channels
+            if channel.id not in self.claimed and channel.permissions_for(everyone).view_channel
+        ]
+        if not visible:
+            return
+        visible.sort(key=lambda channel: channel.id)
+        self.report.public_unmanaged = len(visible)
+        for channel in visible[:MAX_PUBLIC_UNMANAGED_LINES]:
+            self.report.add(
+                "problems",
+                self.op(
+                    "server.setup.public_unmanaged",
+                    kind=self.op(f"server.setup.channel_kind.{channel_kind(channel)}"),
+                    target=channel.mention,
+                    name=discord.utils.escape_markdown(channel.name),
+                ),
+            )
+        if len(visible) > MAX_PUBLIC_UNMANAGED_LINES:
+            self.report.add(
+                "problems",
+                self.op("server.setup.public_unmanaged_more", count=len(visible) - MAX_PUBLIC_UNMANAGED_LINES),
+            )
+        self.report.add("problems", self.op("server.setup.public_unmanaged_hint"))
+        log_event(log, logging.WARNING, "setup_public_unmanaged_channels", count=len(visible))
+
+
+def channel_kind(channel: object) -> str:
+    """The operator label suffix (``server.setup.channel_kind.<kind>``) of a guild channel."""
+    if isinstance(channel, discord.CategoryChannel):
+        return "category"
+    if isinstance(channel, discord.ForumChannel):
+        return "forum"
+    if isinstance(channel, discord.StageChannel):
+        return "stage"
+    if isinstance(channel, discord.VoiceChannel):
+        return "voice"
+    if isinstance(channel, discord.TextChannel):
+        return "text"
+    return "other"
+
 
 # -- feature panels ---------------------------------------------------------------------------------
 
@@ -649,7 +717,7 @@ async def run_setup(
         await withdraw_panels(app, report, dry_run=False)
         await publish_panels(app, report)
     report_not_ready(app, report)
-    log_event(log, logging.INFO, "setup_finished", actor_id=actor_id, **report.audit_details())
+    log_event(log, logging.INFO, "setup_finished", actor_id=actor_id, **report.summary_details())
     if not dry_run:
         await app.audit.record(
             "setup.run", actor_id=actor_id, target_type="guild", target_id=guild.id, details=report.audit_details()

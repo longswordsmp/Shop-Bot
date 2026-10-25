@@ -29,9 +29,10 @@ ORDER_STATUS_CHANGED = "checkout.order_status_changed"
 
 # A failure staff should hear about (the operations feature posts a #staff-chat alert). Published by the router
 # (interaction handler errors), the command tree (command errors), the scheduler (a task failed permanently), the
-# notifier (a customer notification could not be delivered by DM nor in the fallback channel) and features. The
-# payload never carries private data: kind ("interaction" | "command" | "task" | "notification" | "role") plus
-# identifiers - source (route/command/task kind), error_id, error (exception type name), task_id, attempts, user_id.
+# notifier (a customer notification could not be delivered by DM nor in the fallback channel, or a channel post
+# failed) and features. The payload never carries private data: kind ("interaction" | "command" | "task" |
+# "notification" | "role") plus identifiers - source (route/command/task/notification kind), error_id, error
+# (exception type name), task_id, attempts, user_id, channel_id.
 FAILURE = "bot.failure"
 
 
