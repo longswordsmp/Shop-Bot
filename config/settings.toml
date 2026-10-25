@@ -277,6 +277,10 @@ id = "united_states"
 status = "full"
 
 [[shipping.regions]]
+id = "americas"
+status = "full"
+
+[[shipping.regions]]
 id = "europe"
 status = "full"
 

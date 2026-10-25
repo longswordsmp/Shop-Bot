@@ -153,8 +153,8 @@ what it is for, its Discord length limit and its placeholders (`{channel_catalog
 in by the bot).
 
 **Decisions in `config/settings.toml`** (chosen for you; change any): currency `USD`, manual payment (staff post
-payment instructions in the order ticket and confirm the payment), shipping to all of the US except Alaska and North
-Dakota and to Europe, 6 rules on #welcome, FAQ topics, four problem types, reviews 7 days after completion (1-5
+payment instructions in the order ticket and confirm the payment), shipping to every country in the Americas (in the US:
+all states except Alaska and North Dakota) and to Europe, 6 rules on #welcome, FAQ topics, four problem types, reviews 7 days after completion (1-5
 stars), a 24-hour unpaid-order reminder, cart expiry after 24 hours, the shipping-address form at Submit, staff
 reminders. The full list is in `docs/DECISIONS.md` §10a.
 

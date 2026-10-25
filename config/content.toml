@@ -686,6 +686,14 @@ shipping.region.alaska.name = "Alaska"
 # field_name · max 256 characters · optional · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
 shipping.region.alaska.note = ""
 
+# Name of the region 'americas' (listed under the 'full' status).
+# field_name · max 256 characters · required
+shipping.region.americas.name = "Rest of the Americas"
+
+# Optional short note next to the region 'americas' (written with shipping.format.region_with_note). You can link channels with {channel_<key>} (e.g. {channel_faq}); they become clickable #channel links.
+# field_name · max 256 characters · optional · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+shipping.region.americas.note = "Canada, Mexico, Central America, South America and the Caribbean"
+
 # Name of the region 'europe' (listed under the 'full' status).
 # field_name · max 256 characters · required
 shipping.region.europe.name = "Europe"
@@ -1802,7 +1810,7 @@ checkout.status_label.rejected = "Rejected"
 
 # Optional help text under the 'address' field label.
 # input_description · max 100 characters · optional
-checkout.submission.form.address.description = "We ship to the United States (except Alaska and North Dakota) and Europe."
+checkout.submission.form.address.description = "We ship to the Americas and Europe (in the US, not to Alaska or North Dakota)."
 
 # Label of the 'address' field in the submission form (also the field name under which the answer is shown to the customer and to staff).
 # input_label · max 45 characters · required

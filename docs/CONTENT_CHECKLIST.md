@@ -294,6 +294,8 @@ Feature `shipping` — enabled.
 |---|---|---|---|---|---|
 | ✅ | `shipping.region.alaska.name` | Name of the region 'alaska' (listed under the 'none' status). | field_name (256) | required |  |
 | ▫️ | `shipping.region.alaska.note` | Optional short note next to the region 'alaska' (written with shipping.format.region_with_note). You can link channels with {channel_<key>} (e.g. {channel_faq}); they become clickable #channel links. | field_name (256) | optional | `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
+| ✅ | `shipping.region.americas.name` | Name of the region 'americas' (listed under the 'full' status). | field_name (256) | required |  |
+| ✅ | `shipping.region.americas.note` | Optional short note next to the region 'americas' (written with shipping.format.region_with_note). You can link channels with {channel_<key>} (e.g. {channel_faq}); they become clickable #channel links. | field_name (256) | optional | `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
 | ✅ | `shipping.region.europe.name` | Name of the region 'europe' (listed under the 'full' status). | field_name (256) | required |  |
 | ▫️ | `shipping.region.europe.note` | Optional short note next to the region 'europe' (written with shipping.format.region_with_note). You can link channels with {channel_<key>} (e.g. {channel_faq}); they become clickable #channel links. | field_name (256) | optional | `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
 | ✅ | `shipping.region.north_dakota.name` | Name of the region 'north_dakota' (listed under the 'none' status). | field_name (256) | required |  |
@@ -1060,7 +1062,7 @@ Feature `operations` — enabled.
 
 ## Summary
 
-- Required keys (for the listed features): 337
+- Required keys (for the listed features): 338
 - Required keys still missing: 0
 
 Legend: ✅ configured · ❌ required and missing · ▫️ optional and empty

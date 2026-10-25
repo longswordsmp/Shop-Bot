@@ -122,9 +122,10 @@ def test_shipped_settings_configure_the_three_guides() -> None:
     ]
     assert [s.questions for s in settings.faq.sections] == [3, 3, 3, 2, 2]
     assert settings.shipping.statuses == ("full", "none")
-    # The owner ships to all of the US and Europe, except Alaska and North Dakota.
+    # The owner ships to every country in the Americas and to Europe, except Alaska and North Dakota.
     assert [(r.id, r.status) for r in settings.shipping.regions] == [
         ("united_states", "full"),
+        ("americas", "full"),
         ("europe", "full"),
         ("alaska", "none"),
         ("north_dakota", "none"),
