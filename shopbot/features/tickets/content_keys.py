@@ -91,12 +91,11 @@ CHANNEL_NAME_MAX = 100
 # million) and {user} (usernames are cut to 32 characters, see service.channel_user_slug).
 NUMBER_DIGITS_WORST_CASE = 7
 USER_SLUG_MAX = 32
-DEFAULT_MAX_CREATED_PER_DAY = 10
 
 
 def daily_creation_cap(settings: Settings) -> int:
     """tickets.max_created_per_user_per_day: support tickets one user may create per 24 hours (0 = unlimited)."""
-    return int(getattr(settings.tickets, "max_created_per_user_per_day", DEFAULT_MAX_CREATED_PER_DAY))
+    return settings.tickets.max_created_per_user_per_day
 
 
 def channel_name_length(pattern: str, *, prefix: int, number: int, user: int) -> int:

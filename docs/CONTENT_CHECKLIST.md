@@ -154,7 +154,7 @@ Feature `tickets` — enabled.
 |---|---|---|---|---|---|
 | ❌ | `tickets.created.description` | Private reply after a ticket was created. {channel_mention} links the new ticket channel. {number} is the ticket number, zero-padded to tickets.number_padding digits. | description (4096) | required | `{channel_mention}`, `{number}` |
 | ❌ | `tickets.error.not_open` | Private error when a ticket button cannot be used in the ticket's current state (e.g. closing an already closed ticket, claiming an already claimed ticket, deleting an open ticket). | description (4096) | required |  |
-| ❌ | `tickets.limit_reached.description` | Private error when the customer already has the maximum number of open tickets in that category. {limit} is that maximum. | description (4096) | required | `{limit}` |
+| ❌ | `tickets.limit_reached.description` | Private error when the customer reached a ticket limit: the maximum number of open tickets in that category (also checked when they reopen their own closed ticket), or the maximum number of tickets created in 24 hours (tickets.max_created_per_user_per_day). {limit} is that maximum. | description (4096) | required | `{limit}` |
 
 ### Ticket panel
 

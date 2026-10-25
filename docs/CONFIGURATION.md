@@ -132,7 +132,9 @@ and leaves overwrites you added for other roles/members untouched.
 | `number_padding` | 4 | Zero-padding of ticket numbers. |
 
 Per category: `id` (internal), `discord_category` (category key where channels are created), `staff_roles`,
-`max_open_per_user` (0 = global), `button_style`, `ping_staff` (mention staff roles in the alert), and an optional
+`max_open_per_user` (0 = global), `button_style`, `ping_staff` (mention staff roles in the alert; the pinged roles
+must be mentionable — `mentionable = true` in `[[server.roles]]` — or the bot cannot notify them, which `/setup`
+reports), and an optional
 `[[tickets.categories.form]]` (up to 5 fields: `id`, `style` = `short`/`paragraph`, `required`, `min_length`,
 `max_length`) shown before the ticket is created.
 

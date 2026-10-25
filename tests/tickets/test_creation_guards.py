@@ -38,9 +38,8 @@ LONG_NAMES = {"tickets": {"channel_name_pattern": "{prefix}-{user}-{number}", "n
 
 
 def _set_daily_cap(tenv: TestEnv, value: int) -> None:
-    """tickets.max_created_per_user_per_day (works with and without the settings field being declared)."""
-    t = dataclasses.replace(tenv.app.settings.tickets)
-    object.__setattr__(t, "max_created_per_user_per_day", value)
+    """Set tickets.max_created_per_user_per_day on the running settings."""
+    t = dataclasses.replace(tenv.app.settings.tickets, max_created_per_user_per_day=value)
     tenv.app.settings = dataclasses.replace(tenv.app.settings, tickets=t)
 
 

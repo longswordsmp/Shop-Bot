@@ -72,4 +72,5 @@ perform staff actions check staff status inside the handler, e.g. per-ticket-cat
 - `tickets.auto_close`
 - `tickets.auto_close_warn`
 - `tickets.delete`
+- `tickets.recover_creating`
 - `tickets.transcript`

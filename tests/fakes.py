@@ -473,6 +473,7 @@ BOT_GUILD_PERMISSIONS = discord.Permissions(
     add_reactions=True,
     create_public_threads=True,
     create_private_threads=True,
+    send_messages_in_threads=True,
     view_channel=True,
     send_messages=True,
     embed_links=True,

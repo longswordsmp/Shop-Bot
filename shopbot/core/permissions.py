@@ -22,7 +22,16 @@ BOT_PERMISSIONS: dict[str, tuple[str, ...]] = {
     "base": ("view_channel", "send_messages", "embed_links", "read_message_history", "use_external_emojis"),
     # /setup denies these on @everyone in read-only channels; Discord only lets a bot set permissions it holds.
     "setup": ("manage_roles", "manage_channels", "add_reactions", "create_public_threads", "create_private_threads"),
-    "tickets": ("manage_channels", "manage_roles", "attach_files", "manage_messages"),
+    # Ticket overwrites deny thread use to owners; Discord only lets a bot deny permissions it holds itself.
+    "tickets": (
+        "manage_channels",
+        "manage_roles",
+        "attach_files",
+        "manage_messages",
+        "create_public_threads",
+        "create_private_threads",
+        "send_messages_in_threads",
+    ),
     "transcripts": ("read_message_history", "attach_files"),
     "catalog": ("attach_files",),
 }

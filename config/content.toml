@@ -328,7 +328,7 @@ tickets.created.description = ""
 # description · max 4096 characters · required
 tickets.error.not_open = ""
 
-# Private error when the customer already has the maximum number of open tickets in that category. {limit} is that maximum.
+# Private error when the customer reached a ticket limit: the maximum number of open tickets in that category (also checked when they reopen their own closed ticket), or the maximum number of tickets created in 24 hours (tickets.max_created_per_user_per_day). {limit} is that maximum.
 # description · max 4096 characters · required · placeholders: {limit}
 tickets.limit_reached.description = ""
 
