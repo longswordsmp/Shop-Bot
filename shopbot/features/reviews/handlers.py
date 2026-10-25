@@ -10,21 +10,33 @@ the order channel, and only for the customer the review belongs to.
 Each handler re-loads the review by ID, checks the server, the customer and the state, and changes state only with
 the repository's conditional updates, so duplicate or concurrent clicks never apply twice. Replies are built before
 any state change: if text is missing, nothing changes and the router answers with the 'unavailable' message.
+
+Discord keeps showing the rating a customer picked until the request message is edited, and picking the same rating
+again sends nothing. So when the comment form opens, and when a submitted comment is refused, the request's rating
+menu is re-rendered (best effort; its text and ping stay as they are); otherwise a customer who closed the form or
+had the comment refused could not pick that rating again.
 """
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import logging
+from typing import TYPE_CHECKING, NoReturn
 
+import discord
+
+from shopbot.config.content import MissingContent
 from shopbot.features import core_keys as ck
 from shopbot.features.reviews import repo, service, views
 from shopbot.features.reviews.content_keys import REVIEWS
-from shopbot.ui.discord_render import check_modal
+from shopbot.logging_setup import log_event
+from shopbot.ui.discord_render import RenderError, check_message, check_modal, to_view
 from shopbot.ui.routing import Ctx, HandlerError
 from shopbot.ui.spec import MessageSpec
 
 if TYPE_CHECKING:
     from shopbot.context import App
+
+log = logging.getLogger(__name__)
 
 
 async def _load(ctx: Ctx) -> repo.Review:
@@ -46,6 +58,31 @@ async def _replace_request(ctx: Ctx, spec: MessageSpec) -> None:
         await ctx.update(spec)
     else:
         await ctx.respond(spec, ephemeral=True)
+
+
+async def _reset_request(ctx: Ctx, review_id: int, order_number: str) -> None:
+    """Best effort: re-render the rating menu and decline button on the request message (no rating selected).
+
+    Only the components change. After the comment form was opened the message is edited directly; for a refused
+    comment the edit is the answer to the form submission (the error follows as a private followup).
+    """
+    message = ctx.interaction.message
+    if message is None:
+        return
+    try:
+        spec = views.prompt_view(ctx.app.ui, ctx.app.settings.reviews, review_id=review_id, order_number=order_number)
+        check_message(spec)
+    except (MissingContent, RenderError) as exc:
+        log_event(log, logging.INFO, "reviews_request_reset_skipped", review_id=review_id, error=type(exc).__name__)
+        return
+    view = to_view(MessageSpec(rows=spec.rows))
+    try:
+        if ctx.responded:
+            await message.edit(view=view)
+        else:
+            await ctx.interaction.response.edit_message(view=view)
+    except discord.HTTPException as exc:
+        log_event(log, logging.INFO, "reviews_request_reset_failed", review_id=review_id, status=exc.status)
 
 
 async def _refuse(ctx: Ctx, review: repo.Review, outcome: repo.Outcome) -> None:
@@ -103,8 +140,16 @@ async def on_rate(ctx: Ctx) -> None:
         return
     if modal is not None:
         await ctx.send_modal(modal)
+        # The form can be closed or its comment refused: the menu must not keep showing this rating.
+        await _reset_request(ctx, review.id, number)
         return
     await _finish(ctx, result.review, thanks)
+
+
+async def _refuse_comment(ctx: Ctx, review: repo.Review, order_number: str) -> NoReturn:
+    """The submitted comment is not accepted: reset the request's rating menu, then answer with the error."""
+    await _reset_request(ctx, review.id, order_number)
+    raise HandlerError(ck.ERROR_INVALID_INPUT)
 
 
 async def on_comment(ctx: Ctx) -> None:
@@ -117,12 +162,12 @@ async def on_comment(ctx: Ctx) -> None:
     if review.status == repo.DECLINED:
         await _refuse(ctx, review, repo.Outcome.CLOSED)
         return
+    number = _number(ctx, review)
     comment = ctx.fields.get(views.COMMENT_INPUT_ID, "").strip() if settings.allow_comment else ""
     if settings.comment_required and not comment:
-        raise HandlerError(ck.ERROR_INVALID_INPUT)
+        await _refuse_comment(ctx, review, number)
     if len(comment) > settings.comment_max_length:
-        raise HandlerError(ck.ERROR_INVALID_INPUT)
-    number = _number(ctx, review)
+        await _refuse_comment(ctx, review, number)
     thanks = views.thanks_view(app.ui, order_number=number)
     if review.rating is not None and 1 <= review.rating <= settings.rating_scale:
         # Refuse a comment the published review could not show (Discord limits after escaping), so it can be
@@ -135,7 +180,7 @@ async def on_comment(ctx: Ctx) -> None:
             comment=comment,
         )
         if not service.check_publishable(candidate):
-            raise HandlerError(ck.ERROR_INVALID_INPUT)
+            await _refuse_comment(ctx, review, number)
     result = await app.db.transaction(
         repo.submit_comment, review.id, user_id=ctx.user_id, comment=comment, now=app.clock.now()
     )

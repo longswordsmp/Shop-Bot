@@ -20,6 +20,10 @@ Flow
   Discord error) is retried by the task ``reviews.publish`` (dedupe ``reviews.publish:<review_id>``) until it
   succeeds: a submitted review is never lost. Pending publications are re-queued at startup and by /setup.
 - Publishing is serialized per review (in-process lock + conditional UPDATE), so a review is never posted twice.
+  A publication claim is stored before each post and cleared once its message is recorded. When an attempt finds
+  the claim of an earlier one (the process stopped between the post and the record, or Discord created the message
+  but the answer was lost), it first looks through the bot's recent messages in the reviews channel for a post
+  showing exactly this review and records that one instead of posting again.
 """
 
 from __future__ import annotations
@@ -40,7 +44,7 @@ from shopbot.db.repos import notifications as notif_repo
 from shopbot.features.reviews import repo, views
 from shopbot.features.reviews.content_keys import REVIEWS
 from shopbot.logging_setup import log_event
-from shopbot.ui.discord_render import RenderError, edit_kwargs, send_spec
+from shopbot.ui.discord_render import RenderError, edit_kwargs, send_spec, to_embed
 from shopbot.ui.limits import validate_message
 from shopbot.ui.spec import MessageSpec
 
@@ -58,6 +62,8 @@ NOT_READY_RETRY_SECONDS = 3600
 PROMPT_MAX_WAIT_SECONDS = 7 * 24 * 3600
 # After the scheduler's quick retries are used up, a pending publication is retried hourly until it succeeds.
 PUBLISH_SLOW_RETRY_SECONDS = 3600
+# How many recent messages of the reviews channel are searched for an unrecorded post of a claimed review.
+PUBLISH_HISTORY_LIMIT = 50
 
 
 def prompt_dedupe(order_id: int) -> str:
@@ -234,8 +240,41 @@ def _publish_failed(review_id: int, reason: str, **fields: object) -> Publish:
     return Publish.FAILED
 
 
+EmbedKey = tuple[str, str, tuple[tuple[str, str, bool], ...]]
+
+
+def _embed_key(embed: discord.Embed) -> EmbedKey:
+    """What identifies a published review on a message: its title, description and fields (the timestamp differs
+    between attempts). Surrounding whitespace is ignored in case Discord trims it."""
+    return (
+        (embed.title or "").strip(),
+        (embed.description or "").strip(),
+        tuple(((f.name or "").strip(), (f.value or "").strip(), bool(f.inline)) for f in embed.fields),
+    )
+
+
+async def _unrecorded_posts(app: App, channel: discord.TextChannel, spec: MessageSpec) -> list[int]:
+    """IDs of the bot's recent messages in ``channel`` that show exactly ``spec`` (newest first).
+
+    Raises ``discord.HTTPException`` when the channel history cannot be read.
+    """
+    bot_user = app.bot.user if app.bot is not None else None
+    if bot_user is None:  # pragma: no cover - publishing runs only while connected
+        return []
+    expected = [_embed_key(to_embed(embed)) for embed in spec.embeds]
+    found: list[int] = []
+    async for message in channel.history(limit=PUBLISH_HISTORY_LIMIT):
+        if message.author.id == bot_user.id and [_embed_key(e) for e in message.embeds] == expected:
+            found.append(message.id)
+    return found
+
+
 async def publish_review(app: App, review_id: int) -> Publish:
-    """Post a submitted review in the reviews channel and mark it published (at most once)."""
+    """Post a submitted review in the reviews channel and mark it published (at most once).
+
+    The publication claim is stored before posting. If an earlier attempt left its claim, a post of that attempt
+    that was never recorded is adopted (recorded as this review's message) instead of posting a second copy.
+    """
     async with review_lock(app, review_id):
         review = await get_review(app, review_id)
         if review is None or not review.submitted or review.rating is None:
@@ -256,26 +295,47 @@ async def publish_review(app: App, review_id: int) -> Publish:
             )
         except MissingContent as exc:
             return _publish_failed(review_id, "missing_content", content_key=exc.key)
-        try:
-            message = await send_spec(channel, spec)
-        except RenderError:
-            return _publish_failed(review_id, "limits")
-        except discord.HTTPException as exc:
-            return _publish_failed(review_id, "discord_error", status=exc.status, code=exc.code)
-        stored = await app.db.transaction(repo.mark_published, review_id, message_id=message.id, now=app.clock.now())
-        if not stored:  # pragma: no cover - removal also takes the review lock
-            try:
-                await message.delete()
-            except discord.HTTPException:
-                log.warning("could not delete the stale publication of review %s", review_id)
+        claimed = await app.db.transaction(
+            repo.claim_publication, review_id, channel_id=channel.id, now=app.clock.now()
+        )
+        if claimed is None:  # pragma: no cover - checked above; removal also takes the review lock
             return Publish.SKIPPED
-    log_event(log, logging.INFO, "reviews_published", review_id=review_id, message_id=message.id)
+        message_id: int | None = None
+        if claimed:
+            try:
+                candidates = await _unrecorded_posts(app, channel, spec)
+            except discord.HTTPException as exc:
+                # Posting without knowing whether the earlier attempt's post exists could show the review twice.
+                return _publish_failed(review_id, "history_unavailable", status=exc.status, code=exc.code)
+            if candidates:
+                message_id = await app.db.transaction(
+                    repo.adopt_publication, review_id, message_ids=candidates, now=app.clock.now()
+                )
+        adopted = message_id is not None
+        if message_id is None:
+            try:
+                message = await send_spec(channel, spec)
+            except RenderError:
+                return _publish_failed(review_id, "limits")
+            except discord.HTTPException as exc:
+                return _publish_failed(review_id, "discord_error", status=exc.status, code=exc.code)
+            stored = await app.db.transaction(
+                repo.record_publication, review_id, message_id=message.id, now=app.clock.now()
+            )
+            if not stored:  # pragma: no cover - removal also takes the review lock
+                try:
+                    await message.delete()
+                except discord.HTTPException:
+                    log.warning("could not delete the stale publication of review %s", review_id)
+                return Publish.SKIPPED
+            message_id = message.id
+    log_event(log, logging.INFO, "reviews_published", review_id=review_id, message_id=message_id, adopted=adopted)
     await app.audit.record(
         "reviews.published",
         actor_id=None,
         target_type="review",
         target_id=review_id,
-        details={"order_number": review.order_number, "rating": review.rating, "message_id": message.id},
+        details={"order_number": review.order_number, "rating": review.rating, "message_id": message_id},
     )
     return Publish.PUBLISHED
 
