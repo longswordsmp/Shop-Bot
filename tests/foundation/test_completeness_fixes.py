@@ -269,8 +269,8 @@ async def test_listing_refresh_overlapping_a_withdrawal_does_not_repost(
     for index in range(7):
         await add_product(tenv, f"[p{index}]")
     await catalog_service.request_listing_refresh(app)
-    assert len(channel.messages) == 2
-    await add_product(tenv, "[new]")  # the next refresh edits both messages
+    assert len(channel.messages) == 3  # header message, then 5 + 2 products
+    await add_product(tenv, "[new]")  # the next refresh edits the last product message
 
     required = next(k.key for k in app.content.registry.all() if k.feature == "catalog" and k.required)
     original = catalog_service.upsert_message

@@ -15,7 +15,7 @@ from shopbot.core.permissions import CHANNEL_SEND_PERMISSIONS
 from shopbot.features.announcements import service, views
 from shopbot.features.announcements.content_keys import ANNOUNCEMENTS, field_name_key
 from shopbot.ui.limits import EMBED_TOTAL_CHARS
-from shopbot.ui.spec import MessageSpec, ModalSpec, PreviewState
+from shopbot.ui.spec import FileSpec, MessageSpec, ModalSpec, PreviewState
 
 if TYPE_CHECKING:
     from shopbot.context import App
@@ -28,6 +28,15 @@ SAMPLE_ROLE_ID = 100_000_000_000_000_003
 SAMPLE_TITLE = "[sample title]"
 SAMPLE_MESSAGE = "[sample announcement message]"
 SAMPLE_IMAGE = f"{service.IMAGE_BASENAME}.png"
+# A tiny valid PNG (1x1 pixel) so the preview shows an attached image without any external file.
+SAMPLE_FILE = FileSpec.of(
+    SAMPLE_IMAGE,
+    bytes.fromhex(
+        "89504e470d0a1a0a0000000d4948445200000001000000010806000000"
+        "1f15c4890000000d49444154789c6360f8cf00000301010018dd8db00000000049454e44ae426082"
+    ),
+    "image/png",
+)
 EXAMPLE_FIELDS = (
     views.FormInput("example_1", "", "short", False, 256),
     views.FormInput("example_2", "", "paragraph", True, 1024),
@@ -104,7 +113,7 @@ def preview(app: App) -> list[PreviewState]:
             title=SAMPLE_TITLE,
             message=SAMPLE_MESSAGE,
             fields=service.field_entries(app, values),
-            image_filename=SAMPLE_IMAGE,
+            image=SAMPLE_FILE,
             mention_role_id=SAMPLE_ROLE_ID,
         ),
     )
@@ -122,7 +131,7 @@ def preview(app: App) -> list[PreviewState]:
                 title=SAMPLE_TITLE,
                 message=SAMPLE_MESSAGE,
                 fields=example_fields,
-                image_filename=SAMPLE_IMAGE,
+                image=SAMPLE_FILE,
                 mention_role_id=SAMPLE_ROLE_ID,
             ),
         )

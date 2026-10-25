@@ -31,6 +31,7 @@ posting a second copy.
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 import discord
@@ -39,6 +40,7 @@ from shopbot.config.content import MissingContent
 from shopbot.core.panels import upsert_message
 from shopbot.core.permissions import CHANNEL_SEND_PERMISSIONS, can_manage_role, missing_permissions
 from shopbot.core.scheduler import PermanentTaskError
+from shopbot.features.catalog import images as catalog_images
 from shopbot.features.catalog import repo as catalog_repo
 from shopbot.features.catalog.repo import Product
 from shopbot.features.new_arrivals import content_keys as keys
@@ -47,7 +49,7 @@ from shopbot.features.new_arrivals.content_keys import NEW_ARRIVALS
 from shopbot.features.server_keys import channel_mentions, channel_url
 from shopbot.logging_setup import log_event
 from shopbot.ui.discord_render import RenderError, check_message, send_spec
-from shopbot.ui.spec import MessageSpec
+from shopbot.ui.spec import FileSpec, MessageSpec
 
 if TYPE_CHECKING:
     from shopbot.config.settings import NewArrivalsSettings, Settings
@@ -256,14 +258,20 @@ def _still_qualifies(event: str, product: Product) -> bool:
     return is_orderable(product) if event == views.RESTOCK else product.listed
 
 
-def build_announcement(app: App, guild: discord.Guild, event: views.Event, product: Product) -> MessageSpec:
+def build_announcement(
+    app: App,
+    guild: discord.Guild,
+    event: views.Event,
+    product: Product,
+    image: tuple[str | None, Sequence[FileSpec]] | None = None,
+) -> MessageSpec:
     """The update for ``product``. Raises ``MissingContent`` when required text is not configured."""
     na = app.settings.new_arrivals
     role = notification_role(app, guild) if na.mention_role else None
     listing = app.settings.catalog.listing_channel
     catalog_link = channel_url(app, listing) if listing else None
     return views.announcement(
-        app.ui, event, product, role_id=role.id if role is not None else None, catalog_url=catalog_link
+        app.ui, event, product, role_id=role.id if role is not None else None, catalog_url=catalog_link, image=image
     )
 
 
@@ -314,7 +322,7 @@ async def announce(app: App, *, product_id: int, event: views.Event, version: in
         log_event(log, logging.WARNING, "new_arrivals_update_pending", reason="channel_missing", **fields)
         raise AnnouncePending(f"channel '{na.channel}' does not exist")
     try:
-        spec = build_announcement(app, guild, event, product)
+        spec = build_announcement(app, guild, event, product, await catalog_images.image_for(app, product))
     except MissingContent as exc:
         log_event(log, logging.WARNING, "new_arrivals_update_skipped", reason="missing_content", key=exc.key, **fields)
         return "skipped"

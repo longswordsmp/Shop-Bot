@@ -112,6 +112,23 @@ async def test_product_image_is_shown(env: NaEnv) -> None:
     assert restock.embeds[0].image.url == "https://cdn.example.com/a.png"
 
 
+async def test_uploaded_product_image_is_attached_to_the_update(env: NaEnv) -> None:
+    from shopbot.features.catalog import images
+    from tests.catalog.test_images import png
+
+    product_id = await add_product(env, stock="1")
+    await run_tasks(env)
+    uploaded = images.validate_bytes("photo.png", png())
+    await env.app.db.transaction(images.store_image, GUILD_ID, product_id, uploaded, actor_id=STAFF_ID, now=1)
+    await set_stock(env, product_id, "set", 0)
+    await set_stock(env, product_id, "set", 2)
+    await run_tasks(env)
+    restock = env.updates()[-1]
+    url = restock.embeds[0].image.url or ""
+    assert url.startswith("attachment://")
+    assert [f.filename for f in restock.files] == [url.removeprefix("attachment://")]
+
+
 async def test_switching_a_product_back_on_is_announced_as_new(env: NaEnv) -> None:
     product_id = await add_product(env, stock="3")
     await run_tasks(env)

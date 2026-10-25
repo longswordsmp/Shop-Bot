@@ -5,8 +5,12 @@ Visibility: ``default_permissions(manage_guild=True)`` hides the group from memb
 ``require_staff`` plus ``require_manager`` (admins, or members holding a role in ``catalog.manager_roles``);
 general staff without a manager role are refused. Replies are operator text and always ephemeral.
 
-Product images are accepted only as https links: Discord attachment CDN links are signed and expire, so an
-uploaded file cannot be used as a lasting product image.
+Product images are an https link or an uploaded file (``/product image file:``). An uploaded file is downloaded
+and stored in the database (Discord attachment links are signed and expire), then attached to every listing
+message that shows it, again on every edit.
+
+``/product remove`` asks for confirmation with buttons (staff-only, routed ``ct:remove``/``ct:remove_no``) and then
+archives the product (the same rules as ``/product archive``: refused while pending orders hold units).
 """
 
 from __future__ import annotations
@@ -161,17 +165,24 @@ def build_product_group() -> app_commands.Group:
             ),
         )
 
-    @group.command(name="image", description="Set a product's image from an https link, or remove it.")
+    @group.command(name="image", description="Set a product's image (https link or uploaded file), or remove it.")
     @app_commands.describe(
         product_id="Product number.",
-        url="Permanent https:// image link (uploaded Discord attachments expire). Leave out to remove the image.",
+        url="Permanent https:// image link. Leave out (and give no file) to remove the image.",
+        file="PNG, JPEG, GIF or WebP image, at most 8 MB (stored by the bot).",
     )
     @require_staff(service.manager_role_keys)
     @require_manager()
-    async def image(interaction: discord.Interaction[Any], product_id: ProductId, url: str = "") -> None:
+    async def image(
+        interaction: discord.Interaction[Any],
+        product_id: ProductId,
+        url: str = "",
+        file: discord.Attachment | None = None,
+    ) -> None:
         app = app_of(interaction)
         await _run(
-            interaction, lambda: service.set_image(app, actor_id=interaction.user.id, product_id=product_id, url=url)
+            interaction,
+            lambda: service.set_image(app, actor_id=interaction.user.id, product_id=product_id, url=url, upload=file),
         )
 
     @group.command(name="toggle", description="Switch a product between active (listed) and inactive (hidden).")
@@ -192,6 +203,17 @@ def build_product_group() -> app_commands.Group:
             interaction,
             lambda: service.archive(app, actor_id=interaction.user.id, product_id=product_id, confirm=confirm),
         )
+
+    @group.command(name="remove", description="Remove a product from the catalog (asks for confirmation).")
+    @app_commands.describe(product_id="Product number.")
+    @require_staff(service.manager_role_keys)
+    @require_manager()
+    async def remove(interaction: discord.Interaction[Any], product_id: ProductId) -> None:
+        if not await _ready(interaction):
+            return
+        app = app_of(interaction)
+        await interaction.response.defer(ephemeral=True, thinking=True)
+        await reply(interaction, await service.remove_prompt(app, product_id), ephemeral=True)
 
     @group.command(name="sort", description="Set a product's position in the listing (lower comes first).")
     @app_commands.describe(
@@ -235,6 +257,7 @@ def build_product_group() -> app_commands.Group:
     image.autocomplete("product_id")(active_products)
     toggle.autocomplete("product_id")(active_products)
     archive.autocomplete("product_id")(active_products)
+    remove.autocomplete("product_id")(active_products)
     sort.autocomplete("product_id")(active_products)
     view.autocomplete("product_id")(all_products)
     return group

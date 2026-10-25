@@ -60,7 +60,7 @@ async def test_group_metadata(tenv: TestEnv) -> None:
     assert group.default_permissions == discord.Permissions(manage_guild=True)
     assert group.guild_only is True
     names = {c.name for c in group.commands}
-    assert names == {"add", "edit", "price", "stock", "image", "toggle", "archive", "sort", "view", "list"}
+    assert names == {"add", "edit", "price", "stock", "image", "toggle", "archive", "remove", "sort", "view", "list"}
     for command in group.commands:
         assert command.description and all(p.description for p in command.parameters)
         assert len(command.checks) == 2
@@ -160,7 +160,7 @@ async def test_add_form_creates_product_audits_and_refreshes_listing(tenv: TestE
     assert product.description == "[new description]"
     listing_field = submitted.last_sent.embeds[0].fields[0]
     assert listing_field.name == tenv.app.op("catalog.refresh.field")
-    assert channel.messages and channel.messages[0].embeds[1].title == "[new product]"
+    assert len(channel.messages) == 2 and channel.messages[1].embeds[0].title == "[new product]"
     [event] = await audit_actions(tenv, "catalog.product_")
     assert (event.action, event.actor_id, event.target_id) == ("catalog.product_add", admin.id, str(product.id))
 
@@ -396,7 +396,7 @@ async def test_toggle_hides_and_shows_product_in_listing(tenv: TestEnv) -> None:
     assert "[toggled]" not in channel.messages[0].text()
     on = await invoke(tenv, admin, "toggle", product_id=product.id)
     assert _title(on) == tenv.app.op("catalog.cmd.activated", product_id=product.id)
-    assert "[toggled]" in channel.messages[0].text()
+    assert "[toggled]" in channel.messages[1].text()
     assert [e.details for e in await audit_actions(tenv, "catalog.product_toggle")] == [
         {"active": False},
         {"active": True},
@@ -433,7 +433,7 @@ async def test_sort_command_reorders_listing(tenv: TestEnv) -> None:
     second = await add_product(tenv, "[second]")
     result = await invoke(tenv, admin, "sort", product_id=second.id, position=-5)
     assert _title(result) == tenv.app.op("catalog.cmd.sorted", product_id=second.id, position=-5)
-    assert [e.title for e in channel.messages[0].embeds[1:]] == ["[second]", "[first]"]
+    assert [e.title for e in channel.messages[1].embeds] == ["[second]", "[first]"]
     assert first.sort_order == 0
 
 

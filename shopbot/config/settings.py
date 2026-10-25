@@ -401,6 +401,8 @@ class CatalogSettings:
     manager_roles: tuple[str, ...] = ()
     browse_enabled: bool = True
     image_hosts: tuple[str, ...] = ()
+    # Products with 1..N units left show the "low stock" availability (warning color); 0 = no low-stock state.
+    low_stock_threshold: int = 0
 
 
 @dataclass(frozen=True)
@@ -845,6 +847,7 @@ def parse_settings(data: dict[str, Any]) -> Settings:
         manager_roles=ca.keys_("manager_roles"),
         browse_enabled=ca.bool_("browse_enabled", True),
         image_hosts=ca.strs_("image_hosts"),
+        low_stock_threshold=ca.int_("low_stock_threshold", 0, min_=0, max_=1_000_000),
     )
     ca.finish()
 

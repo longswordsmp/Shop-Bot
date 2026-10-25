@@ -17,6 +17,7 @@ from shopbot.ui.limits import EMBED_TITLE, INPUT_LABEL, INPUT_VALUE
 from shopbot.ui.spec import (
     ButtonSpec,
     EmbedField,
+    FileSpec,
     InputStyle,
     MessageSpec,
     ModalSpec,
@@ -132,7 +133,7 @@ def announcement_message(
     title: str,
     message: str,
     fields: Sequence[tuple[str, str]] = (),
-    image_filename: str | None = None,
+    image: FileSpec | None = None,
     mention_role_id: int | None = None,
 ) -> MessageSpec:
     """The post in the announcements channel. ``fields`` are (configured heading, staff value) pairs; empty values
@@ -142,11 +143,15 @@ def announcement_message(
         description=message,
         tone="primary",
         fields=tuple(EmbedField(name=name, value=value) for name, value in fields if value),
-        image_url=attachment_url(image_filename) if image_filename else None,
+        image_url=attachment_url(image.filename) if image is not None else None,
         panel=True,
         timestamp=True,
     )
-    return MessageSpec(embeds=(embed,), mention_role_ids=(mention_role_id,) if mention_role_id else ())
+    return MessageSpec(
+        embeds=(embed,),
+        mention_role_ids=(mention_role_id,) if mention_role_id else (),
+        files=(image,) if image is not None else None,
+    )
 
 
 # -- operator replies -------------------------------------------------------------------------------------------

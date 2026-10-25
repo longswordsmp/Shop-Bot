@@ -12,7 +12,8 @@ import contextlib
 import hashlib
 import json
 import logging
-from dataclasses import asdict, dataclass
+from collections.abc import Awaitable, Callable
+from dataclasses import asdict, dataclass, replace
 from typing import TYPE_CHECKING, Literal
 
 import discord
@@ -28,23 +29,47 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 UpsertAction = Literal["created", "updated", "unchanged", "recreated", "moved"]
+Prepare = Callable[[MessageSpec], Awaitable[MessageSpec]]
 
 
 def spec_hash(spec: MessageSpec) -> str:
-    payload = json.dumps(asdict(spec), sort_keys=True, ensure_ascii=False, default=str)
+    """Digest of everything a message shows. Files count by name, type and sha256 (never by their bytes), so a new
+    image re-renders the message; a spec that does not manage files hashes exactly as before files existed."""
+    data = asdict(replace(spec, files=None))
+    del data["files"]
+    if spec.files is not None:
+        data["files"] = [[f.filename, f.content_type, f.sha256] for f in spec.files]
+    payload = json.dumps(data, sort_keys=True, ensure_ascii=False, default=str)
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
 async def upsert_message(
-    app: App, key: str, channel: discord.TextChannel, spec: MessageSpec, *, force: bool = False
+    app: App,
+    key: str,
+    channel: discord.TextChannel,
+    spec: MessageSpec,
+    *,
+    force: bool = False,
+    prepare: Prepare | None = None,
 ) -> tuple[discord.Message | discord.PartialMessage, UpsertAction]:
     """Create or update the message recorded under ``key`` in ``channel``.
+
+    ``prepare`` (optional) completes the spec right before it is sent or edited, e.g. loads the bytes of file
+    references (``FileSpec`` without data) from the database; it is not called when the message is unchanged, so
+    unchanged messages never load their files. The content hash comes from ``spec`` (files count by sha256).
 
     Raises ``RenderError`` (limits) or ``discord.HTTPException`` (permissions) to the caller, which
     reports them to the operator. Nothing is sent when the spec is invalid.
     """
     guild_id = app.env.guild_id
     digest = spec_hash(spec)
+    prepared: list[MessageSpec] = []
+
+    async def outgoing() -> MessageSpec:
+        if not prepared:
+            prepared.append(await prepare(spec) if prepare is not None else spec)
+        return prepared[0]
+
     record = await app.db.run(state.published_get, guild_id, key)
     action: UpsertAction = "created"
     if record is not None:
@@ -58,7 +83,7 @@ async def upsert_message(
             else:
                 try:
                     message = channel.get_partial_message(record.message_id)
-                    edited = await edit_spec(message, spec)
+                    edited = await edit_spec(message, await outgoing())
                     await app.db.transaction(
                         state.published_set, guild_id, key, channel.id, edited.id, digest, app.clock.now()
                     )
@@ -84,7 +109,7 @@ async def upsert_message(
                         message_id=record.message_id,
                         error=type(exc).__name__,
                     )
-    message = await send_spec(channel, spec)
+    message = await send_spec(channel, await outgoing())
     await app.db.transaction(state.published_set, guild_id, key, channel.id, message.id, digest, app.clock.now())
     log_event(log, logging.INFO, "panel_published", key=key, channel_id=channel.id, action=action)
     return message, action

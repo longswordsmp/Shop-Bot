@@ -19,7 +19,6 @@ Customers only ever see the published announcement. Nothing is posted except on 
 from __future__ import annotations
 
 import asyncio
-import io
 import logging
 import re
 import secrets
@@ -39,7 +38,7 @@ from shopbot.features.announcements.repo import Announcement, ImageRef
 from shopbot.logging_setup import log_event
 from shopbot.ui.discord_render import RenderError, send_kwargs
 from shopbot.ui.limits import EMBED_TOTAL_CHARS, validate_message
-from shopbot.ui.spec import MessageSpec, ModalSpec
+from shopbot.ui.spec import FileSpec, MessageSpec, ModalSpec
 
 if TYPE_CHECKING:
     from shopbot.context import App
@@ -476,17 +475,25 @@ async def _post(app: App, item: Announcement, submission: Submission) -> Posted 
         return problems
     ping = role
 
-    def build(image_filename: str | None) -> MessageSpec:
+    def build(image: FileSpec | None) -> MessageSpec:
         return views.announcement_message(
             app.ui,
             title=submission.title,
             message=submission.message,
             fields=field_entries(app, submission.values),
-            image_filename=image_filename,
+            image=image,
             mention_role_id=ping.id if ping is not None else None,
         )
 
-    problems = limit_problems(app, build(item.image.filename if item.image else None))
+    # Checked before downloading: a reference (no bytes yet) with the upload's size stands in for the image.
+    reference = (
+        FileSpec(
+            filename=f"{IMAGE_BASENAME}.png", sha256="", size=item.image.size, content_type=item.image.content_type
+        )
+        if item.image is not None
+        else None
+    )
+    problems = limit_problems(app, build(reference))
     if problems:
         return problems
     upload: tuple[bytes, str] | None = None
@@ -495,12 +502,9 @@ async def _post(app: App, item: Announcement, submission: Submission) -> Posted 
         if isinstance(downloaded, Problem):
             return [downloaded]
         upload = downloaded
-    spec = build(upload[1] if upload else None)
+    spec = build(FileSpec.of(upload[1], upload[0]) if upload else None)
     try:
-        kwargs = send_kwargs(spec)
-        if upload is not None:
-            kwargs["files"] = [discord.File(io.BytesIO(upload[0]), filename=upload[1])]
-        message = await channel.send(**kwargs)
+        message = await channel.send(**send_kwargs(spec))
     except RenderError as exc:
         shown = "; ".join(str(v) for v in exc.violations[:MAX_VIOLATIONS_SHOWN])
         return [Problem(app.op("announcements.error.limits", violations=shown), "limits")]

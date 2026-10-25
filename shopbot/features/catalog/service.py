@@ -3,10 +3,10 @@
 Public API for other features
 -----------------------------
 - ``browse_view(app, page, *, page_custom_id=..., extra_buttons=...)`` builds one page of private browsing
-  (one product per page). Checkout can embed it in its own flow: pass ``page_custom_id`` to route the
-  previous/next buttons to its own handler (e.g. ``lambda p: cid("co", "browse", session_id, p)``; the value
-  may be -1 or ``total`` on a disabled end button) and ``extra_buttons`` (a callable receiving the shown
-  ``Product`` and returning ``ButtonSpec``s, e.g. an "add to cart" button carrying the product id).
+  (one product per page, with its uploaded image attached and its buy button while checkout is on). Another
+  feature can embed it in its own flow: pass ``page_custom_id`` to route the previous/next buttons to its own
+  handler (e.g. ``lambda p: cid("co", "browse", session_id, p)``; the value may be -1 or ``total`` on a disabled
+  end button) and ``extra_buttons`` (a callable receiving the shown ``Product`` and returning ``ButtonSpec``s).
 - ``schedule_listing_refresh(app)``: call after committing a transaction that changed stock/reservations
   (``repo.reserve``/``release``/``commit_sale``); the listing is refreshed by a durable, coalesced task.
 - ``request_listing_refresh(app)``: refresh now (serialized and coalesced) and get the operator report.
@@ -23,6 +23,7 @@ import weakref
 from collections import Counter
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
+from functools import partial
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit
 
@@ -34,7 +35,7 @@ from shopbot.core.money import MoneyError, parse_amount
 from shopbot.core.panels import remove_message, upsert_message
 from shopbot.core.permissions import CHANNEL_SEND_PERMISSIONS, missing_permissions
 from shopbot.db.repos import state
-from shopbot.features.catalog import repo, views
+from shopbot.features.catalog import images, repo, views
 from shopbot.features.catalog.content_keys import CATALOG
 from shopbot.features.catalog.repo import Product
 from shopbot.logging_setup import log_event
@@ -225,8 +226,10 @@ async def _refresh_listing(app: App, st: _RefreshState) -> RefreshReport:
         return await _failed(app, st, line, "missing_permissions")
 
     products = await app.db.run(repo.list_products, guild_id)
+    # Image metadata only: the bytes are loaded (``images.load_files``) just for the messages that are sent or edited.
+    image_refs = await images.refs_for(app, products)
     try:
-        specs = views.listing_messages(app.ui, app.settings, products)
+        specs = views.listing_messages(app.ui, app.settings, products, image_refs)
     except MissingContent as exc:
         return await _failed(app, st, op("catalog.refresh.missing_content", content_key=exc.key), "missing_content")
     for index, spec in enumerate(specs):  # validate everything before changing anything
@@ -248,7 +251,7 @@ async def _refresh_listing(app: App, st: _RefreshState) -> RefreshReport:
                 # An earlier message was (re)posted at the bottom: re-post the following ones too so the
                 # listing keeps its order in the channel.
                 await remove_message(app, key)
-            _, action = await upsert_message(app, key, channel, spec)
+            _, action = await upsert_message(app, key, channel, spec, prepare=partial(images.load_files, app))
             counts[action] += 1
             repost = repost or action in ("created", "recreated", "moved")
         if not app.ready(CATALOG):
@@ -267,6 +270,8 @@ async def _refresh_listing(app: App, st: _RefreshState) -> RefreshReport:
     except discord.HTTPException as exc:
         line = op("catalog.refresh.http_error", status=exc.status)
         return await _failed(app, st, line, f"http_{exc.status}", retry=True)
+    except images.StaleImage:
+        return await _failed(app, st, op("catalog.refresh.image_changed"), "image_changed", retry=True)
     except RenderError:
         return await _failed(app, st, op("catalog.refresh.too_large", index="?", problems="render"), "limits")
 
@@ -308,7 +313,18 @@ async def browse_view(
     """Page ``page`` (0-based, clamped to the existing pages) of private browsing; see the module docs."""
     total, product, page = await app.db.run(_browse_data, app.env.guild_id, page)
     buttons: Sequence[ButtonSpec] = extra_buttons(product) if (extra_buttons is not None and product) else ()
-    return views.browse_page(app.ui, product, page, total, page_custom_id=page_custom_id, extra_buttons=tuple(buttons))
+    image = await app.db.run(images.get_image, app.env.guild_id, product.id) if product is not None else None
+    return views.browse_page(
+        app.ui,
+        product,
+        page,
+        total,
+        page_custom_id=page_custom_id,
+        extra_buttons=tuple(buttons),
+        image=image,
+        buy=app.settings.features.checkout,
+        low_stock_threshold=app.settings.catalog.low_stock_threshold,
+    )
 
 
 # ---------------------------------------------------------------------------------------------------
@@ -491,6 +507,7 @@ def _tx_archive(conn: sqlite3.Connection, guild_id: int, product_id: int, now: i
         return current, current
     if current.reserved > 0:
         raise ArchiveBlocked(product_id, current.reserved)
+    images.delete_image(conn, guild_id, product_id)  # an archived product is never shown again
     return current, repo.update_product(conn, product_id, current.version, now=now, archived=True)
 
 
@@ -645,19 +662,82 @@ async def change_stock(app: App, *, actor_id: int, product_id: int, mode: str, a
     return await _finish(app, reply, action="stock", actor_id=actor_id, product=after, details=details, before=before)
 
 
-async def set_image(app: App, *, actor_id: int, product_id: int, url: str) -> OpReply:
+def _tx_image(
+    conn: sqlite3.Connection,
+    guild_id: int,
+    product_id: int,
+    url: str | None,
+    upload: images.UploadedImage | None,
+    actor_id: int,
+    now: int,
+) -> tuple[Product, Product, images.ProductImage | None]:
+    """Set the product's image link (``url``), its uploaded image (``upload``), or clear both (neither). One kind
+    replaces the other. Every change bumps the product version (it is what the listing shows)."""
+    current = _load_mutable(conn, guild_id, product_id)
+    previous = images.get_image(conn, guild_id, product_id, with_data=False)
+    if upload is not None:
+        changed = images.store_image(conn, guild_id, product_id, upload, actor_id=actor_id, now=now)
+    else:
+        changed = images.delete_image(conn, guild_id, product_id)
+    if url != current.image_url:
+        after = repo.update_product(conn, product_id, current.version, now=now, image_url=url)
+    elif changed:
+        after = repo.touch_product(conn, product_id, current.version, now=now)
+    else:
+        after = current
+    return current, after, previous
+
+
+def upload_problem(app: App, exc: images.ImageRejected) -> InputProblems:
+    op = app.op
+    reasons = {
+        "type": op("catalog.cmd.image_type"),
+        "size": op("catalog.cmd.image_size", max_mb=images.MAX_IMAGE_BYTES // (1024 * 1024)),
+        "empty": op("catalog.cmd.image_empty"),
+        "download": op("catalog.cmd.image_download"),
+    }
+    return InputProblems([reasons.get(exc.reason, op("catalog.cmd.image_type"))])
+
+
+async def set_image(
+    app: App, *, actor_id: int, product_id: int, url: str, upload: images.Upload | None = None
+) -> OpReply:
+    """``/product image``: an https link (``url``), an uploaded file (``upload``, downloaded and stored in the
+    database), or neither to remove the image. Both at once are refused."""
     try:
-        image = validate_image_url(app, url)
-        before, after = await app.db.transaction(
-            _tx_update, app.env.guild_id, product_id, app.clock.now(), {"image_url": image}
+        if upload is not None and url.strip():
+            raise InputProblems([app.op("catalog.cmd.image_both")])
+        link = validate_image_url(app, url) if upload is None else None
+        uploaded: images.UploadedImage | None = None
+        if upload is not None:
+            product = await load_product(app, product_id)  # refuse before downloading anything for a bad product
+            if product is None:
+                raise repo.ProductNotFound(product_id)
+            if product.archived:
+                raise ArchivedProduct(product_id)
+            try:
+                uploaded = await images.read_upload(upload)
+            except images.ImageRejected as exc:
+                raise upload_problem(app, exc) from None
+        before, after, previous = await app.db.transaction(
+            _tx_image, app.env.guild_id, product_id, link, uploaded, actor_id, app.clock.now()
         )
     except _EXPECTED as exc:
         return error_reply(app, exc)
-    key = "catalog.cmd.image_set" if after.image_url else "catalog.cmd.image_cleared"
+    key = "catalog.cmd.image_set" if (after.image_url or uploaded is not None) else "catalog.cmd.image_cleared"
     reply = OpReply(app.op(key, product_id=product_id), tone="success")
     if before.version == after.version:
         return reply
-    details = {"image_url": [before.image_url, after.image_url]}
+    details: dict[str, Any] = {"image_url": [before.image_url, after.image_url]}
+    if previous is not None:
+        details["previous_upload"] = {"sha256": previous.sha256, "size": previous.size}
+    if uploaded is not None:
+        details["upload"] = {
+            "filename": uploaded.filename,
+            "content_type": uploaded.content_type,
+            "size": uploaded.size,
+            "sha256": uploaded.sha256,
+        }
     return await _finish(app, reply, action="image", actor_id=actor_id, product=after, details=details, before=before)
 
 
@@ -672,18 +752,40 @@ async def toggle_active(app: App, *, actor_id: int, product_id: int) -> OpReply:
     return await _finish(app, reply, action="toggle", actor_id=actor_id, product=after, details=details, before=before)
 
 
-async def archive(app: App, *, actor_id: int, product_id: int, confirm: bool) -> OpReply:
+async def archive(app: App, *, actor_id: int, product_id: int, confirm: bool, via: str = "archive") -> OpReply:
+    """Archive (soft-delete) a product: hidden for good, never orderable again, order history kept, uploaded image
+    deleted. Refused while pending orders hold units. ``via='remove'`` words the replies for ``/product remove``
+    (same rules); the audit action and the ``PRODUCT_CHANGED`` event are ``archive`` either way."""
     if not confirm:
         return OpReply(app.op("catalog.cmd.archive_confirm", product_id=product_id), tone="warning")
     try:
         before, after = await app.db.transaction(_tx_archive, app.env.guild_id, product_id, app.clock.now())
+    except ArchiveBlocked as exc:
+        if via == "remove":
+            text = app.op("catalog.cmd.remove_reserved", product_id=exc.product_id, reserved=exc.reserved)
+            return OpReply(text, tone="warning")
+        return error_reply(app, exc)
     except _EXPECTED as exc:
         return error_reply(app, exc)
-    reply = OpReply(app.op("catalog.cmd.archived", product_id=product_id), tone="success")
+    done_key = "catalog.cmd.removed" if via == "remove" else "catalog.cmd.archived"
+    reply = OpReply(app.op(done_key, product_id=product_id), tone="success")
     if before.version == after.version:
         return reply  # already archived: nothing changed
-    details = {"name": after.name}
+    details = {"name": after.name, "via": via}
     return await _finish(app, reply, action="archive", actor_id=actor_id, product=after, details=details, before=before)
+
+
+async def remove_prompt(app: App, product_id: int) -> MessageSpec:
+    """``/product remove``: the confirmation message (or why the product cannot be removed)."""
+    product = await load_product(app, product_id)
+    if product is None:
+        return reply_spec(app, error_reply(app, repo.ProductNotFound(product_id)))
+    if product.archived:
+        return reply_spec(app, OpReply(app.op("catalog.cmd.removed", product_id=product_id), tone="info"))
+    if product.reserved > 0:
+        text = app.op("catalog.cmd.remove_reserved", product_id=product_id, reserved=product.reserved)
+        return reply_spec(app, OpReply(text, tone="warning"))
+    return views.remove_confirm(app.ui, app.op, product)
 
 
 async def set_position(app: App, *, actor_id: int, product_id: int, position: int) -> OpReply:
@@ -709,9 +811,14 @@ async def product_details(app: App, product_id: int) -> list[MessageSpec]:
     product = await load_product(app, product_id)
     if product is None:
         return [reply_spec(app, error_reply(app, repo.ProductNotFound(product_id)))]
-    specs = [MessageSpec(embeds=(views.product_details_embed(app.ui, app.op, money_format(app), product),))]
+    image = await app.db.run(images.get_image, app.env.guild_id, product.id)
+    specs = [views.product_details_message(app.ui, app.op, money_format(app), product, image)]
+    image_url, files = images.embed_image(product, image)
     try:
-        card = MessageSpec(embeds=(views.product_embed(app.ui, product),))
+        embed = views.product_embed(
+            app.ui, product, image_url=image_url, low_stock_threshold=app.settings.catalog.low_stock_threshold
+        )
+        card = MessageSpec(embeds=(embed,), files=tuple(files))
     except MissingContent:
         card = reply_spec(app, OpReply(app.op("catalog.view.customer_preview_missing"), tone="warning"))
     if validate_message(card):

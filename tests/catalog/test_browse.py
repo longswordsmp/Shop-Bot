@@ -32,22 +32,27 @@ async def test_browse_from_listing_opens_private_view_and_pages_in_place(tenv: T
     second = await add_product(tenv, "[b]", price=200)
     third = await add_product(tenv, "[c]", price=300, stock=0)
     await service.request_listing_refresh(tenv.app)
-    listing = channel.messages[-1]
+    listing = channel.messages[0]  # the header message carries the browse button
     customer = tenv.member()
 
     opened = await click(tenv.app, user=customer, custom_id="sb:ct:browse:0", message=listing)
     assert opened.response_kinds() == ["send_message"]
     private = opened.last_sent
     assert private is not None and getattr(private, "ephemeral", False) is True
-    assert len(channel.messages) == 1 and listing.edits == []  # the public listing is untouched
+    assert len(channel.messages) == 2 and listing.edits == []  # the public listing is untouched
     card = private.embeds[0]
     assert card.title == first.name and card.description == "[desc a]"
     assert card.footer.text == _footer(tenv, 1, 3)
     assert card.author.name == tenv.text(ck.AUTHOR_NAME)
     previous_label, next_label = tenv.text(ck.BUTTON_PREV), tenv.text(ck.BUTTON_NEXT)
+
+    def buy(product: repo.Product) -> str:
+        return tenv.text(keys.BUTTON_BUY).replace("{name}", product.name)
+
     assert buttons(private) == [
         ("sb:ct:browse:-1", previous_label, True),
         ("sb:ct:browse:1", next_label, False),
+        (f"sb:co:buy:{first.id}", buy(first), False),
     ]
 
     _ephemeral(private)
@@ -58,6 +63,7 @@ async def test_browse_from_listing_opens_private_view_and_pages_in_place(tenv: T
     assert buttons(private) == [
         ("sb:ct:browse:0", previous_label, False),
         ("sb:ct:browse:2", next_label, False),
+        (f"sb:co:buy:{second.id}", buy(second), False),
     ]
 
     last = await click(tenv.app, user=customer, custom_id="sb:ct:browse:2", message=private)
@@ -66,6 +72,7 @@ async def test_browse_from_listing_opens_private_view_and_pages_in_place(tenv: T
     assert private.embeds[0].fields[1].value == tenv.text(keys.AVAILABILITY_OUT_OF_STOCK)
     assert private.embeds[0].footer.text == _footer(tenv, 3, 3)
     assert buttons(private)[1] == ("sb:ct:browse:3", next_label, True)
+    assert buttons(private)[2] == (f"sb:co:buy:{third.id}", buy(third), True)  # sold out: disabled
 
 
 async def test_out_of_range_page_is_clamped_and_negative_is_not_found(tenv: TestEnv) -> None:
@@ -85,7 +92,10 @@ async def test_products_removed_while_browsing(tenv: TestEnv) -> None:
     opened = await click(tenv.app, user=customer, custom_id="sb:ct:browse:0")
     private = opened.last_sent
     assert private is not None and private.embeds[0].title == product.name
-    assert buttons(private) == []  # a single page needs no navigation
+    # a single page needs no navigation; only the product's buy button
+    assert buttons(private) == [
+        (f"sb:co:buy:{product.id}", tenv.text(keys.BUTTON_BUY).replace("{name}", "[only]"), False)
+    ]
     await tenv.app.db.transaction(repo.update_product, product.id, product.version, now=5, active=False)
     _ephemeral(private)
     await click(tenv.app, user=customer, custom_id="sb:ct:browse:0", message=private)
@@ -173,5 +183,5 @@ async def test_browse_view_api_supports_custom_paging_and_extra_buttons(tenv: Te
         tenv.app, 0, page_custom_id=lambda page: cid("zz", "page", 7, page), extra_buttons=add_to_cart
     )
     ids = [component.custom_id for row in spec.rows for component in row]
-    assert ids == ["sb:zz:page:7:-1", "sb:zz:page:7:1", f"sb:zz:cart:{first.id}"]
+    assert ids == ["sb:zz:page:7:-1", "sb:zz:page:7:1", f"sb:co:buy:{first.id}", f"sb:zz:cart:{first.id}"]
     assert len(spec.rows) == 2

@@ -12,21 +12,31 @@ from shopbot.features import core_keys as ck
 from shopbot.features.catalog import MODULE
 from shopbot.features.catalog import content_keys as keys
 from shopbot.ui.limits import validate_message, validate_modal
-from shopbot.ui.spec import MessageSpec, ModalSpec
+from shopbot.ui.spec import ButtonSpec, MessageSpec, ModalSpec
 from tests.helpers import TestEnv, make_settings, make_test_env
 from tools.check_limits import unrouted_components
 
-EXPECTED_STATES = {
-    "listing_message_1",
-    "listing_empty",
-    "browse_first",
-    "browse_middle",
-    "browse_last",
-    "browse_empty",
+OPERATOR_STATES = {
     "product_add_form",
     "product_edit_form",
     "product_details",
     "product_list",
+    "product_remove_confirm",
+    "reply_image_uploaded",
+    "reply_image_rejected",
+    "reply_removed",
+    "reply_remove_reserved",
+}
+EXPECTED_STATES = {
+    "listing_message_1",
+    "listing_message_2",
+    "listing_empty",
+    "browse_first",
+    "browse_middle",
+    "browse_sold_out",
+    "browse_last",
+    "browse_empty",
+    *OPERATOR_STATES,
 }
 
 
@@ -44,18 +54,32 @@ async def test_every_preview_state_is_valid_routed_and_synthetic(tenv: TestEnv) 
         assert unrouted_components(state, tenv.app.router) == [], state.name
 
     by_name = {s.name: s.spec for s in states}
-    listing = by_name["listing_message_1"]
-    assert isinstance(listing, MessageSpec)
-    header, *cards = listing.embeds
+    head = by_name["listing_message_1"]
+    assert isinstance(head, MessageSpec)
+    (header,) = head.embeds
     assert (header.title, header.description) == (tenv.text(keys.LISTING_TITLE), tenv.text(keys.LISTING_DESCRIPTION))
-    assert [c.title for c in cards] == [escape_markdown(f"[sample product {i}]") for i in (1, 2, 3)]
+    assert head.rows[0][0].label == tenv.text(keys.BUTTON_BROWSE)  # type: ignore[union-attr]
+    listing = by_name["listing_message_2"]
+    assert isinstance(listing, MessageSpec)
+    cards = listing.embeds
+    assert [c.title for c in cards] == [escape_markdown(f"[sample product {i}]") for i in (1, 2, 3, 4)]
     availability = [c.fields[1].value for c in cards]
     assert availability == [
         tenv.text(keys.AVAILABILITY_IN_STOCK).replace("{count}", "10"),
         tenv.text(keys.AVAILABILITY_UNLIMITED),
         tenv.text(keys.AVAILABILITY_OUT_OF_STOCK),
+        tenv.text(keys.AVAILABILITY_IN_STOCK).replace("{count}", "1"),
     ]
-    assert listing.rows[0][0].label == tenv.text(keys.BUTTON_BROWSE)  # type: ignore[union-attr]
+    colors = tenv.app.settings.branding.colors
+    assert [c.color for c in cards] == [colors["success"], colors["success"], colors["danger"], colors["success"]]
+    disabled = [b.disabled for row in listing.rows for b in row if isinstance(b, ButtonSpec)]
+    assert disabled == [False, False, True, False]
+    # the uploaded sample image is attached and shown with attachment://
+    assert listing.files is not None and len(listing.files) == 1 and listing.files[0].data
+    assert cards[0].image_url == f"attachment://{listing.files[0].filename}"
+    assert all(c.image_url is None for c in cards[1:])
+    browse = by_name["browse_first"]
+    assert isinstance(browse, MessageSpec) and browse.files and browse.embeds[0].image_url.startswith("attachment://")  # type: ignore[union-attr]
     empty = by_name["listing_empty"]
     assert isinstance(empty, MessageSpec) and empty.embeds[1].description == tenv.text(keys.LISTING_EMPTY)
 
@@ -67,7 +91,7 @@ async def test_preview_skips_listing_states_without_listing_channel(tmp_path: Pa
     try:
         assert MODULE.preview is not None
         names = {s.name for s in MODULE.preview(tenv.app)}
-        assert names == {"product_add_form", "product_edit_form", "product_details", "product_list"}
+        assert names == OPERATOR_STATES
     finally:
         await tenv.close()
 
@@ -77,7 +101,22 @@ async def test_preview_without_content_builds_only_operator_states(tmp_path: Pat
     try:
         assert MODULE.preview is not None
         names = {s.name for s in MODULE.preview(tenv.app)}
-        assert names == {"product_add_form", "product_edit_form", "product_details", "product_list"}
+        assert names == OPERATOR_STATES
+    finally:
+        await tenv.close()
+
+
+async def test_low_stock_preview_and_key(tmp_path: Path) -> None:
+    tenv = await make_test_env(tmp_path, settings=make_settings({"catalog": {"low_stock_threshold": 3}}))
+    try:
+        assert MODULE.preview is not None
+        listing = {s.name: s.spec for s in MODULE.preview(tenv.app)}["listing_message_2"]
+        assert isinstance(listing, MessageSpec)
+        low = listing.embeds[3]  # [sample product 4] has 1 unit left
+        assert low.fields[1].value == tenv.text(keys.AVAILABILITY_LOW_STOCK).replace("{count}", "1")
+        assert low.color == tenv.app.settings.branding.colors["warning"]
+        definition = tenv.app.content.registry.get(keys.AVAILABILITY_LOW_STOCK)
+        assert definition is not None and not definition.required and definition.fallback == keys.AVAILABILITY_IN_STOCK
     finally:
         await tenv.close()
 
@@ -96,6 +135,9 @@ def test_content_keys_definitions() -> None:
         keys.AVAILABILITY_UNLIMITED,
         keys.AVAILABILITY_OUT_OF_STOCK,
         keys.BUTTON_BROWSE,
+        keys.BUTTON_BUY,
+        keys.BUTTON_BUY_SHORT,
+        keys.BUTTON_BUY_EMOJI,
     }
     assert all(k.feature == "catalog" and k.doc and k.group for k in defined.values())
     assert defined[keys.FIELD_PRICE].kind is Kind.FIELD_NAME
@@ -104,7 +146,12 @@ def test_content_keys_definitions() -> None:
     assert defined[keys.LISTING_EMPTY].kind is Kind.DESCRIPTION
     assert defined[keys.BUTTON_BROWSE].kind is Kind.BUTTON_LABEL
     required = {k for k, d in defined.items() if d.required}
-    assert required == set(defined) - {keys.FIELD_MAX_PER_ORDER}
+    assert required == set(defined) - {keys.FIELD_MAX_PER_ORDER, keys.BUTTON_BUY_SHORT, keys.BUTTON_BUY_EMOJI}
+    assert defined[keys.BUTTON_BUY].placeholders == ("name",)
+    assert defined[keys.BUTTON_BUY_EMOJI].kind is Kind.EMOJI
+    assert keys.AVAILABILITY_LOW_STOCK not in defined  # only with catalog.low_stock_threshold > 0
+    no_checkout = make_settings({"features": {"checkout": False}})
+    assert not next(k for k in keys.content_keys(no_checkout) if k.key == keys.BUTTON_BUY).required
 
     no_listing = make_settings({"catalog": {"listing_channel": "", "browse_enabled": False}})
     required = {k.key for k in keys.content_keys(no_listing) if k.required}

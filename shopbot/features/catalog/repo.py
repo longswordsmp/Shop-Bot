@@ -434,6 +434,19 @@ def update_product(
     return _require(conn, product_id)
 
 
+def touch_product(conn: sqlite3.Connection, product_id: int, expected_version: int, *, now: int) -> Product:
+    """Record a change stored outside the products row (e.g. its uploaded image): bump the version if the product
+    is still at ``expected_version``. Raises ``ProductNotFound`` or ``ConcurrentUpdate``."""
+    cursor = conn.execute(
+        "UPDATE products SET version = version + 1, updated_at = ? WHERE id = ? AND version = ?",
+        (now, product_id, expected_version),
+    )
+    if cursor.rowcount != 1:
+        current = _require(conn, product_id)
+        raise ConcurrentUpdate(product_id, expected_version, current.version)
+    return _require(conn, product_id)
+
+
 def set_stock(conn: sqlite3.Connection, product_id: int, stock_on_hand: int | None, now: int) -> Product:
     """Set the units on hand (``None`` = unlimited). Raises ``StockBelowReserved`` below the reserved units."""
     stock = normalize_fields({"stock_on_hand": stock_on_hand})["stock_on_hand"]

@@ -7,8 +7,11 @@ Public API for other features (see the module docstrings for details):
   the caller's ``app.db.transaction``), plus their exceptions.
 - ``shopbot.features.catalog.service``: ``browse_view`` (embeddable product browser with extra buttons),
   ``schedule_listing_refresh`` (call after stock changes), ``request_listing_refresh``, ``is_manager``.
-- ``shopbot.features.catalog.views``: pure builders, e.g. ``product_embed`` (a product card) and
-  ``browse_page``.
+- ``shopbot.features.catalog.views``: pure builders, e.g. ``product_embed`` (a product card, colored by its
+  availability state), ``buy_button``/``buy_custom_id`` (the buy button, routed ``sb:co:buy:<id>`` to checkout)
+  and ``browse_page``.
+- ``shopbot.features.catalog.images``: uploaded product images stored in the database; ``image_for(app, product)``
+  returns what a card shows (an ``attachment://`` URL plus the file to attach, or the image link).
 """
 
 from __future__ import annotations

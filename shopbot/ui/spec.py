@@ -7,6 +7,7 @@ and rendered to HTML by the offline preview — so what is checked is exactly wh
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass, field
 from typing import Literal
 
@@ -80,12 +81,48 @@ Component = ButtonSpec | SelectSpec
 
 
 @dataclass(frozen=True)
+class FileSpec:
+    """A file uploaded with a message, e.g. a product image an embed shows with ``attachment://<filename>``.
+
+    ``filename`` is the name ``attachment://`` URLs refer to (ASCII letters, digits, ``-``, ``_`` and ``.``;
+    validated by ``ui.limits``). ``sha256`` and ``size`` describe the content, so change detection
+    (``core.panels``) and limit checks never need the bytes. ``data`` may be None for a *reference* whose bytes are
+    loaded only when the message is actually sent or edited (``upsert_message(prepare=...)``); sending a reference
+    is refused. Build a loaded file with ``FileSpec.of``.
+    """
+
+    filename: str
+    sha256: str
+    size: int
+    content_type: str | None = None
+    data: bytes | None = field(default=None, repr=False, compare=False)
+
+    @classmethod
+    def of(cls, filename: str, data: bytes, content_type: str | None = None) -> FileSpec:
+        return cls(
+            filename=filename,
+            sha256=hashlib.sha256(data).hexdigest(),
+            size=len(data),
+            content_type=content_type,
+            data=data,
+        )
+
+    @property
+    def loaded(self) -> bool:
+        return self.data is not None
+
+
+@dataclass(frozen=True)
 class MessageSpec:
     embeds: tuple[EmbedSpec, ...] = ()
     rows: tuple[tuple[Component, ...], ...] = ()
     # Plain message content is used only for pings (mentions); all text lives in embeds.
     mention_user_ids: tuple[int, ...] = ()
     mention_role_ids: tuple[int, ...] = ()
+    # Files uploaded with the message. None: the message does not manage attachments (an edit leaves existing
+    # attachments alone). A tuple: exactly these attachments (an edit replaces them; () removes all), so a message
+    # that shows ``attachment://`` images keeps them attached through every edit.
+    files: tuple[FileSpec, ...] | None = None
 
     @property
     def mention_text(self) -> str | None:

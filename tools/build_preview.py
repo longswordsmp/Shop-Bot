@@ -15,11 +15,12 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import base64
 import html
 import json
 import re
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -234,9 +235,27 @@ def render_components(spec: MessageSpec, router: Router) -> str:
     return "".join(rows)
 
 
+def _inline_attachments(spec: MessageSpec) -> tuple[EmbedSpec, ...]:
+    """Embeds whose ``attachment://`` images point at the message's own files, as data URIs the page can show."""
+    files = {f.filename: f for f in spec.files or ()}
+    if not files:
+        return spec.embeds
+
+    def resolve(url: str | None) -> str | None:
+        item = files.get(url[len("attachment://") :]) if url and url.startswith("attachment://") else None
+        if item is None or item.data is None:
+            return url
+        encoded = base64.b64encode(item.data).decode("ascii")
+        return f"data:{item.content_type or 'application/octet-stream'};base64,{encoded}"
+
+    return tuple(
+        replace(e, image_url=resolve(e.image_url), thumbnail_url=resolve(e.thumbnail_url)) for e in spec.embeds
+    )
+
+
 def render_message(spec: MessageSpec, router: Router) -> str:
     mention = f'<div class="msg-content">{_inline(html.escape(spec.mention_text))}</div>' if spec.mention_text else ""
-    embeds = "".join(render_embed(e) for e in spec.embeds)
+    embeds = "".join(render_embed(e) for e in _inline_attachments(spec))
     return (
         '<div class="message"><div class="avatar">B</div><div class="msg-main">'
         '<div class="msg-head"><span class="bot-name">Bot</span><span class="bot-tag">APP</span>'

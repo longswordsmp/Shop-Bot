@@ -15,6 +15,7 @@ from shopbot.features.catalog import MODULE, repo, service, views
 from shopbot.features.catalog import content_keys as keys
 from shopbot.features.catalog import tasks as catalog_tasks
 from shopbot.ui.limits import validate_message
+from shopbot.ui.spec import ButtonSpec
 from tests.catalog.util import (
     add_product,
     audit_actions,
@@ -42,15 +43,17 @@ async def test_publish_posts_header_products_and_browse_button(tenv: TestEnv) ->
     hidden = await add_product(tenv, "[hidden]", active=False)
 
     lines = await MODULE.publish(tenv.app)  # type: ignore[misc]
-    assert len(lines) == 1 and "1 message(s)" in lines[0] and "3 product(s)" in lines[0]
+    assert len(lines) == 1 and "2 message(s)" in lines[0] and "3 product(s)" in lines[0]
 
-    assert len(channel.messages) == 1
-    message = channel.messages[0]
-    header, *cards = message.embeds
+    assert len(channel.messages) == 2
+    head, message = channel.messages
+    (header,) = head.embeds
     assert header.title == tenv.text(keys.LISTING_TITLE)
     assert header.description == tenv.text(keys.LISTING_DESCRIPTION)
+    assert buttons(head) == [("sb:ct:browse:0", tenv.text(keys.BUTTON_BROWSE), False)]
+    cards = message.embeds
     assert [c.title for c in cards] == [_escaped(p.name) for p in (limited, unlimited, sold_out)]
-    assert hidden.name not in message.text()
+    assert hidden.name not in message.text() and hidden.name not in head.text()
     assert cards[0].description == "[d1]"
     assert cards[1].description is None
     money = tenv.text(ck.MONEY_FORMAT)
@@ -63,7 +66,19 @@ async def test_publish_posts_header_products_and_browse_button(tenv: TestEnv) ->
     assert cards[2].fields[1].value == tenv.text(keys.AVAILABILITY_OUT_OF_STOCK)
     assert cards[2].fields[2].name == tenv.text(keys.FIELD_MAX_PER_ORDER)
     assert cards[2].fields[2].value == "2"
-    assert buttons(message) == [("sb:ct:browse:0", tenv.text(keys.BUTTON_BROWSE), False)]
+    buy = tenv.text(keys.BUTTON_BUY)
+    assert buttons(message) == [
+        (f"sb:co:buy:{limited.id}", buy.replace("{name}", limited.name), False),
+        (f"sb:co:buy:{unlimited.id}", buy.replace("{name}", unlimited.name), False),
+        (f"sb:co:buy:{sold_out.id}", buy.replace("{name}", sold_out.name), True),  # out of stock: disabled
+    ]
+    colors = tenv.app.settings.branding.colors
+    assert [c.color.value if c.color else None for c in cards] == [
+        colors["success"],
+        colors["success"],
+        colors["danger"],
+    ]
+    assert message.files == [] and head.files == []
     mentions = message.allowed_mentions
     assert mentions is not None and mentions.everyone is False
 
@@ -74,11 +89,12 @@ async def test_listing_splits_by_product_count_and_moves_button_to_last_message(
         channel = await listing_channel(tenv)
         products = [await add_product(tenv, f"[p{i}]") for i in range(5)]
         await service.request_listing_refresh(tenv.app)
-        assert [len(m.embeds) for m in channel.messages] == [3, 2, 1]  # header + 2, 2, 1
+        assert [len(m.embeds) for m in channel.messages] == [1, 2, 2, 1]  # header, then 2, 2, 1 products
         titles = [e.title for m in channel.messages for e in m.embeds][1:]
         assert titles == [p.name for p in products]
-        assert [bool(buttons(m)) for m in channel.messages] == [False, False, True]
-        assert [r.key for r in await _records(tenv)] == [service.listing_key(i) for i in range(3)]
+        assert [len(buttons(m)) for m in channel.messages] == [1, 2, 2, 1]  # browse; one buy button per product
+        assert [b[0] for m in channel.messages[1:] for b in buttons(m)] == [f"sb:co:buy:{p.id}" for p in products]
+        assert [r.key for r in await _records(tenv)] == [service.listing_key(i) for i in range(4)]
     finally:
         await tenv.close()
 
@@ -90,7 +106,8 @@ async def test_listing_splits_at_ten_embeds_and_6000_characters(tmp_path: Path) 
         for i in range(12):
             await add_product(tenv, f"[p{i}]")
         await service.request_listing_refresh(tenv.app)
-        assert [len(m.embeds) for m in channel.messages] == [10, 3]  # header + 9 (embed cap), then 3
+        assert [len(m.embeds) for m in channel.messages] == [1, 10, 2]  # header, 10 (embed cap), then 2
+        assert [len(m.view.children) if m.view else 0 for m in channel.messages] == [1, 10, 2]  # 2 rows of 5 buy
         for message in channel.messages:
             assert len(message.embeds) <= 10
 
@@ -114,10 +131,10 @@ async def test_refresh_is_idempotent_and_removes_extra_messages(tmp_path: Path) 
         products = [await add_product(tenv, f"[p{i}]") for i in range(3)]
         await service.request_listing_refresh(tenv.app)
         first_ids = [m.id for m in channel.messages]
-        assert len(first_ids) == 3
+        assert len(first_ids) == 4  # header + one message per product
 
         report = await service.request_listing_refresh(tenv.app)
-        assert report.ok and "0 changed, 3 unchanged, 0 removed" in report.lines[0]
+        assert report.ok and "0 changed, 4 unchanged, 0 removed" in report.lines[0]
         assert [m.id for m in channel.messages] == first_ids
         assert all(not m.edits for m in channel.messages)
 
@@ -126,9 +143,9 @@ async def test_refresh_is_idempotent_and_removes_extra_messages(tmp_path: Path) 
             await tenv.app.db.transaction(repo.update_product, product.id, product.version, now=2, active=False)
         report = await service.request_listing_refresh(tenv.app)
         assert "2 removed" in report.lines[0]
-        assert [m.id for m in channel.messages] == first_ids[:1]
-        assert [r.key for r in await _records(tenv)] == [service.listing_key(0)]
-        assert buttons(channel.messages[0])  # the browse button moved to the (new) last message
+        assert [m.id for m in channel.messages] == first_ids[:2]
+        assert [r.key for r in await _records(tenv)] == [service.listing_key(0), service.listing_key(1)]
+        assert buttons(channel.messages[0])[0][0] == "sb:ct:browse:0"  # the browse button stays on the header
     finally:
         await tenv.close()
 
@@ -137,11 +154,15 @@ async def test_stock_change_edits_in_place(tenv: TestEnv) -> None:
     channel = await listing_channel(tenv)
     product = await add_product(tenv, stock=5)
     await service.request_listing_refresh(tenv.app)
-    message = channel.messages[0]
+    head, message = channel.messages
+    assert buttons(message)[0][2] is False
     await tenv.app.db.transaction(repo.reserve, product.id, 5, 3)
     await service.request_listing_refresh(tenv.app)
-    assert channel.messages == [message] and len(message.edits) == 1
-    assert message.embeds[1].fields[1].value == tenv.text(keys.AVAILABILITY_OUT_OF_STOCK)
+    assert channel.messages == [head, message] and len(message.edits) == 1 and head.edits == []
+    assert message.embeds[0].fields[1].value == tenv.text(keys.AVAILABILITY_OUT_OF_STOCK)
+    assert buttons(message)[0][2] is True  # sold out: the buy button is disabled
+    danger = tenv.app.settings.branding.colors["danger"]
+    assert message.embeds[0].color is not None and message.embeds[0].color.value == danger
 
 
 async def test_empty_catalog_shows_header_and_empty_card_without_button(tenv: TestEnv) -> None:
@@ -162,9 +183,10 @@ async def test_deleted_middle_message_is_reposted_in_order(tmp_path: Path) -> No
         for i in range(3):
             await add_product(tenv, f"[p{i}]")
         await service.request_listing_refresh(tenv.app)
-        await channel.messages[1].delete()
+        await channel.messages[2].delete()
         await service.request_listing_refresh(tenv.app)
-        assert [m.embeds[-1].title for m in channel.messages] == ["[p0]", "[p1]", "[p2]"]
+        assert [m.embeds[-1].title for m in channel.messages[1:]] == ["[p0]", "[p1]", "[p2]"]
+        assert channel.messages[0].embeds[0].title == tenv.text(keys.LISTING_TITLE)
         records = await _records(tenv)
         assert [r.message_id for r in records] == [m.id for m in channel.messages]
     finally:
@@ -188,11 +210,11 @@ async def test_disabling_the_listing_channel_removes_old_messages(tmp_path: Path
         channel = await listing_channel(tenv)
         await add_product(tenv)
         await service.request_listing_refresh(tenv.app)
-        assert len(channel.messages) == 1
+        assert len(channel.messages) == 2
         tenv.app.settings = make_settings({"catalog": {"listing_channel": ""}})
         tenv.app.recompute_readiness()
         report = await service.request_listing_refresh(tenv.app)
-        assert report.ok and "1 old listing" in report.lines[0]
+        assert report.ok and "2 old listing" in report.lines[0]
         assert channel.messages == [] and await _records(tenv) == []
     finally:
         await tenv.close()
@@ -302,12 +324,12 @@ async def test_scheduled_refresh_task_is_deduplicated_and_runs(tenv: TestEnv) ->
     for _ in range(5):
         await service.schedule_listing_refresh(tenv.app)
     assert await tenv.app.scheduler.run_due() == 1
-    assert len(channel.messages) == 1
+    assert len(channel.messages) == 2
     # A later stock change re-arms the same task row.
     await tenv.app.db.transaction(repo.reserve, product.id, 2, 5)
     await service.schedule_listing_refresh(tenv.app)
     assert await tenv.app.scheduler.run_due() == 1
-    assert channel.messages[0].embeds[1].fields[1].value == tenv.text(keys.AVAILABILITY_OUT_OF_STOCK)
+    assert channel.messages[1].embeds[0].fields[1].value == tenv.text(keys.AVAILABILITY_OUT_OF_STOCK)
     assert await tenv.app.scheduler.run_due() == 0
 
 
@@ -321,7 +343,7 @@ async def test_scheduled_refresh_retries_transient_failures(tenv: TestEnv) -> No
     channel.fail_send = None
     tenv.clock.advance(3600)
     assert await tenv.app.scheduler.run_due() == 1
-    assert len(channel.messages) == 1
+    assert len(channel.messages) == 2
 
 
 async def test_change_while_task_running_is_picked_up(tenv: TestEnv, monkeypatch) -> None:  # type: ignore[no-untyped-def]
@@ -343,28 +365,29 @@ async def test_change_while_task_running_is_picked_up(tenv: TestEnv, monkeypatch
     monkeypatch.setattr(service, "_refresh_listing", change_during_refresh)
     await tenv.app.scheduler.run_due()
     await tenv.app.scheduler.run_due()
-    assert channel.messages[0].embeds[1].fields[1].value == tenv.text(keys.AVAILABILITY_OUT_OF_STOCK)
+    assert channel.messages[1].embeds[0].fields[1].value == tenv.text(keys.AVAILABILITY_OUT_OF_STOCK)
 
 
 async def test_on_ready_verifies_existing_listing_without_duplicates(tenv: TestEnv) -> None:
     channel = await listing_channel(tenv)
     await add_product(tenv, "[a]")
     await service.request_listing_refresh(tenv.app)
-    original_id = channel.messages[0].id
+    original_ids = [m.id for m in channel.messages]
+    assert len(original_ids) == 2
 
     app = restarted_app(tenv)
     await app.resources.refresh()
     await MODULE.on_ready(app)  # type: ignore[misc]
     assert await app.scheduler.run_due() == 1
-    assert [m.id for m in channel.messages] == [original_id]
+    assert [m.id for m in channel.messages] == original_ids
 
-    await channel.messages[0].delete()  # deleted while the bot was offline
+    await channel.messages[1].delete()  # deleted while the bot was offline
     app2 = restarted_app(tenv)
     await app2.resources.refresh()
     await MODULE.on_ready(app2)  # type: ignore[misc]
     await app2.scheduler.run_due()
-    assert len(channel.messages) == 1 and channel.messages[0].id != original_id
-    assert (await _records(tenv))[0].message_id == channel.messages[0].id
+    assert len(channel.messages) == 2 and channel.messages[1].id != original_ids[1]
+    assert [r.message_id for r in await _records(tenv)] == [m.id for m in channel.messages]
 
 
 async def test_on_ready_does_nothing_when_never_published(tenv: TestEnv) -> None:
@@ -379,14 +402,14 @@ async def test_deleted_listing_message_event_triggers_repost(tenv: TestEnv) -> N
     channel = await listing_channel(tenv)
     await add_product(tenv)
     await service.request_listing_refresh(tenv.app)
-    message = channel.messages[0]
+    message = channel.messages[1]
     await message.delete()
     other = SimpleNamespace(message_id=123, guild_id=GUILD_ID)
     await catalog_tasks.on_raw_message_delete(tenv.app, other)  # type: ignore[arg-type]
     assert await tenv.app.scheduler.run_due() == 0
     await tenv.bot.emit("raw_message_delete", SimpleNamespace(message_id=message.id, guild_id=GUILD_ID))
     assert await tenv.app.scheduler.run_due() == 1
-    assert len(channel.messages) == 1 and channel.messages[0].id != message.id
+    assert len(channel.messages) == 2 and channel.messages[1].id != message.id
 
 
 async def test_channel_change_moves_the_listing(tenv: TestEnv) -> None:
@@ -398,7 +421,7 @@ async def test_channel_change_moves_the_listing(tenv: TestEnv) -> None:
     tenv.app.settings = make_settings({"catalog": {"listing_channel": "shop"}})
     tenv.app.recompute_readiness()
     await service.request_listing_refresh(tenv.app)
-    assert channel.messages == [] and len(other.messages) == 1  # type: ignore[attr-defined]
+    assert channel.messages == [] and len(other.messages) == 2  # type: ignore[attr-defined]
 
 
 async def test_listing_messages_respect_limits(tenv: TestEnv) -> None:
@@ -407,8 +430,11 @@ async def test_listing_messages_respect_limits(tenv: TestEnv) -> None:
     specs = views.listing_messages(tenv.app.ui, tenv.app.settings, products)
     for spec in specs:
         assert validate_message(spec) == []
-    assert specs[0].embeds[1].image_url == "https://example.com/i.png"
-    assert specs[0].embeds[1].title == _escaped("*" * 100)
+    assert specs[1].embeds[0].image_url == "https://example.com/i.png"
+    assert specs[1].embeds[0].title == _escaped("*" * 100)
+    # "[tN] {name}" with a 100-character name is over 80 characters: the short label is used, never a cut one
+    first_button = specs[1].rows[0][0]
+    assert isinstance(first_button, ButtonSpec) and first_button.label == tenv.text(keys.BUTTON_BUY_SHORT)
 
 
 async def test_upsert_helper_contract_unchanged_message_not_edited(tenv: TestEnv) -> None:

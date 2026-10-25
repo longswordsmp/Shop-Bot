@@ -9,6 +9,7 @@ https://discord.com/developers/docs/components/reference
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 from shopbot.ui.spec import ButtonSpec, EmbedSpec, MessageSpec, ModalSpec, SelectSpec
@@ -38,6 +39,13 @@ INPUT_DESCRIPTION = 100
 INPUT_PLACEHOLDER = 100
 INPUT_VALUE = 4000
 URL_MAX = 2048
+# Files uploaded with one message: Discord accepts at most 10, and servers without boosts accept 10 MiB per upload.
+FILES_PER_MESSAGE = 10
+FILES_TOTAL_BYTES = 10 * 1024 * 1024
+FILENAME_MAX = 100
+ATTACHMENT_SCHEME = "attachment://"
+_FILENAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")
+_IMAGE_ATTRS = ("author_icon_url", "footer_icon_url", "thumbnail_url", "image_url")
 
 
 @dataclass(frozen=True)
@@ -111,6 +119,8 @@ def validate_message(spec: MessageSpec) -> list[Violation]:
     if total > EMBED_TOTAL_CHARS:
         out.append(Violation("message.embeds", f"combined embed text {total} exceeds {EMBED_TOTAL_CHARS}"))
 
+    _validate_files(spec, out)
+
     if len(spec.rows) > ACTION_ROWS:
         out.append(Violation("message.rows", f"{len(spec.rows)} action rows exceeds {ACTION_ROWS}"))
     seen: set[str] = set()
@@ -160,6 +170,35 @@ def validate_message(spec: MessageSpec) -> list[Violation]:
                         out.append(Violation(f"{opath}.value", f"duplicate option value {option.value!r}"))
                     values.add(option.value)
     return out
+
+
+def _validate_files(spec: MessageSpec, out: list[Violation]) -> None:
+    """Uploaded files: count, total size, names, and every ``attachment://`` image refers to one of them."""
+    files = spec.files or ()
+    if len(files) > FILES_PER_MESSAGE:
+        out.append(Violation("message.files", f"{len(files)} files exceeds {FILES_PER_MESSAGE}"))
+    total = sum(f.size for f in files)
+    if total > FILES_TOTAL_BYTES:
+        out.append(Violation("message.files", f"{total} bytes of files exceeds {FILES_TOTAL_BYTES}"))
+    names: set[str] = set()
+    for index, item in enumerate(files):
+        fpath = f"files[{index}]"
+        if not _FILENAME_RE.match(item.filename) or len(item.filename) > FILENAME_MAX:
+            out.append(Violation(f"{fpath}.filename", "must be 1-100 ASCII letters, digits, '-', '_' or '.'"))
+        if item.filename in names:
+            out.append(Violation(f"{fpath}.filename", f"duplicate file name {item.filename!r}"))
+        names.add(item.filename)
+        if item.size <= 0:
+            out.append(Violation(fpath, "file is empty"))
+        if item.data is not None and len(item.data) != item.size:
+            out.append(Violation(fpath, f"has {len(item.data)} bytes but declares {item.size}"))
+    for index, embed in enumerate(spec.embeds):
+        for attr in _IMAGE_ATTRS:
+            value = getattr(embed, attr)
+            if value is None or not value.startswith(ATTACHMENT_SCHEME):
+                continue
+            if value[len(ATTACHMENT_SCHEME) :] not in names:
+                out.append(Violation(f"embeds[{index}].{attr}", f"{value!r} is not a file of this message"))
 
 
 def validate_modal(spec: ModalSpec) -> list[Violation]:

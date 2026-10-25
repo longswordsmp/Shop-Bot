@@ -9,7 +9,7 @@ catalog's own ``product_fields``, so a product reads the same in #catalog and in
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import Literal
 
 from shopbot.config.content import MissingContent
@@ -17,7 +17,7 @@ from shopbot.features.catalog import views as catalog_views
 from shopbot.features.catalog.repo import Product
 from shopbot.features.new_arrivals import content_keys as keys
 from shopbot.ui.custom_ids import cid
-from shopbot.ui.spec import ButtonSpec, MessageSpec, rows_of
+from shopbot.ui.spec import ButtonSpec, FileSpec, MessageSpec, rows_of
 from shopbot.ui.style import Ui
 
 ROUTE = "na"
@@ -82,7 +82,7 @@ def confirmation(ui: Ui, *, subscribed: bool, values: Values) -> MessageSpec:
 
 
 def product_image_url(product: Product) -> str | None:
-    """The image shown on an update: the product's image, exactly as its catalog card shows it."""
+    """The linked image of ``product`` (used when no uploaded image was looked up)."""
     return product.image_url or None
 
 
@@ -93,12 +93,16 @@ def announcement(
     *,
     role_id: int | None,
     catalog_url: str | None,
+    image: tuple[str | None, Sequence[FileSpec]] | None = None,
 ) -> MessageSpec:
     """The update posted in #new-arrivals for ``event`` ("new" or "restock").
 
     ``role_id``: the notification role to mention (only that role may be pinged), or None for no mention.
     ``catalog_url``: link of the catalog listing channel for the optional link button (None: no button).
+    ``image``: what the product's catalog card shows (``catalog.images.image_for``: embed image URL and the uploaded
+    file to attach); None falls back to the product's linked image.
     """
+    image_url, files = image if image is not None else (product_image_url(product), ())
     if event == NEW:
         title_key, footer_key, tone = keys.NEW_PRODUCT_TITLE, keys.NEW_PRODUCT_FOOTER, "primary"
     else:
@@ -107,7 +111,7 @@ def announcement(
     embed = ui.embed(
         title=title,
         description=product.description or None,
-        image_url=product_image_url(product),
+        image_url=image_url,
         fields=catalog_views.product_fields(ui, product),
         tone=tone,
         timestamp=True,
@@ -119,4 +123,5 @@ def announcement(
         embeds=(embed,),
         rows=rows_of(link),
         mention_role_ids=(role_id,) if role_id else (),
+        files=tuple(files) or None,
     )
