@@ -37,6 +37,21 @@ STARTED = "checkout.started.description"
 SESSION_EXISTS = "checkout.session_exists.description"
 LIMIT_REACHED = "checkout.limit_reached.description"
 BUY_ADDED = "checkout.buy_added.description"
+ORDER_EXISTS = "checkout.order_exists.description"
+BUTTON_OPEN_TICKET = "checkout.ticket_link.button"
+
+# -- the order ticket: introduction and the parts every state of the live panel shows -------------------
+TICKET_INTRO_TITLE = "checkout.ticket.intro_title"
+TICKET_INTRO_DESCRIPTION = "checkout.ticket.intro_description"
+TICKET_REFERENCE_FIELD = "checkout.ticket.reference_field"
+TICKET_ORDER_NUMBER_FIELD = "checkout.ticket.order_number_field"
+TICKET_STATUS_FIELD = "checkout.ticket.status_field"
+TICKET_STATUS_IN_PROGRESS = "checkout.ticket.status_in_progress"
+TICKET_TIMELINE_FIELD = "checkout.ticket.timeline_field"
+TICKET_TIMELINE_ENTRY = "checkout.ticket.timeline_entry"
+
+# -- submission form (checkout.submission_form, collected when the customer presses Submit) ---------------
+SUBMISSION_MODAL_TITLE = "checkout.submission.modal_title"
 
 # -- workflow: browse ---------------------------------------------------------------------------------
 BROWSE_TITLE = "checkout.browse.title"
@@ -127,6 +142,10 @@ ERROR_ORDER_NOT_CANCELLABLE = "checkout.error.order_not_cancellable"
 # -- notification kinds (besides the statuses) ----------------------------------------------------------
 NOTIFY_PAYMENT_REMINDER = "payment_reminder"
 NOTIFY_REFUND = "refund"
+# "Submission received": the order was submitted and waits for payment.
+NOTIFY_SUBMITTED = m.PENDING
+# Warning in the order ticket before an unfinished order (cart) expires.
+NOTIFY_SESSION_WARNING = "session_expiry_warning"
 # Every status change notifies the customer (a partial refund, which changes no status, has its own notification).
 NOTIFIED_STATUSES = (m.PAID, m.PROCESSING, m.FULFILLED, m.CANCELLED, m.REJECTED, m.EXPIRED, m.REFUNDED)
 
@@ -187,6 +206,22 @@ def notify_description_key(kind: str) -> str:
     return f"checkout.notify.{kind}.description"
 
 
+def stage_key(status: str) -> str:
+    """Customer-facing name of an order status: the live panel's status field, the order timeline, /myorders."""
+    return f"checkout.ticket.stage.{status}"
+
+
+def submission_field_key(field_id: str, name: str) -> str:
+    """Key of a ``checkout.submission_form`` field, e.g. ``checkout.submission.form.reference.label``."""
+    return f"checkout.submission.form.{field_id}.{name}"
+
+
+def session_warning_enabled(settings: Settings) -> bool:
+    """The expiry warning is on and can be sent before the unfinished order expires."""
+    c = settings.checkout
+    return 0 < c.session_expiry_warning_minutes < c.session_expiry_minutes
+
+
 def credits_possible(settings: Settings) -> bool:
     """Whether checkout can offer to apply credits (the credits feature is switched on and allows it)."""
     return settings.features.credits and settings.credits.allow_at_checkout
@@ -204,7 +239,9 @@ def needs_second_details_form(settings: Settings) -> bool:
     return any(base + len(o.form) > 5 for o in c.fulfillment_options)
 
 
-def _form_keys(group: str, fields: tuple[FormField, ...], key: Callable[[str, str], str]) -> list[ContentKey]:
+def _form_keys(
+    group: str, fields: tuple[FormField, ...], key: Callable[[str, str], str], *, form: str = "order details form"
+) -> list[ContentKey]:
     keys: list[ContentKey] = []
     for field in fields:
         f = field.id
@@ -214,7 +251,7 @@ def _form_keys(group: str, fields: tuple[FormField, ...], key: Callable[[str, st
                 Kind.INPUT_LABEL,
                 FEATURE,
                 group,
-                f"Label of the '{f}' field in the order details form (also the field name under which the "
+                f"Label of the '{f}' field in the {form} (also the field name under which the "
                 "answer is shown to the customer and to staff).",
             ),
             ck(
@@ -258,6 +295,8 @@ def content_keys(settings: Settings) -> list[ContentKey]:
     g_notify = "Checkout: customer notifications (direct message, or the order channel)"
     g_staff = "Checkout: staff order controls (staff channel)"
     g_errors = "Checkout: error messages (private)"
+    g_ticket = "Checkout: order ticket (introduction, reference, status and timeline on the live panel)"
+    g_stages = "Checkout: order stage names (live panel, timeline, /myorders)"
     keys: list[ContentKey] = [
         ck(PANEL_TITLE, Kind.TITLE, FEATURE, g_panel, "Title of the shop panel (the message with the start button)."),
         ck(PANEL_DESCRIPTION, Kind.DESCRIPTION, FEATURE, g_panel, "Text of the shop panel."),
@@ -326,6 +365,95 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             "with checkout.started.description.",
             placeholders=("name", "channel_mention"),
             fallback=SESSION_EXISTS,
+        ),
+        ck(
+            ORDER_EXISTS,
+            Kind.DESCRIPTION,
+            FEATURE,
+            g_replies,
+            "Private reply when the customer clicks start while they already have the maximum number of open orders "
+            "(checkout.max_open_orders_per_user) and one of them still has its order ticket open: no new ticket is "
+            "created, the reply links the existing one. {channel_mention} links that ticket, {order_number} is its "
+            "order number, {limit} the maximum (checkout.limit_reached.description is used when no open ticket "
+            "can be linked).",
+            placeholders=("channel_mention", "order_number", "limit"),
+        ),
+        ck(
+            BUTTON_OPEN_TICKET,
+            Kind.BUTTON_LABEL,
+            FEATURE,
+            g_replies,
+            "Optional link button under the private replies to the start button (new ticket, unfinished ticket, "
+            "existing open order) that opens the customer's order ticket. Omitted when empty.",
+            required=False,
+        ),
+        ck(
+            TICKET_INTRO_TITLE,
+            Kind.TITLE,
+            FEATURE,
+            g_ticket,
+            "Optional title of the first message in every order ticket. {ticket_number} is the ticket number.",
+            required=False,
+            placeholders=("ticket_number",),
+        ),
+        ck(
+            TICKET_INTRO_DESCRIPTION,
+            Kind.DESCRIPTION,
+            FEATURE,
+            g_ticket,
+            "First message in every order ticket, posted before the live panel: identifies the ticket and explains "
+            "that only the customer and authorized staff can see it. {ticket_number} is the ticket number (it is also "
+            "shown in the reference field under the text), {user_mention} mentions the customer (no ping).",
+            placeholders=("ticket_number", "user_mention"),
+        ),
+        ck(
+            TICKET_REFERENCE_FIELD,
+            Kind.FIELD_NAME,
+            FEATURE,
+            g_ticket,
+            "Name of the field showing the ticket's unique reference (the ticket number, as in the channel name) on "
+            "the ticket introduction and on every state of the live panel.",
+        ),
+        ck(
+            TICKET_ORDER_NUMBER_FIELD,
+            Kind.FIELD_NAME,
+            FEATURE,
+            g_ticket,
+            "Name of the field showing the order number on the live panel once the order was submitted.",
+        ),
+        ck(
+            TICKET_STATUS_FIELD,
+            Kind.FIELD_NAME,
+            FEATURE,
+            g_ticket,
+            "Name of the field showing the current status on every state of the live panel (the value is "
+            "checkout.ticket.status_in_progress before submission, then the order's stage name).",
+        ),
+        ck(
+            TICKET_STATUS_IN_PROGRESS,
+            Kind.FIELD_VALUE,
+            FEATURE,
+            g_ticket,
+            "Status shown on the live panel while the customer is still putting the order together (not submitted "
+            "yet).",
+        ),
+        ck(
+            TICKET_TIMELINE_FIELD,
+            Kind.FIELD_NAME,
+            FEATURE,
+            g_ticket,
+            "Name of the field listing the order's stages so far (the timeline) on the live panel after submission "
+            "(also in /myorders). Each stage is written with checkout.ticket.timeline_entry.",
+        ),
+        ck(
+            TICKET_TIMELINE_ENTRY,
+            Kind.FORMAT,
+            FEATURE,
+            g_ticket,
+            "How one stage of the timeline is written, e.g. '{time} {stage}'. {stage} is the stage name "
+            "(checkout.ticket.stage.*), {time} the date and time it was reached and {relative} the same as a "
+            "relative time (both shown by Discord in each reader's own time zone and language).",
+            placeholders=("stage", "time", "relative"),
         ),
         ck(
             BROWSE_TITLE,
@@ -725,6 +853,17 @@ def content_keys(settings: Settings) -> list[ContentKey]:
     for status in m.ORDER_STATUSES:
         keys.append(
             ck(
+                stage_key(status),
+                Kind.FORMAT,
+                FEATURE,
+                g_stages,
+                f"Name of the stage '{status}' ({_STATUS_DOC[status]}) shown to the customer: the status field of "
+                "the live panel, the order timeline and /myorders.",
+            )
+        )
+    for status in m.ORDER_STATUSES:
+        keys.append(
+            ck(
                 status_label_key(status),
                 Kind.FORMAT,
                 FEATURE,
@@ -762,6 +901,49 @@ def content_keys(settings: Settings) -> list[ContentKey]:
                 placeholders=NOTIFY_PLACEHOLDERS,
             ),
         ]
+    keys += [
+        ck(
+            notify_title_key(NOTIFY_SUBMITTED),
+            Kind.TITLE,
+            FEATURE,
+            g_notify,
+            f"Optional title of the 'submission received' notification. {notify_doc}",
+            required=False,
+            placeholders=NOTIFY_PLACEHOLDERS,
+        ),
+        ck(
+            notify_description_key(NOTIFY_SUBMITTED),
+            Kind.DESCRIPTION,
+            FEATURE,
+            g_notify,
+            "'Submission received' notification, sent once when the customer submitted the order (it now waits for "
+            f"payment). {notify_doc}",
+            placeholders=NOTIFY_PLACEHOLDERS,
+        ),
+        ck(
+            notify_title_key(NOTIFY_SESSION_WARNING),
+            Kind.TITLE,
+            FEATURE,
+            g_notify,
+            "Optional title of the warning posted in the order ticket before an unfinished order expires. "
+            "{minutes} and {expires} as in the text.",
+            required=False,
+            placeholders=("minutes", "expires"),
+        ),
+        ck(
+            notify_description_key(NOTIFY_SESSION_WARNING),
+            Kind.DESCRIPTION,
+            FEATURE,
+            g_notify,
+            "Warning posted in the order ticket (mentioning the customer) checkout.session_expiry_warning_minutes "
+            "before an unfinished order expires for inactivity (any change to the order resets the timer; after a "
+            "later idle period the warning is sent again). {minutes} is that number of minutes, {expires} when the "
+            "order expires (relative time shown by Discord, e.g. 'in 10 minutes'). Needed when "
+            "checkout.session_expiry_warning_minutes is above 0.",
+            required=session_warning_enabled(settings),
+            placeholders=("minutes", "expires"),
+        ),
+    ]
     reminder = c.payment_reminder_minutes > 0
     keys += [
         ck(
@@ -990,6 +1172,19 @@ def content_keys(settings: Settings) -> list[ContentKey]:
         keys += _form_keys(group, option.form, partial(option_form_key, o))
     if c.details_form:
         keys += _form_keys("Checkout: order details form", c.details_form, form_field_key)
+    if c.submission_form:
+        g_submission = "Checkout: submission form (asked when the customer presses Submit)"
+        keys.append(
+            ck(
+                SUBMISSION_MODAL_TITLE,
+                Kind.MODAL_TITLE,
+                FEATURE,
+                g_submission,
+                "Title of the form that opens when the customer presses Submit (checkout.submission_form). The answers "
+                "are stored with the order and shown to staff.",
+            )
+        )
+        keys += _form_keys(g_submission, c.submission_form, submission_field_key, form="submission form")
     for fee in c.fees:
         keys.append(
             ck(
@@ -1008,10 +1203,12 @@ def content_keys(settings: Settings) -> list[ContentKey]:
 
 
 def shared_keys(settings: Settings) -> list[str]:
-    """Shared keys the workflow displays: prices, step navigation, cancel confirmation and paging."""
+    """Shared keys the workflow displays: prices, the step indicator (the live panel always shows the progress),
+    step navigation, cancel confirmation and paging."""
     del settings
     return [
         core.MONEY_FORMAT,
+        core.PROGRESS_FORMAT,
         core.BUTTON_BACK,
         core.BUTTON_CONTINUE,
         core.BUTTON_CANCEL,
@@ -1055,6 +1252,13 @@ def settings_problems(settings: Settings) -> list[str]:
             problems.append(f"checkout.fees '{fee.id}': a percent fee needs basis_points > 0 (100 = 1%)")
         if fee.kind == "flat" and fee.amount_minor <= 0:
             problems.append(f"checkout.fees '{fee.id}': a flat fee needs amount_minor > 0")
+    if c.session_expiry_warning_minutes > 0 and c.session_expiry_minutes <= 0:
+        problems.append(
+            "checkout.session_expiry_warning_minutes: needs checkout.session_expiry_minutes above 0 (the warning is "
+            "sent before an unfinished order expires)"
+        )
+    elif 0 < c.session_expiry_minutes <= c.session_expiry_warning_minutes:
+        problems.append("checkout.session_expiry_warning_minutes: must be less than checkout.session_expiry_minutes")
     if (
         c.payment_reminder_minutes > 0
         and c.payment_expiry_minutes > 0

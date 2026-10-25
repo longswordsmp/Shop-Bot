@@ -83,7 +83,8 @@ async def test_a_full_cart_with_long_names_never_hides_the_payment_instructions(
         fields = {f.name: f.value for f in message.embeds[0].fields}
         assert fields[tenv.text(k.REVIEW_TOTAL_FIELD)] == money(tenv, 20_000)
         # Every order line follows in the order channel (nothing is cut).
-        extras = [msg for msg in _bot_messages(ch) if msg is not workflow_message(ch)]
+        # (the first bot message is the ticket introduction)
+        extras = [msg for msg in _bot_messages(ch)[1:] if msg is not workflow_message(ch)]
         assert extras and all(len(msg.embeds) <= 10 for msg in extras)
         listed = "\n".join(_texts(msg) for msg in extras)
         assert all(views.escape(name) in listed for name in names)
@@ -123,7 +124,7 @@ async def test_order_messages_fall_back_to_a_separate_instructions_message(tmp_p
         placed, ch, message = await place_order(tenv, tenv.member(), [(p1.id, 1)])
         assert message.embeds[0].description == long_description
         assert message.custom_ids() == [views.order_cancel_id(placed.id)]
-        separate = [msg for msg in _bot_messages(ch) if msg is not message]
+        separate = [msg for msg in _bot_messages(ch)[1:] if msg is not message]  # after the ticket introduction
         assert [msg.embeds[0].description for msg in separate] == [long_instructions]
     finally:
         await tenv.close()

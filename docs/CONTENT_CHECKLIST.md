@@ -48,7 +48,7 @@ Feature `core` — enabled.
 |---|---|---|---|---|---|
 | ❌ | `common.money_format` | How prices are written, e.g. '{amount} {currency}'. {amount} is formatted with the separators from settings.checkout. Required by catalog and checkout. | format (100) | required (used by an enabled feature) | `{amount}`, `{currency}` |
 | ▫️ | `common.page_indicator` | Optional page indicator added to the footer of paginated lists. | format (100) | optional | `{page}`, `{pages}` |
-| ▫️ | `common.progress_format` | Optional step indicator shown in multi-step workflows. {bar} uses the progress symbols from settings.branding. | format (100) | optional | `{current}`, `{total}`, `{bar}` |
+| ❌ | `common.progress_format` | Optional step indicator shown in multi-step workflows. {bar} uses the progress symbols from settings.branding. | format (100) | required (used by an enabled feature) | `{current}`, `{total}`, `{bar}` |
 
 ## Server structure (role, category, channel names)
 
@@ -483,8 +483,10 @@ Feature `checkout` — enabled.
 |---|---|---|---|---|---|
 | ▫️ | `checkout.buy_added.description` | Optional: private reply when the customer clicks a product's buy button (catalog.button.buy) while they already have an unfinished order channel; the product is now in its cart (one unit, or the quantity already chosen). {name} is the product name, {channel_mention} links the channel. If empty, checkout.session_exists.description is shown. A buy button that opens a new order channel answers with checkout.started.description. | description (4096) | optional (falls back to `checkout.session_exists.description`) | `{name}`, `{channel_mention}` |
 | ❌ | `checkout.limit_reached.description` | Private reply when the customer already has the maximum number of open orders (waiting for payment, paid, or in progress). {limit} is checkout.max_open_orders_per_user. | description (4096) | required | `{limit}` |
+| ❌ | `checkout.order_exists.description` | Private reply when the customer clicks start while they already have the maximum number of open orders (checkout.max_open_orders_per_user) and one of them still has its order ticket open: no new ticket is created, the reply links the existing one. {channel_mention} links that ticket, {order_number} is its order number, {limit} the maximum (checkout.limit_reached.description is used when no open ticket can be linked). | description (4096) | required | `{channel_mention}`, `{order_number}`, `{limit}` |
 | ❌ | `checkout.session_exists.description` | Private reply when the customer clicks start while they already have an unfinished order channel; no second channel is created. {channel_mention} links the existing channel. | description (4096) | required | `{channel_mention}` |
 | ❌ | `checkout.started.description` | Private reply after the start button created the customer's order channel. {channel_mention} links the channel. | description (4096) | required | `{channel_mention}` |
+| ▫️ | `checkout.ticket_link.button` | Optional link button under the private replies to the start button (new ticket, unfinished ticket, existing open order) that opens the customer's order ticket. Omitted when empty. | button_label (80) | optional |  |
 
 ### Checkout: order workflow - cart
 
@@ -542,6 +544,8 @@ Feature `checkout` — enabled.
 | ▫️ | `checkout.notify.paid.title` | Optional title of the notification sent when an order becomes 'paid'. {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention. | title (256) | optional | `{order_number}`, `{total}`, `{channel_mention}` |
 | ▫️ | `checkout.notify.payment_reminder.description` | Reminder sent once when an order is still unpaid checkout.payment_reminder_minutes after it was submitted (the payment instructions are attached below it). {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention. Needed when checkout.payment_reminder_minutes is above 0. | description (4096) | optional | `{order_number}`, `{total}`, `{channel_mention}` |
 | ▫️ | `checkout.notify.payment_reminder.title` | Optional title of the payment reminder. {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention. | title (256) | optional | `{order_number}`, `{total}`, `{channel_mention}` |
+| ❌ | `checkout.notify.pending_payment.description` | 'Submission received' notification, sent once when the customer submitted the order (it now waits for payment). {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention. | description (4096) | required | `{order_number}`, `{total}`, `{channel_mention}` |
+| ▫️ | `checkout.notify.pending_payment.title` | Optional title of the 'submission received' notification. {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention. | title (256) | optional | `{order_number}`, `{total}`, `{channel_mention}` |
 | ❌ | `checkout.notify.processing.description` | Notification sent to the customer when their order becomes 'processing' (staff are preparing the order). {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention. | description (4096) | required | `{order_number}`, `{total}`, `{channel_mention}` |
 | ▫️ | `checkout.notify.processing.title` | Optional title of the notification sent when an order becomes 'processing'. {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention. | title (256) | optional | `{order_number}`, `{total}`, `{channel_mention}` |
 | ❌ | `checkout.notify.refund.description` | Notification sent to the customer when staff record a partial refund (a refund that completes the full refund sends the 'refunded' notification instead). {order_number} is the order number, {amount} the refunded amount (common.money_format), {channel_mention} links the order channel. | description (4096) | required | `{order_number}`, `{amount}`, `{channel_mention}` |
@@ -550,6 +554,8 @@ Feature `checkout` — enabled.
 | ▫️ | `checkout.notify.refunded.title` | Optional title of the notification sent when an order becomes 'refunded'. {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention. | title (256) | optional | `{order_number}`, `{total}`, `{channel_mention}` |
 | ❌ | `checkout.notify.rejected.description` | Notification sent to the customer when their order becomes 'rejected' (staff rejected the order before payment). {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention. | description (4096) | required | `{order_number}`, `{total}`, `{channel_mention}` |
 | ▫️ | `checkout.notify.rejected.title` | Optional title of the notification sent when an order becomes 'rejected'. {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention. | title (256) | optional | `{order_number}`, `{total}`, `{channel_mention}` |
+| ▫️ | `checkout.notify.session_expiry_warning.description` | Warning posted in the order ticket (mentioning the customer) checkout.session_expiry_warning_minutes before an unfinished order expires for inactivity (any change to the order resets the timer; after a later idle period the warning is sent again). {minutes} is that number of minutes, {expires} when the order expires (relative time shown by Discord, e.g. 'in 10 minutes'). Needed when checkout.session_expiry_warning_minutes is above 0. | description (4096) | optional | `{minutes}`, `{expires}` |
+| ▫️ | `checkout.notify.session_expiry_warning.title` | Optional title of the warning posted in the order ticket before an unfinished order expires. {minutes} and {expires} as in the text. | title (256) | optional | `{minutes}`, `{expires}` |
 
 ### Checkout: payment instructions (manual payment)
 
@@ -623,6 +629,52 @@ Feature `checkout` — enabled.
 |---|---|---|---|---|---|
 | ▫️ | `checkout.submitted.description` | Optional text of the submitted order. The payment instructions follow below it. {order_number} is the order number, {total} the order total written with common.money_format. | description (4096) | optional | `{order_number}`, `{total}` |
 | ❌ | `checkout.submitted.title` | Title of the workflow message after the order was submitted (waiting for payment). {order_number} is the order number, {total} the order total written with common.money_format. | title (256) | required | `{order_number}`, `{total}` |
+
+### Checkout: order ticket (introduction, reference, status and timeline on the live panel)
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ❌ | `checkout.ticket.intro_description` | First message in every order ticket, posted before the live panel: identifies the ticket and explains that only the customer and authorized staff can see it. {ticket_number} is the ticket number (it is also shown in the reference field under the text), {user_mention} mentions the customer (no ping). | description (4096) | required | `{ticket_number}`, `{user_mention}` |
+| ▫️ | `checkout.ticket.intro_title` | Optional title of the first message in every order ticket. {ticket_number} is the ticket number. | title (256) | optional | `{ticket_number}` |
+| ❌ | `checkout.ticket.order_number_field` | Name of the field showing the order number on the live panel once the order was submitted. | field_name (256) | required |  |
+| ❌ | `checkout.ticket.reference_field` | Name of the field showing the ticket's unique reference (the ticket number, as in the channel name) on the ticket introduction and on every state of the live panel. | field_name (256) | required |  |
+| ❌ | `checkout.ticket.status_field` | Name of the field showing the current status on every state of the live panel (the value is checkout.ticket.status_in_progress before submission, then the order's stage name). | field_name (256) | required |  |
+| ❌ | `checkout.ticket.status_in_progress` | Status shown on the live panel while the customer is still putting the order together (not submitted yet). | field_value (1024) | required |  |
+| ❌ | `checkout.ticket.timeline_entry` | How one stage of the timeline is written, e.g. '{time} {stage}'. {stage} is the stage name (checkout.ticket.stage.*), {time} the date and time it was reached and {relative} the same as a relative time (both shown by Discord in each reader's own time zone and language). | format (100) | required | `{stage}`, `{time}`, `{relative}` |
+| ❌ | `checkout.ticket.timeline_field` | Name of the field listing the order's stages so far (the timeline) on the live panel after submission (also in /myorders). Each stage is written with checkout.ticket.timeline_entry. | field_name (256) | required |  |
+
+### Checkout: order stage names (live panel, timeline, /myorders)
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ❌ | `checkout.ticket.stage.cancelled` | Name of the stage 'cancelled' (the order was cancelled (by the customer before paying, or by staff)) shown to the customer: the status field of the live panel, the order timeline and /myorders. | format (100) | required |  |
+| ❌ | `checkout.ticket.stage.expired` | Name of the stage 'expired' (the order was not paid within checkout.payment_expiry_minutes) shown to the customer: the status field of the live panel, the order timeline and /myorders. | format (100) | required |  |
+| ❌ | `checkout.ticket.stage.fulfilled` | Name of the stage 'fulfilled' (the order was delivered/completed) shown to the customer: the status field of the live panel, the order timeline and /myorders. | format (100) | required |  |
+| ❌ | `checkout.ticket.stage.paid` | Name of the stage 'paid' (staff confirmed the payment) shown to the customer: the status field of the live panel, the order timeline and /myorders. | format (100) | required |  |
+| ❌ | `checkout.ticket.stage.pending_payment` | Name of the stage 'pending_payment' (waiting for payment) shown to the customer: the status field of the live panel, the order timeline and /myorders. | format (100) | required |  |
+| ❌ | `checkout.ticket.stage.processing` | Name of the stage 'processing' (staff are preparing the order) shown to the customer: the status field of the live panel, the order timeline and /myorders. | format (100) | required |  |
+| ❌ | `checkout.ticket.stage.refunded` | Name of the stage 'refunded' (the order was fully refunded) shown to the customer: the status field of the live panel, the order timeline and /myorders. | format (100) | required |  |
+| ❌ | `checkout.ticket.stage.rejected` | Name of the stage 'rejected' (staff rejected the order before payment) shown to the customer: the status field of the live panel, the order timeline and /myorders. | format (100) | required |  |
+
+## my_orders
+
+Feature `my_orders` — enabled.
+
+### My orders (/myorders, private)
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ❌ | `my_orders.command.description` | Description of the /myorders command shown in Discord's command list (at most 100 characters). The command is registered only when features.my_orders is on and this text is set; Discord receives it when the bot starts (a change needs a restart: /reload does not update it). | command_description (100) | required |  |
+| ❌ | `my_orders.empty.description` | Text of the /myorders reply when the member has no order yet. | description (4096) | required |  |
+| ▫️ | `my_orders.list.description` | Optional text under the /myorders title when the member has orders. {count} is their number. One card per order follows (newest first), with previous/next buttons when there is more than one page. | description (4096) | optional | `{count}` |
+| ❌ | `my_orders.list.title` | Title of the private /myorders reply (also when the member has no order yet). {count} is the number of the member's orders. | title (256) | required | `{count}` |
+| ❌ | `my_orders.order.number_field` | Name of the field showing the order number (the order's reference) on each order card. | field_name (256) | required |  |
+| ❌ | `my_orders.order.status_field` | Name of the field showing the order's current stage (checkout.ticket.stage.*) on each order card. | field_name (256) | required |  |
+| ▫️ | `my_orders.order.ticket_field` | Optional name of a field linking the order's ticket while it is still open (omitted when empty). | field_name (256) | optional |  |
+| ❌ | `my_orders.order.timeline_field` | Name of the field listing the order's stages so far on each order card (each written with checkout.ticket.timeline_entry). | field_name (256) | required |  |
+| ❌ | `my_orders.order.title` | Title of each order's card in /myorders. {order_number} is the order number, {status} its current stage name (checkout.ticket.stage.*), {total} the total (common.money_format), {date} the date it was submitted (shown by Discord in the reader's time zone). | title (256) | required | `{order_number}`, `{status}`, `{total}`, `{date}` |
+| ❌ | `my_orders.order.total_field` | Name of the field showing the order total (common.money_format) on each order card. | field_name (256) | required |  |
+| ▫️ | `my_orders.order.tracking_field` | Optional name of the field showing the tracking details staff recorded for the order (shown only when there are tracking details; omitted when empty). | field_name (256) | optional |  |
 
 ## Store credit
 
@@ -713,7 +765,7 @@ Feature `reviews` — enabled.
 
 ## Summary
 
-- Required keys (for the listed features): 207
-- Required keys still missing: 185
+- Required keys (for the listed features): 233
+- Required keys still missing: 211
 
 Legend: ✅ configured · ❌ required and missing · ▫️ optional and empty

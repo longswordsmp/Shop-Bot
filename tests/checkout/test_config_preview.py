@@ -101,6 +101,7 @@ def test_conditional_requirements() -> None:
 def test_shared_keys() -> None:
     assert MODULE.shared_keys(make_settings()) == [
         core.MONEY_FORMAT,
+        core.PROGRESS_FORMAT,
         core.BUTTON_BACK,
         core.BUTTON_CONTINUE,
         core.BUTTON_CANCEL,
@@ -206,7 +207,8 @@ def test_every_content_key_constant_is_declared() -> None:
     source = "\n".join(path.read_text(encoding="utf-8") for path in files)
     constants = set(re.findall(r'= "(checkout\.[a-z_]+\.[a-z_.]+)"', source))
     assert len(constants) > 50
-    declared = {key.key for key in k.content_keys(make_settings())}
+    # With a submission form, so its (conditional) keys are declared too.
+    declared = {key.key for key in k.content_keys(make_settings({"checkout": {"submission_form": [{"id": "x"}]}}))}
     assert constants <= declared, constants - declared
 
 
@@ -311,7 +313,7 @@ async def test_preview_sample_data_is_synthetic(tenv: TestEnv) -> None:
     states = {s.name: s.spec for s in MODULE.preview(tenv.app)}
     cart = states["workflow_cart"]
     assert isinstance(cart, MessageSpec)
-    assert "sample product 1" in cart.embeds[0].fields[0].value
+    assert any("sample product 1" in f.value for f in cart.embeds[0].fields)
 
 
 async def test_panel_spec_and_publish(co: TestEnv) -> None:

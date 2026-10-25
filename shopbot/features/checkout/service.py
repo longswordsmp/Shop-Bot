@@ -52,6 +52,7 @@ import discord
 
 from shopbot.config.content import MissingContent
 from shopbot.core.ratelimit import Cooldowns
+from shopbot.db.repos import notifications as notif_repo
 from shopbot.features import core_keys as core
 from shopbot.features.catalog import repo as catalog_repo
 from shopbot.features.catalog import service as catalog_service
@@ -80,6 +81,7 @@ TASK_PAYMENT_EXPIRE = repo.TASK_PAYMENT_EXPIRE
 TASK_AFTER_SUBMIT = repo.TASK_AFTER_SUBMIT
 TASK_AFTER_TRANSITION = repo.TASK_AFTER_TRANSITION
 TASK_TICKET_CHECK = repo.TASK_TICKET_CHECK
+TASK_SESSION_WARNING = repo.TASK_SESSION_WARNING
 TICKET_CATEGORY = "checkout"
 CREDITS_FEATURE = "credits"
 REVIEWS_FEATURE = "reviews"
@@ -109,6 +111,20 @@ def staff_items_key(order_id: int, index: int) -> str:
 
 def order_extra_key(order_id: int, part: str, index: int) -> str:
     return f"checkout.order_{part}:{order_id}:{index}"
+
+
+def ticket_intro_key(ticket_id: int) -> str:
+    return f"checkout.ticket_intro:{ticket_id}"
+
+
+def session_warning_notice_key(session_id: int, idle_since: int) -> str:
+    """One expiry warning per idle period of a session (any activity starts a new period)."""
+    return f"checkout.session_warning:{session_id}:{idle_since}"
+
+
+def ticket_url(app: App, channel_id: int) -> str:
+    """A https:// link to a ticket channel (for link buttons)."""
+    return f"https://discord.com/channels/{app.env.guild_id}/{channel_id}"
 
 
 class FollowupIncomplete(Exception):
@@ -252,6 +268,12 @@ async def workflow_spec(app: App, session_id: int, *, notice: EmbedSpec | None =
     return views.workflow_message(app.ui, app.settings, data, notice=notice)
 
 
+async def ticket_reference(app: App, session: m.Session) -> str | None:
+    """The reference of the session's order ticket as the live panel shows it."""
+    number = await app.db.run(repo.ticket_number, session.ticket_id)
+    return views.ticket_reference(app.settings, number) if number is not None else None
+
+
 async def session_channel(app: App, session: m.Session) -> discord.TextChannel | None:
     ticket = await tickets_service.get_ticket(app, session.ticket_id)
     if ticket is None or ticket.status not in (CREATING, OPEN):
@@ -309,6 +331,80 @@ async def schedule_session_expiry(app: App, session: m.Session) -> None:
     )
 
 
+async def schedule_session_warning(app: App, session: m.Session) -> None:
+    """Make sure an active session has its expiry-warning task (e.g. the warning was switched on later). The task
+    re-arms itself for every idle period until the session ends (see ``tasks.session_warning_task``)."""
+    c = app.settings.checkout
+    if not k.session_warning_enabled(app.settings) or not session.active:
+        return
+    await app.scheduler.schedule(
+        TASK_SESSION_WARNING,
+        run_at=session.updated_at + (c.session_expiry_minutes - c.session_expiry_warning_minutes) * 60,
+        payload={"session_id": session.id},
+        dedupe_key=repo.session_warning_key(session.id),
+        replace=True,
+    )
+
+
+async def warn_session_expiry(app: App, session: m.Session) -> str:
+    """Post the expiry warning of ``session``'s current idle period in its order ticket, mentioning the customer
+    (at most once per idle period). Returns the delivery ('channel', 'duplicate', 'none')."""
+    c = app.settings.checkout
+    channel = await session_channel(app, session)
+    if channel is None:
+        return "none"
+    expires_at = session.updated_at + c.session_expiry_minutes * 60
+    try:
+        spec = views.session_warning_notification(
+            app.ui, minutes=c.session_expiry_warning_minutes, expires_at=expires_at
+        )
+    except MissingContent as exc:
+        _content_missing(exc, "checkout.session_warning")
+        return "none"
+    return await app.notifier.notify_user(
+        user_id=session.user_id,
+        spec=spec,
+        kind=f"checkout.{k.NOTIFY_SESSION_WARNING}",
+        dedupe_key=session_warning_notice_key(session.id, session.updated_at),
+        fallback_channel_id=channel.id,
+        prefer_channel=True,
+    )
+
+
+async def post_ticket_intro(
+    app: App, *, ticket_id: int, channel: discord.TextChannel, number: int, user_id: int
+) -> bool:
+    """The order ticket's introduction (which ticket this is, who can see it), posted at most once per ticket and
+    recorded like a notification. True when it is posted now or was posted before; False when it could not be
+    built or Discord refused it (logged). It is sent to the channel object itself: a channel created a moment ago
+    may not be in the gateway cache yet."""
+    key = ticket_intro_key(ticket_id)
+    if await app.db.run(notif_repo.already_sent, key):
+        return True
+    try:
+        spec = views.ticket_intro(app.ui, app.settings, number, user_id)
+    except MissingContent as exc:
+        _content_missing(exc, "checkout.ticket_intro")
+        return False
+    try:
+        await send_spec(channel, spec)
+    except (discord.HTTPException, RenderError) as exc:
+        log_event(log, logging.WARNING, "checkout_ticket_intro_failed", ticket_id=ticket_id, error=type(exc).__name__)
+        return False
+    await app.db.transaction(
+        notif_repo.record,
+        dedupe_key=key,
+        user_id=user_id,
+        channel_id=channel.id,
+        kind="checkout.ticket_intro",
+        delivery="channel",
+        status="sent",
+        error=None,
+        now=app.clock.now(),
+    )
+    return True
+
+
 def _preflight(app: App, page: m.ProductPage) -> None:
     """Build what a new session shows before anything is created (missing text raises ``MissingContent``)."""
     session = m.Session(
@@ -336,9 +432,26 @@ def _preflight(app: App, page: m.ProductPage) -> None:
         totals=compute_totals([]),
         credits_enabled=False,
         credits_available_minor=0,
+        ticket_number=0,
     )
+    check_message(views.ticket_intro(app.ui, app.settings, 0, 0))
     check_message(views.workflow_message(app.ui, app.settings, data))
     views.started_reply(app.ui, 0)
+
+
+async def _limit_reply(app: App, user_id: int, limit: int) -> MessageSpec:
+    """The member is at the open-order limit: a private link to the ticket of their newest open order whose ticket is
+    still open (no second ticket is created), or the limit text when no such ticket can be linked."""
+    for order in await app.db.run(repo.open_orders_for_user, app.env.guild_id, user_id):
+        if order.ticket_id is None:
+            continue
+        ticket = await tickets_service.get_ticket(app, order.ticket_id)
+        if ticket is None or ticket.status != OPEN:
+            continue
+        channel = await tickets_service.ticket_channel(app, ticket)
+        if channel is not None:
+            return views.order_exists_reply(app.ui, channel.id, order.number, limit, ticket_url(app, channel.id))
+    return views.limit_reply(app.ui, limit)
 
 
 async def finish_activation(app: App, session_id: int) -> None:
@@ -357,6 +470,16 @@ async def finish_activation(app: App, session_id: int) -> None:
 async def resend_workflow(app: App, session: m.Session, channel: discord.TextChannel) -> bool:
     """An active session without its workflow message (the process stopped, or sending failed, after the session
     was recorded): send it now, record it and open the ticket. False when it could not be sent."""
+    ticket = await tickets_service.get_ticket(app, session.ticket_id)
+    if ticket is not None:
+        # The introduction comes first; it is posted only if it never was (best effort: the panel matters most).
+        await _attempt(
+            "ticket_intro",
+            lambda: post_ticket_intro(
+                app, ticket_id=ticket.id, channel=channel, number=ticket.number, user_id=session.user_id
+            ),
+            session_id=session.id,
+        )
     try:
         message = await send_spec(channel, await workflow_spec(app, session.id))
     except Exception as exc:
@@ -425,7 +548,7 @@ async def _start(app: App, member: discord.Member, product_id: int | None) -> Me
             if existing.message_id is None and not await resend_workflow(app, existing, channel):
                 raise HandlerError(core.ERROR_GENERIC)
             if product is None:
-                return views.session_exists_reply(app.ui, channel.id)
+                return views.session_exists_reply(app.ui, channel.id, ticket_url(app, channel.id))
             reply = views.buy_added_reply(app.ui, product.name, channel.id)  # built first: text may be missing
             updated = await _add_bought(app, existing, product.id)
 
@@ -438,7 +561,7 @@ async def _start(app: App, member: discord.Member, product_id: int | None) -> Me
             raise HandlerError(core.ERROR_GENERIC)  # the channel may still exist: keep the session
     open_orders = await app.db.run(repo.count_open_orders, guild_id, member.id)
     if open_orders >= c.max_open_orders_per_user:
-        return views.limit_reply(app.ui, c.max_open_orders_per_user)
+        return await _limit_reply(app, member.id, c.max_open_orders_per_user)
     rt = runtime(app)
     remaining = rt.cooldowns.remaining(("start", member.id), START_COOLDOWN_SECONDS)
     if remaining > 0:
@@ -458,7 +581,7 @@ async def _start(app: App, member: discord.Member, product_id: int | None) -> Me
             limit=c.max_open_orders_per_user,
         )
     except tickets_service.TicketLimitReached as exc:
-        return views.limit_reply(app.ui, exc.limit)
+        return await _limit_reply(app, member.id, exc.limit)
     except tickets_service.TicketCreateFailed as exc:
         log_event(log, logging.ERROR, "checkout_channel_create_failed", user_id=member.id, reason=exc.reason)
         raise HandlerError(core.ERROR_GENERIC) from None
@@ -473,6 +596,7 @@ async def _start(app: App, member: discord.Member, product_id: int | None) -> Me
             now=app.clock.now(),
             expiry_seconds=c.session_expiry_minutes * 60,
             task_attempts=attempts,
+            warning_seconds=c.session_expiry_warning_minutes * 60 if k.session_warning_enabled(app.settings) else 0,
         )
     except Exception as exc:
         log_event(log, logging.ERROR, "checkout_session_create_failed", user_id=member.id, error=type(exc).__name__)
@@ -490,6 +614,16 @@ async def _start(app: App, member: discord.Member, product_id: int | None) -> Me
             log_event(log, logging.INFO, "checkout_buy_not_added", session_id=session.id, reason=exc.key)
             notice = app.ui.error_embed(exc.key, **exc.values)
     try:
+        # First the ticket's introduction (which ticket this is, who can see it), then the live panel.
+        introduced = await post_ticket_intro(
+            app,
+            ticket_id=created.ticket.id,
+            channel=created.channel,
+            number=created.ticket.number,
+            user_id=member.id,
+        )
+        if not introduced:
+            raise RuntimeError("the ticket introduction could not be posted")
         spec = await workflow_spec(app, session.id)
         message = await send_spec(created.channel, spec)
         await app.db.transaction(repo.set_session_message, session.id, message.id, app.clock.now())
@@ -522,7 +656,7 @@ async def _start(app: App, member: discord.Member, product_id: int | None) -> Me
     )
     if product is not None:
         return views.buy_started_reply(app.ui, created.channel.id, notice)
-    return views.started_reply(app.ui, created.channel.id)
+    return views.started_reply(app.ui, created.channel.id, ticket_url(app, created.channel.id))
 
 
 # -- workflow changes (the customer's own session) ------------------------------------------------------------------
@@ -597,14 +731,11 @@ async def choose_fulfillment(app: App, session: m.Session, option_id: str) -> m.
     return await _update(app, session, fulfillment_option=option_id, step=m.FULFILLMENT)
 
 
-async def save_details(app: App, session: m.Session, part: int, fields: Mapping[str, str]) -> m.Session:
-    """Validate and store one part of the details form (answers of other parts are kept)."""
-    c = app.settings.checkout
-    parts = flow.form_parts(flow.form_inputs(c, session.fulfillment_option))
-    if not 0 <= part < len(parts):
-        raise HandlerError(core.ERROR_INVALID_INPUT)
+def _validated_answers(inputs: Sequence[flow.FormInput], fields: Mapping[str, str]) -> dict[str, str | None]:
+    """The submitted answers of ``inputs`` checked server-side (required, length); None removes an empty optional
+    answer. Raises ``HandlerError`` (invalid input) for anything the form itself should have refused."""
     updates: dict[str, str | None] = {}
-    for item in parts[part]:
+    for item in inputs:
         text = fields.get(item.answer_key, "").strip()
         if not text:
             if item.field.required:
@@ -614,6 +745,29 @@ async def save_details(app: App, session: m.Session, part: int, fields: Mapping[
         if not item.field.min_length <= len(text) <= item.field.max_length:
             raise HandlerError(core.ERROR_INVALID_INPUT)
         updates[item.answer_key] = text
+    return updates
+
+
+async def save_details(app: App, session: m.Session, part: int, fields: Mapping[str, str]) -> m.Session:
+    """Validate and store one part of the details form (answers of other parts are kept)."""
+    c = app.settings.checkout
+    parts = flow.form_parts(flow.form_inputs(c, session.fulfillment_option))
+    if not 0 <= part < len(parts):
+        raise HandlerError(core.ERROR_INVALID_INPUT)
+    return await _merge_answers(app, session, _validated_answers(parts[part], fields))
+
+
+async def save_submission(app: App, session: m.Session, fields: Mapping[str, str]) -> m.Session:
+    """Validate and store the answers to ``checkout.submission_form`` in the session (they become part of the order
+    when it is submitted, and are filled in again if the submission has to be repeated)."""
+    inputs = flow.submission_inputs(app.settings.checkout)
+    if not inputs:
+        raise HandlerError(core.ERROR_INVALID_INPUT)
+    return await _merge_answers(app, session, _validated_answers(inputs, fields))
+
+
+async def _merge_answers(app: App, session: m.Session, updates: Mapping[str, str | None]) -> m.Session:
+    c = app.settings.checkout
     try:
         return await app.db.transaction(
             repo.merge_details,
@@ -702,7 +856,7 @@ async def expire_session(app: App, session_id: int, *, reason: str, render: bool
 
     async def show_expired() -> None:
         try:
-            spec = views.session_ended(app.ui, m.SESSION_EXPIRED)
+            spec = views.session_ended(app.ui, m.SESSION_EXPIRED, reference=await ticket_reference(app, ended))
         except MissingContent as exc:
             _content_missing(exc, "checkout.session_expired")
             return
@@ -779,8 +933,8 @@ async def _after_submit(app: App, order: m.Order) -> None:
 async def run_submit_followups(app: App, order_id: int, *, adopt: bool) -> bool:
     """The Discord side of a new order, safe to repeat: the catalog listing refresh, the payment provider's start
     (only while the payment has no provider reference yet), the staff controls (posted once; ``adopt`` first looks
-    for controls that were posted but never recorded) and the customer's form answers for staff (deduplicated).
-    Returns True when every step completed."""
+    for controls that were posted but never recorded), the customer's form answers for staff (deduplicated) and
+    the customer's 'submission received' notification (once). Returns True when every step completed."""
     async with runtime(app).followup_lock(order_id):
         order = await get_order(app, order_id)
         if order is None:
@@ -791,7 +945,17 @@ async def run_submit_followups(app: App, order_id: int, *, adopt: bool) -> bool:
             "staff_message", lambda: _ensure_staff_message(app, order_id, adopt=adopt), order_id=order_id
         )
         ok &= await _attempt("staff_details", lambda: post_staff_details(app, order_id), order_id=order_id)
+        ok &= await _attempt("notification", lambda: _notify_submitted(app, order_id), order_id=order_id)
         return ok
+
+
+async def _notify_submitted(app: App, order_id: int) -> None:
+    """'Submission received' (once per order; only while the order still waits for payment)."""
+    view = await order_view(app, order_id)
+    if view is None or view.order.status != m.PENDING:
+        return
+    kind = k.NOTIFY_SUBMITTED
+    await notify_customer(app, view, kind, lambda: views.status_notification(app.ui, app.settings, view, kind))
 
 
 async def _start_payment(app: App, order_id: int) -> None:

@@ -44,6 +44,7 @@ TASK_PAYMENT_EXPIRE = "checkout.payment_expire"
 TASK_AFTER_SUBMIT = "checkout.after_submit"
 TASK_AFTER_TRANSITION = "checkout.after_transition"
 TASK_TICKET_CHECK = "checkout.ticket_check"
+TASK_SESSION_WARNING = "checkout.session_warning"
 # Follow-up tasks run this long after the change they follow, only if the process did not finish the same steps
 # right after the commit (it cancels the task then). The delay keeps the two from running at the same time.
 FOLLOWUP_DELAY_SECONDS = 60
@@ -53,6 +54,10 @@ DEFAULT_TASK_ATTEMPTS = 5
 
 def session_task_key(session_id: int) -> str:
     return f"checkout.session:{session_id}"
+
+
+def session_warning_key(session_id: int) -> str:
+    return f"checkout.session_warning:{session_id}"
 
 
 def reminder_task_key(order_id: int) -> str:
@@ -319,8 +324,10 @@ def create_session(
     now: int,
     expiry_seconds: int,
     task_attempts: int = DEFAULT_TASK_ATTEMPTS,
+    warning_seconds: int = 0,
 ) -> m.Session:
-    """A new ACTIVE session; its idle-expiry task (when expiry is on) is scheduled in the same transaction."""
+    """A new ACTIVE session; its idle-expiry task (when expiry is on) and its expiry-warning task (when the warning
+    is on: ``warning_seconds`` before the expiry) are scheduled in the same transaction."""
     cursor = conn.execute(
         "INSERT INTO checkout_sessions(guild_id, user_id, ticket_id, status, step, page, details, apply_credits, "
         "created_at, updated_at, expires_at) VALUES (?, ?, ?, ?, ?, 0, '{}', 0, ?, ?, ?)",
@@ -335,6 +342,17 @@ def create_session(
             run_at=now + expiry_seconds,
             payload={"session_id": session.id},
             dedupe_key=session_task_key(session.id),
+            attempts=task_attempts,
+            now=now,
+            replace=True,
+        )
+    if 0 < warning_seconds < expiry_seconds:
+        _schedule(
+            conn,
+            TASK_SESSION_WARNING,
+            run_at=now + expiry_seconds - warning_seconds,
+            payload={"session_id": session.id},
+            dedupe_key=session_warning_key(session.id),
             attempts=task_attempts,
             now=now,
             replace=True,
@@ -459,6 +477,7 @@ def end_session(
     ended = get_session(conn, session_id)
     assert ended is not None
     task_repo.cancel(conn, dedupe_key=session_task_key(session_id), now=now)
+    task_repo.cancel(conn, dedupe_key=session_warning_key(session_id), now=now)
     _schedule(
         conn,
         TASK_TICKET_CHECK,
@@ -698,6 +717,7 @@ def load_workflow(
         totals=totals,
         credits_enabled=credits_enabled,
         credits_available_minor=available,
+        ticket_number=ticket_number(conn, session.ticket_id),
     )
 
 
@@ -722,6 +742,16 @@ def count_open_orders(conn: sqlite3.Connection, guild_id: int, user_id: int) -> 
         (guild_id, user_id, *m.OPEN_STATUSES),
     ).fetchone()
     return int(row["n"])
+
+
+def open_orders_for_user(conn: sqlite3.Connection, guild_id: int, user_id: int) -> list[m.Order]:
+    """The member's open orders (waiting for payment, paid, in progress), newest first."""
+    rows = conn.execute(
+        f"{_ORDER_SELECT} WHERE o.guild_id = ? AND o.user_id = ? "  # noqa: S608 (constant SQL, bound values)
+        "AND o.status IN (SELECT value FROM json_each(?)) ORDER BY o.id DESC",
+        (guild_id, user_id, json.dumps(list(m.OPEN_STATUSES))),
+    )
+    return [_order(r) for r in rows]
 
 
 def orders_with_status(conn: sqlite3.Connection, guild_id: int, statuses: Sequence[str]) -> list[m.Order]:
@@ -832,11 +862,25 @@ def reservations(conn: sqlite3.Connection, order_id: int) -> list[tuple[int, int
     return [(int(r["product_id"]), int(r["quantity"]), str(r["status"])) for r in rows]
 
 
+def status_events(conn: sqlite3.Connection, order_id: int) -> list[m.OrderEvent]:
+    """The order's status changes in order, the submission first (the customer's timeline). Events that change no
+    status (staff notes and other internal entries) are left out: customers never see them."""
+    return [e for e in events(conn, order_id) if e.from_status is None or e.from_status != e.to_status]
+
+
 def ticket_channel_id(conn: sqlite3.Connection, ticket_id: int | None) -> int | None:
     if ticket_id is None:
         return None
     row = conn.execute("SELECT channel_id FROM tickets WHERE id = ?", (ticket_id,)).fetchone()
     return None if row is None else _opt_int(row["channel_id"])
+
+
+def ticket_number(conn: sqlite3.Connection, ticket_id: int | None) -> int | None:
+    """The number (unique reference) of an order ticket."""
+    if ticket_id is None:
+        return None
+    row = conn.execute("SELECT number FROM tickets WHERE id = ?", (ticket_id,)).fetchone()
+    return None if row is None else int(row["number"])
 
 
 def order_view(conn: sqlite3.Connection, order_id: int) -> m.OrderView | None:
@@ -848,6 +892,8 @@ def order_view(conn: sqlite3.Connection, order_id: int) -> m.OrderView | None:
         items=tuple(order_items(conn, order_id)),
         fees=tuple(order_fees(conn, order_id)),
         channel_id=ticket_channel_id(conn, order.ticket_id),
+        ticket_number=ticket_number(conn, order.ticket_id),
+        timeline=tuple(status_events(conn, order_id)),
     )
 
 
@@ -913,7 +959,8 @@ def submit_order(
     if not flow.chosen_option_valid(c, session.fulfillment_option):
         raise FulfillmentRequired()
     option_id = session.fulfillment_option if c.fulfillment_options else None
-    inputs = flow.form_inputs(c, option_id)
+    # The details form(s), then the submission form (answered in the form that opens on Submit).
+    inputs = flow.form_inputs(c, option_id) + flow.submission_inputs(c)
     if not flow.details_complete(inputs, session.details):
         raise DetailsIncomplete()
     totals, _ = session_totals(conn, guild_id, session, lines, c, credits_enabled)
@@ -1007,6 +1054,7 @@ def submit_order(
     if cur.rowcount != 1:  # unreachable inside the transaction; kept as a guard
         raise SessionNotActive("changed")
     task_repo.cancel(conn, dedupe_key=session_task_key(session_id), now=now)
+    task_repo.cancel(conn, dedupe_key=session_warning_key(session_id), now=now)
     payload = {"order_id": order_id}
     if c.payment_reminder_minutes > 0:
         _schedule(

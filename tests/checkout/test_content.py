@@ -34,7 +34,6 @@ OPTIONAL_EMPTY = {
     k.CHANNEL_TOPIC: "",
     k.notify_title_key(m.PAID): "",
     k.status_description_key(m.PAID): "",
-    "common.progress_format": "",
     "branding.footer_text": "",
     "branding.author_name": "",
 }
@@ -51,7 +50,8 @@ async def test_optional_text_is_omitted(tmp_path: Path) -> None:
         assert ch.topic in (None, discord.utils.MISSING)  # no topic is set
         embed = message.embeds[0]
         assert embed.title == tenv.text(k.BROWSE_TITLE) and embed.description is None
-        assert embed.footer.text is None and embed.author.name is None
+        # The step indicator is required (the live panel always shows the progress); nothing else is added.
+        assert embed.footer.text == tenv.app.ui.progress(1, 3) and embed.author.name is None
         # Menu placeholders are required: an empty one would make Discord show its own default wording.
         assert component(message, views.pick_id(session.id, 0)).placeholder == tenv.text(k.BROWSE_SELECT_PLACEHOLDER)
         await set_qty(tenv, customer, message, session.id, p1.id, 1)
@@ -84,9 +84,10 @@ async def test_missing_notification_text_at_runtime_sends_nothing(tmp_path: Path
         values[k.notify_description_key(m.PAID)] = ""
         tenv.app.content.replace(file_values=values)  # removed after readiness was computed
         sent_before = len(ch.messages)
+        dms_before = len(customer.dms)  # the 'submission received' notification
         await press(tenv, staffer, staff_message(tenv, placed), views.staff_action_id(m.PAID, placed.id))
         assert (await order(tenv, placed.id)).status == m.PAID
-        assert customer.dms == []
+        assert len(customer.dms) == dms_before
         assert len(ch.messages) == sent_before
     finally:
         await tenv.close()

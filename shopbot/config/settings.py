@@ -438,9 +438,14 @@ class CheckoutSettings:
     session_expiry_minutes: int = 0
     payment_expiry_minutes: int = 0
     payment_reminder_minutes: int = 0
+    # Minutes before an unfinished order (cart) expires at which the customer is warned in the order ticket
+    # (0 = no warning; needs session_expiry_minutes and must be less than it).
+    session_expiry_warning_minutes: int = 0
     delete_channel_after_close_minutes: int = 0
     transcript_on_close: bool = False
     details_form: tuple[FormField, ...] = ()
+    # Optional form collected when the customer presses Submit (empty = submit directly).
+    submission_form: tuple[FormField, ...] = ()
     fulfillment_options: tuple[FulfillmentOption, ...] = ()
     fees: tuple[FeeDef, ...] = ()
 
@@ -601,9 +606,15 @@ class ProblemSettings:
     """[problems]: the Report a Problem workflow."""
 
 
+# Orders per /myorders page: one card per order plus the list's own card must fit Discord's 10 cards per message.
+MY_ORDERS_MAX_PER_PAGE = 9
+
+
 @dataclass(frozen=True)
 class MyOrdersSettings:
     """[my_orders]: the customer /myorders command."""
+
+    orders_per_page: int = 5
 
 
 @dataclass(frozen=True)
@@ -891,9 +902,11 @@ def parse_settings(data: dict[str, Any]) -> Settings:
         session_expiry_minutes=co.int_("session_expiry_minutes", 0, min_=0, max_=525_600),
         payment_expiry_minutes=co.int_("payment_expiry_minutes", 0, min_=0, max_=525_600),
         payment_reminder_minutes=co.int_("payment_reminder_minutes", 0, min_=0, max_=525_600),
+        session_expiry_warning_minutes=co.int_("session_expiry_warning_minutes", 0, min_=0, max_=525_600),
         delete_channel_after_close_minutes=co.int_("delete_channel_after_close_minutes", 0, min_=0, max_=525_600),
         transcript_on_close=co.bool_("transcript_on_close", False),
         details_form=_form(co, "details_form"),
+        submission_form=_form(co, "submission_form"),
         fulfillment_options=tuple(options),
         fees=tuple(fees),
     )
@@ -1121,7 +1134,9 @@ def _parse_problems(r: _Reader) -> ProblemSettings:
 
 
 def _parse_my_orders(r: _Reader) -> MyOrdersSettings:
-    return _finish(r, MyOrdersSettings())
+    return _finish(
+        r, MyOrdersSettings(orders_per_page=r.int_("orders_per_page", 5, min_=1, max_=MY_ORDERS_MAX_PER_PAGE))
+    )
 
 
 def _parse_operations(r: _Reader) -> OperationsSettings:

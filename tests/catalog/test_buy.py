@@ -234,10 +234,12 @@ async def test_cart_limit_is_respected(tmp_path: Path) -> None:
 async def test_open_order_limit_is_respected(shop: TestEnv) -> None:
     product = await add_product(shop, "[p1]")
     customer = shop.member()
-    await place_order(shop, customer, [(product.id, 1)])
+    placed, ch, _ = await place_order(shop, customer, [(product.id, 1)])
     shop.clock.advance(60)
     blocked = await _buy(shop, customer, product.id)
-    assert error_text(blocked) == render(shop, k.LIMIT_REACHED, limit=1)
+    # At the limit the reply links the open order's ticket instead of opening another one.
+    expected = render(shop, k.ORDER_EXISTS, channel_mention=f"<#{ch.id}>", order_number=str(placed.number), limit=1)
+    assert error_text(blocked) == expected
     assert len(await _order_channels(shop)) == 1
 
 
@@ -335,3 +337,21 @@ async def test_live_panel_edit_failure_still_adds_and_answers(shop: TestEnv) -> 
     clicked = await _buy(shop, customer, product.id)
     assert await _cart(shop, session.id) == {product.id: 1}
     assert error_text(clicked) == render(shop, k.BUY_ADDED, name="[p1]", channel_mention=f"<#{ticket_channel.id}>")
+
+
+async def test_ticket_opened_by_a_buy_button_starts_with_the_ticket_introduction(shop: TestEnv) -> None:
+    from tests.checkout.util import ticket_intro_message, workflow_message
+
+    product = await add_product(shop, "[p1]", stock=3)
+    customer = shop.member()
+    await _buy(shop, customer, product.id)
+    session = await session_of(shop, customer)
+    channel = await ticket_channel_of(shop, session.ticket_id)
+    intro = ticket_intro_message(channel)
+    assert intro.embeds[0].description is not None
+    assert tenv_text_in(shop, k.TICKET_INTRO_DESCRIPTION, intro.embeds[0].description)
+    assert workflow_message(channel).id != intro.id
+
+
+def tenv_text_in(tenv: TestEnv, key: str, text: str) -> bool:
+    return tenv.text(key).split(" ")[0] in text

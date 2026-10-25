@@ -285,6 +285,7 @@ mention_role = true                  # mention the role in those updates (the ro
 [problems]
 
 [my_orders]
+orders_per_page = 5                  # orders per /myorders page (1-9; fewer when the cards would not fit one message)
 
 [operations]
 
@@ -355,8 +356,19 @@ products_per_page = 25
 session_expiry_minutes = 0           # 0 = an unsubmitted cart never expires automatically
 payment_expiry_minutes = 0           # 0 = an unpaid order never expires automatically
 payment_reminder_minutes = 0         # 0 = no payment reminder
+session_expiry_warning_minutes = 0   # warn in the ticket this many minutes before an unsubmitted cart expires
+                                     # (0 = no warning; needs session_expiry_minutes and must be less than it)
 delete_channel_after_close_minutes = 0
 transcript_on_close = true
+# Optional submission form (max 5 fields), asked when the customer presses Submit (e.g. a reference the business
+# needs). The answers are stored with the order and shown to staff. Labels are content keys
+# checkout.submission.form.<id>.label / .description / .placeholder; the form title is checkout.submission.modal_title.
+# [[checkout.submission_form]]
+# id = "reference"
+# style = "short"                    # "short" or "paragraph"
+# required = true
+# min_length = 0
+# max_length = 100
 # Fulfillment options (delivery, pickup, ...) are business decisions. Labels live in content.toml
 # checkout.fulfillment.<id>.label / .description. Example:
 # [[checkout.fulfillment_options]]

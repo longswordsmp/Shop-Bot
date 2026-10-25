@@ -3,6 +3,9 @@
 Every task handler re-loads the session/order and re-checks its state and the CURRENT settings before acting, so
 running a task twice (retry, restart) or after a settings change never applies anything twice or wrongly.
 
+``checkout.session_warning`` warns the customer in the order ticket before an idle unfinished order expires (once
+per idle period; scheduled with the session, re-armed by restart recovery).
+
 Follow-up tasks (scheduled in the same transaction as the change they follow, see ``repo``):
 - ``checkout.after_submit``: the staff controls (adopting controls that were posted but never recorded), the
   customer's form answers for staff, the payment provider's start;
@@ -59,6 +62,32 @@ async def session_expire_task(app: App, task: Task) -> None:
     if app.clock.now() < due:
         raise RescheduleTask(due)  # the customer was active since the task was scheduled
     await service.expire_session(app, session.id, reason="inactive")
+
+
+async def session_warning_task(app: App, task: Task) -> None:
+    """``checkout.session_warning``: warn the customer in the order ticket ``session_expiry_warning_minutes`` before
+    an idle unfinished order expires. The task follows the session: it moves with every activity and, after a
+    warning, waits until the expiry time to warn again for a later idle period (one warning per idle period). It
+    ends with the session."""
+    session = await app.db.run(repo.get_session, _payload_id(task, "session_id"))
+    if session is None or not session.active:
+        return
+    c = app.settings.checkout
+    if not k.session_warning_enabled(app.settings):
+        return  # switched off meanwhile (restart recovery re-arms it when it is switched on again)
+    expires = session.updated_at + c.session_expiry_minutes * 60
+    due = expires - c.session_expiry_warning_minutes * 60
+    now = app.clock.now()
+    if now < due:
+        raise RescheduleTask(due)  # the customer was active since the task was scheduled
+    if now >= expires:
+        return  # the expiry task ends the session now: there is nothing left to warn about
+    if app.ready(k.FEATURE):
+        delivery = await service.warn_session_expiry(app, session)
+        log_event(log, logging.INFO, "checkout_session_warning", session_id=session.id, delivery=delivery)
+    else:
+        log_event(log, logging.WARNING, "checkout_session_warning_skipped", session_id=session.id, reason="not_ready")
+    raise RescheduleTask(expires)  # look again at the expiry time: activity meanwhile starts a new idle period
 
 
 async def payment_reminder_task(app: App, task: Task) -> None:
@@ -204,6 +233,7 @@ async def _recover_session(app: App, session: m.Session, counts: dict[str, int])
         counts["workflows_sent"] += 1
     await service.finish_activation(app, session.id)
     await service.schedule_session_expiry(app, session)
+    await service.schedule_session_warning(app, session)
 
 
 async def _recover_order(app: App, order: m.Order, counts: dict[str, int]) -> None:
@@ -272,6 +302,7 @@ def register(app: App) -> None:
     if app.bot is None:
         raise RuntimeError("register() requires app.bot")
     app.scheduler.register(service.TASK_SESSION_EXPIRE, session_expire_task)
+    app.scheduler.register(service.TASK_SESSION_WARNING, session_warning_task)
     app.scheduler.register(service.TASK_PAYMENT_REMINDER, payment_reminder_task)
     app.scheduler.register(service.TASK_PAYMENT_EXPIRE, payment_expire_task)
     app.scheduler.register(service.TASK_AFTER_SUBMIT, after_submit_task)

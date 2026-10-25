@@ -489,7 +489,10 @@ async def test_no_reminder_when_the_payment_lands_while_it_is_prepared(tmp_path:
         tenv.clock.advance(30 * 60)
         await tenv.app.scheduler.run_due()
         assert (await order(tenv, placed.id)).status == m.PAID
-        assert [d.embeds[0].description for d in customer.dms] == [_notified(tenv, m.PAID, placed, ch.id)]
+        assert [d.embeds[0].description for d in customer.dms] == [
+            _notified(tenv, m.PENDING, placed, ch.id),  # submission received
+            _notified(tenv, m.PAID, placed, ch.id),
+        ]
     finally:
         await tenv.close()
 

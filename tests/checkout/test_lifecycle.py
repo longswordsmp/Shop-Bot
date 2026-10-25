@@ -241,7 +241,9 @@ async def test_closed_dms_fall_back_to_the_order_channel(co: TestEnv) -> None:
     placed, ch, _ = await place_order(co, customer, [(p1.id, 1)])
     await press(co, staffer, staff_message(co, placed), views.staff_action_id(m.PAID, placed.id))
     assert ch.messages[-1].embeds[0].description == _notification(co, m.PAID, placed, ch.id)
-    rows = await co.app.db.run(lambda conn: conn.execute("SELECT delivery FROM notifications").fetchall())
+    rows = await co.app.db.run(
+        lambda conn: conn.execute("SELECT delivery FROM notifications WHERE kind = 'checkout.paid'").fetchall()
+    )
     assert [r["delivery"] for r in rows] == ["channel"]
 
 
@@ -251,7 +253,10 @@ async def test_customer_cancel_is_confirmed_by_notification(co: TestEnv) -> None
     placed, ch, message = await place_order(co, customer, [(p1.id, 1)])
     await press(co, customer, message, views.order_cancel_yes_id(placed.id))
     assert (await order(co, placed.id)).status == m.CANCELLED
-    assert [d.embeds[0].description for d in customer.dms] == [_notification(co, m.CANCELLED, placed, ch.id)]
+    assert [d.embeds[0].description for d in customer.dms] == [
+        _notification(co, m.PENDING, placed, ch.id),  # submission received
+        _notification(co, m.CANCELLED, placed, ch.id),
+    ]
     others = await press(co, co.member(name="x"), message, views.order_cancel_yes_id(placed.id))
     assert error_text(others) == co.text(core.ERROR_PERMISSION)
 
@@ -445,7 +450,9 @@ async def test_discord_failures_never_undo_a_committed_change(co: TestEnv) -> No
     result = await press(co, staffer, staff_message(co, placed), views.staff_action_id(m.PAID, placed.id))
     assert op_text(result) == co.app.op("checkout.op.status_changed", number=1, status=m.PAID)
     assert (await order(co, placed.id)).status == m.PAID
-    rows = await co.app.db.run(lambda conn: conn.execute("SELECT status FROM notifications").fetchall())
+    rows = await co.app.db.run(
+        lambda conn: conn.execute("SELECT status FROM notifications WHERE kind = 'checkout.paid'").fetchall()
+    )
     assert [r["status"] for r in rows] == ["failed"]
 
 

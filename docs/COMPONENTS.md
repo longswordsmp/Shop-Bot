@@ -30,6 +30,7 @@ perform staff actions check staff status inside the handler, e.g. per-ticket-cat
 | component | `co` | `page` | checkout | any | no | `shopbot.features.checkout.handlers.on_page` |
 | component | `co` | `pick` | checkout | any | no | `shopbot.features.checkout.handlers.on_pick` |
 | modal | `co` | `qty` | checkout | any | no | `shopbot.features.checkout.handlers.on_quantity` |
+| modal | `co` | `sform` | checkout | any | no | `shopbot.features.checkout.handlers.on_submission_form` |
 | component | `co` | `start` | checkout | any | no | `shopbot.features.checkout.handlers.on_start` |
 | component | `co` | `submit` | checkout | any | no | `shopbot.features.checkout.handlers.on_submit` |
 | component | `cr` | `balance` | credits | any | no | `shopbot.features.credits.handlers.on_balance` |
@@ -50,6 +51,7 @@ perform staff actions check staff status inside the handler, e.g. per-ticket-cat
 | modal | `ct` | `editform` | catalog | staff | no | `shopbot.features.catalog.handlers.on_edit_form` |
 | component | `ct` | `remove` | catalog | staff | no | `shopbot.features.catalog.handlers.on_remove` |
 | component | `ct` | `remove_no` | catalog | staff | no | `shopbot.features.catalog.handlers.on_remove_cancel` |
+| component | `mo` | `page` | my_orders | any | no | `shopbot.features.my_orders.handlers.on_page` |
 | component | `na` | `toggle` | new_arrivals | any | no | `shopbot.features.new_arrivals.handlers.on_toggle` |
 | modal | `rv` | `comment` | reviews | any | yes | `shopbot.features.reviews.handlers.on_comment` |
 | component | `rv` | `decline` | reviews | any | yes | `shopbot.features.reviews.handlers.on_decline` |
@@ -78,6 +80,7 @@ perform staff actions check staff status inside the handler, e.g. per-ticket-cat
 - `checkout.payment_expire`
 - `checkout.payment_reminder`
 - `checkout.session_expire`
+- `checkout.session_warning`
 - `checkout.ticket_check`
 - `new_arrivals.announce`
 - `reviews.prompt`
