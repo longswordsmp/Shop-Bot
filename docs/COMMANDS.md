@@ -53,6 +53,21 @@ Default visibility: manage_guild
 | `/credits history` | staff | Show a member's credit history (newest first, paginated). | `member`: The member whose history to show.; `page` (optional): Page number (default 1). |
 | `/credits adjust` | admin | Add credits to or remove credits from a member (admins only). | `member`: The member whose balance to change.; `action`: add: give credits; remove: take credits away (never below 0).; `amount`: Amount in the shop currency, e.g. 12.50.; `note`: Internal reason, shown only in the staff history and the audit log. |
 
+## /order
+
+Order tools for staff.
+
+Default visibility: manage_messages
+
+| Command | Access | Description | Options |
+|---|---|---|---|
+| `/order lookup` | staff | Show everything about an order. | `number`: Order number |
+| `/order list` | staff | List orders (newest first, 10 per page). | `status` (optional): Only orders with this status; `member` (optional): Only orders of this member |
+| `/order status` | staff | Change an order's status (only valid changes are applied). | `number`: Order number; `new_status`: The new status |
+| `/order refund` | staff | Record a (partial) refund of an order. | `number`: Order number; `amount`: Amount to refund, e.g. 12.50; `to_credit` (optional): Give the refund as store credit instead; `reason` (optional): Optional internal reason |
+| `/order cancel` | staff | Cancel an order. | `number`: Order number; `reason` (optional): Optional internal reason |
+| `/order note` | staff | Add an internal note to an order's history. | `number`: Order number; `text`: The note |
+
 ## /product
 
 Manage catalog products (catalog managers and admins).
@@ -81,6 +96,18 @@ Default visibility: administrator
 | Command | Access | Description | Options |
 |---|---|---|---|
 | `/reload` | admin | Reload settings.toml and content.toml without restarting. | - |
+
+## /review
+
+Customer review tools for staff.
+
+Default visibility: manage_messages
+
+| Command | Access | Description | Options |
+|---|---|---|---|
+| `/review list` | staff | List recent reviews (max 25). | `status` (optional): Only reviews with this status |
+| `/review remove` | staff | Delete a published review and close it. | `order_number`: Number of the reviewed order |
+| `/review resend` | staff | Send an unanswered review request again. | `order_number`: Number of the order |
 
 ## /setup
 

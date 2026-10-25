@@ -16,7 +16,7 @@ from shopbot.config.settings import FormField, Settings
 from shopbot.features import core_keys as core
 from shopbot.features.checkout import models as m
 from shopbot.features.checkout.payments import PROVIDERS
-from shopbot.features.server_keys import reference_problems
+from shopbot.features.server_keys import private_channel_problems, reference_problems
 
 FEATURE = "checkout"
 ROUTE = "co"
@@ -1012,6 +1012,8 @@ def settings_problems(settings: Settings) -> list[str]:
             categories=(("checkout.order_category", c.order_category),),
         )
     )
+    # Staff order controls show customer details and payment actions: the channel must not be public.
+    problems.extend(private_channel_problems(settings, (("checkout.staff_channel", c.staff_channel),)))
     for fee in c.fees:
         if fee.kind == "percent" and fee.basis_points <= 0:
             problems.append(f"checkout.fees '{fee.id}': a percent fee needs basis_points > 0 (100 = 1%)")

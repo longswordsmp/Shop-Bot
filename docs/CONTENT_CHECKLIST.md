@@ -22,10 +22,10 @@ Feature `core` — enabled.
 
 | | Key | Where it appears | Kind (max chars) | Required | Placeholders |
 |---|---|---|---|---|---|
-| ▫️ | `common.button.back` | Back button in multi-step workflows. | button_label (80) | optional |  |
+| ❌ | `common.button.back` | Back button in multi-step workflows. | button_label (80) | required (used by an enabled feature) |  |
 | ❌ | `common.button.cancel` | Cancel button on prompts and workflows. | button_label (80) | required (used by an enabled feature) |  |
 | ❌ | `common.button.confirm` | Confirm button on confirmation prompts. | button_label (80) | required (used by an enabled feature) |  |
-| ▫️ | `common.button.continue` | Continue button in multi-step workflows. | button_label (80) | optional |  |
+| ❌ | `common.button.continue` | Continue button in multi-step workflows. | button_label (80) | required (used by an enabled feature) |  |
 | ❌ | `common.button.next_page` | Next-page button in paginated lists. | button_label (80) | required (used by an enabled feature) |  |
 | ❌ | `common.button.previous_page` | Previous-page button in paginated lists. | button_label (80) | required (used by an enabled feature) |  |
 
@@ -209,6 +209,209 @@ Feature `catalog` — enabled.
 | ❌ | `catalog.listing.empty` | Shown below the listing header, and in private browsing, when no product is currently offered. | description (4096) | required |  |
 | ❌ | `catalog.listing.title` | Title of the header card at the top of the product listing channel. | title (256) | required |  |
 
+## Checkout, orders and payment
+
+Feature `checkout` — enabled.
+
+### Checkout: order workflow - choosing products
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ▫️ | `checkout.browse.description` | Optional text of the product-choosing step (e.g. how to pick products and quantities). | description (4096) | optional |  |
+| ❌ | `checkout.browse.empty_catalog` | Shown in the product-choosing step when no product is offered right now. | description (4096) | required |  |
+| ▫️ | `checkout.browse.select_placeholder` | Optional greyed-out text of the product selection menu. The options are the product names; the small text under each is its price. | select_placeholder (150) | optional |  |
+| ❌ | `checkout.browse.title` | Title of the order workflow message while the customer chooses products (first step). | title (256) | required |  |
+
+### Checkout: order workflow - review and submit
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ❌ | `checkout.button.apply_credits` | Button in the review step that applies the customer's store credit. Needed when credits are enabled and credits.allow_at_checkout = true. | button_label (80) | required |  |
+| ❌ | `checkout.button.remove_credits` | Button in the review step that removes the applied store credit. Needed when credits are enabled and credits.allow_at_checkout = true. | button_label (80) | required |  |
+| ❌ | `checkout.button.submit` | Button in the review step that submits the order. | button_label (80) | required |  |
+| ▫️ | `checkout.review.credits_available_field` | Optional name of a field showing how much store credit the customer could apply (shown while credits are not applied). | field_name (256) | optional |  |
+| ❌ | `checkout.review.credits_field` | Name of the field showing the store credit applied to the order (written with common.money_format). Needed when credits are enabled and credits.allow_at_checkout = true. | field_name (256) | required |  |
+| ▫️ | `checkout.review.description` | Optional text of the review step. | description (4096) | optional |  |
+| ❌ | `checkout.review.price_changed` | Shown in the review step when the total changed since the customer looked at it (prices, fees or their credit balance changed); nothing was submitted yet. {total} is the new total. | description (4096) | required | `{total}` |
+| ❌ | `checkout.review.title` | Title of the final step where the customer reviews the order and submits it. | title (256) | required |  |
+| ❌ | `checkout.review.total_field` | Name of the field showing the total to pay (review step, submitted order, staff order controls). | field_name (256) | required |  |
+
+### Checkout: cancelling
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ❌ | `checkout.button.cancel_order` | Button under a submitted order that lets the customer cancel it while it is not paid yet. | button_label (80) | required |  |
+| ❌ | `checkout.cancel_confirm.description` | Question asking the customer to confirm cancelling an unfinished order (shared confirm/cancel buttons). | description (4096) | required |  |
+| ▫️ | `checkout.cancel_confirm.title` | Optional title of the question asking the customer to confirm cancelling an unfinished order. | title (256) | optional |  |
+| ❌ | `checkout.cancelled.description` | Text of the workflow message after the customer cancelled an unfinished order. | description (4096) | required |  |
+| ▫️ | `checkout.cancelled.title` | Optional title of the workflow message after the customer cancelled an unfinished order (the channel is then closed). | title (256) | optional |  |
+| ▫️ | `checkout.expired.description` | Text of the workflow message when an unfinished order expired. Needed when checkout.session_expiry_minutes is above 0. | description (4096) | optional |  |
+| ▫️ | `checkout.expired.title` | Optional title of the workflow message when an unfinished order expired after checkout.session_expiry_minutes without activity. | title (256) | optional |  |
+| ❌ | `checkout.order_cancel_confirm.description` | Question asking the customer to confirm cancelling a submitted, unpaid order (shared confirm/back buttons). {order_number} is the order number. | description (4096) | required | `{order_number}` |
+| ▫️ | `checkout.order_cancel_confirm.title` | Optional title of the question asking the customer to confirm cancelling a submitted, unpaid order. {order_number} is the order number. | title (256) | optional | `{order_number}` |
+
+### Checkout: order workflow - order details form
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ▫️ | `checkout.button.enter_details` | Button that opens the order details form. Needed when a form is defined. | button_label (80) | optional |  |
+| ▫️ | `checkout.button.enter_more_details` | Button that opens the second part of the details form (Discord forms hold at most 5 fields; used when checkout.details_form plus an option's form have more than 5 fields together). | button_label (80) | optional |  |
+| ▫️ | `checkout.details.description` | Optional text of the details step. | description (4096) | optional |  |
+| ▫️ | `checkout.details.modal_title` | Title of the order details form. Needed when a form is defined. | modal_title (45) | optional |  |
+| ▫️ | `checkout.details.title` | Title of the step where the customer enters order details (checkout.details_form and the chosen option's form). The answers are shown below as fields named by the field labels. Needed when a form is defined. | title (256) | optional |  |
+
+### Checkout: shop panel
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ❌ | `checkout.button.start` | Button on the shop panel that opens a private order channel for the customer. The panel also shows the catalog's browse button (catalog.button.browse) and the credits balance button when those are configured. | button_label (80) | required |  |
+| ❌ | `checkout.panel.description` | Text of the shop panel. | description (4096) | required |  |
+| ❌ | `checkout.panel.title` | Title of the shop panel (the message with the start button). | title (256) | required |  |
+
+### Checkout: order workflow - cart
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ▫️ | `checkout.cart.description` | Optional text of the cart step. | description (4096) | optional |  |
+| ▫️ | `checkout.cart.edit_option` | Optional small text under each product in the change-quantity menu. {quantity} is the quantity in the cart, {line_total} the line price. | option_description (100) | optional | `{quantity}`, `{line_total}` |
+| ▫️ | `checkout.cart.edit_placeholder` | Optional greyed-out text of the menu that picks a cart line to change its quantity. | select_placeholder (150) | optional |  |
+| ❌ | `checkout.cart.empty` | Shown in the cart field while the cart is empty. | field_value (1024) | required |  |
+| ❌ | `checkout.cart.field` | Name of the field listing the cart lines (product steps, cart, review, the submitted order and the staff order controls). Each line is written with checkout.cart.line. | field_name (256) | required |  |
+| ❌ | `checkout.cart.line` | How one cart/order line is written, e.g. '{quantity} x {name}: {line_total}'. {name} is the product name, {quantity} the quantity, {unit_price} the price of one unit and {line_total} the line price (both written with common.money_format). | format (100) | required | `{name}`, `{quantity}`, `{unit_price}`, `{line_total}` |
+| ▫️ | `checkout.cart.minimum_not_met` | Shown in the cart step while the subtotal is below checkout.min_order_total_minor (the continue button stays disabled). {minimum} is that minimum written with common.money_format. Needed when checkout.min_order_total_minor is above 0. | description (4096) | optional | `{minimum}` |
+| ❌ | `checkout.cart.subtotal_field` | Name of the subtotal field (sum of the cart lines before fees and credits). | field_name (256) | required |  |
+| ❌ | `checkout.cart.title` | Title of the cart step (the customer checks and edits quantities). | title (256) | required |  |
+
+### Checkout: private order channel
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ❌ | `checkout.channel_prefix` | Channel-name prefix of private order channels ({prefix} in tickets.channel_name_pattern; the number is the shared ticket/order-channel counter). Discord lower-cases channel names. | channel_prefix (60) | required |  |
+| ▫️ | `checkout.channel_topic` | Optional topic of each order channel. {user_name} is the customer's display name. | channel_topic (1024) | optional | `{user_name}` |
+
+### Checkout: error messages (private)
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ❌ | `checkout.error.cart_full` | Shown when the customer adds a product but the cart already has checkout.max_cart_lines different products. {max} is that number. | description (4096) | required | `{max}` |
+| ❌ | `checkout.error.order_not_cancellable` | Shown when the customer tries to cancel an order that can no longer be cancelled by them (it was already paid, cancelled or handled). | description (4096) | required |  |
+| ❌ | `checkout.error.out_of_stock` | Shown when the customer asks for more units than are available (when adding to the cart, or when submitting if someone else bought them first). {name} is the product name, {available} the units still available. | description (4096) | required | `{name}`, `{available}` |
+| ❌ | `checkout.error.product_unavailable` | Shown when a product in the cart is no longer offered (deactivated or removed). {name} is the product name. | description (4096) | required | `{name}` |
+| ❌ | `checkout.error.quantity_invalid` | Shown when a quantity is above the allowed maximum (checkout.max_line_quantity or the product's per-order limit). {max} is that maximum. | description (4096) | required | `{max}` |
+| ❌ | `checkout.error.session_closed` | Shown when the customer uses a control of an order workflow that was already submitted, cancelled or expired. | description (4096) | required |  |
+
+### Checkout: order workflow - fulfillment option
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ▫️ | `checkout.fulfillment_step.chosen_field` | Name of the field showing the chosen fulfillment option (its label). Needed when checkout.fulfillment_options are defined. | field_name (256) | optional |  |
+| ▫️ | `checkout.fulfillment_step.description` | Optional text of the fulfillment step. | description (4096) | optional |  |
+| ▫️ | `checkout.fulfillment_step.fee_field` | Name of the field showing the chosen option's fee (fee_minor, written with common.money_format; shown only when that fee is above 0). Needed when an option has a fee. | field_name (256) | optional |  |
+| ▫️ | `checkout.fulfillment_step.select_placeholder` | Optional greyed-out text of the fulfillment option menu. | select_placeholder (150) | optional |  |
+| ▫️ | `checkout.fulfillment_step.title` | Title of the step where the customer chooses a fulfillment option (delivery, pickup, ...). Needed when checkout.fulfillment_options are defined. | title (256) | optional |  |
+
+### Checkout: private replies to the start button
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ❌ | `checkout.limit_reached.description` | Private reply when the customer already has the maximum number of open orders (waiting for payment, paid, or in progress). {limit} is checkout.max_open_orders_per_user. | description (4096) | required | `{limit}` |
+| ❌ | `checkout.session_exists.description` | Private reply when the customer clicks start while they already have an unfinished order channel; no second channel is created. {channel_mention} links the existing channel. | description (4096) | required | `{channel_mention}` |
+| ❌ | `checkout.started.description` | Private reply after the start button created the customer's order channel. {channel_mention} links the channel. | description (4096) | required | `{channel_mention}` |
+
+### Checkout: customer notifications (direct message, or the order channel)
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ❌ | `checkout.notify.cancelled.description` | Notification sent to the customer when their order becomes 'cancelled' (the order was cancelled (by the customer before paying, or by staff)). {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention. | description (4096) | required | `{order_number}`, `{total}`, `{channel_mention}` |
+| ▫️ | `checkout.notify.cancelled.title` | Optional title of the notification sent when an order becomes 'cancelled'. {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention. | title (256) | optional | `{order_number}`, `{total}`, `{channel_mention}` |
+| ▫️ | `checkout.notify.expired.description` | Notification sent to the customer when their order becomes 'expired' (the order was not paid within checkout.payment_expiry_minutes). {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention. Needed when checkout.payment_expiry_minutes is above 0. | description (4096) | optional | `{order_number}`, `{total}`, `{channel_mention}` |
+| ▫️ | `checkout.notify.expired.title` | Optional title of the notification sent when an order becomes 'expired'. {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention. | title (256) | optional | `{order_number}`, `{total}`, `{channel_mention}` |
+| ❌ | `checkout.notify.fulfilled.description` | Notification sent to the customer when their order becomes 'fulfilled' (the order was delivered/completed). {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention. | description (4096) | required | `{order_number}`, `{total}`, `{channel_mention}` |
+| ▫️ | `checkout.notify.fulfilled.title` | Optional title of the notification sent when an order becomes 'fulfilled'. {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention. | title (256) | optional | `{order_number}`, `{total}`, `{channel_mention}` |
+| ❌ | `checkout.notify.paid.description` | Notification sent to the customer when their order becomes 'paid' (staff confirmed the payment). {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention. | description (4096) | required | `{order_number}`, `{total}`, `{channel_mention}` |
+| ▫️ | `checkout.notify.paid.title` | Optional title of the notification sent when an order becomes 'paid'. {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention. | title (256) | optional | `{order_number}`, `{total}`, `{channel_mention}` |
+| ▫️ | `checkout.notify.payment_reminder.description` | Reminder sent once when an order is still unpaid checkout.payment_reminder_minutes after it was submitted (the payment instructions are attached below it). {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention. Needed when checkout.payment_reminder_minutes is above 0. | description (4096) | optional | `{order_number}`, `{total}`, `{channel_mention}` |
+| ▫️ | `checkout.notify.payment_reminder.title` | Optional title of the payment reminder. {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention. | title (256) | optional | `{order_number}`, `{total}`, `{channel_mention}` |
+| ❌ | `checkout.notify.processing.description` | Notification sent to the customer when their order becomes 'processing' (staff are preparing the order). {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention. | description (4096) | required | `{order_number}`, `{total}`, `{channel_mention}` |
+| ▫️ | `checkout.notify.processing.title` | Optional title of the notification sent when an order becomes 'processing'. {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention. | title (256) | optional | `{order_number}`, `{total}`, `{channel_mention}` |
+| ❌ | `checkout.notify.refund.description` | Notification sent to the customer when staff record a partial refund (a refund that completes the full refund sends the 'refunded' notification instead). {order_number} is the order number, {amount} the refunded amount (common.money_format), {channel_mention} links the order channel. | description (4096) | required | `{order_number}`, `{amount}`, `{channel_mention}` |
+| ▫️ | `checkout.notify.refund.title` | Optional title of the notification sent when staff record a partial refund. {order_number} is the order number, {amount} the refunded amount, {channel_mention} links the order channel. | title (256) | optional | `{order_number}`, `{amount}`, `{channel_mention}` |
+| ❌ | `checkout.notify.refunded.description` | Notification sent to the customer when their order becomes 'refunded' (the order was fully refunded). {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention. | description (4096) | required | `{order_number}`, `{total}`, `{channel_mention}` |
+| ▫️ | `checkout.notify.refunded.title` | Optional title of the notification sent when an order becomes 'refunded'. {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention. | title (256) | optional | `{order_number}`, `{total}`, `{channel_mention}` |
+| ❌ | `checkout.notify.rejected.description` | Notification sent to the customer when their order becomes 'rejected' (staff rejected the order before payment). {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention. | description (4096) | required | `{order_number}`, `{total}`, `{channel_mention}` |
+| ▫️ | `checkout.notify.rejected.title` | Optional title of the notification sent when an order becomes 'rejected'. {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention. | title (256) | optional | `{order_number}`, `{total}`, `{channel_mention}` |
+
+### Checkout: payment instructions (manual payment)
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ❌ | `checkout.payment.manual.instructions` | How the customer pays (your own payment instructions), shown in the order channel after the customer submits an order and in the payment reminder. Staff confirm receipt with the mark-paid button. Never ask customers to send card details or passwords in Discord. {order_number} is the order number, {total} the amount to pay written with common.money_format. | description (4096) | required | `{order_number}`, `{total}` |
+| ▫️ | `checkout.payment.manual.title` | Optional title of the payment instructions shown in the order channel after the customer submits an order (payments.provider = "manual"). {order_number} is the order number, {total} the amount to pay written with common.money_format. | title (256) | optional | `{order_number}`, `{total}` |
+
+### Checkout: quantity form
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ▫️ | `checkout.quantity.description` | Optional help text under the quantity label (e.g. that 0 removes the product). | input_description (100) | optional |  |
+| ❌ | `checkout.quantity.label` | Label of the quantity field (a whole number; 0 removes the product from the cart). | input_label (45) | required |  |
+| ▫️ | `checkout.quantity.placeholder` | Optional greyed-out example inside the empty quantity field. | input_placeholder (100) | optional |  |
+| ❌ | `checkout.quantity.title` | Title of the form that asks for a product's quantity. | modal_title (45) | required |  |
+
+### Checkout: staff order controls (staff channel)
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ❌ | `checkout.staff.button.cancel` | Staff button: cancel the order (unpaid: stock and credit are returned; paid: nothing is restocked or refunded automatically - use the refund button). | button_label (80) | required |  |
+| ❌ | `checkout.staff.button.fulfilled` | Staff button: the order was delivered/completed (the order channel is closed). | button_label (80) | required |  |
+| ❌ | `checkout.staff.button.mark_paid` | Staff button: the payment was received (unpaid -> paid; stock is then taken). | button_label (80) | required |  |
+| ❌ | `checkout.staff.button.processing` | Staff button: mark a paid order as being prepared (optional stage). | button_label (80) | required |  |
+| ❌ | `checkout.staff.button.refund` | Staff button: record a (partial) refund. With the manual payment method the money is returned outside the bot. | button_label (80) | required |  |
+| ❌ | `checkout.staff.button.refund_credit` | Staff button: refund (part of) the order as store credit. Needed when the credits feature is on. | button_label (80) | required |  |
+| ❌ | `checkout.staff.button.reject` | Staff button: reject an unpaid order (reserved stock and applied credit are returned). | button_label (80) | required |  |
+| ❌ | `checkout.staff.description` | Text of the staff order controls. {user_mention} mentions the customer (no ping), {channel_mention} links the order channel, {order_number}/{total}/{status} as in the title. The order lines, totals and buttons follow. | description (4096) | required | `{order_number}`, `{user_mention}`, `{channel_mention}`, `{total}`, `{status}` |
+| ▫️ | `checkout.staff.details_title` | Optional title of the message posted under the staff order controls with the customer's form answers (only when a form is defined). {order_number} is the order number. | title (256) | optional | `{order_number}` |
+| ❌ | `checkout.staff.refunded_field` | Name of the field on the staff order controls showing how much was refunded so far. | field_name (256) | required |  |
+| ❌ | `checkout.staff.title` | Title of the order controls posted for staff in checkout.staff_channel for every submitted order (edited on every status change). {order_number} is the order number, {total} the total, {status} the status name (checkout.status_label.*). | title (256) | required | `{order_number}`, `{total}`, `{status}` |
+
+### Checkout: order status views (order channel)
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ▫️ | `checkout.status.cancelled.description` | Optional text of the order workflow message once the order is 'cancelled'. {order_number} is the order number, {total} the order total written with common.money_format. | description (4096) | optional | `{order_number}`, `{total}` |
+| ❌ | `checkout.status.cancelled.title` | Title of the order workflow message once the order is 'cancelled' (the order was cancelled (by the customer before paying, or by staff)). {order_number} is the order number, {total} the order total written with common.money_format. | title (256) | required | `{order_number}`, `{total}` |
+| ▫️ | `checkout.status.expired.description` | Optional text of the order workflow message once the order is 'expired'. {order_number} is the order number, {total} the order total written with common.money_format. | description (4096) | optional | `{order_number}`, `{total}` |
+| ▫️ | `checkout.status.expired.title` | Title of the order workflow message once the order is 'expired' (the order was not paid within checkout.payment_expiry_minutes). {order_number} is the order number, {total} the order total written with common.money_format. Needed when checkout.payment_expiry_minutes is above 0. | title (256) | optional | `{order_number}`, `{total}` |
+| ▫️ | `checkout.status.fulfilled.description` | Optional text of the order workflow message once the order is 'fulfilled'. {order_number} is the order number, {total} the order total written with common.money_format. | description (4096) | optional | `{order_number}`, `{total}` |
+| ❌ | `checkout.status.fulfilled.title` | Title of the order workflow message once the order is 'fulfilled' (the order was delivered/completed). {order_number} is the order number, {total} the order total written with common.money_format. | title (256) | required | `{order_number}`, `{total}` |
+| ▫️ | `checkout.status.paid.description` | Optional text of the order workflow message once the order is 'paid'. {order_number} is the order number, {total} the order total written with common.money_format. | description (4096) | optional | `{order_number}`, `{total}` |
+| ❌ | `checkout.status.paid.title` | Title of the order workflow message once the order is 'paid' (staff confirmed the payment). {order_number} is the order number, {total} the order total written with common.money_format. | title (256) | required | `{order_number}`, `{total}` |
+| ▫️ | `checkout.status.processing.description` | Optional text of the order workflow message once the order is 'processing'. {order_number} is the order number, {total} the order total written with common.money_format. | description (4096) | optional | `{order_number}`, `{total}` |
+| ❌ | `checkout.status.processing.title` | Title of the order workflow message once the order is 'processing' (staff are preparing the order). {order_number} is the order number, {total} the order total written with common.money_format. | title (256) | required | `{order_number}`, `{total}` |
+| ▫️ | `checkout.status.refunded.description` | Optional text of the order workflow message once the order is 'refunded'. {order_number} is the order number, {total} the order total written with common.money_format. | description (4096) | optional | `{order_number}`, `{total}` |
+| ❌ | `checkout.status.refunded.title` | Title of the order workflow message once the order is 'refunded' (the order was fully refunded). {order_number} is the order number, {total} the order total written with common.money_format. | title (256) | required | `{order_number}`, `{total}` |
+| ▫️ | `checkout.status.rejected.description` | Optional text of the order workflow message once the order is 'rejected'. {order_number} is the order number, {total} the order total written with common.money_format. | description (4096) | optional | `{order_number}`, `{total}` |
+| ❌ | `checkout.status.rejected.title` | Title of the order workflow message once the order is 'rejected' (staff rejected the order before payment). {order_number} is the order number, {total} the order total written with common.money_format. | title (256) | required | `{order_number}`, `{total}` |
+
+### Checkout: order status names
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ❌ | `checkout.status_label.cancelled` | Name of the order status 'cancelled' (the order was cancelled (by the customer before paying, or by staff)), used as {status} in the staff order controls. | format (100) | required |  |
+| ❌ | `checkout.status_label.expired` | Name of the order status 'expired' (the order was not paid within checkout.payment_expiry_minutes), used as {status} in the staff order controls. | format (100) | required |  |
+| ❌ | `checkout.status_label.fulfilled` | Name of the order status 'fulfilled' (the order was delivered/completed), used as {status} in the staff order controls. | format (100) | required |  |
+| ❌ | `checkout.status_label.paid` | Name of the order status 'paid' (staff confirmed the payment), used as {status} in the staff order controls. | format (100) | required |  |
+| ❌ | `checkout.status_label.pending_payment` | Name of the order status 'pending_payment' (waiting for payment), used as {status} in the staff order controls. | format (100) | required |  |
+| ❌ | `checkout.status_label.processing` | Name of the order status 'processing' (staff are preparing the order), used as {status} in the staff order controls. | format (100) | required |  |
+| ❌ | `checkout.status_label.refunded` | Name of the order status 'refunded' (the order was fully refunded), used as {status} in the staff order controls. | format (100) | required |  |
+| ❌ | `checkout.status_label.rejected` | Name of the order status 'rejected' (staff rejected the order before payment), used as {status} in the staff order controls. | format (100) | required |  |
+
+### Checkout: submitted order (order channel)
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ▫️ | `checkout.submitted.description` | Optional text of the submitted order. The payment instructions follow below it. {order_number} is the order number, {total} the order total written with common.money_format. | description (4096) | optional | `{order_number}`, `{total}` |
+| ❌ | `checkout.submitted.title` | Title of the workflow message after the order was submitted (waiting for payment). {order_number} is the order number, {total} the order total written with common.money_format. | title (256) | required | `{order_number}`, `{total}` |
+
 ## Store credit
 
 Feature `credits` — enabled.
@@ -228,13 +431,76 @@ Feature `credits` — enabled.
 | ▫️ | `credits.balance.title` | Optional title of the private reply to the 'my balance' button. If empty, the reply has no title. | title (256) | optional |  |
 | ❌ | `credits.button.balance` | Label of the 'my balance' button that other panels (for example the shop panel) can show. Clicking it shows the member their own credit balance privately. | button_label (80) | required |  |
 
+## Reviews
+
+Feature `reviews` — enabled.
+
+### Reviews: replies to the customer
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ❌ | `reviews.already_reviewed.description` | Shown privately when the customer tries to rate or comment on an order they already reviewed. {order_number} is the number of the reviewed order. | description (4096) | required | `{order_number}` |
+| ❌ | `reviews.declined.description` | Replaces the review request after the customer chose not to leave a review. {order_number} is the number of the reviewed order. | description (4096) | required | `{order_number}` |
+| ❌ | `reviews.expired.description` | Replaces the review request when the order can no longer be reviewed (for example it was refunded, or staff closed the review). {order_number} is the number of the reviewed order. | description (4096) | required | `{order_number}` |
+| ❌ | `reviews.thanks.description` | Replaces the review request after the customer submitted their review (the rating menu and buttons are removed). {order_number} is the number of the reviewed order. | description (4096) | required | `{order_number}` |
+
+### Reviews: rating request (sent to the customer after an order is fulfilled)
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ❌ | `reviews.button.decline` | Label of the button on the review request that lets the customer decline to leave a review. | button_label (80) | required |  |
+| ❌ | `reviews.prompt.description` | Text of the review request asking the customer to rate their order. {order_number} is the number of the reviewed order. | description (4096) | required | `{order_number}` |
+| ❌ | `reviews.prompt.select_placeholder` | Placeholder of the rating selection menu on the review request (shown before a rating is picked). | select_placeholder (150) | required |  |
+| ▫️ | `reviews.prompt.title` | Optional title of the review request sent to the customer (by direct message or in the order channel, see reviews.prompt_via) after their order was fulfilled. {order_number} is the number of the reviewed order. | title (256) | optional | `{order_number}` |
+
+### Reviews: comment form (opens after the customer picks a rating)
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ▫️ | `reviews.comment.description` | Optional help text under the label of the comment box. | input_description (100) | optional |  |
+| ❌ | `reviews.comment.label` | Label of the comment box in the comment form. Required when reviews.allow_comment is on. | input_label (45) | required |  |
+| ▫️ | `reviews.comment.placeholder` | Optional greyed-out example text inside the empty comment box. | input_placeholder (100) | optional |  |
+| ❌ | `reviews.comment.title` | Title of the form that asks for a written comment after the customer picked a rating. Required when reviews.allow_comment is on. | modal_title (45) | required |  |
+
+### Reviews: published review (posted in the reviews channel)
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ❌ | `reviews.published.rating_field` | Heading of the rating on a published review; the rating itself is shown with reviews.rating.<n>.display (or the rating's option label). | field_name (256) | required |  |
+| ❌ | `reviews.published.title` | Title of a review posted in the reviews channel. {rating} is the chosen rating as a number (1 to reviews.rating_scale), {user_name} the reviewer's display name, {order_number} the number of the reviewed order. The customer's comment (if any) is shown below the title exactly as written. | title (256) | required | `{rating}`, `{user_name}`, `{order_number}` |
+
+### Reviews: rating options
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ▫️ | `reviews.rating.1.description` | Optional small text under the option for rating 1 of 5 in the rating selection menu. | option_description (100) | optional |  |
+| ▫️ | `reviews.rating.1.display` | Optional text shown as the rating on a published review with rating 1 of 5 (for example a row of stars). If empty, the option label (reviews.rating.1.label) is shown instead. | field_value (1024) | optional (falls back to `reviews.rating.1.label`) |  |
+| ▫️ | `reviews.rating.1.emoji` | Optional emoji shown next to the option for rating 1 of 5 in the rating selection menu. | emoji (100) | optional |  |
+| ❌ | `reviews.rating.1.label` | Option label for rating 1 of 5 in the rating selection menu of the review request (options are listed from the highest rating to the lowest). Also shown on the published review when reviews.rating.1.display is empty. | option_label (100) | required |  |
+| ▫️ | `reviews.rating.2.description` | Optional small text under the option for rating 2 of 5 in the rating selection menu. | option_description (100) | optional |  |
+| ▫️ | `reviews.rating.2.display` | Optional text shown as the rating on a published review with rating 2 of 5 (for example a row of stars). If empty, the option label (reviews.rating.2.label) is shown instead. | field_value (1024) | optional (falls back to `reviews.rating.2.label`) |  |
+| ▫️ | `reviews.rating.2.emoji` | Optional emoji shown next to the option for rating 2 of 5 in the rating selection menu. | emoji (100) | optional |  |
+| ❌ | `reviews.rating.2.label` | Option label for rating 2 of 5 in the rating selection menu of the review request (options are listed from the highest rating to the lowest). Also shown on the published review when reviews.rating.2.display is empty. | option_label (100) | required |  |
+| ▫️ | `reviews.rating.3.description` | Optional small text under the option for rating 3 of 5 in the rating selection menu. | option_description (100) | optional |  |
+| ▫️ | `reviews.rating.3.display` | Optional text shown as the rating on a published review with rating 3 of 5 (for example a row of stars). If empty, the option label (reviews.rating.3.label) is shown instead. | field_value (1024) | optional (falls back to `reviews.rating.3.label`) |  |
+| ▫️ | `reviews.rating.3.emoji` | Optional emoji shown next to the option for rating 3 of 5 in the rating selection menu. | emoji (100) | optional |  |
+| ❌ | `reviews.rating.3.label` | Option label for rating 3 of 5 in the rating selection menu of the review request (options are listed from the highest rating to the lowest). Also shown on the published review when reviews.rating.3.display is empty. | option_label (100) | required |  |
+| ▫️ | `reviews.rating.4.description` | Optional small text under the option for rating 4 of 5 in the rating selection menu. | option_description (100) | optional |  |
+| ▫️ | `reviews.rating.4.display` | Optional text shown as the rating on a published review with rating 4 of 5 (for example a row of stars). If empty, the option label (reviews.rating.4.label) is shown instead. | field_value (1024) | optional (falls back to `reviews.rating.4.label`) |  |
+| ▫️ | `reviews.rating.4.emoji` | Optional emoji shown next to the option for rating 4 of 5 in the rating selection menu. | emoji (100) | optional |  |
+| ❌ | `reviews.rating.4.label` | Option label for rating 4 of 5 in the rating selection menu of the review request (options are listed from the highest rating to the lowest). Also shown on the published review when reviews.rating.4.display is empty. | option_label (100) | required |  |
+| ▫️ | `reviews.rating.5.description` | Optional small text under the option for rating 5 of 5 in the rating selection menu. | option_description (100) | optional |  |
+| ▫️ | `reviews.rating.5.display` | Optional text shown as the rating on a published review with rating 5 of 5 (for example a row of stars). If empty, the option label (reviews.rating.5.label) is shown instead. | field_value (1024) | optional (falls back to `reviews.rating.5.label`) |  |
+| ▫️ | `reviews.rating.5.emoji` | Optional emoji shown next to the option for rating 5 of 5 in the rating selection menu. | emoji (100) | optional |  |
+| ❌ | `reviews.rating.5.label` | Option label for rating 5 of 5 in the rating selection menu of the review request (options are listed from the highest rating to the lowest). Also shown on the published review when reviews.rating.5.display is empty. | option_label (100) | required |  |
+
 ## Business decisions and settings still open
 
 - None reported for the listed features.
 
 ## Summary
 
-- Required keys (for the listed features): 64
-- Required keys still missing: 64
+- Required keys (for the listed features): 148
+- Required keys still missing: 148
 
 Legend: ✅ configured · ❌ required and missing · ▫️ optional and empty

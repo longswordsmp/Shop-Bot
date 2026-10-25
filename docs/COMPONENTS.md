@@ -12,12 +12,40 @@ perform staff actions check staff status inside the handler, e.g. per-ticket-cat
 | component | `ad` | `keys` | admin | admin | no | `shopbot.features.admin.handlers.keys_page` |
 | component | `ad` | `miss` | admin | admin | no | `shopbot.features.admin.handlers.missing_page` |
 | component | `ad` | `status` | admin | admin | no | `shopbot.features.admin.handlers.status_page` |
+| component | `co` | `cancel` | checkout | any | no | `shopbot.features.checkout.handlers.on_cancel` |
+| component | `co` | `cancel_no` | checkout | any | no | `shopbot.features.checkout.handlers.on_cancel_no` |
+| component | `co` | `cancel_yes` | checkout | any | no | `shopbot.features.checkout.handlers.on_cancel_yes` |
+| component | `co` | `credits` | checkout | any | no | `shopbot.features.checkout.handlers.on_credits` |
+| component | `co` | `details` | checkout | any | no | `shopbot.features.checkout.handlers.on_details` |
+| modal | `co` | `dform` | checkout | any | no | `shopbot.features.checkout.handlers.on_details_form` |
+| component | `co` | `edit` | checkout | any | no | `shopbot.features.checkout.handlers.on_edit` |
+| component | `co` | `ful` | checkout | any | no | `shopbot.features.checkout.handlers.on_fulfillment` |
+| component | `co` | `go` | checkout | any | no | `shopbot.features.checkout.handlers.on_go` |
+| component | `co` | `ocancel` | checkout | any | no | `shopbot.features.checkout.handlers.on_order_cancel` |
+| component | `co` | `ocancel_no` | checkout | any | no | `shopbot.features.checkout.handlers.on_order_cancel_no` |
+| component | `co` | `ocancel_yes` | checkout | any | no | `shopbot.features.checkout.handlers.on_order_cancel_yes` |
+| component | `co` | `page` | checkout | any | no | `shopbot.features.checkout.handlers.on_page` |
+| component | `co` | `pick` | checkout | any | no | `shopbot.features.checkout.handlers.on_pick` |
+| modal | `co` | `qty` | checkout | any | no | `shopbot.features.checkout.handlers.on_quantity` |
+| component | `co` | `start` | checkout | any | no | `shopbot.features.checkout.handlers.on_start` |
+| component | `co` | `submit` | checkout | any | no | `shopbot.features.checkout.handlers.on_submit` |
 | component | `cr` | `balance` | credits | any | no | `shopbot.features.credits.handlers.on_balance` |
 | component | `cr` | `hpage` | credits | staff | no | `shopbot.features.credits.handlers.on_history_page` |
+| component | `cs` | `cancel` | checkout | staff | no | `shopbot.features.checkout.handlers.on_staff_action` |
+| component | `cs` | `fulfill` | checkout | staff | no | `shopbot.features.checkout.handlers.on_staff_action` |
+| component | `cs` | `lpage` | checkout | staff | no | `shopbot.features.checkout.handlers.on_list_page` |
+| component | `cs` | `paid` | checkout | staff | no | `shopbot.features.checkout.handlers.on_staff_action` |
+| component | `cs` | `process` | checkout | staff | no | `shopbot.features.checkout.handlers.on_staff_action` |
+| component | `cs` | `refund` | checkout | staff | no | `shopbot.features.checkout.handlers.on_refund` |
+| modal | `cs` | `refundform` | checkout | staff | no | `shopbot.features.checkout.handlers.on_refund_form` |
+| component | `cs` | `reject` | checkout | staff | no | `shopbot.features.checkout.handlers.on_staff_action` |
 | modal | `ct` | `addform` | catalog | staff | no | `shopbot.features.catalog.handlers.on_add_form` |
 | component | `ct` | `apage` | catalog | staff | no | `shopbot.features.catalog.handlers.on_admin_page` |
 | component | `ct` | `browse` | catalog | any | no | `shopbot.features.catalog.handlers.on_browse` |
 | modal | `ct` | `editform` | catalog | staff | no | `shopbot.features.catalog.handlers.on_edit_form` |
+| modal | `rv` | `comment` | reviews | any | yes | `shopbot.features.reviews.handlers.on_comment` |
+| component | `rv` | `decline` | reviews | any | yes | `shopbot.features.reviews.handlers.on_decline` |
+| component | `rv` | `rate` | reviews | any | yes | `shopbot.features.reviews.handlers.on_rate` |
 | component | `tk` | `claim` | tickets | any | no | `shopbot.features.tickets.handlers.claim_button` |
 | component | `tk` | `close` | tickets | any | no | `shopbot.features.tickets.handlers.close_button` |
 | component | `tk` | `closeno` | tickets | any | no | `shopbot.features.tickets.handlers.close_cancelled` |
@@ -36,6 +64,11 @@ perform staff actions check staff status inside the handler, e.g. per-ticket-cat
 
 - `admin.maintenance`
 - `catalog.refresh_listing`
+- `checkout.payment_expire`
+- `checkout.payment_reminder`
+- `checkout.session_expire`
+- `reviews.prompt`
+- `reviews.publish`
 - `tickets.auto_close`
 - `tickets.auto_close_warn`
 - `tickets.delete`

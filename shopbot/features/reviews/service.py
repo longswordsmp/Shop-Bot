@@ -39,7 +39,6 @@ from shopbot.core.notifier import Delivery
 from shopbot.db.repos import notifications as notif_repo
 from shopbot.features.reviews import repo, views
 from shopbot.features.reviews.content_keys import REVIEWS
-from shopbot.features.tickets.service import format_number
 from shopbot.logging_setup import log_event
 from shopbot.ui.discord_render import RenderError, edit_kwargs, send_spec
 from shopbot.ui.limits import validate_message
@@ -74,8 +73,10 @@ def resend_dedupe(review_id: int, now: int) -> str:
 
 
 def order_number_text(app: App, number: int) -> str:
-    """{order_number} as shown to customers and staff (zero-padded like ticket numbers)."""
-    return format_number(app, number)
+    """{order_number} as shown to customers and staff - the same plain number checkout shows (order numbers are
+    their own counter; ticket-number padding does not apply)."""
+    del app
+    return str(number)
 
 
 def is_ready(app: App) -> bool:

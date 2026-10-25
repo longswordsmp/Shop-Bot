@@ -136,3 +136,12 @@ async def test_orders_of_a_former_payment_provider_still_render(tmp_path: Path) 
         assert await service.payment_instructions(tenv.app, await order(tenv, placed.id)) is None
     finally:
         await tenv.close()
+
+
+def test_staff_channel_must_be_private() -> None:
+    from shopbot.features.checkout.content_keys import settings_problems
+    from tests.helpers import make_settings
+
+    assert not [p for p in settings_problems(make_settings()) if "staff or admin access" in p]
+    public = make_settings({"checkout": {"staff_channel": "shop"}})
+    assert any("checkout.staff_channel" in p and "staff or admin access" in p for p in settings_problems(public))
