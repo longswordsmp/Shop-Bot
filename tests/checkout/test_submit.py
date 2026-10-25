@@ -92,9 +92,9 @@ async def test_duplicate_submit_click_returns_the_same_order(co: TestEnv) -> Non
     p1 = await add_product(co, "[p1]", stock=5)
     _, session, _, message = await start(co, customer)
     data = await to_review(co, customer, message, session.id, [(p1.id, 1)])
-    total = data.totals.total_minor
-    await press(co, customer, message, views.submit_id(session.id, total))
-    again = await press(co, customer, message, views.submit_id(session.id, total))
+    total, gross = data.totals.total_minor, data.totals.gross_minor
+    await press(co, customer, message, views.submit_id(session.id, total, gross))
+    again = await press(co, customer, message, views.submit_id(session.id, total, gross))
     assert error_text(again) is None  # re-rendered the submitted order, no error
     assert len(await orders(co)) == 1
     assert (await product(co, p1.id)).reserved == 1
@@ -106,11 +106,11 @@ async def test_concurrent_duplicate_submits_create_one_order(co: TestEnv) -> Non
     p1 = await add_product(co, "[p1]", stock=5)
     _, session, _, message = await start(co, customer)
     data = await to_review(co, customer, message, session.id, [(p1.id, 2)])
-    total = data.totals.total_minor
+    total, gross = data.totals.total_minor, data.totals.gross_minor
     # Bypass the router's double-click guard: call the service concurrently.
     fresh = await reload_session(co, session.id)
     results = await asyncio.gather(
-        service.submit(co.app, fresh, total), service.submit(co.app, fresh, total), return_exceptions=True
+        service.submit(co.app, fresh, total, gross), service.submit(co.app, fresh, total, gross), return_exceptions=True
     )
     assert all(isinstance(r, m.Order) for r in results)
     assert {r.id for r in results if isinstance(r, m.Order)} == {1}
@@ -126,8 +126,8 @@ async def test_last_unit_cannot_be_sold_twice(co: TestEnv) -> None:
     d1 = await to_review(co, first, m1, s1.id, [(p1.id, 1)])
     d2 = await to_review(co, second, m2, s2.id, [(p1.id, 1)])
     results = await asyncio.gather(
-        press(co, first, m1, views.submit_id(s1.id, d1.totals.total_minor)),
-        press(co, second, m2, views.submit_id(s2.id, d2.totals.total_minor)),
+        press(co, first, m1, views.submit_id(s1.id, d1.totals.total_minor, d1.totals.gross_minor)),
+        press(co, second, m2, views.submit_id(s2.id, d2.totals.total_minor, d2.totals.gross_minor)),
     )
     created = await orders(co)
     assert len(created) == 1
@@ -146,7 +146,9 @@ async def test_out_of_stock_rolls_back_every_line(co: TestEnv) -> None:
     _, session, _, message = await start(co, customer)
     data = await to_review(co, customer, message, session.id, [(plenty.id, 3), (scarce.id, 2)])
     await co.app.db.transaction(catalog_repo.reserve, scarce.id, 1, co.clock.now())  # someone else holds one
-    failed = await press(co, customer, message, views.submit_id(session.id, data.totals.total_minor))
+    failed = await press(
+        co, customer, message, views.submit_id(session.id, data.totals.total_minor, data.totals.gross_minor)
+    )
     assert error_text(failed) == render(co, k.ERROR_OUT_OF_STOCK, name=views.escape("[scarce]"), available=1)
     assert (await product(co, plenty.id)).reserved == 0  # the first line's reservation was rolled back
     assert await orders(co) == []
@@ -159,13 +161,13 @@ async def test_price_change_between_review_and_submit(co: TestEnv) -> None:
     data = await to_review(co, customer, message, session.id, [(p1.id, 2)])
     assert data.totals.total_minor == 2000
     await set_price(co, p1.id, 1100)
-    changed = await press(co, customer, message, views.submit_id(session.id, 2000))
+    changed = await press(co, customer, message, views.submit_id(session.id, 2000, 2000))
     assert await orders(co) == []
     assert error_text(changed) is None
     assert message.embeds[0].title == co.text(k.REVIEW_TITLE)
     assert message.embeds[1].description == render(co, k.REVIEW_PRICE_CHANGED, total=money(co, 2200))
-    assert views.submit_id(session.id, 2200) in message.custom_ids()
-    await press(co, customer, message, views.submit_id(session.id, 2200))
+    assert views.submit_id(session.id, 2200, 2200) in message.custom_ids()
+    await press(co, customer, message, views.submit_id(session.id, 2200, 2200))
     placed = await orders(co)
     assert len(placed) == 1 and placed[0].total_minor == 2200
     assert [i.unit_price_minor for i in await co.app.db.run(repo.order_items, placed[0].id)] == [1100]
@@ -180,11 +182,12 @@ async def test_unlisted_product_and_caps_are_checked_at_submit(co: TestEnv) -> N
     await co.app.db.transaction(
         catalog_repo.update_product, p1.id, current.version, now=co.clock.now(), max_per_order=2
     )
-    capped = await press(co, customer, message, views.submit_id(session.id, data.totals.total_minor))
+    shown = views.submit_id(session.id, data.totals.total_minor, data.totals.gross_minor)
+    capped = await press(co, customer, message, shown)
     assert error_text(capped) == render(co, k.ERROR_QUANTITY_INVALID, max=2)
     current = await product(co, p1.id)
     await co.app.db.transaction(catalog_repo.update_product, p1.id, current.version, now=co.clock.now(), active=False)
-    gone = await press(co, customer, message, views.submit_id(session.id, data.totals.total_minor))
+    gone = await press(co, customer, message, shown)
     assert error_text(gone) == render(co, k.ERROR_PRODUCT_UNAVAILABLE, name=views.escape("[p1]"))
     assert await orders(co) == []
 
@@ -194,11 +197,11 @@ async def test_submit_requires_the_review_step_and_the_owner(co: TestEnv) -> Non
     p1 = await add_product(co, "[p1]", price=1000)
     _, session, _, message = await start(co, customer)
     await set_qty(co, customer, message, session.id, p1.id, 1)
-    early = await press(co, customer, message, views.submit_id(session.id, 1000))
+    early = await press(co, customer, message, views.submit_id(session.id, 1000, 1000))
     assert error_text(early) == co.text(core.ERROR_INVALID_INPUT)
     await go(co, customer, message, session.id, m.CART)
     await go(co, customer, message, session.id, m.REVIEW)
-    other = await press(co, co.member(name="other"), message, views.submit_id(session.id, 1000))
+    other = await press(co, co.member(name="other"), message, views.submit_id(session.id, 1000, 1000))
     assert error_text(other) == co.text(core.ERROR_PERMISSION)
     assert await orders(co) == []
 
@@ -243,7 +246,7 @@ async def test_credits_changed_since_review_is_a_price_change(co: TestEnv) -> No
     await to_review(co, customer, message, session.id, [(p1.id, 1)])
     await press(co, customer, message, views.credits_id(session.id, True))
     await give_credits(co, customer.id, -300)  # spent elsewhere meanwhile
-    await press(co, customer, message, views.submit_id(session.id, 600))
+    await press(co, customer, message, views.submit_id(session.id, 600, 1000))
     assert await orders(co) == []
     assert message.embeds[1].description == render(co, k.REVIEW_PRICE_CHANGED, total=money(co, 900))
 
@@ -266,7 +269,7 @@ async def test_full_workflow_order_keeps_details_fees_and_posts_staff_details(co
         message=message,
     )
     await go(tenv, customer, message, session.id, m.REVIEW)
-    await press(tenv, customer, message, views.submit_id(session.id, 2850))
+    await press(tenv, customer, message, views.submit_id(session.id, 2850, 2850))
     placed = (await orders(tenv))[0]
     assert (placed.subtotal_minor, placed.fulfillment_fee_minor, placed.fees_minor, placed.total_minor) == (
         2000,

@@ -305,7 +305,7 @@ async def test_fulfillment_details_and_review(cof: TestEnv) -> None:
     assert fields[tenv.text(k.fee_label_key("tax"))] == money(tenv, 200)  # 10 % of the 20.00 subtotal
     assert fields[tenv.text(k.FULFILLMENT_FEE_FIELD)] == money(tenv, 500)
     assert fields[tenv.text(k.REVIEW_TOTAL_FIELD)] == money(tenv, 2000 + 500 + 150 + 200)
-    assert views.submit_id(session.id, 2850) in message.custom_ids()
+    assert views.submit_id(session.id, 2850, 2850) in message.custom_ids()
     assert render(tenv, core.PROGRESS_FORMAT, current=5, total=5, bar="") in (message.embeds[0].footer.text or "")
     # going back to details keeps the answers; the stored answers survive a second (partial) submission
     session_now = await reload_session(tenv, session.id)
@@ -370,9 +370,9 @@ async def test_credits_toggle(co: TestEnv) -> None:
     fields = {f.name: f.value for f in message.embeds[0].fields}
     assert fields[co.text(k.REVIEW_CREDITS_FIELD)] == money(co, 300)
     assert fields[co.text(k.REVIEW_TOTAL_FIELD)] == money(co, 700)
-    assert views.submit_id(session.id, 700) in message.custom_ids()
+    assert views.submit_id(session.id, 700, 1000) in message.custom_ids()
     await press(co, customer, message, views.credits_id(session.id, False))
-    assert views.submit_id(session.id, 1000) in message.custom_ids()
+    assert views.submit_id(session.id, 1000, 1000) in message.custom_ids()
 
 
 async def test_no_credit_buttons_without_balance_or_credits_feature(tmp_path: Path) -> None:

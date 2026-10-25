@@ -112,6 +112,8 @@ STAFF_BUTTON_PROCESSING = "checkout.staff.button.processing"
 STAFF_BUTTON_FULFILLED = "checkout.staff.button.fulfilled"
 STAFF_BUTTON_REFUND = "checkout.staff.button.refund"
 STAFF_BUTTON_REFUND_CREDIT = "checkout.staff.button.refund_credit"
+STAFF_BUTTON_RETURN_CREDIT = "checkout.staff.button.return_credit"
+STAFF_CREDIT_RETURNED_FIELD = "checkout.staff.credit_returned_field"
 
 # -- errors (private) -----------------------------------------------------------------------------------
 ERROR_SESSION_CLOSED = "checkout.error.session_closed"
@@ -844,8 +846,8 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             Kind.BUTTON_LABEL,
             FEATURE,
             g_staff,
-            "Staff button: cancel the order (unpaid: stock and credit are returned; paid: nothing is restocked "
-            "or refunded automatically - use the refund button).",
+            "Staff button: cancel the order (unpaid: stock and credit are returned; paid: nothing is restocked, "
+            "refunded or returned automatically - use the refund buttons and the return-credit button).",
         ),
         ck(
             STAFF_BUTTON_PROCESSING,
@@ -876,6 +878,26 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             g_staff,
             "Staff button: refund (part of) the order as store credit. Needed when the credits feature is on.",
             required=settings.features.credits,
+        ),
+        ck(
+            STAFF_BUTTON_RETURN_CREDIT,
+            Kind.BUTTON_LABEL,
+            FEATURE,
+            g_staff,
+            "Staff button: give back the store credit the customer applied to a paid order (all of it at once; "
+            "shown until it was given back, e.g. after cancelling a paid order). Cancelling a paid order returns "
+            "neither money nor credit automatically. Needed when credits are enabled and "
+            "credits.allow_at_checkout = true.",
+            required=credits,
+        ),
+        ck(
+            STAFF_CREDIT_RETURNED_FIELD,
+            Kind.FIELD_NAME,
+            FEATURE,
+            g_staff,
+            "Optional name of the field on the staff order controls showing the applied store credit that was "
+            "given back to the customer (written with common.money_format).",
+            required=False,
         ),
         ck(
             ERROR_SESSION_CLOSED,

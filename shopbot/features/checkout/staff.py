@@ -66,8 +66,41 @@ def parse_staff_amount(app: App, text: str, currency: str) -> int:
 # -- status changes ----------------------------------------------------------------------------------------------
 
 
-async def change_status(app: App, order: m.Order, target: str, *, actor_id: int, note: str | None = None) -> OpReply:
-    """A staff status change (button or command): only valid transitions, through the same state machine."""
+async def _already_handled(app: App, order: m.Order, current: m.Order | None) -> OpReply:
+    """Another change came first: nothing was changed; the staff controls are brought up to date."""
+    await service.refresh_staff_message(app, order.id)
+    status = current.status if current is not None else "-"
+    return OpReply(app.op("checkout.op.already_handled", number=order.number, status=status), "warning")
+
+
+def _outstanding(app: App, order: m.Order) -> list[str]:
+    """Operator lines: what of a paid order can still be refunded (money) or given back (applied store credit)."""
+    lines: list[str] = []
+    if order.refundable_minor > 0:
+        lines.append(
+            app.op("checkout.op.refund_remaining", remaining=amount(app, order.refundable_minor, order.currency))
+        )
+    if order.credit_returnable_minor > 0:
+        lines.append(
+            app.op("checkout.op.credit_returnable", amount=amount(app, order.credit_returnable_minor, order.currency))
+        )
+    return lines
+
+
+async def change_status(
+    app: App,
+    order: m.Order,
+    target: str,
+    *,
+    actor_id: int,
+    note: str | None = None,
+    rendered_status: str | None = None,
+) -> OpReply:
+    """A staff status change (button or command): only valid transitions, through the same state machine.
+
+    ``rendered_status``: the status the clicked button was rendered for (buttons only; "" for a button rendered
+    before buttons carried it). The change applies only while the order is still in that status - otherwise
+    nothing changes, the reply says so and the controls are refreshed. Commands act on the current status."""
     number = order.number
     if target not in m.STAFF_TARGETS:
         return OpReply(
@@ -77,17 +110,25 @@ async def change_status(app: App, order: m.Order, target: str, *, actor_id: int,
         provider = service.provider_for(order)
         if provider is not None and not provider.requires_staff_confirmation:
             return OpReply(app.op("checkout.op.provider_confirms", number=number, provider=provider.id), "warning")
+    if rendered_status is not None and rendered_status != order.status:
+        return await _already_handled(app, order, order)
     if order.status not in m.TRANSITIONS[target]:
         return OpReply(
             app.op("checkout.op.invalid_transition", number=number, status=order.status, target=target), "warning"
         )
-    outcome = await service.change_status(app, order.id, target, actor_id=actor_id, note=note)
+    allowed_from = (rendered_status,) if rendered_status is not None else None
+    outcome = await service.change_status(
+        app, order.id, target, actor_id=actor_id, note=note, allowed_from=allowed_from
+    )
     if not outcome.applied:
-        current = outcome.order
-        await service.refresh_staff_message(app, order.id)
-        status = current.status if current is not None else "-"
-        return OpReply(app.op("checkout.op.already_handled", number=number, status=status), "warning")
-    return OpReply(app.op("checkout.op.status_changed", number=number, status=target), "success")
+        return await _already_handled(app, order, outcome.order)
+    lines = [app.op("checkout.op.status_changed", number=number, status=target)]
+    current = outcome.order
+    if target == m.CANCELLED and outcome.previous != m.PENDING and current is not None and current.refunds_allowed:
+        outstanding = _outstanding(app, current)
+        if outstanding:
+            lines += [app.op("checkout.op.paid_cancel", number=number), *outstanding]
+    return OpReply("\n".join(lines), "success")
 
 
 # -- refunds --------------------------------------------------------------------------------------------------------
@@ -116,6 +157,8 @@ async def refund(
             )
         elif exc.reason == "credits_unavailable":
             text = app.op("checkout.op.credits_unavailable")
+        elif exc.reason == "currency":
+            text = currency_refused(app, current)
         elif exc.reason == "reason":
             text = app.op("checkout.op.reason_too_long", max=service.REFUND_REASON_MAX)
         elif exc.reason == "provider_failed":
@@ -133,16 +176,42 @@ async def refund(
         key = "checkout.op.refund_provider"
     else:
         key = "checkout.op.refund_manual"
-    lines = [app.op(key, number=number, amount=shown)]
+    return OpReply("\n".join([app.op(key, number=number, amount=shown), *_after_refund_lines(app, record)]), "success")
+
+
+def _after_refund_lines(app: App, record: repo.RefundRecord) -> list[str]:
     if record.transition is not None:
-        lines.append(app.op("checkout.op.fully_refunded", number=number))
-    else:
-        lines.append(
-            app.op(
-                "checkout.op.refund_remaining",
-                remaining=amount(app, record.order.refundable_minor, record.order.currency),
-            )
-        )
+        return [app.op("checkout.op.fully_refunded", number=record.order.number)]
+    return _outstanding(app, record.order)
+
+
+def currency_refused(app: App, order: m.Order) -> str:
+    """Operator text: this order cannot be refunded to store credit (paid in another currency than the shop's)."""
+    return app.op(
+        "checkout.op.refund_currency",
+        number=order.number,
+        currency=order.currency,
+        shop_currency=app.settings.checkout.currency or "-",
+    )
+
+
+async def return_credit(app: App, order: m.Order, *, reason: str | None, actor_id: int) -> OpReply:
+    """Give the store credit applied to a paid order back to the customer (all of it, once)."""
+    number = order.number
+    try:
+        outcome = await service.return_credit(app, order.id, reason=reason, actor_id=actor_id)
+    except service.RefundError as exc:
+        current = exc.order or order
+        if exc.reason == "reason":
+            text = app.op("checkout.op.reason_too_long", max=service.REFUND_REASON_MAX)
+        elif exc.reason == "missing":
+            text = app.op("checkout.op.not_found", number=number)
+        else:
+            text = app.op("checkout.op.credit_return_not_allowed", number=number, status=current.status)
+        return OpReply(text, "warning")
+    record = outcome.record
+    shown = amount(app, record.adjustment.amount_minor, record.order.currency)
+    lines = [app.op("checkout.op.credit_returned", number=number, amount=shown), *_after_refund_lines(app, record)]
     return OpReply("\n".join(lines), "success")
 
 
@@ -261,6 +330,10 @@ async def lookup_messages(app: App, order: m.Order) -> list[MessageSpec]:
         EmbedField(op("checkout.lookup.total"), money(order.total_minor), inline=True),
         EmbedField(op("checkout.lookup.refunded"), money(order.refunded_minor), inline=True),
     ]
+    if order.credits_applied_minor > 0:
+        fields.append(
+            EmbedField(op("checkout.lookup.credit_returned"), money(order.credit_returned_minor), inline=True)
+        )
     if payment is not None:
         fields.append(
             EmbedField(
@@ -291,7 +364,7 @@ async def lookup_messages(app: App, order: m.Order) -> list[MessageSpec]:
         fields += views.answer_fields(_label(app, answer_key), answer)
     refund_lines = [
         op(
-            "checkout.lookup.refund_line",
+            "checkout.lookup.credit_return_line" if a.kind == "credit_return" else "checkout.lookup.refund_line",
             amount=money(a.amount_minor),
             method=a.method,
             actor=views.user_mention(a.actor_id) if a.actor_id else "-",

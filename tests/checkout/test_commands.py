@@ -60,7 +60,14 @@ async def test_status_cancel_and_note(co: TestEnv) -> None:
     noted = await run_command(co, "note", user=staffer, number=1, text="[sample note]")
     assert op_text(noted) == co.app.op("checkout.op.note_added", number=1)
     cancelled = await run_command(co, "cancel", user=staffer, number=1, reason="[sample reason]")
-    assert op_text(cancelled) == co.app.op("checkout.op.status_changed", number=1, status=m.CANCELLED)
+    # A paid order: nothing is refunded automatically, and the reply says what can still be refunded.
+    assert op_text(cancelled) == "\n".join(
+        [
+            co.app.op("checkout.op.status_changed", number=1, status=m.CANCELLED),
+            co.app.op("checkout.op.paid_cancel", number=1),
+            co.app.op("checkout.op.refund_remaining", remaining="10.00 USD"),
+        ]
+    )
     events = await co.app.db.run(repo.events, placed.id)
     assert [(e.from_status, e.to_status, e.note) for e in events] == [
         (None, m.PENDING, None),
@@ -106,7 +113,7 @@ async def test_lookup_shows_everything(cof: TestEnv) -> None:
         message=message,
     )
     await go(tenv, customer, message, session.id, m.REVIEW)
-    await press(tenv, customer, message, views.submit_id(session.id, 1000 + 150 + 100))
+    await press(tenv, customer, message, views.submit_id(session.id, 1000 + 150 + 100, 1000 + 150 + 100))
     found = await run_command(tenv, "lookup", user=staffer, number=1)
     text = texts(found)
     assert tenv.app.op("checkout.lookup.title", number=1) in text

@@ -119,7 +119,8 @@ async def test_each_status_change_updates_views_and_notifies_once(co: TestEnv) -
     placed, ch, message = await place_order(co, customer, [(p1.id, 1)])
     for target in (m.PAID, m.PROCESSING, m.FULFILLED):
         before = len(customer.dms)
-        await press(co, staffer, staff_message(co, placed), views.staff_action_id(target, placed.id))
+        rendered = (await order(co, placed.id)).status
+        await press(co, staffer, staff_message(co, placed), views.staff_action_id(target, placed.id, rendered))
         current = await order(co, placed.id)
         assert current.status == target
         assert message.embeds[0].title == render(
@@ -141,12 +142,10 @@ async def test_each_status_change_updates_views_and_notifies_once(co: TestEnv) -
         views.refund_id(placed.id, views.MODE_MONEY),
         views.refund_id(placed.id, views.MODE_CREDIT),
     ]
-    # Repeating a transition does nothing (and notifies nobody).
+    # Repeating a transition (a stale button) does nothing (and notifies nobody).
     dms = len(customer.dms)
-    again = await press(co, staffer, control, views.staff_action_id(m.FULFILLED, placed.id))
-    assert op_text(again) == co.app.op(
-        "checkout.op.invalid_transition", number=1, status=m.FULFILLED, target=m.FULFILLED
-    )
+    again = await press(co, staffer, control, views.staff_action_id(m.FULFILLED, placed.id, m.PROCESSING))
+    assert op_text(again) == co.app.op("checkout.op.already_handled", number=1, status=m.FULFILLED)
     assert len(customer.dms) == dms
     assert await ticket_status(co, placed.ticket_id or 0) == "closed"
     actions = await audit_actions(co)
@@ -166,11 +165,11 @@ async def test_paid_buttons_and_stock_commit(co: TestEnv) -> None:
     paid = await order(co, placed.id)
     assert paid.paid_at == co.clock.now()
     assert staff_message(co, paid).custom_ids() == [
-        views.staff_action_id(m.PROCESSING, placed.id),
-        views.staff_action_id(m.FULFILLED, placed.id),
+        views.staff_action_id(m.PROCESSING, placed.id, m.PAID),
+        views.staff_action_id(m.FULFILLED, placed.id, m.PAID),
         views.refund_id(placed.id, views.MODE_MONEY),
         views.refund_id(placed.id, views.MODE_CREDIT),
-        views.staff_action_id(m.CANCELLED, placed.id),
+        views.staff_action_id(m.CANCELLED, placed.id, m.PAID),
     ]
     assert await co.app.db.run(repo.reservations, placed.id) == [(p1.id, 3, "committed")]
     payment = await co.app.db.run(repo.payment_for, placed.id)
@@ -178,7 +177,7 @@ async def test_paid_buttons_and_stock_commit(co: TestEnv) -> None:
     stock = await product(co, p1.id)
     assert (stock.stock_on_hand, stock.reserved) == (1, 0)
     # paid -> cancelled: nothing is restocked or refunded automatically
-    await press(co, staffer, staff_message(co, paid), views.staff_action_id(m.CANCELLED, placed.id))
+    await press(co, staffer, staff_message(co, paid), views.staff_action_id(m.CANCELLED, placed.id, m.PAID))
     cancelled = await order(co, placed.id)
     assert cancelled.status == m.CANCELLED and cancelled.refunded_minor == 0
     stock = await product(co, p1.id)

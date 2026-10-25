@@ -68,7 +68,9 @@ async def order_lookup(interaction: discord.Interaction[Any], number: int) -> No
 
 
 async def order_list(
-    interaction: discord.Interaction[Any], status: str | None = None, member: discord.Member | None = None
+    interaction: discord.Interaction[Any],
+    status: str | None = None,
+    member: discord.Member | discord.User | None = None,
 ) -> None:
     app = await _ready_app(interaction)
     if app is None:
@@ -147,7 +149,9 @@ def build_group() -> app_commands.Group:
     @app_commands.describe(status="Only orders with this status", member="Only orders of this member")
     @require_staff(staff_role_keys)
     async def list_(
-        interaction: discord.Interaction[Any], status: StatusChoice | None = None, member: discord.Member | None = None
+        interaction: discord.Interaction[Any],
+        status: StatusChoice | None = None,
+        member: discord.Member | discord.User | None = None,
     ) -> None:
         await order_list(interaction, status, member)
 

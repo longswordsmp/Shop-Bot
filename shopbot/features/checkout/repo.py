@@ -6,6 +6,14 @@ UPDATEs (``WHERE status IN (...)``) and the schema's UNIQUE constraints (one ord
 per order line, one credit debit/return per order), so duplicate clicks and concurrent requests never apply
 anything twice. An exception raised inside a transaction function rolls back every write it made (including
 stock reservations and credit debits).
+
+Durable follow-ups: work that must happen after a change (Discord messages, notifications, closing the order
+channel) is scheduled as a deduplicated task IN THE SAME TRANSACTION as the change (``scheduled_tasks``), so a crash
+or an error after the commit can never lose it: ``checkout.after_submit:<order_id>`` (staff controls and details,
+payment start), ``checkout.after_transition:<order_id>:<status>`` (order views, notification, channel close, review
+request), ``checkout.ticket_check:<ticket_id>`` (closing an order channel that can no longer be used), plus the
+payment reminder/expiry tasks of a new order. The process normally performs the same steps right after the commit
+and then cancels the follow-up; the task only runs when that did not complete.
 """
 
 from __future__ import annotations
@@ -19,11 +27,76 @@ from typing import Any
 from shopbot.config.settings import CheckoutSettings, Settings
 from shopbot.core.money import MAX_AMOUNT_MINOR
 from shopbot.db.repos import state
+from shopbot.db.repos import tasks as task_repo
 from shopbot.features.catalog import repo as catalog_repo
 from shopbot.features.checkout import flow
 from shopbot.features.checkout import models as m
 from shopbot.features.checkout.totals import Totals, compute_totals
 from shopbot.features.credits import repo as credits_repo
+
+# ---------------------------------------------------------------------------------------------------
+# Scheduled tasks (kinds and dedupe keys; the handlers are in ``tasks``)
+# ---------------------------------------------------------------------------------------------------
+
+TASK_SESSION_EXPIRE = "checkout.session_expire"
+TASK_PAYMENT_REMINDER = "checkout.payment_reminder"
+TASK_PAYMENT_EXPIRE = "checkout.payment_expire"
+TASK_AFTER_SUBMIT = "checkout.after_submit"
+TASK_AFTER_TRANSITION = "checkout.after_transition"
+TASK_TICKET_CHECK = "checkout.ticket_check"
+# Follow-up tasks run this long after the change they follow, only if the process did not finish the same steps
+# right after the commit (it cancels the task then). The delay keeps the two from running at the same time.
+FOLLOWUP_DELAY_SECONDS = 60
+# Attempts of a task scheduled inside a transaction (callers pass the scheduler's configured value).
+DEFAULT_TASK_ATTEMPTS = 5
+
+
+def session_task_key(session_id: int) -> str:
+    return f"checkout.session:{session_id}"
+
+
+def reminder_task_key(order_id: int) -> str:
+    return f"checkout.payment_reminder:{order_id}"
+
+
+def expiry_task_key(order_id: int) -> str:
+    return f"checkout.payment_expire:{order_id}"
+
+
+def after_submit_key(order_id: int) -> str:
+    return f"checkout.after_submit:{order_id}"
+
+
+def after_transition_key(order_id: int, status: str) -> str:
+    return f"checkout.after_transition:{order_id}:{status}"
+
+
+def ticket_check_key(ticket_id: int) -> str:
+    return f"checkout.ticket_check:{ticket_id}"
+
+
+def _schedule(
+    conn: sqlite3.Connection,
+    kind: str,
+    *,
+    run_at: int,
+    payload: dict[str, Any],
+    dedupe_key: str,
+    attempts: int,
+    now: int,
+    replace: bool = False,
+) -> None:
+    task_repo.schedule(
+        conn,
+        kind=kind,
+        run_at=run_at,
+        payload=payload,
+        max_attempts=max(1, attempts),
+        dedupe_key=dedupe_key,
+        replace=replace,
+        now=now,
+    )
+
 
 # ---------------------------------------------------------------------------------------------------
 # Errors (each maps to a configured customer message or an operator reply)
@@ -102,13 +175,15 @@ class AmountTooLarge(CheckoutError):
 
 
 class PriceChanged(CheckoutError):
+    """The totals differ from the ones the customer was shown (or the click carries no shown totals)."""
+
     def __init__(self, totals: Totals) -> None:
         super().__init__(str(totals.total_minor))
         self.totals = totals
 
 
 class RefundNotAllowed(CheckoutError):
-    """reason: 'missing' | 'state' | 'amount'."""
+    """reason: 'missing' | 'state' | 'amount' (a credit return: 'state' when there is nothing left to return)."""
 
     def __init__(self, reason: str) -> None:
         super().__init__(reason)
@@ -160,6 +235,7 @@ def _session(r: sqlite3.Row) -> m.Session:
 
 
 def _order(r: sqlite3.Row) -> m.Order:
+    returned = r["credit_returned_minor"] if "credit_returned_minor" in r.keys() else 0  # noqa: SIM118
     return m.Order(
         id=int(r["id"]),
         guild_id=int(r["guild_id"]),
@@ -187,7 +263,15 @@ def _order(r: sqlite3.Row) -> m.Order:
         paid_at=_opt_int(r["paid_at"]),
         fulfilled_at=_opt_int(r["fulfilled_at"]),
         closed_at=_opt_int(r["closed_at"]),
+        credit_returned_minor=int(returned or 0),
     )
+
+
+# Every order read includes the store credit already given back for it (its ledger ``order_return`` row).
+_ORDER_SELECT = (
+    "SELECT o.*, (SELECT COALESCE(SUM(l.delta_minor), 0) FROM credit_ledger l WHERE l.order_id = o.id "
+    "AND l.kind = 'order_return') AS credit_returned_minor FROM orders o"
+)
 
 
 # ---------------------------------------------------------------------------------------------------
@@ -227,8 +311,16 @@ def _expires(now: int, expiry_seconds: int) -> int | None:
 
 
 def create_session(
-    conn: sqlite3.Connection, *, guild_id: int, user_id: int, ticket_id: int, now: int, expiry_seconds: int
+    conn: sqlite3.Connection,
+    *,
+    guild_id: int,
+    user_id: int,
+    ticket_id: int,
+    now: int,
+    expiry_seconds: int,
+    task_attempts: int = DEFAULT_TASK_ATTEMPTS,
 ) -> m.Session:
+    """A new ACTIVE session; its idle-expiry task (when expiry is on) is scheduled in the same transaction."""
     cursor = conn.execute(
         "INSERT INTO checkout_sessions(guild_id, user_id, ticket_id, status, step, page, details, apply_credits, "
         "created_at, updated_at, expires_at) VALUES (?, ?, ?, ?, ?, 0, '{}', 0, ?, ?, ?)",
@@ -236,6 +328,17 @@ def create_session(
     )
     session = get_session(conn, int(cursor.lastrowid or 0))
     assert session is not None
+    if expiry_seconds > 0:
+        _schedule(
+            conn,
+            TASK_SESSION_EXPIRE,
+            run_at=now + expiry_seconds,
+            payload={"session_id": session.id},
+            dedupe_key=session_task_key(session.id),
+            attempts=task_attempts,
+            now=now,
+            replace=True,
+        )
     return session
 
 
@@ -332,8 +435,18 @@ def merge_details(
     )
 
 
-def end_session(conn: sqlite3.Connection, session_id: int, to_status: str, now: int) -> m.Session | None:
-    """active -> cancelled/expired. None when the session was not active (already ended or submitted)."""
+def end_session(
+    conn: sqlite3.Connection,
+    session_id: int,
+    to_status: str,
+    now: int,
+    *,
+    task_attempts: int = DEFAULT_TASK_ATTEMPTS,
+) -> m.Session | None:
+    """active -> cancelled/expired. None when the session was not active (already ended or submitted).
+
+    In the same transaction its expiry task is cancelled and a ``checkout.ticket_check`` task is scheduled, so the
+    order channel of an ended session is closed even if the process stops (or fails) before closing it."""
     if to_status not in (m.SESSION_CANCELLED, m.SESSION_EXPIRED):
         raise ValueError(f"cannot end a session as {to_status!r}")
     cur = conn.execute(
@@ -341,19 +454,72 @@ def end_session(conn: sqlite3.Connection, session_id: int, to_status: str, now: 
         "version = version + 1 WHERE id = ? AND status = ?",
         (to_status, m.DONE, now, session_id, m.ACTIVE),
     )
-    return get_session(conn, session_id) if cur.rowcount else None
+    if not cur.rowcount:
+        return None
+    ended = get_session(conn, session_id)
+    assert ended is not None
+    task_repo.cancel(conn, dedupe_key=session_task_key(session_id), now=now)
+    _schedule(
+        conn,
+        TASK_TICKET_CHECK,
+        run_at=now + FOLLOWUP_DELAY_SECONDS,
+        payload={"ticket_id": ended.ticket_id},
+        dedupe_key=ticket_check_key(ended.ticket_id),
+        attempts=task_attempts,
+        now=now,
+        replace=True,
+    )
+    return ended
 
 
-def orphan_order_tickets(conn: sqlite3.Connection, guild_id: int, created_before: int) -> list[int]:
-    """Active order-channel tickets without any checkout session (the process stopped between creating the
-    channel and recording the session)."""
+def orphan_order_tickets(conn: sqlite3.Connection, guild_id: int) -> list[tuple[int, int]]:
+    """(ticket id, created_at) of active order-channel tickets without any checkout session (the process stopped
+    between creating the channel and recording the session)."""
+    rows = conn.execute(
+        "SELECT t.id, t.created_at FROM tickets t WHERE t.guild_id = ? AND t.kind = 'order' "
+        "AND t.status IN ('creating', 'open') "
+        "AND NOT EXISTS (SELECT 1 FROM checkout_sessions s WHERE s.ticket_id = t.id) ORDER BY t.id",
+        (guild_id,),
+    )
+    return [(int(r["id"]), int(r["created_at"])) for r in rows]
+
+
+def unused_order_tickets(conn: sqlite3.Connection, guild_id: int) -> list[int]:
+    """Active order-channel tickets that can no longer be used: they had a session, but none is active and no order
+    of the channel is open (the session was cancelled/expired without an order, or the order is final)."""
     rows = conn.execute(
         "SELECT t.id FROM tickets t WHERE t.guild_id = ? AND t.kind = 'order' AND t.status IN ('creating', 'open') "
-        "AND t.created_at < ? AND NOT EXISTS (SELECT 1 FROM checkout_sessions s WHERE s.ticket_id = t.id) "
-        "ORDER BY t.id",
-        (guild_id, created_before),
+        "AND EXISTS (SELECT 1 FROM checkout_sessions s WHERE s.ticket_id = t.id) "
+        "AND NOT EXISTS (SELECT 1 FROM checkout_sessions s WHERE s.ticket_id = t.id AND s.status = ?) "
+        "AND NOT EXISTS (SELECT 1 FROM orders o WHERE o.ticket_id = t.id "
+        "AND o.status IN (SELECT value FROM json_each(?))) ORDER BY t.id",
+        (guild_id, m.ACTIVE, json.dumps(list(m.OPEN_STATUSES))),
     )
     return [int(r["id"]) for r in rows]
+
+
+# Close reason of an order channel that never got a session.
+ORPHAN = "checkout_orphan"
+
+
+def ticket_close_reason(conn: sqlite3.Connection, ticket_id: int) -> str | None:
+    """Why an order channel can be closed: None while it is in use (an active session or an open order), else the
+    latest order's status, the latest session's status, or ``ORPHAN`` (it never got a session)."""
+    sessions = [
+        str(r["status"])
+        for r in conn.execute("SELECT status FROM checkout_sessions WHERE ticket_id = ? ORDER BY id DESC", (ticket_id,))
+    ]
+    orders = [
+        str(r["status"])
+        for r in conn.execute("SELECT status FROM orders WHERE ticket_id = ? ORDER BY id DESC", (ticket_id,))
+    ]
+    if m.ACTIVE in sessions or any(status in m.OPEN_STATUSES for status in orders):
+        return None
+    if orders:
+        return orders[0]
+    if sessions:
+        return sessions[0]
+    return ORPHAN
 
 
 # ---------------------------------------------------------------------------------------------------
@@ -501,12 +667,12 @@ def load_workflow(
 
 
 def get_order(conn: sqlite3.Connection, order_id: int) -> m.Order | None:
-    row = conn.execute("SELECT * FROM orders WHERE id = ?", (order_id,)).fetchone()
+    row = conn.execute(f"{_ORDER_SELECT} WHERE o.id = ?", (order_id,)).fetchone()
     return None if row is None else _order(row)
 
 
 def get_order_by_number(conn: sqlite3.Connection, guild_id: int, number: int) -> m.Order | None:
-    row = conn.execute("SELECT * FROM orders WHERE guild_id = ? AND number = ?", (guild_id, number)).fetchone()
+    row = conn.execute(f"{_ORDER_SELECT} WHERE o.guild_id = ? AND o.number = ?", (guild_id, number)).fetchone()
     return None if row is None else _order(row)
 
 
@@ -519,16 +685,17 @@ def count_open_orders(conn: sqlite3.Connection, guild_id: int, user_id: int) -> 
 
 
 def orders_with_status(conn: sqlite3.Connection, guild_id: int, statuses: Sequence[str]) -> list[m.Order]:
+    # Only constant SQL is concatenated; every value is a bound parameter.
     rows = conn.execute(
-        "SELECT * FROM orders WHERE guild_id = ? AND status IN (SELECT value FROM json_each(?)) ORDER BY id",
+        f"{_ORDER_SELECT} WHERE o.guild_id = ? AND o.status IN (SELECT value FROM json_each(?)) ORDER BY o.id",  # noqa: S608
         (guild_id, json.dumps(list(statuses))),
     )
     return [_order(r) for r in rows]
 
 
 _LIST_SQL = (
-    "SELECT * FROM orders WHERE guild_id = ? AND (? = '' OR status = ?) AND (? = 0 OR user_id = ?) "
-    "ORDER BY id DESC LIMIT ? OFFSET ?"
+    f"{_ORDER_SELECT} WHERE o.guild_id = ? AND (? = '' OR o.status = ?) AND (? = 0 OR o.user_id = ?) "
+    "ORDER BY o.id DESC LIMIT ? OFFSET ?"
 )
 _COUNT_SQL = "SELECT COUNT(*) AS n FROM orders WHERE guild_id = ? AND (? = '' OR status = ?) AND (? = 0 OR user_id = ?)"
 
@@ -662,16 +829,23 @@ def submit_order(
     session_id: int,
     user_id: int,
     expected_total_minor: int,
+    expected_gross_minor: int | None,
     settings: Settings,
     credits_enabled: bool,
     provider_id: str,
     now: int,
+    task_attempts: int = DEFAULT_TASK_ATTEMPTS,
 ) -> SubmitResult:
     """Turn the caller's session into an order, all-or-nothing (see the module docstring).
 
     A session that was already submitted returns its order (``created=False``): a duplicate click never creates
     a second order (``orders.session_id`` is UNIQUE as well). Raises a ``CheckoutError`` when something is not
-    acceptable; ``PriceChanged`` carries the recomputed totals when the total differs from the one shown.
+    acceptable; ``PriceChanged`` carries the recomputed totals when the totals differ from the ones shown: both the
+    total to pay AND the gross amount (before credits) must match, because store credit can absorb a price change
+    in the total alone. A missing gross amount (a control rendered before it was recorded) counts as changed.
+
+    In the same transaction: the session's expiry task is cancelled, the payment reminder/expiry tasks are scheduled
+    (when configured) and the ``checkout.after_submit`` follow-up is scheduled.
     """
     session = get_session(conn, session_id)
     if session is None or session.guild_id != guild_id or session.user_id != user_id:
@@ -707,7 +881,7 @@ def submit_order(
         raise MinimumNotMet(c.min_order_total_minor)
     if totals.gross_minor > MAX_AMOUNT_MINOR:
         raise AmountTooLarge()
-    if totals.total_minor != expected_total_minor:
+    if totals.total_minor != expected_total_minor or totals.gross_minor != expected_gross_minor:
         raise PriceChanged(totals)
 
     for line in lines:  # all-or-nothing: a failure raises and rolls back the earlier reservations
@@ -792,6 +966,37 @@ def submit_order(
     )
     if cur.rowcount != 1:  # unreachable inside the transaction; kept as a guard
         raise SessionNotActive("changed")
+    task_repo.cancel(conn, dedupe_key=session_task_key(session_id), now=now)
+    payload = {"order_id": order_id}
+    if c.payment_reminder_minutes > 0:
+        _schedule(
+            conn,
+            TASK_PAYMENT_REMINDER,
+            run_at=now + c.payment_reminder_minutes * 60,
+            payload=payload,
+            dedupe_key=reminder_task_key(order_id),
+            attempts=task_attempts,
+            now=now,
+        )
+    if c.payment_expiry_minutes > 0:
+        _schedule(
+            conn,
+            TASK_PAYMENT_EXPIRE,
+            run_at=now + c.payment_expiry_minutes * 60,
+            payload=payload,
+            dedupe_key=expiry_task_key(order_id),
+            attempts=task_attempts,
+            now=now,
+        )
+    _schedule(
+        conn,
+        TASK_AFTER_SUBMIT,
+        run_at=now + FOLLOWUP_DELAY_SECONDS,
+        payload=payload,
+        dedupe_key=after_submit_key(order_id),
+        attempts=task_attempts,
+        now=now,
+    )
     order = get_order(conn, order_id)
     assert order is not None
     return SubmitResult(order, created=True)
@@ -871,6 +1076,7 @@ def transition(
     actor_id: int | None,
     note: str | None,
     now: int,
+    task_attempts: int = DEFAULT_TASK_ATTEMPTS,
 ) -> Transition | None:
     """Move an order to ``to`` if it is in one of ``allowed_from`` (conditional UPDATE + ``order_events`` row).
 
@@ -879,7 +1085,10 @@ def transition(
     - -> paid: held stock is sold (``commit_sale``), the payment row succeeds;
     - unpaid -> rejected/cancelled/expired: held stock is released, applied credit is returned, the payment row is
       cancelled;
-    - paid/processing -> cancelled: nothing is restocked or refunded (staff decide with a refund).
+    - paid/processing -> cancelled: nothing is restocked, refunded or returned automatically - neither money nor the
+      applied store credit; staff decide with the refund controls (``record_refund``, ``return_order_credit``);
+    - leaving pending_payment cancels the payment reminder/expiry tasks;
+    - the follow-up task ``checkout.after_transition:<order_id>:<to>`` is scheduled (see the module docstring).
     """
     if to not in m.ORDER_STATUSES:
         raise ValueError(f"unknown order status {to!r}")
@@ -920,6 +1129,18 @@ def transition(
             (now, order_id),
         )
         released = True
+    if before.status == m.PENDING:
+        task_repo.cancel(conn, dedupe_key=reminder_task_key(order_id), now=now)
+        task_repo.cancel(conn, dedupe_key=expiry_task_key(order_id), now=now)
+    _schedule(
+        conn,
+        TASK_AFTER_TRANSITION,
+        run_at=now + FOLLOWUP_DELAY_SECONDS,
+        payload={"order_id": order_id, "status": to, "actor_id": actor_id, "released": released},
+        dedupe_key=after_transition_key(order_id, to),
+        attempts=task_attempts,
+        now=now,
+    )
     after = get_order(conn, order_id)
     assert after is not None
     return Transition(before=before, after=after, released=released)
@@ -945,9 +1166,11 @@ def record_refund(
     actor_id: int | None,
     external_ref: str | None,
     now: int,
+    task_attempts: int = DEFAULT_TASK_ATTEMPTS,
 ) -> RefundRecord:
-    """Record a refund (never above what is still refundable) and, with ``to_credit``, credit it to the customer's
-    store credit in the same transaction. A full refund moves the order to 'refunded'."""
+    """Record a money refund (never above what is still refundable) and, with ``to_credit``, credit it to the
+    customer's store credit in the same transaction. The order moves to 'refunded' once it is fully refunded
+    (money refunds cover the total AND any applied store credit was returned, see ``return_order_credit``)."""
     order = get_order(conn, order_id)
     if order is None or order.guild_id != guild_id:
         raise RefundNotAllowed("missing")
@@ -979,10 +1202,34 @@ def record_refund(
             note=reason,
             now=now,
         )
+    return _finish_refund(
+        conn,
+        guild_id=guild_id,
+        order_id=order_id,
+        adjustment_id=adjustment_id,
+        actor_id=actor_id,
+        reason=reason,
+        now=now,
+        task_attempts=task_attempts,
+    )
+
+
+def _finish_refund(
+    conn: sqlite3.Connection,
+    *,
+    guild_id: int,
+    order_id: int,
+    adjustment_id: int,
+    actor_id: int | None,
+    reason: str | None,
+    now: int,
+    task_attempts: int,
+) -> RefundRecord:
+    """After a refund or credit return: move a fully refunded order to 'refunded' (same transaction)."""
     refreshed = get_order(conn, order_id)
     assert refreshed is not None
     moved: Transition | None = None
-    if refreshed.refunded_minor >= refreshed.total_minor:
+    if refreshed.fully_refunded:
         moved = transition(
             conn,
             guild_id=guild_id,
@@ -992,10 +1239,60 @@ def record_refund(
             actor_id=actor_id,
             note=reason,
             now=now,
+            task_attempts=task_attempts,
         )
         refreshed = get_order(conn, order_id) or refreshed
     adjustment = next(a for a in adjustments(conn, order_id) if a.id == adjustment_id)
     return RefundRecord(adjustment=adjustment, order=refreshed, transition=moved)
+
+
+def return_order_credit(
+    conn: sqlite3.Connection,
+    *,
+    guild_id: int,
+    order_id: int,
+    reason: str | None,
+    actor_id: int | None,
+    now: int,
+    task_attempts: int = DEFAULT_TASK_ATTEMPTS,
+) -> RefundRecord:
+    """Give the store credit applied to a paid order back to the customer, all at once, in ONE transaction: the
+    ledger ``order_return`` (``credits_repo.return_for_order``, at most one per order and exactly the debited
+    amount) and an ``order_adjustments`` row (kind 'credit_return', method 'credits'). Raises ``RefundNotAllowed``
+    ('missing', or 'state' when the order was never paid, is in a state without refunds, or has no applied credit
+    left to return - a repeated request changes nothing). A fully refunded order moves to 'refunded'."""
+    order = get_order(conn, order_id)
+    if order is None or order.guild_id != guild_id:
+        raise RefundNotAllowed("missing")
+    if not order.can_return_credit:
+        raise RefundNotAllowed("state")
+    cur = conn.execute(
+        "UPDATE orders SET version = version + 1, updated_at = ? WHERE id = ? AND paid_at IS NOT NULL "
+        "AND credits_applied_minor > 0 AND status IN (SELECT value FROM json_each(?))",
+        (now, order_id, json.dumps(list(m.CREDIT_RETURN_STATUSES))),
+    )
+    if cur.rowcount != 1:
+        raise RefundNotAllowed("state")
+    returned = credits_repo.return_for_order(
+        conn, guild_id=guild_id, order_id=order_id, actor_id=actor_id, note=reason, now=now
+    )
+    if returned is None or not returned.created:  # no debit, or it was already given back: roll back, change nothing
+        raise RefundNotAllowed("state")
+    cursor = conn.execute(
+        "INSERT INTO order_adjustments(order_id, kind, method, amount_minor, reason, actor_id, external_ref, "
+        "created_at) VALUES (?, 'credit_return', 'credits', ?, ?, ?, NULL, ?)",
+        (order_id, returned.entry.delta_minor, reason, actor_id, now),
+    )
+    return _finish_refund(
+        conn,
+        guild_id=guild_id,
+        order_id=order_id,
+        adjustment_id=int(cursor.lastrowid or 0),
+        actor_id=actor_id,
+        reason=reason,
+        now=now,
+        task_attempts=task_attempts,
+    )
 
 
 def add_note(
