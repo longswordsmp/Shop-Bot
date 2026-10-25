@@ -679,14 +679,15 @@ def session_totals(
     option = settings.fulfillment(session.fulfillment_option)
     fulfillment_fee = option.fee_minor if option is not None else 0
     pairs = [(line.product.price_minor, line.quantity) for line in lines]
-    base = compute_totals(pairs, fulfillment_fee_minor=fulfillment_fee, fees=settings.fees)
+    fees = flow.session_fees(settings, session.details)
+    base = compute_totals(pairs, fulfillment_fee_minor=fulfillment_fee, fees=fees)
     available = (
         credits_repo.applicable_amount(conn, guild_id, session.user_id, base.gross_minor) if credits_enabled else 0
     )
     totals = compute_totals(
         pairs,
         fulfillment_fee_minor=fulfillment_fee,
-        fees=settings.fees,
+        fees=fees,
         credits_available_minor=available,
         apply_credits=session.apply_credits and credits_enabled,
     )

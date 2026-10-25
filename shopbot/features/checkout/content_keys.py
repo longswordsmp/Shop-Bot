@@ -12,7 +12,7 @@ from collections.abc import Callable
 from functools import partial
 
 from shopbot.config.content_keys import ContentKey, Kind, ck
-from shopbot.config.settings import FormField, Settings
+from shopbot.config.settings import CheckoutSettings, FormField, Settings
 from shopbot.features import core_keys as core
 from shopbot.features.checkout import models as m
 from shopbot.features.checkout import staff_keys
@@ -77,6 +77,12 @@ FULFILLMENT_DESCRIPTION = "checkout.fulfillment_step.description"
 FULFILLMENT_SELECT_PLACEHOLDER = "checkout.fulfillment_step.select_placeholder"
 FULFILLMENT_CHOSEN_FIELD = "checkout.fulfillment_step.chosen_field"
 FULFILLMENT_FEE_FIELD = "checkout.fulfillment_step.fee_field"
+EXTRAS_HEADING = "checkout.extras.heading"
+EXTRA_LINE = "checkout.extras.line"
+EXTRA_STATUS_ON = "checkout.extras.status_on"
+EXTRA_STATUS_OFF = "checkout.extras.status_off"
+EXTRA_BUTTON_ON = "checkout.extras.button_on"
+EXTRA_BUTTON_OFF = "checkout.extras.button_off"
 
 # -- workflow: details --------------------------------------------------------------------------------
 DETAILS_TITLE = "checkout.details.title"
@@ -186,7 +192,15 @@ def option_form_key(option_id: str, field_id: str, name: str) -> str:
 
 
 def fee_label_key(fee_id: str) -> str:
+    """The label of an order fee: a configured fee's, or (fee id ``x.<extra>``) the chosen extra's."""
+    if fee_id.startswith("x."):
+        return extra_key(fee_id.removeprefix("x."), "label")
     return f"checkout.fee.{fee_id}.label"
+
+
+def extra_key(extra_id: str, name: str) -> str:
+    """Key of an extra, e.g. ``checkout.extra.protection.label``."""
+    return f"checkout.extra.{extra_id}.{name}"
 
 
 def status_title_key(status: str) -> str:
@@ -1222,10 +1236,87 @@ def content_keys(settings: Settings) -> list[ContentKey]:
                 "staff controls (the value is the fee written with common.money_format).",
             )
         )
+    keys += _extra_keys(c)
     provider = PROVIDERS.get(settings.payments.provider)
     if provider is not None:
         keys += provider.content_keys(settings)
     keys += staff_keys.content_keys(settings)  # staff side of orders (operations package)
+    return keys
+
+
+def _extra_keys(c: CheckoutSettings) -> list[ContentKey]:
+    if not c.extras:
+        return []
+    group = "Checkout: extras (delivery step)"
+    keys = [
+        ck(
+            EXTRAS_HEADING,
+            Kind.TITLE,
+            FEATURE,
+            group,
+            "Heading of the extras on the delivery step, shown in bold (it may start with an icon, e.g. "
+            "{icon_shield}).",
+        ),
+        ck(
+            EXTRA_LINE,
+            Kind.FORMAT,
+            FEATURE,
+            group,
+            "How one extra is listed on the delivery step, e.g. '{status} **{label}** · {price}'. {status} is "
+            "checkout.extras.status_on or status_off, {label} the extra's name, {price} its price, {description} its "
+            "description (empty when it has none).",
+            placeholders=("status", "label", "price", "description"),
+        ),
+        ck(
+            EXTRA_STATUS_ON,
+            Kind.FIELD_NAME,
+            FEATURE,
+            group,
+            "Marker of an extra the customer added (as {status} in checkout.extras.line), e.g. {icon_check}.",
+        ),
+        ck(
+            EXTRA_STATUS_OFF,
+            Kind.FIELD_NAME,
+            FEATURE,
+            group,
+            "Marker of an extra not added (as {status} in checkout.extras.line), e.g. {icon_dot_grey}.",
+        ),
+        ck(
+            EXTRA_BUTTON_ON,
+            Kind.BUTTON_LABEL,
+            FEATURE,
+            group,
+            "Label of an added extra's button (pressing it removes the extra), e.g. '{label}: On'.",
+            placeholders=("label", "price"),
+        ),
+        ck(
+            EXTRA_BUTTON_OFF,
+            Kind.BUTTON_LABEL,
+            FEATURE,
+            group,
+            "Label of an extra's button while it is not added (pressing it adds the extra), e.g. '{label}: Off'.",
+            placeholders=("label", "price"),
+        ),
+    ]
+    for extra in c.extras:
+        keys += [
+            ck(
+                extra_key(extra.id, "label"),
+                Kind.FIELD_NAME,
+                FEATURE,
+                group,
+                f"Name of the extra '{extra.id}' (e.g. Shipping protection), on the delivery step, the review, the "
+                "order and the staff record.",
+            ),
+            ck(
+                extra_key(extra.id, "description"),
+                Kind.FIELD_VALUE,
+                FEATURE,
+                group,
+                f"Optional short explanation of the extra '{extra.id}' on the delivery step (what it covers).",
+                required=False,
+            ),
+        ]
     return keys
 
 

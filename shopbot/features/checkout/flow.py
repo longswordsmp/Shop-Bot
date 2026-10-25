@@ -15,7 +15,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
-from shopbot.config.settings import CheckoutSettings, FormField
+from shopbot.config.settings import CheckoutSettings, ExtraDef, FeeDef, FormField
 from shopbot.features.checkout import content_keys as k
 from shopbot.features.checkout import models as m
 
@@ -128,3 +128,30 @@ def next_step(settings: CheckoutSettings, option_id: str | None, step: str) -> s
         return None
     index = steps.index(step)
     return steps[index + 1] if index + 1 < len(steps) else None
+
+
+# -- extras ------------------------------------------------------------------------------------------------------
+# A chosen extra is stored in the session's details as ``x.<extra>`` = "1" and becomes an order fee with the fee id
+# ``x.<extra>`` (its label is the extra's label), so the totals, the order and the staff record treat it like a fee.
+
+EXTRA_PREFIX = "x."
+
+
+def extra_key(extra_id: str) -> str:
+    return f"{EXTRA_PREFIX}{extra_id}"
+
+
+def chosen_extras(settings: CheckoutSettings, details: Mapping[str, str]) -> tuple[ExtraDef, ...]:
+    """The extras the customer added (in configured order; an extra no longer configured is ignored)."""
+    return tuple(extra for extra in settings.extras if details.get(extra_key(extra.id)) == "1")
+
+
+def session_fees(settings: CheckoutSettings, details: Mapping[str, str]) -> tuple[FeeDef, ...]:
+    """The configured fees plus the chosen extras (flat fees with the id ``x.<extra>``)."""
+    extras = tuple(FeeDef(id=extra_key(e.id), amount_minor=e.amount_minor) for e in chosen_extras(settings, details))
+    return (*settings.fees, *extras)
+
+
+def extra_id_of_fee(fee_id: str) -> str | None:
+    """The extra a fee stands for (None for a configured fee)."""
+    return fee_id.removeprefix(EXTRA_PREFIX) if fee_id.startswith(EXTRA_PREFIX) else None

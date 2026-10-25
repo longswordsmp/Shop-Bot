@@ -23,6 +23,7 @@ perform staff actions check staff status inside the handler, e.g. per-ticket-cat
 | component | `co` | `details` | checkout | any | no | `shopbot.features.checkout.handlers.on_details` |
 | modal | `co` | `dform` | checkout | any | no | `shopbot.features.checkout.handlers.on_details_form` |
 | component | `co` | `edit` | checkout | any | no | `shopbot.features.checkout.handlers.on_edit` |
+| component | `co` | `extra` | checkout | any | no | `shopbot.features.checkout.handlers.on_extra` |
 | component | `co` | `ful` | checkout | any | no | `shopbot.features.checkout.handlers.on_fulfillment` |
 | component | `co` | `go` | checkout | any | no | `shopbot.features.checkout.handlers.on_go` |
 | component | `co` | `ocancel` | checkout | any | no | `shopbot.features.checkout.handlers.on_order_cancel` |

@@ -754,6 +754,15 @@ async def choose_fulfillment(app: App, session: m.Session, option_id: str) -> m.
     return await _update(app, session, fulfillment_option=option_id, step=m.FULFILLMENT)
 
 
+async def toggle_extra(app: App, session: m.Session, extra_id: str) -> m.Session:
+    """Add the extra to the order, or remove it if it was added (the delivery step's toggle buttons)."""
+    if app.settings.checkout.find_extra(extra_id) is None:
+        raise HandlerError(core.ERROR_INVALID_INPUT)
+    key = flow.extra_key(extra_id)
+    added = session.details.get(key) == "1"
+    return await _merge_answers(app, session, {key: None if added else "1"})
+
+
 def _validated_answers(inputs: Sequence[flow.FormInput], fields: Mapping[str, str]) -> dict[str, str | None]:
     """The submitted answers of ``inputs`` checked server-side (required, length); None removes an empty optional
     answer. Raises ``HandlerError`` (invalid input) for anything the form itself should have refused."""

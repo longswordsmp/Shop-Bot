@@ -519,6 +519,16 @@ fee_minor = 500
 [[checkout.fulfillment_options]]
 id = "expedited"
 fee_minor = 1500
+
+# Optional extras the customer can add on the delivery step (also listed on #shipping). amount_minor is in cents.
+# Labels: checkout.extra.<id>.label / .description. They are promises to customers: the texts must match what you do.
+[[checkout.extras]]
+id = "protection"                    # lost or damaged packages are replaced or refunded in store credit
+amount_minor = 300
+
+[[checkout.extras]]
+id = "discreet"                      # plain outer box, no logos or product names
+amount_minor = 200
 # Optional fees. kind = "flat" (amount_minor) or "percent" (basis_points, 100 = 1%):
 # [[checkout.fees]]
 # id = "service"

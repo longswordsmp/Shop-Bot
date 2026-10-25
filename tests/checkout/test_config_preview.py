@@ -208,8 +208,13 @@ def test_every_content_key_constant_is_declared() -> None:
     source = "\n".join(path.read_text(encoding="utf-8") for path in files)
     constants = set(re.findall(r'= "(checkout\.[a-z_]+\.[a-z_.]+)"', source))
     assert len(constants) > 50
-    # With a submission form, so its (conditional) keys are declared too.
-    declared = {key.key for key in k.content_keys(make_settings({"checkout": {"submission_form": [{"id": "x"}]}}))}
+    # With a submission form and extras, so their (conditional) keys are declared too.
+    conditional = {
+        "submission_form": [{"id": "x"}],
+        "fulfillment_options": [{"id": "s"}],
+        "extras": [{"id": "e", "amount_minor": 100}],
+    }
+    declared = {key.key for key in k.content_keys(make_settings({"checkout": conditional}))}
     assert constants <= declared, constants - declared
 
 

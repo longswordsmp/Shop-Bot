@@ -16,13 +16,14 @@ from shopbot.config.content import ContentStore
 from shopbot.config.content_keys import ContentKey, Kind, ck
 from shopbot.config.settings import (
     CheckoutSettings,
+    ExtraDef,
     FulfillmentOption,
     Settings,
     ShippingGroup,
     ShippingSettings,
 )
 from shopbot.core.countries import area_name
-from shopbot.features.checkout.content_keys import option_key
+from shopbot.features.checkout.content_keys import extra_key, option_key
 from shopbot.features.guides import common
 from shopbot.features.server_keys import channel_placeholders, reference_problems
 from shopbot.ui.card import Card, Section
@@ -45,6 +46,7 @@ NOT_AVAILABLE_OTHERS = "shipping.not_available.others"
 FORMAT_EXCLUDED = "shipping.format.excluded"
 FORMAT_LAST_AREA = "shipping.format.last_area"
 DELIVERY_HEADING = "shipping.delivery.heading"
+EXTRAS_HEADING = "shipping.extras.heading"
 FORMAT_DELIVERY = "shipping.format.delivery"
 
 # A country's availability: everywhere, with excluded areas, not at all.
@@ -184,14 +186,23 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             required=bool(options),
         ),
         ck(
+            EXTRAS_HEADING,
+            Kind.FIELD_NAME,
+            SHIPPING,
+            delivery_group,
+            f"Heading of the optional extras and their prices (checkout.extras, written with shipping.format.delivery)."
+            f"{icon_doc}",
+            required=bool(settings.checkout.extras),
+        ),
+        ck(
             FORMAT_DELIVERY,
             Kind.FORMAT,
             SHIPPING,
             delivery_group,
-            "How one delivery option is written, e.g. '{label}: **{price}**'. {label} is the option's name "
-            "(checkout.fulfillment.<id>.label), {price} its price, {description} its description (empty when it "
-            "has none).",
-            required=bool(options),
+            "How one delivery option or extra is written, e.g. '**{label}** · {price}'. {label} is its name "
+            "(checkout.fulfillment.<id>.label or checkout.extra.<id>.label), {price} its price, {description} its "
+            "description (empty when it has none).",
+            required=bool(options) or bool(settings.checkout.extras),
             placeholders=("label", "price", "description"),
         ),
     ]
@@ -307,12 +318,28 @@ def delivery_section(ui: Ui, texts: common.Texts, options: tuple[FulfillmentOpti
     return Section(texts.required(DELIVERY_HEADING), tuple(lines))
 
 
+def extras_section(ui: Ui, texts: common.Texts, extras: tuple[ExtraDef, ...]) -> Section | None:
+    if not extras:
+        return None
+    lines = [
+        texts.required(
+            FORMAT_DELIVERY,
+            label=texts.required(extra_key(extra.id, "label")),
+            price=ui.money(extra.amount_minor) or "",
+            description=texts.optional(extra_key(extra.id, "description")) or "",
+        ).strip()
+        for extra in extras
+    ]
+    return Section(texts.required(EXTRAS_HEADING), tuple(lines))
+
+
 def shipping_card(ui: Ui, s: ShippingSettings, checkout: CheckoutSettings, texts: common.Texts) -> Card:
     legend = texts.optional(LEGEND)
     sections: list[Section | None] = [Section(None, (legend,)) if legend else None]
     sections += [group_section(texts, s, group) for group in s.groups]
     sections.append(not_available_section(texts, s))
     sections.append(delivery_section(ui, texts, checkout.fulfillment_options))
+    sections.append(extras_section(ui, texts, checkout.extras))
     sections += [
         Section(texts.required(info_name_key(n)), (texts.required(info_value_key(n)),))
         for n in range(1, s.info_sections + 1)

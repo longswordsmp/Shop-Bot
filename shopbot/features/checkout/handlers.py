@@ -221,6 +221,14 @@ async def on_fulfillment(ctx: Ctx) -> None:
     await _render(ctx, session.id)
 
 
+async def on_extra(ctx: Ctx) -> None:
+    session = await _session(ctx)
+    if len(ctx.args) < 2:
+        raise HandlerError(core.ERROR_INVALID_INPUT)
+    await service.toggle_extra(ctx.app, session, ctx.args[1])
+    await _render(ctx, session.id)
+
+
 async def on_details(ctx: Ctx) -> None:
     session = await _session(ctx)
     try:
@@ -679,6 +687,7 @@ def register(app: App) -> None:
         "page": on_page,
         "go": on_go,
         "ful": on_fulfillment,
+        "extra": on_extra,
         "details": on_details,
         "credits": on_credits,
         "submit": on_submit,

@@ -1,3 +1,4 @@
 # Runtime dependencies (installed by Railway / Railpack).
 discord.py==2.7.1
 python-dotenv==1.2.4
+cryptography==46.0.7  # gift card codes are stored encrypted (Fernet)

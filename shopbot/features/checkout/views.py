@@ -46,6 +46,7 @@ from shopbot.features.checkout import models as m
 from shopbot.features.checkout.payments import PaymentInstructions
 from shopbot.features.credits import repo as credits_repo
 from shopbot.features.tickets import views as tickets_views
+from shopbot.ui.card import heading, with_paragraph
 from shopbot.ui.custom_ids import cid
 from shopbot.ui.limits import (
     EMBED_FIELD_VALUE,
@@ -151,6 +152,10 @@ def go_id(session_id: int, step: str) -> str:
 
 def fulfillment_id(session_id: int) -> str:
     return cid(ROUTE, "ful", session_id)
+
+
+def extra_id(session_id: int, extra: str) -> str:
+    return cid(ROUTE, "extra", session_id, extra)
 
 
 def details_id(session_id: int, part: int) -> str:
@@ -827,9 +832,49 @@ def _fulfillment(ui: Ui, settings: Settings, data: m.WorkflowData) -> MessageSpe
     select = SelectSpec(
         custom_id=fulfillment_id(session.id), options=options, placeholder=ui.text(k.FULFILLMENT_SELECT_PLACEHOLDER)
     )
+    if c.extras:
+        embed = with_paragraph(embed, extras_text(ui, settings, session))[0]
     rows: list[tuple[Component, ...]] = [(select,)]
+    rows.extend(rows_of(*extra_buttons(ui, settings, session)))
     rows.extend(rows_of(*_navigation(ui, settings, data, m.FULFILLMENT, can_continue=chosen is not None)))
     return MessageSpec(embeds=(embed,), rows=tuple(rows), banner=ui.banner("details-and-options"))
+
+
+def extras_text(ui: Ui, settings: Settings, session: m.Session) -> str:
+    """The extras section of the delivery step: its heading, then each extra with its price and whether it is added."""
+    added = {extra.id for extra in flow.chosen_extras(settings.checkout, session.details)}
+    lines = [heading(_text(ui, k.EXTRAS_HEADING))]
+    for extra in settings.checkout.extras:
+        status = _text(ui, k.EXTRA_STATUS_ON if extra.id in added else k.EXTRA_STATUS_OFF)
+        lines.append(
+            _text(
+                ui,
+                k.EXTRA_LINE,
+                status=status,
+                label=_text(ui, k.extra_key(extra.id, "label")),
+                price=money(ui, extra.amount_minor),
+                description=_optional(ui, k.extra_key(extra.id, "description")) or "",
+            ).strip()
+        )
+    return "\n".join(lines)
+
+
+def extra_buttons(ui: Ui, settings: Settings, session: m.Session) -> list[ButtonSpec]:
+    """One toggle per extra: green while added (pressing removes it), grey otherwise."""
+    added = {extra.id for extra in flow.chosen_extras(settings.checkout, session.details)}
+    buttons: list[ButtonSpec] = []
+    for extra in settings.checkout.extras:
+        on = extra.id in added
+        label = _text(
+            ui,
+            k.EXTRA_BUTTON_ON if on else k.EXTRA_BUTTON_OFF,
+            label=_text(ui, k.extra_key(extra.id, "label")),
+            price=money(ui, extra.amount_minor),
+        )
+        buttons.append(
+            ButtonSpec(label=label, custom_id=extra_id(session.id, extra.id), style="success" if on else "secondary")
+        )
+    return buttons
 
 
 def _details(ui: Ui, settings: Settings, data: m.WorkflowData) -> MessageSpec:

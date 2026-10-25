@@ -448,6 +448,18 @@ class FeeDef:
 
 
 @dataclass(frozen=True)
+class ExtraDef:
+    """An optional extra the customer may add on the delivery step (e.g. shipping protection), at a flat price.
+    Labels: content keys checkout.extra.<id>.label / .description."""
+
+    id: str
+    amount_minor: int = 0
+
+
+MAX_EXTRAS = 4  # one row of toggle buttons next to the step's navigation
+
+
+@dataclass(frozen=True)
 class CheckoutSettings:
     panel_channel: str = ""
     order_category: str = ""
@@ -474,6 +486,8 @@ class CheckoutSettings:
     # Optional form collected when the customer presses Submit (empty = submit directly).
     submission_form: tuple[FormField, ...] = ()
     fulfillment_options: tuple[FulfillmentOption, ...] = ()
+    # Optional extras chosen with the delivery option (shown on the delivery step; added to the order as fees).
+    extras: tuple[ExtraDef, ...] = ()
     fees: tuple[FeeDef, ...] = ()
     # Customer role (operations package): role key given when an order reaches ``customer_role_on`` ("" = off).
     customer_role: str = ""
@@ -482,6 +496,9 @@ class CheckoutSettings:
 
     def fulfillment(self, option_id: str | None) -> FulfillmentOption | None:
         return next((o for o in self.fulfillment_options if o.id == option_id), None)
+
+    def find_extra(self, extra_id: str) -> ExtraDef | None:
+        return next((e for e in self.extras if e.id == extra_id), None)
 
 
 @dataclass(frozen=True)
@@ -1005,6 +1022,18 @@ def parse_settings(data: dict[str, Any]) -> Settings:
         )
         f.finish()
         fees.append(fee)
+    extras: list[ExtraDef] = []
+    for x in co.tables("extras"):
+        extra = ExtraDef(
+            id=x.str_("id", "", pattern=KEY_PATTERN, allow_empty=False),
+            amount_minor=x.int_("amount_minor", 0, min_=1, max_=10**9),
+        )
+        if not extra.id:
+            x.error("id", "is required")
+        if extra.amount_minor <= 0:
+            x.error("amount_minor", "is required (the price in minor units, e.g. 300 for $3.00)")
+        x.finish()
+        extras.append(extra)
     checkout = CheckoutSettings(
         panel_channel=co.str_("panel_channel", "", pattern=KEY_PATTERN),
         order_category=co.str_("order_category", "", pattern=KEY_PATTERN),
@@ -1029,6 +1058,7 @@ def parse_settings(data: dict[str, Any]) -> Settings:
         submission_form=_form(co, "submission_form"),
         fulfillment_options=tuple(options),
         fees=tuple(fees),
+        extras=tuple(extras),
         customer_role=co.str_("customer_role", "", pattern=KEY_PATTERN),
         customer_role_on=co.str_("customer_role_on", "fulfilled", choices=CUSTOMER_ROLE_TRIGGERS),
         customer_role_remove_on_refund=co.bool_("customer_role_remove_on_refund", True),
@@ -1036,6 +1066,11 @@ def parse_settings(data: dict[str, Any]) -> Settings:
     co.finish()
     _unique(checkout.fulfillment_options, lambda x: x.id, "checkout.fulfillment_options", errors)
     _unique(checkout.fees, lambda x: x.id, "checkout.fees", errors)
+    _unique(checkout.extras, lambda x: x.id, "checkout.extras", errors)
+    if len(checkout.extras) > MAX_EXTRAS:
+        errors.append(f"checkout.extras: at most {MAX_EXTRAS} extras (one row of buttons)")
+    if checkout.extras and not checkout.fulfillment_options:
+        errors.append("checkout.extras: extras are chosen on the delivery step; add [[checkout.fulfillment_options]]")
     if len(checkout.fulfillment_options) > 25:
         errors.append("checkout.fulfillment_options: at most 25 options fit in one selection menu")
     if checkout.decimal_separator == checkout.thousands_separator and checkout.decimal_separator:

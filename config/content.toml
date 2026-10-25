@@ -632,7 +632,11 @@ faq.section.tracking.title = "{icon_box} ORDERS AND TRACKING"
 # field_name · max 256 characters · required
 shipping.delivery.heading = "{icon_truck} DELIVERY OPTIONS"
 
-# How one delivery option is written, e.g. '{label}: **{price}**'. {label} is the option's name (checkout.fulfillment.<id>.label), {price} its price, {description} its description (empty when it has none).
+# Heading of the optional extras and their prices (checkout.extras, written with shipping.format.delivery). It may start with one of the bot's icons, e.g. {icon_truck}.
+# field_name · max 256 characters · required
+shipping.extras.heading = "{icon_shield} EXTRAS"
+
+# How one delivery option or extra is written, e.g. '**{label}** · {price}'. {label} is its name (checkout.fulfillment.<id>.label or checkout.extra.<id>.label), {price} its price, {description} its description (empty when it has none).
 # format · max 100 characters · required · placeholders: {label}, {price}, {description}
 shipping.format.delivery = "**{label}** · {price}"
 
@@ -1310,6 +1314,50 @@ checkout.error.quantity_invalid = "You can order at most {max} of this item. Ple
 # Shown when the customer uses a control of an order workflow that was already submitted, cancelled or expired.
 # description · max 4096 characters · required
 checkout.error.session_closed = "This order panel is no longer active because the order was already submitted, cancelled or expired. See the latest messages in your order ticket, or start a new order from the place-order channel."
+
+# --- Checkout: extras (delivery step) ---
+
+# Optional short explanation of the extra 'discreet' on the delivery step (what it covers).
+# field_value · max 1024 characters · optional
+checkout.extra.discreet.description = "A plain outer box with no logos or product names."
+
+# Name of the extra 'discreet' (e.g. Shipping protection), on the delivery step, the review, the order and the staff record.
+# field_name · max 256 characters · required
+checkout.extra.discreet.label = "Discreet packaging"
+
+# Optional short explanation of the extra 'protection' on the delivery step (what it covers).
+# field_value · max 1024 characters · optional
+checkout.extra.protection.description = "If your package is lost or arrives damaged, we replace it or refund you in store credit."
+
+# Name of the extra 'protection' (e.g. Shipping protection), on the delivery step, the review, the order and the staff record.
+# field_name · max 256 characters · required
+checkout.extra.protection.label = "Shipping protection"
+
+# Label of an extra's button while it is not added (pressing it adds the extra), e.g. '{label}: Off'.
+# button_label · max 80 characters · required · placeholders: {label}, {price}
+checkout.extras.button_off = "{label}: Off"
+
+# Label of an added extra's button (pressing it removes the extra), e.g. '{label}: On'.
+# button_label · max 80 characters · required · placeholders: {label}, {price}
+checkout.extras.button_on = "{label}: On"
+
+# Heading of the extras on the delivery step, shown in bold (it may start with an icon, e.g. {icon_shield}).
+# title · max 256 characters · required
+checkout.extras.heading = "{icon_shield} EXTRAS"
+
+# How one extra is listed on the delivery step, e.g. '{status} **{label}** · {price}'. {status} is checkout.extras.status_on or status_off, {label} the extra's name, {price} its price, {description} its description (empty when it has none).
+# format · max 100 characters · required · placeholders: {status}, {label}, {price}, {description}
+checkout.extras.line = '''
+{status} **{label}** · {price}
+{description}'''
+
+# Marker of an extra not added (as {status} in checkout.extras.line), e.g. {icon_dot_grey}.
+# field_name · max 256 characters · required
+checkout.extras.status_off = "{icon_dot_grey}"
+
+# Marker of an extra the customer added (as {status} in checkout.extras.line), e.g. {icon_check}.
+# field_name · max 256 characters · required
+checkout.extras.status_on = "{icon_check}"
 
 # --- Checkout: fulfillment option 'expedited' ---
 

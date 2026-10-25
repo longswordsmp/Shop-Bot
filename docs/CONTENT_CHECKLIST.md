@@ -277,7 +277,8 @@ Feature `shipping` — enabled.
 | | Key | Where it appears | Kind (max chars) | Required | Placeholders |
 |---|---|---|---|---|---|
 | ✅ | `shipping.delivery.heading` | Heading of the delivery options and their prices (checkout.fulfillment_options). It may start with one of the bot's icons, e.g. {icon_truck}. | field_name (256) | required |  |
-| ✅ | `shipping.format.delivery` | How one delivery option is written, e.g. '{label}: **{price}**'. {label} is the option's name (checkout.fulfillment.<id>.label), {price} its price, {description} its description (empty when it has none). | format (100) | required | `{label}`, `{price}`, `{description}` |
+| ✅ | `shipping.extras.heading` | Heading of the optional extras and their prices (checkout.extras, written with shipping.format.delivery). It may start with one of the bot's icons, e.g. {icon_truck}. | field_name (256) | required |  |
+| ✅ | `shipping.format.delivery` | How one delivery option or extra is written, e.g. '**{label}** · {price}'. {label} is its name (checkout.fulfillment.<id>.label or checkout.extra.<id>.label), {price} its price, {description} its description (empty when it has none). | format (100) | required | `{label}`, `{price}`, `{description}` |
 
 ### Shipping countries
 
@@ -563,6 +564,21 @@ Feature `checkout` — enabled.
 | ✅ | `checkout.error.product_unavailable` | Shown when a product in the cart is no longer offered (deactivated or removed). {name} is the product name. | description (4096) | required | `{name}` |
 | ✅ | `checkout.error.quantity_invalid` | Shown when a quantity is above the allowed maximum (checkout.max_line_quantity or the product's per-order limit). {max} is that maximum. | description (4096) | required | `{max}` |
 | ✅ | `checkout.error.session_closed` | Shown when the customer uses a control of an order workflow that was already submitted, cancelled or expired. | description (4096) | required |  |
+
+### Checkout: extras (delivery step)
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ✅ | `checkout.extra.discreet.description` | Optional short explanation of the extra 'discreet' on the delivery step (what it covers). | field_value (1024) | optional |  |
+| ✅ | `checkout.extra.discreet.label` | Name of the extra 'discreet' (e.g. Shipping protection), on the delivery step, the review, the order and the staff record. | field_name (256) | required |  |
+| ✅ | `checkout.extra.protection.description` | Optional short explanation of the extra 'protection' on the delivery step (what it covers). | field_value (1024) | optional |  |
+| ✅ | `checkout.extra.protection.label` | Name of the extra 'protection' (e.g. Shipping protection), on the delivery step, the review, the order and the staff record. | field_name (256) | required |  |
+| ✅ | `checkout.extras.button_off` | Label of an extra's button while it is not added (pressing it adds the extra), e.g. '{label}: Off'. | button_label (80) | required | `{label}`, `{price}` |
+| ✅ | `checkout.extras.button_on` | Label of an added extra's button (pressing it removes the extra), e.g. '{label}: On'. | button_label (80) | required | `{label}`, `{price}` |
+| ✅ | `checkout.extras.heading` | Heading of the extras on the delivery step, shown in bold (it may start with an icon, e.g. {icon_shield}). | title (256) | required |  |
+| ✅ | `checkout.extras.line` | How one extra is listed on the delivery step, e.g. '{status} **{label}** · {price}'. {status} is checkout.extras.status_on or status_off, {label} the extra's name, {price} its price, {description} its description (empty when it has none). | format (100) | required | `{status}`, `{label}`, `{price}`, `{description}` |
+| ✅ | `checkout.extras.status_off` | Marker of an extra not added (as {status} in checkout.extras.line), e.g. {icon_dot_grey}. | field_name (256) | required |  |
+| ✅ | `checkout.extras.status_on` | Marker of an extra the customer added (as {status} in checkout.extras.line), e.g. {icon_check}. | field_name (256) | required |  |
 
 ### Checkout: fulfillment option 'expedited'
 
@@ -1075,7 +1091,7 @@ Feature `operations` — enabled.
 
 ## Summary
 
-- Required keys (for the listed features): 347
+- Required keys (for the listed features): 356
 - Required keys still missing: 0
 
 Legend: ✅ configured · ❌ required and missing · ▫️ optional and empty
