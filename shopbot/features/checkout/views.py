@@ -19,6 +19,10 @@ Large orders: the order views (``order_messages``) and the staff controls (``sta
 Discord's limits (6000 characters and 10 cards per message, 25 fields per card). When the order lines do not fit next
 to the configured text, the main message keeps the totals, the payment instructions and the buttons, and the lines
 are sent as separate messages; configured text is never cut.
+
+Banners (``shopbot.ui.banners``): every customer message names its banner picture here. The single live workflow
+message of an order ticket shows the banner of its current step and, once submitted, the banner of the order's status
+(``status_banner``); continuation messages (order lines and payment instructions that did not fit) show none.
 """
 
 from __future__ import annotations
@@ -28,6 +32,7 @@ from dataclasses import dataclass, replace
 
 from discord.utils import escape_markdown
 
+from shopbot.config.banner_ids import BannerId
 from shopbot.config.content import MissingContent
 from shopbot.config.settings import Settings
 from shopbot.core.money import currency_exponent, format_amount
@@ -98,6 +103,23 @@ _STATUS_TONES = {
 def status_tone(status: str) -> str:
     """The embed tone (colour) used for an order in ``status`` (customer views)."""
     return _STATUS_TONES.get(status, "info")
+
+
+_STATUS_BANNERS: dict[str, BannerId] = {
+    m.PENDING: "pending-review",
+    m.PAID: "successful-confirmation",
+    m.PROCESSING: "submission-and-processing",
+    m.FULFILLED: "completed-or-dispatched",
+    m.CANCELLED: "cancellation",
+    m.REJECTED: "rejected-or-unsuccessful-submission",
+    m.EXPIRED: "cancellation",
+    m.REFUNDED: "resolution",
+}
+
+
+def status_banner(status: str) -> BannerId:
+    """The banner of an order in ``status``: its view on the workflow message and its status notification."""
+    return _STATUS_BANNERS.get(status, "order-status")
 
 
 # -- custom ids -------------------------------------------------------------------------------------------
@@ -319,8 +341,10 @@ def _notice(ui: Ui, text: str, *, tone: str = "warning") -> EmbedSpec:
     return ui.embed(description=text, tone=tone, branding_text=False)
 
 
-def _description_message(ui: Ui, key: str, *, tone: str = "info", **values: str | int) -> MessageSpec:
-    return MessageSpec(embeds=(ui.embed(description=_text(ui, key, **values), tone=tone),))
+def _description_message(
+    ui: Ui, key: str, banner: BannerId, /, *, tone: str = "info", **values: str | int
+) -> MessageSpec:
+    return MessageSpec(embeds=(ui.embed(description=_text(ui, key, **values), tone=tone),), banner=ui.banner(banner))
 
 
 def _content_embed(
@@ -346,7 +370,7 @@ def error_message(ui: Ui, key: str, /, **values: str | int) -> MessageSpec:
     embed = ui.error_embed(key, **values)
     if embed is None:
         raise MissingContent(key)
-    return MessageSpec(embeds=(embed,))
+    return MessageSpec(embeds=(embed,), banner=ui.banner("error"))
 
 
 def _fit_fields(base: Sequence[EmbedSpec], fields: Sequence[EmbedField], *, current: int) -> list[EmbedField]:
@@ -456,7 +480,11 @@ def panel(
         ui, k.PANEL_TITLE, k.PANEL_DESCRIPTION, required=(k.PANEL_TITLE, k.PANEL_DESCRIPTION), panel=True
     )
     start = _button(ui, k.BUTTON_START, start_id(), style="primary")
-    return MessageSpec(embeds=(embed,), rows=rows_of(start, report_button, browse_button, balance_button))
+    return MessageSpec(
+        embeds=(embed,),
+        rows=rows_of(start, report_button, browse_button, balance_button),
+        banner=ui.banner("purchase-panel"),
+    )
 
 
 def _open_ticket_rows(ui: Ui, url: str | None) -> Rows:
@@ -468,12 +496,14 @@ def _open_ticket_rows(ui: Ui, url: str | None) -> Rows:
 
 
 def started_reply(ui: Ui, channel_id: int, url: str | None = None) -> MessageSpec:
-    spec = _description_message(ui, k.STARTED, tone="success", channel_mention=channel_mention(channel_id))
+    spec = _description_message(
+        ui, k.STARTED, "ticket-created", tone="success", channel_mention=channel_mention(channel_id)
+    )
     return replace(spec, rows=_open_ticket_rows(ui, url))
 
 
 def session_exists_reply(ui: Ui, channel_id: int, url: str | None = None) -> MessageSpec:
-    spec = _description_message(ui, k.SESSION_EXISTS, channel_mention=channel_mention(channel_id))
+    spec = _description_message(ui, k.SESSION_EXISTS, "ticket-created", channel_mention=channel_mention(channel_id))
     return replace(spec, rows=_open_ticket_rows(ui, url))
 
 
@@ -482,6 +512,7 @@ def order_exists_reply(ui: Ui, channel_id: int, order_number: int, limit: int, u
     spec = _description_message(
         ui,
         k.ORDER_EXISTS,
+        "order-status",
         tone="warning",
         channel_mention=channel_mention(channel_id),
         order_number=str(order_number),
@@ -492,18 +523,20 @@ def order_exists_reply(ui: Ui, channel_id: int, order_number: int, limit: int, u
 
 def buy_added_reply(ui: Ui, name: str, channel_id: int) -> MessageSpec:
     """Reply to a catalog buy button that continued the customer's existing order channel."""
-    return _description_message(ui, k.BUY_ADDED, name=escape(name), channel_mention=channel_mention(channel_id))
+    return _description_message(
+        ui, k.BUY_ADDED, "selection-and-cart", name=escape(name), channel_mention=channel_mention(channel_id)
+    )
 
 
 def buy_started_reply(ui: Ui, channel_id: int, notice: EmbedSpec | None = None) -> MessageSpec:
     """Reply to a catalog buy button that opened a new order channel; ``notice`` explains a product that could not be
     put in the cart after all (e.g. sold out a moment earlier)."""
-    started = started_reply(ui, channel_id)
-    return MessageSpec(embeds=started.embeds + ((notice,) if notice is not None else ()))
+    started = started_reply(ui, channel_id)  # its banner too: the ticket opened even when the product was not added
+    return replace(started, embeds=started.embeds + ((notice,) if notice is not None else ()))
 
 
 def limit_reply(ui: Ui, limit: int) -> MessageSpec:
-    return _description_message(ui, k.LIMIT_REACHED, tone="warning", limit=limit)
+    return _description_message(ui, k.LIMIT_REACHED, "rejected-or-unsuccessful-submission", tone="warning", limit=limit)
 
 
 def ticket_reference(settings: Settings, number: int) -> str:
@@ -532,7 +565,7 @@ def ticket_intro(ui: Ui, settings: Settings, ticket_number: int, user_id: int) -
         fields=_reference_field(ui, settings, ticket_number),
         timestamp=True,
     )
-    return MessageSpec(embeds=(embed,))
+    return MessageSpec(embeds=(embed,), banner=ui.banner("ticket-created"))
 
 
 def channel_topic(ui: Ui, user_name: str) -> str | None:
@@ -731,7 +764,7 @@ def _browse(ui: Ui, settings: Settings, data: m.WorkflowData) -> MessageSpec:
                 )
             )
     rows.extend(rows_of(*_navigation(ui, settings, data, m.BROWSE, can_continue=bool(data.lines))))
-    return MessageSpec(embeds=tuple(embeds), rows=tuple(rows))
+    return MessageSpec(embeds=tuple(embeds), rows=tuple(rows), banner=ui.banner("selection-and-cart"))
 
 
 def _edit_option(ui: Ui, line: m.CartLine) -> SelectOptionSpec:
@@ -765,7 +798,7 @@ def _cart(ui: Ui, settings: Settings, data: m.WorkflowData) -> MessageSpec:
             )
         )
     rows.extend(rows_of(*_navigation(ui, settings, data, m.CART, can_continue=bool(data.lines) and met)))
-    return MessageSpec(embeds=tuple(embeds), rows=tuple(rows))
+    return MessageSpec(embeds=tuple(embeds), rows=tuple(rows), banner=ui.banner("selection-and-cart"))
 
 
 def _fulfillment(ui: Ui, settings: Settings, data: m.WorkflowData) -> MessageSpec:
@@ -796,7 +829,7 @@ def _fulfillment(ui: Ui, settings: Settings, data: m.WorkflowData) -> MessageSpe
     )
     rows: list[tuple[Component, ...]] = [(select,)]
     rows.extend(rows_of(*_navigation(ui, settings, data, m.FULFILLMENT, can_continue=chosen is not None)))
-    return MessageSpec(embeds=(embed,), rows=tuple(rows))
+    return MessageSpec(embeds=(embed,), rows=tuple(rows), banner=ui.banner("details-and-options"))
 
 
 def _details(ui: Ui, settings: Settings, data: m.WorkflowData) -> MessageSpec:
@@ -823,7 +856,7 @@ def _details(ui: Ui, settings: Settings, data: m.WorkflowData) -> MessageSpec:
     ]
     complete = flow.details_complete(inputs, session.details)
     rows = rows_of(*form_buttons) + rows_of(*_navigation(ui, settings, data, m.DETAILS, can_continue=complete))
-    return MessageSpec(embeds=(embed,), rows=rows)
+    return MessageSpec(embeds=(embed,), rows=rows, banner=ui.banner("details-and-options"))
 
 
 def review_fields(ui: Ui, settings: Settings, data: m.WorkflowData) -> list[EmbedField]:
@@ -879,7 +912,11 @@ def _review(ui: Ui, settings: Settings, data: m.WorkflowData, notice: EmbedSpec 
         _button(ui, k.BUTTON_SUBMIT, submit_id(session.id, totals.total_minor, totals.gross_minor), style="success")
     )
     navigation.append(_button(ui, core.BUTTON_CANCEL, cancel_id(session.id), style="danger"))
-    return MessageSpec(embeds=tuple(embeds), rows=rows_of(*credit_buttons) + rows_of(*navigation))
+    return MessageSpec(
+        embeds=tuple(embeds),
+        rows=rows_of(*credit_buttons) + rows_of(*navigation),
+        banner=ui.banner("review-and-summary"),
+    )
 
 
 def price_changed_notice(ui: Ui, total_minor: int) -> EmbedSpec:
@@ -914,7 +951,7 @@ def cancel_confirm(ui: Ui, session_id: int) -> MessageSpec:
         _button(ui, core.BUTTON_CONFIRM, cancel_yes_id(session_id), style="danger"),
         _button(ui, core.BUTTON_CANCEL, cancel_no_id(session_id)),
     )
-    return MessageSpec(embeds=(embed,), rows=rows)
+    return MessageSpec(embeds=(embed,), rows=rows, banner=ui.banner("general-response"))
 
 
 def session_ended(ui: Ui, status: str, *, reference: str | None = None, by_staff: bool = False) -> MessageSpec:
@@ -931,7 +968,7 @@ def session_ended(ui: Ui, status: str, *, reference: str | None = None, by_staff
     embed = _content_embed(
         ui, title_key, description_key, required=(description_key,), tone="neutral", fields=fields, timestamp=True
     )
-    return MessageSpec(embeds=(embed,))
+    return MessageSpec(embeds=(embed,), banner=ui.banner("cancellation"))
 
 
 # -- modals -------------------------------------------------------------------------------------------------------
@@ -1171,7 +1208,9 @@ def order_messages(
         main=MessageSpec(
             embeds=tuple(embeds_for(with_lines, with_instructions)),
             rows=rows_of(link, cancel) if with_instructions else rows_of(cancel),
+            banner=ui.banner(status_banner(order.status)),
         ),
+        # Continuation messages: only the workflow message (the first part) shows the banner.
         instructions=() if with_instructions else tuple(MessageSpec(embeds=(e,), rows=rows_of(link)) for e in tail),
         items=() if with_lines else tuple(_pack_fields(line_fields, head.color)),
     )
@@ -1197,7 +1236,7 @@ def order_cancel_confirm(ui: Ui, order: m.Order) -> MessageSpec:
         _button(ui, core.BUTTON_CONFIRM, order_cancel_yes_id(order.id), style="danger"),
         _button(ui, core.BUTTON_BACK, order_cancel_no_id(order.id)),
     )
-    return MessageSpec(embeds=(embed,), rows=rows)
+    return MessageSpec(embeds=(embed,), rows=rows, banner=ui.banner("general-response"))
 
 
 # -- staff order controls -----------------------------------------------------------------------------------------
@@ -1295,7 +1334,7 @@ def status_notification(ui: Ui, settings: Settings, view: m.OrderView, status: s
         tone=_STATUS_TONES.get(status, "info"),
         timestamp=True,
     )
-    return MessageSpec(embeds=(embed,))
+    return MessageSpec(embeds=(embed,), banner=ui.banner(status_banner(status)))
 
 
 def session_warning_notification(ui: Ui, *, minutes: int, expires_at: int) -> MessageSpec:
@@ -1310,7 +1349,7 @@ def session_warning_notification(ui: Ui, *, minutes: int, expires_at: int) -> Me
         tone="warning",
         timestamp=True,
     )
-    return MessageSpec(embeds=(embed,))
+    return MessageSpec(embeds=(embed,), banner=ui.banner("reminder"))
 
 
 def reminder_notification(
@@ -1331,7 +1370,7 @@ def reminder_notification(
     if instructions is not None:
         embeds.append(instructions_embed(ui, instructions, order_values(ui, settings, view.order)))
     link = _instruction_link(ui, instructions)
-    return MessageSpec(embeds=tuple(embeds), rows=rows_of(link))
+    return MessageSpec(embeds=tuple(embeds), rows=rows_of(link), banner=ui.banner("reminder"))
 
 
 def refund_notification(ui: Ui, settings: Settings, view: m.OrderView, amount_minor: int) -> MessageSpec:
@@ -1349,7 +1388,9 @@ def refund_notification(ui: Ui, settings: Settings, view: m.OrderView, amount_mi
         tone="info",
         timestamp=True,
     )
-    return MessageSpec(embeds=(embed,))
+    # A partial refund updates an order that is not necessarily settled (a full refund sends the 'refunded' status
+    # notification instead).
+    return MessageSpec(embeds=(embed,), banner=ui.banner("order-status"))
 
 
 # -- staff-only forms and lists (operator text) ----------------------------------------------------------------------

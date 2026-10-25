@@ -52,11 +52,12 @@ import math
 import uuid
 import weakref
 from collections.abc import Awaitable, Callable, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING
 
 import discord
 
+from shopbot.config.banner_ids import BannerId
 from shopbot.config.content import MissingContent
 from shopbot.core.events import ORDER_STATUS_CHANGED, ORDER_SUBMITTED
 from shopbot.core.ratelimit import Cooldowns
@@ -1780,6 +1781,24 @@ async def run_activity_followup(app: App, order_id: int, activity_id: int) -> bo
         return ok
 
 
+# Banners of the customer notifications staff activity sends (their builders in ``staff_views`` set none): a correction
+# request asks the customer to fix their order details; a tracking update is news about an order already completed.
+CORRECTION_BANNER: BannerId = "details-and-options"
+TRACKING_BANNER: BannerId = "order-status"
+
+
+def correction_notification(app: App, view: m.OrderView, message: str) -> MessageSpec:
+    """The customer's correction request (``staff_views.correction_notification``) with its banner."""
+    spec = staff_views.correction_notification(app.ui, app.settings, view, message)
+    return replace(spec, banner=app.ui.banner(CORRECTION_BANNER))
+
+
+def tracking_notification(app: App, view: m.OrderView, tracking: str) -> MessageSpec:
+    """The customer's tracking update (``staff_views.tracking_notification``) with its banner."""
+    spec = staff_views.tracking_notification(app.ui, app.settings, view, tracking)
+    return replace(spec, banner=app.ui.banner(TRACKING_BANNER))
+
+
 async def notify_activity(app: App, activity: h.Activity) -> str:
     """The customer notification of a correction request (only while the order still waits for payment) or of
     tracking details entered after the order was completed. Returns the delivery ('skipped' when not applicable)."""
@@ -1793,7 +1812,7 @@ async def notify_activity(app: App, activity: h.Activity) -> str:
             app,
             view,
             staff_keys.NOTIFY_CORRECTION,
-            lambda: staff_views.correction_notification(app.ui, app.settings, view, text),
+            lambda: correction_notification(app, view, text),
             dedupe_suffix=str(activity.id),
         )
     completed_before = order.fulfilled_at is not None and order.fulfilled_at <= activity.created_at
@@ -1804,7 +1823,7 @@ async def notify_activity(app: App, activity: h.Activity) -> str:
             app,
             view,
             staff_keys.NOTIFY_TRACKING,
-            lambda: staff_views.tracking_notification(app.ui, app.settings, view, text),
+            lambda: tracking_notification(app, view, text),
             dedupe_suffix=str(activity.id),
         )
     return "skipped"

@@ -13,11 +13,12 @@ from dataclasses import replace
 from functools import partial
 from typing import TYPE_CHECKING
 
+from shopbot.config.banner_ids import BannerId
 from shopbot.config.content import MissingContent
 from shopbot.config.settings import FulfillmentOption, Settings
 from shopbot.features.catalog.repo import NAME_MAX, Product
 from shopbot.features.checkout import content_keys as k
-from shopbot.features.checkout import flow, panel, staff, staff_preview, views
+from shopbot.features.checkout import flow, panel, service, staff, staff_preview, views
 from shopbot.features.checkout import models as m
 from shopbot.features.checkout.payments import get_provider
 from shopbot.features.checkout.totals import compute_totals
@@ -243,6 +244,21 @@ def _order(
 
 def _same(spec: MessageSpec) -> MessageSpec:
     return spec
+
+
+# The staff preview's customer notifications whose banner is added where they are sent (``service``), not by their
+# builders in ``staff_views``: shown here with that banner, as the customer receives them.
+_NOTICE_BANNERS: dict[str, BannerId] = {
+    "notify_correction": service.CORRECTION_BANNER,
+    "notify_tracking": service.TRACKING_BANNER,
+}
+
+
+def _add_notice_banners(app: App, states: list[PreviewState]) -> None:
+    for index, state in enumerate(states):
+        banner_id = _NOTICE_BANNERS.get(state.name)
+        if banner_id is not None and isinstance(state.spec, MessageSpec):
+            states[index] = replace(state, spec=replace(state.spec, banner=app.ui.banner(banner_id)))
 
 
 def preview(app: App) -> list[PreviewState]:
@@ -543,6 +559,7 @@ def preview(app: App) -> list[PreviewState]:
         staff_confirms=provider.requires_staff_confirmation if provider is not None else True,
         credit_refunds=settings.features.credits,
     )
+    _add_notice_banners(app, states)
     # The answers are posted in the staff channel only with operations.answers_in_orders_channel (otherwise staff see
     # them in the private record details, which the staff preview shows).
     posted = bool(inputs) and settings.operations.answers_in_orders_channel
