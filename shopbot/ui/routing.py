@@ -226,18 +226,18 @@ class Ctx:
             await self.interaction.response.defer(ephemeral=True, thinking=False)
 
     async def fail(self, key: str = ck.ERROR_GENERIC, **values: str | int) -> None:
-        """Answer privately with a configured error message, or acknowledge silently if it is not
-        configured (an unconfigured message is never replaced by invented wording)."""
-        embed = None
+        """Answer privately with a configured error message (``Ui.error_message``: the error banner and embed), or
+        acknowledge silently if it is not configured (an unconfigured message is never replaced by invented wording)."""
+        spec = None
         try:
-            embed = self.app.ui.error_embed(key, **values)
+            spec = self.app.ui.error_message(key, **values)
         except Exception:  # unknown key etc. — never let error reporting raise
-            log.exception("error_embed failed for %s", key)
-        if embed is None:
+            log.exception("error_message failed for %s", key)
+        if spec is None:
             await self.ack()
             return
         try:
-            await self.respond(MessageSpec(embeds=(embed,)), ephemeral=True)
+            await self.respond(spec, ephemeral=True)
         except (discord.HTTPException, RenderError):
             log.exception("failed to send error response")
 

@@ -68,7 +68,7 @@ import logging
 import re
 import sqlite3
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING
 
 import discord
@@ -101,7 +101,8 @@ from shopbot.features.tickets.runtime import StaffCloser, StaffCloseReply, runti
 from shopbot.features.tickets.views import Rows
 from shopbot.logging_setup import log_event
 from shopbot.ui.discord_render import RenderError, check_message, send_kwargs, send_spec, to_view
-from shopbot.ui.spec import MessageSpec
+from shopbot.ui.limits import FILES_TOTAL_BYTES
+from shopbot.ui.spec import FileSpec, MessageSpec
 
 if TYPE_CHECKING:
     from shopbot.context import App
@@ -1171,6 +1172,14 @@ async def remove_participant(app: App, ticket: Ticket, member: discord.Member, *
 # -- transcripts ---------------------------------------------------------------------------------------------
 
 
+def room_for_file(banner: FileSpec | None, file_bytes: int) -> FileSpec | None:
+    """``banner``, or None when it and a file of ``file_bytes`` sent with it (a transcript) would not fit in one
+    message's upload limit: the banner is decoration, the file is the record, so the banner gives way."""
+    if banner is not None and banner.size + file_bytes > FILES_TOTAL_BYTES:
+        return None
+    return banner
+
+
 def transcript_filename(app: App, number: int) -> str:
     """The transcript file name: the ticket number as shown everywhere, no invented wording."""
     return f"{format_number(app, number)}.html"
@@ -1283,6 +1292,7 @@ async def generate_transcript(
                 final_status=_final_status(app, ticket),
                 close_reason=ticket.close_reason,
             )
+            spec = replace(spec, banner=room_for_file(spec.banner, len(data)))
             kwargs = send_kwargs(spec)
             # The transcript file goes after the message's own files (its banner shows first).
             kwargs["files"] = [*kwargs.get("files", ()), discord.File(io.BytesIO(data), filename=filename)]
@@ -1319,6 +1329,7 @@ async def _dm_transcript(app: App, ticket: Ticket, data: bytes, filename: str) -
         return
     try:
         spec = views.transcript_dm(app.ui, app.settings.tickets, number=ticket.number)
+        spec = replace(spec, banner=room_for_file(spec.banner, len(data)))  # the notifier adds the file after it
     except MissingContent as exc:
         log_event(log, logging.ERROR, "content_missing_at_runtime", key=exc.key, where="tickets.transcript_dm")
         return
@@ -1484,6 +1495,7 @@ __all__ = [
     "register_staff_closer",
     "remove_participant",
     "reopen_ticket",
+    "room_for_file",
     "schedule_channel_deletion",
     "staff_closer",
     "staff_role_ids",

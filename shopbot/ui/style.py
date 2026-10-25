@@ -20,7 +20,7 @@ from shopbot.core.clock import Clock
 from shopbot.core.money import currency_exponent, format_amount
 from shopbot.features import core_keys as ck
 from shopbot.ui.banners import EMPTY_LIBRARY, BannerLibrary
-from shopbot.ui.spec import ButtonSpec, ButtonStyle, EmbedField, EmbedSpec, FileSpec, SelectOptionSpec
+from shopbot.ui.spec import ButtonSpec, ButtonStyle, EmbedField, EmbedSpec, FileSpec, MessageSpec, SelectOptionSpec
 
 _OPERATOR_COLORS = {
     "primary": 0x5865F2,
@@ -150,6 +150,14 @@ class Ui:
         if description is None:
             return None
         return self.embed(title=self.content.get(ck.ERROR_TITLE), description=description, tone="danger")
+
+    def error_message(self, key: str, /, **values: str | int) -> MessageSpec | None:
+        """The private error reply for ``key`` exactly as it is sent (and previewed): the error banner above the error
+        embed. None when the text is not configured (the caller then answers without inventing wording)."""
+        embed = self.error_embed(key, **values)
+        if embed is None:
+            return None
+        return MessageSpec(embeds=(embed,), banner=self.banner("error"))
 
     def field(
         self, name_key: str, value: str | None, *, inline: bool = False, values: dict[str, str | int] | None = None

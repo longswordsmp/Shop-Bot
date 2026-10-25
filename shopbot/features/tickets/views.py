@@ -8,6 +8,10 @@ and the limits checker all render exactly the same specs. Missing required conte
 User-supplied data (display names, form answers, close reasons) is escaped with
 ``discord.utils.escape_markdown``. Mentions inside embeds never ping; pings are only added through
 ``MessageSpec.mention_user_ids``/``mention_role_ids``.
+
+Every message carries the banner of its kind (``Ui.banner``); only the first message of a multi-message record (the
+welcome) has one. Messages edited later with view-only edits (welcome controls, closed message, select panel) keep the
+banner they were posted with.
 """
 
 from __future__ import annotations
@@ -17,6 +21,7 @@ from dataclasses import replace
 
 from discord.utils import escape_markdown
 
+from shopbot.config.banner_ids import BannerId
 from shopbot.config.content import MissingContent
 from shopbot.config.settings import TicketCategory, TicketSettings
 from shopbot.features import core_keys as core
@@ -49,6 +54,10 @@ _BUTTON_STYLES: dict[str, ButtonStyle] = {
     "danger": "danger",
 }
 _INPUT_STYLES: dict[str, InputStyle] = {"short": "short", "paragraph": "paragraph"}
+
+PANEL_BANNER: BannerId = "support-request"
+# Every message about a transcript (the post, the direct message, the staff replies) shows this banner.
+TRANSCRIPT_BANNER: BannerId = "transcripts"
 
 # Raw characters of a form answer per embed field. Escaping at most doubles the length, so every field
 # value stays within Discord's 1024-character field limit without cutting any character.
@@ -182,7 +191,7 @@ def panel(ui: Ui, settings: TicketSettings, *, style: str | None = None) -> Mess
             options=tuple(options),
             placeholder=ui.content.get(k.PANEL_SELECT_PLACEHOLDER),
         )
-        return MessageSpec(embeds=(embed,), rows=rows_of(select))
+        return MessageSpec(embeds=(embed,), rows=rows_of(select), banner=ui.banner(PANEL_BANNER))
     buttons = [
         _button(
             ui,
@@ -193,7 +202,7 @@ def panel(ui: Ui, settings: TicketSettings, *, style: str | None = None) -> Mess
         )
         for category in settings.categories
     ]
-    return MessageSpec(embeds=(embed,), rows=rows_of(*buttons))
+    return MessageSpec(embeds=(embed,), rows=rows_of(*buttons), banner=ui.banner(PANEL_BANNER))
 
 
 def form_modal(ui: Ui, category: TicketCategory) -> ModalSpec:
@@ -257,8 +266,8 @@ def welcome_messages(
     assigned: bool = False,
     ping_role_ids: tuple[int, ...] = (),
 ) -> list[MessageSpec]:
-    """Welcome message (with the controls; pings the customer) followed by overflow messages that only
-    exist when the form answers do not fit into one message."""
+    """Welcome message (with the controls and the banner; pings the customer) followed by overflow messages that
+    only exist when the form answers do not fit into one message (no banner: they continue the welcome)."""
     values: Values = {
         "user_mention": user_mention(user_id),
         "user_name": escape(user_name),
@@ -273,6 +282,7 @@ def welcome_messages(
         rows=control_rows(ui, ticket_id, assigned=assigned),
         mention_user_ids=(user_id,),
         mention_role_ids=ping_role_ids,
+        banner=ui.banner("ticket-created"),
     )
     return [first, *(MessageSpec(embeds=(embed,)) for embed in embeds[1:])]
 
@@ -298,7 +308,8 @@ def closed_message(
     reason: str | None = None,
     transcripts: bool,
 ) -> MessageSpec:
-    """Posted when a ticket closes. ``closer_id=None`` means it was closed automatically (inactivity)."""
+    """Posted when a ticket closes. ``closer_id=None`` means it was closed automatically (inactivity): nobody resolved
+    the request, so it shows the cancellation banner instead of the resolution banner."""
     values: Values = {"number": number_text(settings, number)}
     if closer_id is None:
         embed = _embed(
@@ -330,30 +341,41 @@ def closed_message(
     if transcripts:
         buttons.append(_button(ui, k.BUTTON_TRANSCRIPT, cid(k.ROUTE, "transcript", ticket_id), style="secondary"))
     buttons.append(_button(ui, k.BUTTON_DELETE, cid(k.ROUTE, "delete", ticket_id), style="danger"))
-    return MessageSpec(embeds=(embed,), rows=rows_of(*buttons))
+    banner: BannerId = "cancellation" if closer_id is None else "resolution"
+    return MessageSpec(embeds=(embed,), rows=rows_of(*buttons), banner=ui.banner(banner))
 
 
 def _status(
-    ui: Ui, key: str, *, tone: str, values: Values | None = None, mention_user_ids: tuple[int, ...] = ()
+    ui: Ui,
+    key: str,
+    *,
+    tone: str,
+    banner: BannerId,
+    values: Values | None = None,
+    mention_user_ids: tuple[int, ...] = (),
 ) -> MessageSpec:
     embed = _embed(ui, None, key, required=(key,), values=values, tone=tone)
-    return MessageSpec(embeds=(embed,), mention_user_ids=mention_user_ids)
+    return MessageSpec(embeds=(embed,), mention_user_ids=mention_user_ids, banner=ui.banner(banner))
 
 
 def claimed(ui: Ui, staff_id: int) -> MessageSpec:
-    return _status(ui, k.CLAIMED, tone="info", values={"staff_mention": user_mention(staff_id)})
+    return _status(
+        ui, k.CLAIMED, tone="info", banner="submission-and-processing", values={"staff_mention": user_mention(staff_id)}
+    )
 
 
 def unclaimed(ui: Ui) -> MessageSpec:
-    return _status(ui, k.UNCLAIMED, tone="info")
+    return _status(ui, k.UNCLAIMED, tone="info", banner="pending-review")
 
 
 def reopened(ui: Ui, actor_id: int) -> MessageSpec:
-    return _status(ui, k.REOPENED, tone="success", values={"actor_mention": user_mention(actor_id)})
+    return _status(
+        ui, k.REOPENED, tone="success", banner="support-request", values={"actor_mention": user_mention(actor_id)}
+    )
 
 
 def deletion_scheduled(ui: Ui, minutes: int) -> MessageSpec:
-    return _status(ui, k.DELETION_SCHEDULED, tone="warning", values={"minutes": minutes})
+    return _status(ui, k.DELETION_SCHEDULED, tone="warning", banner="reminder", values={"minutes": minutes})
 
 
 def auto_close_warning(ui: Ui, *, minutes: int, user_id: int) -> MessageSpec:
@@ -361,6 +383,7 @@ def auto_close_warning(ui: Ui, *, minutes: int, user_id: int) -> MessageSpec:
         ui,
         k.AUTO_CLOSE_WARNING,
         tone="warning",
+        banner="reminder",
         values={"minutes": minutes, "user_mention": user_mention(user_id)},
         mention_user_ids=(user_id,),
     )
@@ -368,12 +391,19 @@ def auto_close_warning(ui: Ui, *, minutes: int, user_id: int) -> MessageSpec:
 
 def user_added(ui: Ui, user_id: int) -> MessageSpec:
     return _status(
-        ui, k.USER_ADDED, tone="info", values={"user_mention": user_mention(user_id)}, mention_user_ids=(user_id,)
+        ui,
+        k.USER_ADDED,
+        tone="info",
+        banner="general-response",
+        values={"user_mention": user_mention(user_id)},
+        mention_user_ids=(user_id,),
     )
 
 
 def user_removed(ui: Ui, user_id: int) -> MessageSpec:
-    return _status(ui, k.USER_REMOVED, tone="info", values={"user_mention": user_mention(user_id)})
+    return _status(
+        ui, k.USER_REMOVED, tone="info", banner="general-response", values={"user_mention": user_mention(user_id)}
+    )
 
 
 # -- private prompts and replies ------------------------------------------------------------------------------
@@ -383,7 +413,7 @@ def _confirm(ui: Ui, title_key: str, description_key: str, confirm_id: str, canc
     embed = _embed(ui, title_key, description_key, required=(description_key,), tone="warning")
     confirm = _button(ui, core.BUTTON_CONFIRM, confirm_id, style="danger")
     cancel = _button(ui, core.BUTTON_CANCEL, cancel_id, style="secondary")
-    return MessageSpec(embeds=(embed,), rows=rows_of(confirm, cancel))
+    return MessageSpec(embeds=(embed,), rows=rows_of(confirm, cancel), banner=ui.banner("general-response"))
 
 
 def close_confirm(ui: Ui, ticket_id: int) -> MessageSpec:
@@ -407,7 +437,7 @@ def delete_confirm(ui: Ui, ticket_id: int) -> MessageSpec:
 
 
 def resolved_prompt(spec: MessageSpec) -> MessageSpec:
-    """A confirmation prompt after it was answered: same text, buttons removed."""
+    """A confirmation prompt after it was answered: same text and banner (kept without a new upload), no buttons."""
     return replace(spec, rows=())
 
 
@@ -416,16 +446,17 @@ def created_reply(ui: Ui, settings: TicketSettings, *, channel_id: int, number: 
         ui,
         k.CREATED,
         tone="success",
+        banner="ticket-created",
         values={"channel_mention": channel_mention(channel_id), "number": number_text(settings, number)},
     )
 
 
 def error_reply(ui: Ui, key: str, **values: str | int) -> MessageSpec:
-    """Private error message exactly as the router sends it (used by the preview)."""
-    embed = ui.error_embed(key, **values)
-    if embed is None:
+    """Private error message exactly as the router sends it (``Ui.error_message``; used by the preview)."""
+    spec = ui.error_message(key, **values)
+    if spec is None:
         raise MissingContent(key)
-    return MessageSpec(embeds=(embed,))
+    return spec
 
 
 # -- staff alert and transcripts --------------------------------------------------------------------------------
@@ -456,7 +487,7 @@ def staff_alert(
         tone="primary",
         timestamp=True,
     )
-    return MessageSpec(embeds=(embed,), mention_role_ids=ping_role_ids)
+    return MessageSpec(embeds=(embed,), mention_role_ids=ping_role_ids, banner=ui.banner("staff-notifications"))
 
 
 def transcript_post(
@@ -470,7 +501,8 @@ def transcript_post(
     final_status: str | None = None,
     close_reason: str | None = None,
 ) -> MessageSpec:
-    """The transcript message: who, when, and with which final status/reason the ticket was closed (data values)."""
+    """The transcript message: who, when, and with which final status/reason the ticket was closed (data values). The
+    transcript file is uploaded after its banner."""
     values: Values = {
         "number": number_text(settings, number),
         "user_mention": user_mention(user_id),
@@ -488,7 +520,7 @@ def transcript_post(
         tone="neutral",
         timestamp=True,
     )
-    return MessageSpec(embeds=(embed,))
+    return MessageSpec(embeds=(embed,), banner=ui.banner(TRANSCRIPT_BANNER))
 
 
 def transcript_dm(ui: Ui, settings: TicketSettings, *, number: int) -> MessageSpec:
@@ -501,4 +533,4 @@ def transcript_dm(ui: Ui, settings: TicketSettings, *, number: int) -> MessageSp
         values=values,
         tone="neutral",
     )
-    return MessageSpec(embeds=(embed,))
+    return MessageSpec(embeds=(embed,), banner=ui.banner(TRANSCRIPT_BANNER))
