@@ -2,9 +2,14 @@
 and the best-selling items. A private operator reply; the numbers are read from the orders each time (nothing is
 stored).
 
-- Sales count orders placed in the period whose payment was confirmed (paid, being prepared, shipped, delivered, or
-  refunded): revenue is their totals minus what was refunded. Cancelled, rejected and expired orders are counted
-  separately and never as sales.
+- Orders placed in the period count as **paid** once their payment was confirmed (``paid_at`` is set; whatever their
+  status is now, e.g. paid and later cancelled), except orders refunded in full. Orders cancelled, rejected or expired
+  before any payment count as ended before payment.
+- **Revenue** is the money customers paid for those orders (their totals: store credit a customer used is not money
+  and is not in the total) minus the money refunded to them. Refunds given as store credit are shown on their own
+  line and not taken off: the shop keeps that money until the credit is spent, and the order it is spent on adds
+  nothing to the revenue, so taking it off as well would count it twice.
+- **Best sellers** are the items of paid orders that were neither cancelled nor refunded in full.
 - "Needs attention now" counts open orders of every age by what staff do next.
 - Only orders in the shop's currency (``checkout.currency``) are added up; orders in another currency (placed before
   the currency changed) are counted in a note.
@@ -38,8 +43,9 @@ PERIOD_NAMES: Final = {
 DEFAULT_PERIOD: Final = "7d"
 BEST_SELLERS: Final = 5
 
-SOLD_STATUSES: Final = (m.PAID, m.PROCESSING, m.SHIPPED, m.FULFILLED, m.REFUNDED)
 ENDED_UNSOLD: Final = (m.CANCELLED, m.REJECTED, m.EXPIRED)
+# Paid orders left out of best sellers (the items did not stay sold).
+NOT_SOLD_ITEMS: Final = (m.CANCELLED, m.REFUNDED)
 # What staff do next, in that order: wait for the payment, check it, ship, and wait for the delivery.
 OPEN_GROUPS: Final[tuple[tuple[str, tuple[str, ...]], ...]] = (
     ("pending", (m.PENDING,)),
@@ -70,6 +76,7 @@ class Stats:
     ended_unsold: int = 0
     revenue_minor: int = 0
     refunded_minor: int = 0
+    credit_refunded_minor: int = 0
     open_counts: dict[str, int] = field(default_factory=dict)
     best: tuple[BestSeller, ...] = ()
     other_currency: int = 0
@@ -79,9 +86,19 @@ class Stats:
         return self.revenue_minor // self.sold if self.sold else None
 
 
-_BY_STATUS_SQL = """
-SELECT status, COUNT(*), COALESCE(SUM(total_minor), 0), COALESCE(SUM(refunded_minor), 0) FROM orders
-WHERE guild_id = ? AND currency = ? AND (? IS NULL OR created_at >= ?) GROUP BY status
+_SALES_SQL = """
+SELECT COUNT(*),
+  COALESCE(SUM(paid_at IS NOT NULL AND status != ?), 0),
+  COALESCE(SUM(paid_at IS NULL AND status IN (SELECT value FROM json_each(?))), 0),
+  COALESCE(SUM(CASE WHEN paid_at IS NOT NULL THEN total_minor END), 0)
+FROM orders WHERE guild_id = ? AND currency = ? AND (? IS NULL OR created_at >= ?)
+"""
+_REFUNDS_SQL = """
+SELECT COALESCE(SUM(CASE WHEN a.method != 'credits' THEN a.amount_minor END), 0),
+  COALESCE(SUM(CASE WHEN a.method = 'credits' THEN a.amount_minor END), 0)
+FROM order_adjustments a JOIN orders o ON o.id = a.order_id
+WHERE a.kind = 'refund' AND o.guild_id = ? AND o.currency = ? AND o.paid_at IS NOT NULL
+  AND (? IS NULL OR o.created_at >= ?)
 """
 _OPEN_SQL = """
 SELECT status, COUNT(*) FROM orders WHERE guild_id = ? AND status IN (SELECT value FROM json_each(?)) GROUP BY status
@@ -89,8 +106,8 @@ SELECT status, COUNT(*) FROM orders WHERE guild_id = ? AND status IN (SELECT val
 _BEST_SQL = """
 SELECT COALESCE(p.name, MAX(i.name_snapshot)), SUM(i.quantity), SUM(i.line_total_minor)
 FROM order_items i JOIN orders o ON o.id = i.order_id LEFT JOIN products p ON p.id = i.product_id
-WHERE o.guild_id = ? AND o.currency = ? AND o.status IN (SELECT value FROM json_each(?))
-  AND (? IS NULL OR o.created_at >= ?)
+WHERE o.guild_id = ? AND o.currency = ? AND o.paid_at IS NOT NULL
+  AND o.status NOT IN (SELECT value FROM json_each(?)) AND (? IS NULL OR o.created_at >= ?)
 GROUP BY i.product_id ORDER BY SUM(i.quantity) DESC, SUM(i.line_total_minor) DESC, i.product_id LIMIT ?
 """
 _OTHER_CURRENCY_SQL = """
@@ -100,21 +117,23 @@ SELECT COUNT(*) FROM orders WHERE guild_id = ? AND currency != ? AND (? IS NULL 
 
 def collect(conn: sqlite3.Connection, guild_id: int, currency: str, since: int | None) -> Stats:
     """The numbers of orders placed since ``since`` (None: all time), plus the open orders of every age."""
-    rows = conn.execute(_BY_STATUS_SQL, (guild_id, currency, since, since)).fetchall()
-    by_status = {status: (count, total, refunded) for status, count, total, refunded in rows}
-    sold = [by_status.get(s, (0, 0, 0)) for s in SOLD_STATUSES]
+    placed, sold, ended, paid_total = conn.execute(
+        _SALES_SQL, (m.REFUNDED, json.dumps(ENDED_UNSOLD), guild_id, currency, since, since)
+    ).fetchone()
+    refunded, credit_refunded = conn.execute(_REFUNDS_SQL, (guild_id, currency, since, since)).fetchone()
     open_by_status = dict(conn.execute(_OPEN_SQL, (guild_id, json.dumps(m.OPEN_STATUSES))).fetchall())
     best = conn.execute(
-        _BEST_SQL, (guild_id, currency, json.dumps(SOLD_STATUSES), since, since, BEST_SELLERS)
+        _BEST_SQL, (guild_id, currency, json.dumps(NOT_SOLD_ITEMS), since, since, BEST_SELLERS)
     ).fetchall()
     other = conn.execute(_OTHER_CURRENCY_SQL, (guild_id, currency, since, since)).fetchone()[0]
     return Stats(
         currency=currency,
-        placed=sum(count for count, _, _ in by_status.values()),
-        sold=sum(count for count, _, _ in sold),
-        ended_unsold=sum(by_status.get(s, (0, 0, 0))[0] for s in ENDED_UNSOLD),
-        revenue_minor=sum(total - refunded for _, total, refunded in sold),
-        refunded_minor=sum(refunded for _, _, refunded in sold),
+        placed=int(placed),
+        sold=int(sold),
+        ended_unsold=int(ended),
+        revenue_minor=int(paid_total) - int(refunded),
+        refunded_minor=int(refunded),
+        credit_refunded_minor=int(credit_refunded),
         open_counts={
             group: sum(open_by_status.get(status, 0) for status in statuses) for group, statuses in OPEN_GROUPS
         },
@@ -139,6 +158,8 @@ def stats_message(ui: Ui, op: OperatorText, money: Money, stats: Stats, period: 
     ]
     if stats.refunded_minor:
         lines.append(op("checkout.stats.line.refunded", amount=money(stats.refunded_minor)))
+    if stats.credit_refunded_minor:
+        lines.append(op("checkout.stats.line.credit_refunded", amount=money(stats.credit_refunded_minor)))
     lines += ["", heading(op("checkout.stats.heading.open"))]
     lines += [op(OPEN_LINES[group], count=stats.open_counts.get(group, 0)) for group, _ in OPEN_GROUPS]
     lines += ["", heading(op("checkout.stats.heading.best", period=when))]

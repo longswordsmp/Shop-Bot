@@ -1,5 +1,6 @@
-"""/stats: sales of a period (only orders whose payment was confirmed; refunds taken off), the open orders that need
-staff now (any age), best sellers, orders in another currency noted; staff only."""
+"""/stats: sales of a period (orders whose payment was confirmed, whatever happened next; money refunds taken off,
+store-credit refunds shown apart), the open orders that need staff now (any age), best sellers, orders in another
+currency noted; staff only."""
 
 from __future__ import annotations
 
@@ -11,18 +12,31 @@ from discord import app_commands
 from shopbot.commands import on_tree_error
 from shopbot.features import core_keys as ck
 from shopbot.features.checkout import models as m
-from shopbot.features.checkout import stats
+from shopbot.features.checkout import service, stats, views
 from shopbot.features.checkout.order_money import order_money
-from tests.checkout.util import add_product, place_order
+from tests.checkout.util import add_product, balance, order, orders, place_order, press, start, submit, to_review
 from tests.fakes import FakeInteraction, FakeMember
 from tests.helpers import GUILD_ID, TestEnv
 
 DAY = 86_400
+PAID_STATUSES = (m.PAID, m.PROCESSING, m.SHIPPED, m.FULFILLED, m.REFUNDED)
 
 
 async def _set(tenv: TestEnv, order_id: int, status: str, *, refunded: int = 0, currency: str | None = None) -> None:
+    """Move an order straight to ``status`` (paid at some point for the paid statuses), with a money refund."""
+
     def write(conn: Any) -> None:
-        conn.execute("UPDATE orders SET status = ?, refunded_minor = ? WHERE id = ?", (status, refunded, order_id))
+        paid_at = tenv.clock.now() if status in PAID_STATUSES else None
+        conn.execute(
+            "UPDATE orders SET status = ?, refunded_minor = ?, paid_at = ? WHERE id = ?",
+            (status, refunded, paid_at, order_id),
+        )
+        if refunded:
+            conn.execute(
+                "INSERT INTO order_adjustments(order_id, kind, method, amount_minor, created_at) "
+                "VALUES (?, 'refund', 'manual', ?, ?)",
+                (order_id, refunded, tenv.clock.now()),
+            )
         if currency is not None:
             conn.execute("UPDATE orders SET currency = ? WHERE id = ?", (currency, order_id))
 
@@ -99,6 +113,52 @@ async def test_orders_in_another_currency_are_noted_not_added(co: TestEnv) -> No
     money = order_money(co.app.ui, co.app.settings, counted.currency)
     text = stats.stats_message(co.app.ui, co.app.op, money, counted, "all").embeds[0].description or ""
     assert co.app.op("checkout.stats.other_currency", count=1, currency=counted.currency) in text
+
+
+async def test_a_paid_order_that_was_cancelled_keeps_what_was_not_refunded(co: TestEnv) -> None:
+    staffer = co.member(name="staffer", staff=True)
+    item = await add_product(co, "[item]", price=1000)
+    placed, _, _ = await place_order(co, co.member(name="a"), [(item.id, 1)])
+    assert (await service.change_status(co.app, placed.id, m.PAID, actor_id=staffer.id)).applied
+    assert (await service.change_status(co.app, placed.id, m.CANCELLED, actor_id=staffer.id)).applied
+    # A cancellation fee: 6.00 of the 10.00 goes back.
+    await service.refund(co.app, placed.id, amount_minor=600, to_credit=False, reason=None, actor_id=staffer.id)
+    kept = await _collect(co)
+    assert (kept.sold, kept.ended_unsold, kept.revenue_minor, kept.refunded_minor) == (1, 0, 400, 600)
+    assert kept.best == ()  # cancelled: the item did not stay sold
+    # Refunded in full: no longer a paid order, nothing kept; never "ended before payment".
+    await service.refund(co.app, placed.id, amount_minor=400, to_credit=False, reason=None, actor_id=staffer.id)
+    assert (await order(co, placed.id)).status == m.REFUNDED
+    back = await _collect(co)
+    assert (back.sold, back.ended_unsold, back.revenue_minor, back.refunded_minor) == (0, 0, 0, 1000)
+    assert back.average_minor is None
+
+
+async def test_a_refund_as_store_credit_is_not_taken_off_twice(co: TestEnv) -> None:
+    staffer = co.member(name="staffer", staff=True)
+    customer = co.member(name="customer")
+    item = await add_product(co, "[item]", price=1000)
+    first, _, _ = await place_order(co, customer, [(item.id, 1)])
+    assert (await service.change_status(co.app, first.id, m.PAID, actor_id=staffer.id)).applied
+    await service.refund(co.app, first.id, amount_minor=1000, to_credit=True, reason=None, actor_id=staffer.id)
+    assert await balance(co, customer.id) == 1000
+    # The customer orders again and pays with that store credit (a total of 0.00).
+    co.clock.advance(3600)
+    _, session, _, message = await start(co, customer)
+    await to_review(co, customer, message, session.id, [(item.id, 1)])
+    await press(co, customer, message, views.credits_id(session.id, True))
+    await submit(co, customer, message, session.id)
+    second = next(o for o in await orders(co) if o.id != first.id)
+    if second.status != m.PAID:
+        assert (await service.change_status(co.app, second.id, m.PAID, actor_id=staffer.id)).applied
+    counted = await _collect(co)
+    # 10.00 was received once and kept (one item stayed sold).
+    assert (counted.sold, counted.revenue_minor, counted.refunded_minor) == (1, 1000, 0)
+    assert counted.credit_refunded_minor == 1000
+    assert [(s.name, s.quantity) for s in counted.best] == [("[item]", 1)]
+    money = order_money(co.app.ui, co.app.settings, counted.currency)
+    text = stats.stats_message(co.app.ui, co.app.op, money, counted, "all").embeds[0].description or ""
+    assert co.app.op("checkout.stats.line.credit_refunded", amount=money(1000)) in text
 
 
 async def _invoke(tenv: TestEnv, user: FakeMember, **kwargs: Any) -> FakeInteraction:

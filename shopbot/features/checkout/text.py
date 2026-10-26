@@ -194,9 +194,12 @@ OPERATOR_TEXT: dict[str, str] = {
     "checkout.stats.heading.open": "NEEDS ATTENTION NOW",
     "checkout.stats.heading.best": "BEST SELLERS ({period})",
     "checkout.stats.line.placed": "Orders placed: **{count}**",
-    "checkout.stats.line.sold": "Paid: **{count}** · Cancelled, rejected or expired: {ended}",
+    "checkout.stats.line.sold": "Paid: **{count}** · Ended before payment: {ended}",
     "checkout.stats.line.revenue": "Revenue: **{revenue}** · Average order: {average}",
     "checkout.stats.line.refunded": "Refunded: {amount} (already taken off the revenue)",
+    "checkout.stats.line.credit_refunded": (
+        "Refunded as store credit: {amount} (not taken off: orders paid with store credit add nothing to the revenue)"
+    ),
     "checkout.stats.line.pending": "Waiting for payment: **{count}**",
     "checkout.stats.line.submitted": "Payment to check: **{count}**",
     "checkout.stats.line.to_ship": "To ship (paid or being prepared): **{count}**",

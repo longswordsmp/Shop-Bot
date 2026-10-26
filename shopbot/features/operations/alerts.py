@@ -37,7 +37,7 @@ from shopbot.features.checkout import service as checkout_service
 from shopbot.features.checkout import views as checkout_views
 from shopbot.features.operations import content_keys as k
 from shopbot.features.operations import customer_role as customer_role_module
-from shopbot.features.operations import views
+from shopbot.features.operations import stock, views
 from shopbot.logging_setup import log_event
 from shopbot.ui.discord_render import RenderError, send_kwargs
 from shopbot.ui.spec import MessageSpec
@@ -47,7 +47,7 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-TASK_ALERT = "operations.alert"
+TASK_ALERT = stock.TASK_ALERT
 ALERT_FAILURE = "failure"
 # Failure alerts of one kind and source are grouped into one alert per window (technical anti-flood, not business).
 FAILURE_WINDOW_SECONDS = 600
@@ -278,6 +278,10 @@ async def _stock_alert(app: App, alert: str, product_id: int, dedupe_key: str) -
     product = await app.db.run(catalog_repo.get_product, app.env.guild_id, product_id)
     if product is None or product.archived or not app.settings.operations.stock_alerts:
         return  # removed meanwhile, or the alerts were switched off
+    if stock.level(product, app.settings.catalog.low_stock_threshold) != alert:
+        # Restocked, or the order that caused it ended unpaid, before the alert ran: it would no longer be true.
+        log_event(log, logging.INFO, "stock_alert_skipped", product_id=product_id, stock=alert)
+        return
     values: dict[str, str | int] = {"name": escape_markdown(product.name), "count": product.available or 0}
     spec = views.stock_alert(app.ui, alert, values, ping_role_ids=ping_role_ids(app))
     await _post(app, spec, kind=f"operations.alert.{alert}", dedupe_key=dedupe_key)

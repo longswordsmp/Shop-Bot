@@ -90,14 +90,24 @@ roles that cannot be pinged.
 ## Stock alerts
 
 With `operations.stock_alerts = true` (shipped on), an order that leaves an item low (at or below
-`catalog.low_stock_threshold`, shipped 3; 0 turns low-stock alerts off and keeps sold-out alerts) or sells it out posts one alert in
-`#staff-chat`, with the units left and the `/product stock` hint. Each item's level is remembered
-(`kv_state`, `operations.stock_level:<product id>`), so an item alerts once per drop: fine → low, fine → sold out,
-low → sold out. Two more orders of an item that is already low do not alert again. An order that ends unpaid
-(cancelled, expired, rejected) gives its units back and only updates the level; a staff stock change
-(`/product stock`, `/product edit`, archiving) updates the level without an alert, so after a restock the next drop
-alerts again. Unlimited items never alert. Texts: `operations.alert.low_stock.*`, `operations.alert.sold_out.*`
-(`{name}`, `{count}`); the numbers are read when the alert is sent.
+`catalog.low_stock_threshold`, shipped 3; 0 turns low-stock alerts off and keeps sold-out alerts) or sells it out posts
+one alert in `#staff-chat`, with the units left and the `/product stock` hint. Units count as gone once an order is
+submitted (they are reserved for it), the same moment the catalog's Buy button changes.
+
+- **Once per drop.** Each item's level is remembered (`kv_state`, `operations.stock_level:<product id>`): fine → low,
+  fine → sold out, low → sold out alert; a second order of an item that is already low does not. The level and the
+  alert task are written in one transaction, so an alert is never lost between the two.
+- **Better levels only, outside orders.** An order that ends unpaid (cancelled, expired, rejected) gives its units back
+  and a staff change (`/product stock`, `/product edit`, a price change, archiving) updates the level, but these only
+  ever store a *better* level: a drop they happen to see before the order that caused it is left for that order to
+  alert. After a restock the next drop alerts again.
+- **No repeats from unpaid orders.** Units that come back only because an unpaid order ended do not re-alert the same
+  level for 6 hours (an item that keeps selling out to orders nobody pays for would otherwise alert each time); a
+  staff stock change ends that quiet period.
+- **Still true when sent.** The alert is a durable `operations.alert` task built from the item's current numbers when
+  it runs; when the level no longer holds by then (restocked, or the order ended), it is skipped.
+- Unlimited items never alert. Texts: `operations.alert.low_stock.*`, `operations.alert.sold_out.*` (`{name}`,
+  `{count}`).
 
 ## Reminders
 
@@ -172,10 +182,14 @@ Staff-only forms and private replies to staff are operator text (`checkout.note.
   order's full record privately, and previous/next buttons. Same list as `/order list`.
 - `/order view <number>`: staff; the full record (same as `/order lookup`).
 - `/stats [period]`: staff; a private overview. **Sales** of the period (last 24 hours, 7 days (default), 30 days or
-  all time): orders placed, orders paid (and how many ended unpaid), revenue after refunds and the average order,
-  refunds. **Needs attention now**: open orders of any age by what staff do next (waiting for payment, payment to
-  check, to ship, shipped). **Best sellers** of the period (top 5 by units). Sales count only orders whose payment
-  was confirmed; orders in another currency (placed before `checkout.currency` changed) are noted, not added.
+  all time, by when the order was placed): orders placed; orders **paid** (their payment was confirmed, whatever
+  happened next, except orders refunded in full) and orders that ended before payment; **revenue** (what customers
+  paid for those orders minus the money refunded to them) and the average order; refunds. Refunds given as store
+  credit are shown on their own line and not taken off the revenue: the order the credit is later spent on adds
+  nothing to the revenue, so taking it off as well would count it twice. **Needs attention now**: open orders of any
+  age by what staff do next (waiting for payment, payment to check, to ship, shipped). **Best sellers** of the period
+  (top 5 by units) from paid orders that were neither cancelled nor refunded in full. Orders in another currency
+  (placed before `checkout.currency` changed) are noted, not added.
 - `/order note` now stores the note as staff activity (shown on the record).
 - `/ticket close` in an order ticket: closes the ticket of an order that was never submitted (the unfinished order is
   cancelled); refused while a submitted order of the ticket is open (see `docs/features/orders_privacy.md`).
