@@ -19,6 +19,7 @@ from tests.checkout.util import (
     add_product,
     channel,
     error_text,
+    last_paragraph,
     orders,
     post_answers_in_channel,
     press,
@@ -108,7 +109,7 @@ async def test_a_price_change_before_the_form_shows_the_notice(sf: TestEnv) -> N
     await set_price(tenv, product_id, 1500)
     clicked = await press(tenv, customer, message, views.submit_id(session.id, total, gross))
     assert modal_of(clicked) is None
-    assert message.embeds[-1].description == tenv.app.content.render(
+    assert last_paragraph(message) == tenv.app.content.render(
         k.REVIEW_PRICE_CHANGED, total=tenv.app.ui.money(1500) or ""
     )
     assert views.submit_id(session.id, 1500, 1500) in message.custom_ids()

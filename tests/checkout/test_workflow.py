@@ -15,6 +15,7 @@ from tests.checkout.util import (
     error_text,
     give_credits,
     go,
+    last_paragraph,
     make_env,
     money,
     press,
@@ -150,7 +151,7 @@ async def test_paging_through_products(tmp_path: Path) -> None:
 async def test_empty_catalog(co: TestEnv) -> None:
     customer = co.member()
     _, session, _, message = await start(co, customer)
-    assert message.embeds[1].description == co.text(k.BROWSE_EMPTY_CATALOG)
+    assert len(message.embeds) == 1 and last_paragraph(message) == co.text(k.BROWSE_EMPTY_CATALOG)
     assert views.pick_id(session.id, 0) not in message.custom_ids()
     assert component(message, views.go_id(session.id, m.CART)).disabled  # empty cart: cannot continue
 
@@ -187,7 +188,7 @@ async def test_minimum_order_total(tmp_path: Path) -> None:
         _, session, _, message = await start(tenv, customer)
         await set_qty(tenv, customer, message, session.id, p1.id, 2)
         await go(tenv, customer, message, session.id, m.CART)
-        assert message.embeds[1].description == render(tenv, k.CART_MINIMUM_NOT_MET, minimum=money(tenv, 2000))
+        assert last_paragraph(message) == render(tenv, k.CART_MINIMUM_NOT_MET, minimum=money(tenv, 2000))
         assert component(message, views.go_id(session.id, m.REVIEW)).disabled
         forged = await go(tenv, customer, message, session.id, m.REVIEW)
         assert error_text(forged) == render(tenv, k.CART_MINIMUM_NOT_MET, minimum=money(tenv, 2000))
@@ -223,8 +224,8 @@ async def test_cancel_confirmation_flow(co: TestEnv) -> None:
     await press(co, customer, message, views.cancel_id(session.id))
     assert message.embeds[0].description == co.text(k.CANCEL_CONFIRM_DESCRIPTION)
     assert message.embeds[0].title == co.text(k.CANCEL_CONFIRM_TITLE)
-    assert component(message, views.cancel_yes_id(session.id)).label == co.text(core.BUTTON_CONFIRM)
-    assert component(message, views.cancel_no_id(session.id)).label == co.text(core.BUTTON_CANCEL)
+    assert component(message, views.cancel_yes_id(session.id)).label == co.text(k.BUTTON_CANCEL_YES)
+    assert component(message, views.cancel_no_id(session.id)).label == co.text(k.BUTTON_KEEP_ORDER)
     await press(co, customer, message, views.cancel_no_id(session.id))
     assert message.embeds[0].title == co.text(k.BROWSE_TITLE)
     await press(co, customer, message, views.cancel_id(session.id))
@@ -306,7 +307,8 @@ async def test_fulfillment_details_and_review(cof: TestEnv) -> None:
     assert fields[tenv.text(k.FULFILLMENT_FEE_FIELD)] == money(tenv, 500)
     assert fields[tenv.text(k.REVIEW_TOTAL_FIELD)] == money(tenv, 2000 + 500 + 150 + 200)
     assert views.submit_id(session.id, 2850, 2850) in message.custom_ids()
-    assert render(tenv, core.PROGRESS_FORMAT, current=5, total=5, bar="") in (message.embeds[0].footer.text or "")
+    # Items (choosing and the cart) · details · delivery · review · payment: the review is step 4 of 5.
+    assert render(tenv, core.PROGRESS_FORMAT, current=4, total=5, bar="") in (message.embeds[0].footer.text or "")
     # going back to details keeps the answers; the stored answers survive a second (partial) submission
     session_now = await reload_session(tenv, session.id)
     assert session_now.details == {"d.name": "[sample *name*]", "o.delivery.address": "[sample address]"}

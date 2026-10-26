@@ -199,7 +199,7 @@ async def test_a_changed_price_keeps_the_review_banner(bco: TestEnv) -> None:
     watch = Watch(bco, message)
     await submit(bco, customer, message, session.id, total=999)  # the total the customer saw is outdated
     assert (await reload_session(bco, session.id)).status == m.ACTIVE
-    assert len(message.embeds) == 2 and watch.kept("review-and-summary")  # with the price-changed notice
+    assert len(message.embeds) == 1 and watch.kept("review-and-summary")  # one card, with the price-changed notice
 
 
 async def test_an_expired_or_staff_closed_unfinished_order_shows_the_cancellation_banner(bco: TestEnv) -> None:
@@ -320,7 +320,7 @@ async def test_notifications_in_the_ticket_keep_their_banner(tmp_path: Path) -> 
         tenv.clock.advance(30 * 60)
         await tenv.app.scheduler.run_due()  # the payment reminder
         reminder = ch.messages[-1]
-        assert reminder is not submitted and len(reminder.embeds) == 2  # with the payment instructions
+        assert reminder is not submitted and len(reminder.embeds) == 1  # one card, with the payment instructions
         assert shows(tenv, reminder, "reminder")
         assert shows(tenv, message, "pending-review")  # the live message is unchanged
     finally:

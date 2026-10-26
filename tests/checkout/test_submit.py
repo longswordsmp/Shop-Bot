@@ -19,9 +19,11 @@ from tests.checkout.util import (
     error_text,
     give_credits,
     go,
+    last_paragraph,
     money,
     order,
     orders,
+    payment_section,
     place_order,
     post_answers_in_channel,
     press,
@@ -63,8 +65,10 @@ async def test_submit_creates_the_order_atomically(co: TestEnv) -> None:
     # customer view: submitted title, items, total, payment instructions, cancel button
     values = {"order_number": "1", "total": money(co, 2800)}
     assert message.embeds[0].title == render(co, k.SUBMITTED_TITLE, **values)
-    assert message.embeds[0].description == render(co, k.SUBMITTED_DESCRIPTION, **values)
-    assert message.embeds[1].title == render(co, "checkout.payment.manual.title", **values)
+    # One card: the submitted text, then the payment instructions as its last section.
+    assert message.embeds[0].description == f"{render(co, k.SUBMITTED_DESCRIPTION, **values)}\n\n" + payment_section(
+        co, **values
+    )
     assert message.custom_ids() == [views.order_cancel_id(placed.id)]
     # staff controls
     control = staff_message(co, placed)
@@ -167,7 +171,7 @@ async def test_price_change_between_review_and_submit(co: TestEnv) -> None:
     assert await orders(co) == []
     assert error_text(changed) is None
     assert message.embeds[0].title == co.text(k.REVIEW_TITLE)
-    assert message.embeds[1].description == render(co, k.REVIEW_PRICE_CHANGED, total=money(co, 2200))
+    assert last_paragraph(message) == render(co, k.REVIEW_PRICE_CHANGED, total=money(co, 2200))
     assert views.submit_id(session.id, 2200, 2200) in message.custom_ids()
     await press(co, customer, message, views.submit_id(session.id, 2200, 2200))
     placed = await orders(co)
@@ -250,7 +254,7 @@ async def test_credits_changed_since_review_is_a_price_change(co: TestEnv) -> No
     await give_credits(co, customer.id, -300)  # spent elsewhere meanwhile
     await press(co, customer, message, views.submit_id(session.id, 600, 1000))
     assert await orders(co) == []
-    assert message.embeds[1].description == render(co, k.REVIEW_PRICE_CHANGED, total=money(co, 900))
+    assert last_paragraph(message) == render(co, k.REVIEW_PRICE_CHANGED, total=money(co, 900))
 
 
 async def test_full_workflow_order_keeps_details_fees_and_posts_staff_details(cof: TestEnv) -> None:

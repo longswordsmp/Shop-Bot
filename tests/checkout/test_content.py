@@ -59,9 +59,9 @@ async def test_optional_text_is_omitted(tmp_path: Path) -> None:
         edit = component(message, views.edit_id(session.id))
         assert edit.placeholder == tenv.text(k.CART_EDIT_PLACEHOLDER) and edit.options[0].description is None
         placed, _, submitted = await place_order(tenv, tenv.member(name="b"), [(p1.id, 1)])
-        assert submitted.embeds[0].description is None
-        assert submitted.embeds[1].title is None
-        assert submitted.embeds[1].description == tenv.app.content.render(
+        # Without a submitted description and an instructions title, the card's text is just the instructions.
+        assert len(submitted.embeds) == 1
+        assert submitted.embeds[0].description == tenv.app.content.render(
             "checkout.payment.manual.instructions", order_number="1", total=tenv.app.ui.money(1000) or ""
         )
         await press(tenv, staffer, staff_message(tenv, placed), views.staff_action_id(m.PAID, placed.id))

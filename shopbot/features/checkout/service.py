@@ -276,7 +276,7 @@ async def workflow_data(app: App, session_id: int) -> m.WorkflowData | None:
     return await app.db.run(repo.load_workflow, app.env.guild_id, session_id, app.settings, credits_enabled(app))
 
 
-async def workflow_spec(app: App, session_id: int, *, notice: EmbedSpec | None = None) -> MessageSpec:
+async def workflow_spec(app: App, session_id: int, *, notice: str | None = None) -> MessageSpec:
     data = await workflow_data(app, session_id)
     if data is None:
         raise HandlerError(core.ERROR_NOT_FOUND)

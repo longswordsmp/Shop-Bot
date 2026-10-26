@@ -1172,13 +1172,13 @@ checkout.error.country_first = "Choose your region and country first, then press
 # Optional text of the product-choosing step (e.g. how to pick products and quantities).
 # description · max 4096 characters · optional
 checkout.browse.description = '''
-Pick an item from the menu below, then enter how many you want. Repeat this for every item you want to add.
+Choose an item from the menu below, then enter the quantity. Repeat for every item.
 
 When your cart looks right, press **Continue**.'''
 
 # Shown in the product-choosing step when no product is offered right now.
 # description · max 4096 characters · required
-checkout.browse.empty_catalog = "No items are available to order right now. Please check back soon. You can close this order with **Cancel**."
+checkout.browse.empty_catalog = "{icon_alert} No items are available to order right now. Please check back soon. You can close this order with **Cancel**."
 
 # Greyed-out text of the product selection menu (if empty, Discord would show its own default text). The options are the product names; the small text under each is its price.
 # select_placeholder · max 150 characters · required
@@ -1200,7 +1200,7 @@ checkout.button.remove_credits = "Remove store credit"
 
 # Button in the review step that submits the order.
 # button_label · max 80 characters · required
-checkout.button.submit = "Submit order"
+checkout.button.submit = "Confirm order"
 
 # Optional name of a field showing how much store credit the customer could apply (shown while credits are not applied).
 # field_name · max 256 characters · optional
@@ -1213,15 +1213,13 @@ checkout.review.credits_field = "Store credit applied"
 # Optional text of the review step.
 # description · max 4096 characters · optional
 checkout.review.description = '''
-Check your items and the total below. If everything is right, press **Submit order** and enter your name and shipping address.
+Check everything below. You can still go back and change it.
 
-You do not pay yet. After you submit, our team posts the payment instructions in this ticket and confirms any shipping costs here.'''
+Press **Confirm order** to place it. Then you pay with a DoorDash eGift card for exactly the total, right here in this ticket.'''
 
 # Shown in the review step when the total changed since the customer looked at it (prices, fees or their credit balance changed); nothing was submitted yet. {total} is the new total.
 # description · max 4096 characters · required · placeholders: {total}
-checkout.review.price_changed = '''
-Your total has changed since this summary was shown. The new total is **{total}**.
-Nothing was submitted. Please check your order and press **Submit order** again.'''
+checkout.review.price_changed = "{icon_alert} The total changed to **{total}** because a price was updated. Nothing was placed: please check your order and press **Confirm order** again."
 
 # Title of the final step where the customer reviews the order and submits it.
 # title · max 256 characters · required
@@ -1237,12 +1235,20 @@ checkout.review.total_field = "Total"
 # button_label · max 80 characters · required
 checkout.button.cancel_order = "Cancel order"
 
+# Button of the cancel question (an unfinished order or an unpaid one) that cancels it.
+# button_label · max 80 characters · required
+checkout.button.cancel_yes = "Yes, cancel"
+
+# Button of the cancel question that keeps the order and goes back to it.
+# button_label · max 80 characters · required
+checkout.button.keep_order = "Keep order"
+
 # Question asking the customer to confirm cancelling an unfinished order (shared confirm/cancel buttons).
 # description · max 4096 characters · required
 checkout.cancel_confirm.description = '''
-Your cart will be cleared and this ticket will close. Nothing has been submitted, so no payment is due.
+Your cart will be cleared and this ticket will close. Nothing was placed, so nothing is charged.
 
-Press **Confirm** to cancel the order, or press **Cancel** to go back to it.'''
+Press **Yes, cancel** to cancel, or **Keep order** to go back to it.'''
 
 # Optional title of the question asking the customer to confirm cancelling an unfinished order.
 # title · max 256 characters · optional
@@ -1251,7 +1257,7 @@ checkout.cancel_confirm.title = "Cancel this order?"
 # Text of the workflow message after the customer cancelled an unfinished order. Also used after staff closed the ticket of an unfinished order (/ticket close) when checkout.staff_closed.description is empty.
 # description · max 4096 characters · required
 checkout.cancelled.description = '''
-This order was cancelled before it was submitted, so no payment is due. This ticket is now closed, but you can still read it.
+This order was cancelled before it was placed, so nothing is charged. This ticket is now closed, but you can still read it.
 
 To order again, press **Start order** in the place-order channel.'''
 
@@ -1262,7 +1268,7 @@ checkout.cancelled.title = "Order cancelled"
 # Text of the workflow message when an unfinished order expired. Needed when checkout.session_expiry_minutes is above 0.
 # description · max 4096 characters · required
 checkout.expired.description = '''
-This order was closed because it was not submitted and had no activity for 24 hours. No payment is due.
+This order was closed because it was not placed and had no activity for 24 hours. Nothing is charged.
 
 To order again, press **Start order** in the place-order channel.'''
 
@@ -1275,9 +1281,9 @@ checkout.expired.title = "Order expired"
 checkout.order_cancel_confirm.description = '''
 Your order **#{order_number}** will be cancelled and this ticket will close. This cannot be undone.
 
-If you have already sent a payment, do not cancel: write to our team in this ticket instead.
+A gift card our team has not redeemed is not used and stays yours. If our team already redeemed one, its value becomes your store credit.
 
-Press **Confirm** to cancel the order, or **Back** to keep it.'''
+Press **Yes, cancel** to cancel the order, or **Keep order** to go back.'''
 
 # Optional title of the question asking the customer to confirm cancelling a submitted, unpaid order. {order_number} is the order number.
 # title · max 256 characters · optional · placeholders: {order_number}
@@ -1383,9 +1389,9 @@ checkout.ticket_link.button = "Open my order ticket"
 # Optional text of the cart step.
 # description · max 4096 characters · optional
 checkout.cart.description = '''
-Check your items and quantities. To change a quantity, pick the item in the menu below (enter 0 to remove it).
+Check your items and quantities. To change one, pick the item in the menu below (0 removes it).
 
-Press **Back** to add more items, or **Continue** to review your order.'''
+Press **Back** to add more items, or **Continue** to add your shipping address.'''
 
 # Optional small text under each product in the change-quantity menu. {quantity} is the quantity in the cart, {line_total} the line price.
 # option_description · max 100 characters · optional · placeholders: {quantity}, {line_total}
@@ -1409,7 +1415,7 @@ checkout.cart.line = "• {quantity} × **{name}** ({unit_price} each): {line_to
 
 # Shown in the cart step while the subtotal is below checkout.min_order_total_minor (the continue button stays disabled). {minimum} is that minimum written with common.money_format. Needed when checkout.min_order_total_minor is above 0.
 # description · max 4096 characters · optional · placeholders: {minimum}
-checkout.cart.minimum_not_met = "The minimum order is **{minimum}**. Please add more items to continue."
+checkout.cart.minimum_not_met = "{icon_alert} The minimum order is **{minimum}**. Please add more items to continue."
 
 # Name of the subtotal field (sum of the cart lines before fees and credits).
 # field_name · max 256 characters · required
@@ -1433,11 +1439,11 @@ checkout.channel_topic = "Private order ticket for {user_name}, visible only to 
 
 # Shown when the customer adds a product but the cart already has checkout.max_cart_lines different products. {max} is that number.
 # description · max 4096 characters · required · placeholders: {max}
-checkout.error.cart_full = "Your cart is full: it can hold up to {max} different items. Remove an item (set its quantity to 0) or submit this order first."
+checkout.error.cart_full = "Your cart is full: it can hold up to {max} different items. Remove an item (set its quantity to 0) or place this order first."
 
 # Shown when the customer tries to cancel an order that can no longer be cancelled by them (it was already paid, cancelled or handled).
 # description · max 4096 characters · required
-checkout.error.order_not_cancellable = "This order can no longer be cancelled here: its payment was already confirmed, or it is already closed. For help, write to our team in your order ticket, or press **Report a problem** in the place-order channel."
+checkout.error.order_not_cancellable = "This order can no longer be cancelled here: your payment was already submitted or confirmed, or the order is closed. For help, write to our team in your order ticket."
 
 # Shown when the customer asks for more units than are available (when adding to the cart, or when submitting if someone else bought them first). {name} is the product name, {available} the units still available.
 # description · max 4096 characters · required · placeholders: {name}, {available}
@@ -1455,7 +1461,7 @@ checkout.error.quantity_invalid = "You can order at most {max} of this item. Ple
 
 # Shown when the customer uses a control of an order workflow that was already submitted, cancelled or expired.
 # description · max 4096 characters · required
-checkout.error.session_closed = "This order panel is no longer active because the order was already submitted, cancelled or expired. See the latest messages in your order ticket, or start a new order from the place-order channel."
+checkout.error.session_closed = "This order panel is no longer active because the order was already placed, cancelled or expired. See the latest messages in your order ticket, or start a new order from the place-order channel."
 
 # --- Checkout: extras (delivery step) ---
 
@@ -1529,7 +1535,7 @@ checkout.fulfillment_step.chosen_field = "Delivery option"
 
 # Optional text of the fulfillment step.
 # description · max 4096 characters · optional
-checkout.fulfillment_step.description = "Choose how you would like to receive your order from the menu below, then press **Continue**."
+checkout.fulfillment_step.description = "Choose how fast you want your order in the menu below and add extras if you like, then press **Continue**."
 
 # Name of the field showing the chosen option's fee (fee_minor, written with common.money_format; shown only when that fee is above 0). Needed when an option has a fee.
 # field_name · max 256 characters · required
@@ -1541,7 +1547,7 @@ checkout.fulfillment_step.select_placeholder = "Choose a delivery option"
 
 # Title of the step where the customer chooses a fulfillment option (delivery, pickup, ...). Needed when checkout.fulfillment_options are defined.
 # title · max 256 characters · required
-checkout.fulfillment_step.title = "Choose a delivery option"
+checkout.fulfillment_step.title = "Delivery and extras"
 
 # --- Checkout: customer notifications (direct message, or the order channel) ---
 
@@ -1592,13 +1598,13 @@ checkout.notify.paid.title = "Payment confirmed for order #{order_number}"
 # Reminder sent once when an order is still unpaid checkout.payment_reminder_minutes after it was submitted (the payment instructions are attached below it). {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention. Needed when checkout.payment_reminder_minutes is above 0.
 # description · max 4096 characters · required · placeholders: {order_number}, {total}, {channel_mention}
 checkout.notify.payment_reminder.description = '''
-Your order **#{order_number}** ({total}) is still waiting for payment. Please check {channel_mention} for the payment instructions from our team.
+We're still waiting for the gift card for order **#{order_number}** ({total}). Press **Submit gift card** in {channel_mention} when you're ready.
 
-No longer want this order? Press **Cancel order** on your order in the ticket.'''
+No longer want this order? Press **Cancel order** in the ticket.'''
 
 # Optional title of the payment reminder. {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention.
 # title · max 256 characters · optional · placeholders: {order_number}, {total}, {channel_mention}
-checkout.notify.payment_reminder.title = "Reminder: order #{order_number} is waiting for payment"
+checkout.notify.payment_reminder.title = "Reminder: order #{order_number} waits for payment"
 
 # Notification sent to the customer when their order becomes 'payment_submitted' (the customer submitted their payment; staff are verifying it). {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention.
 # description · max 4096 characters · required · placeholders: {order_number}, {total}, {channel_mention}
@@ -1615,15 +1621,13 @@ checkout.notify.payment_submitted.title = "Order #{order_number} placed"
 # 'Submission received' notification, sent once when the customer submitted the order (it now waits for payment). {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention.
 # description · max 4096 characters · required · placeholders: {order_number}, {total}, {channel_mention}
 checkout.notify.pending_payment.description = '''
-Thank you, we received your order **#{order_number}** ({total}). It now waits for payment.
+Your order **#{order_number}** ({total}) is reserved and waits for your payment.
 
-Our team will post the payment instructions in {channel_mention}. Please wait for them before you send a payment.
-
-**Never share card numbers or passwords in Discord.**'''
+Pay with a DoorDash eGift card for exactly **{total}**: press **Submit gift card** in {channel_mention}. Never post a gift card code in a chat.'''
 
 # Optional title of the 'submission received' notification. {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention.
 # title · max 256 characters · optional · placeholders: {order_number}, {total}, {channel_mention}
-checkout.notify.pending_payment.title = "Order #{order_number} received"
+checkout.notify.pending_payment.title = "Order #{order_number}: payment needed"
 
 # Notification sent to the customer when their order becomes 'processing' (staff are preparing the order). {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention.
 # description · max 4096 characters · required · placeholders: {order_number}, {total}, {channel_mention}
@@ -1669,7 +1673,7 @@ checkout.notify.rejected.title = "Order #{order_number} could not be accepted"
 # Warning posted in the order ticket (mentioning the customer) checkout.session_expiry_warning_minutes before an unfinished order expires for inactivity (any change to the order resets the timer; after a later idle period the warning is sent again). {minutes} is that number of minutes, {expires} when the order expires (relative time shown by Discord, e.g. 'in 10 minutes'). Needed when checkout.session_expiry_warning_minutes is above 0.
 # description · max 4096 characters · required · placeholders: {minutes}, {expires}
 checkout.notify.session_expiry_warning.description = '''
-Your order has not been submitted yet and will be closed {expires} because there has been no activity.
+Your order has not been placed yet and will be closed {expires} because there has been no activity.
 
 To keep it, carry on in the order panel above: any change you make resets the timer.'''
 
@@ -1817,12 +1821,12 @@ checkout.payment.gift_card.cards_field = "{icon_gift} Gift cards"
 # How to pay with gift cards, shown in the order ticket and in the payment reminder. {total} is the amount to pay.
 # description · max 4096 characters · required · placeholders: {order_number}, {total}
 checkout.payment.gift_card.instructions = '''
-Pay with a **DoorDash eGift card** for exactly **{total}**.
-1. Buy a DoorDash eGift card for {total} (or several cards that add up to it).
-2. Press **Submit gift card** and enter the code (and the PIN, if your card has one) in the private form.
-3. Our team verifies it and confirms your order here.
+Pay with a **DoorDash eGift card** worth exactly **{total}**.
+{icon_step_1} Press **Buy a gift card** and choose a **DoorDash eGift Card** (not another brand).
+{icon_step_2} Set the amount to **{total}** and buy it. You receive the card by email or text.
+{icon_step_3} Press **Submit gift card** and enter the code (and the PIN, if your card has one).
 
-{icon_lock} Never post a gift card code in this chat. Only the private form keeps it safe.'''
+{icon_lock} Only our payment team can see your code, and it is deleted once it is redeemed. Never post it in this chat and never send it to anyone by DM.'''
 
 # Line under the cards while part of the total is still to pay: {remaining} (still to pay) and {received} (the cards that count).
 # format · max 100 characters · required · placeholders: {remaining}, {received}
@@ -1834,7 +1838,7 @@ checkout.payment.gift_card.submit_button = "Submit gift card"
 
 # Optional title of the payment instructions shown in the order ticket while the order waits for payment.
 # title · max 256 characters · optional · placeholders: {order_number}, {total}
-checkout.payment.gift_card.title = "Pay with a DoorDash eGift card"
+checkout.payment.gift_card.title = "{icon_gift} HOW TO PAY"
 
 # --- Checkout: gift card payment form ---
 
@@ -2111,7 +2115,10 @@ checkout.status.fulfilled.title = "Order #{order_number} delivered"
 
 # Optional text of the order workflow message once the order is 'paid'. {order_number} is the order number, {total} the order total written with common.money_format.
 # description · max 4096 characters · optional · placeholders: {order_number}, {total}
-checkout.status.paid.description = "Thank you, your payment is confirmed. Our team will now prepare your order. You will get a message each time its status changes."
+checkout.status.paid.description = '''
+Thank you, your payment is confirmed. We're preparing your order now.
+
+Your tracking number will be posted here as soon as it ships.'''
 
 # Title of the order workflow message once the order is 'paid' (staff confirmed the payment). {order_number} is the order number, {total} the order total written with common.money_format.
 # title · max 256 characters · required · placeholders: {order_number}, {total}
@@ -2217,13 +2224,13 @@ checkout.status_label.shipped = "Shipped"
 # Optional text of the submitted order. The payment instructions follow below it. {order_number} is the order number, {total} the order total written with common.money_format.
 # description · max 4096 characters · optional · placeholders: {order_number}, {total}
 checkout.submitted.description = '''
-Thank you, your order is placed and now waits for payment. How to pay is explained below.
+Your items are reserved for you. Pay with a DoorDash eGift card to place the order: see how below.
 
-You get a message each time your order status changes. Changed your mind? You can press **Cancel order** until your payment is confirmed.'''
+Changed your mind? You can press **Cancel order** until you submit your payment.'''
 
 # Title of the workflow message after the order was submitted (waiting for payment). {order_number} is the order number, {total} the order total written with common.money_format.
 # title · max 256 characters · required · placeholders: {order_number}, {total}
-checkout.submitted.title = "Order #{order_number} submitted"
+checkout.submitted.title = "Pay for order #{order_number}"
 
 # --- Checkout: order ticket (introduction, reference, status and timeline on the live panel) ---
 
@@ -2232,18 +2239,15 @@ checkout.submitted.title = "Order #{order_number} submitted"
 checkout.ticket.intro_description = '''
 Hi {user_mention}, this is your private order ticket. Only you and our team can see it.
 
-**How to order**
-• Choose your items in the panel below
-• Check your cart and press **Continue**
-• Review your order, press **Submit order** and enter your shipping details
+**{icon_list} HOW IT WORKS**
+Choose your items, add your shipping address, pick a delivery option, review the total, then pay with a DoorDash eGift card. Every step happens in the panel below.
 
-After you submit, our team will post the payment instructions here. You can also write here if you have a question.
-
-**Never share card numbers or passwords in Discord.**'''
+{icon_lock} Never post your address or a gift card code in this chat. The bot asks for them in private forms.
+{icon_chat} Questions? Write them here and our team will answer.'''
 
 # Optional title of the first message in every order ticket. {ticket_number} is the ticket number.
 # title · max 256 characters · optional · placeholders: {ticket_number}
-checkout.ticket.intro_title = "Welcome to your order ticket"
+checkout.ticket.intro_title = "Your order ticket"
 
 # Name of the field showing the order number on the live panel once the order was submitted.
 # field_name · max 256 characters · required
@@ -2259,7 +2263,7 @@ checkout.ticket.status_field = "Status"
 
 # Status shown on the live panel while the customer is still putting the order together (not submitted yet).
 # field_value · max 1024 characters · required
-checkout.ticket.status_in_progress = "Not submitted yet"
+checkout.ticket.status_in_progress = "Not placed yet"
 
 # How one stage of the timeline is written, e.g. '{time} {stage}'. {stage} is the stage name (checkout.ticket.stage.*), {time} the date and time it was reached and {relative} the same as a relative time (both shown by Discord in each reader's own time zone and language).
 # format · max 100 characters · required · placeholders: {stage}, {time}, {relative}

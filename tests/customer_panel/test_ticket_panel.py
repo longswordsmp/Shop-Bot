@@ -158,7 +158,7 @@ async def test_every_step_shows_reference_status_progress_selection_and_actions(
     await set_qty(tenv, customer, message, sid, p1.id, 2)
     await go(tenv, customer, message, sid, m.CART)
     _header(tenv, message)
-    _progress(tenv, message, 2, 5)
+    _progress(tenv, message, 1, 5)  # choosing items and the cart are one step
     line = render(
         tenv, k.CART_LINE, name="[p1]", quantity=2, unit_price=money(tenv, 1000), line_total=money(tenv, 2000)
     )
@@ -170,7 +170,7 @@ async def test_every_step_shows_reference_status_progress_selection_and_actions(
     await go(tenv, customer, message, sid, m.FULFILLMENT)
     await press(tenv, customer, message, views.fulfillment_id(sid), values=["delivery"])
     _header(tenv, message)
-    _progress(tenv, message, 3, 5)
+    _progress(tenv, message, 2, 5)
     selected = field_map(message)
     assert line in selected[tenv.text(k.CART_FIELD)]  # the cart is still visible
     assert selected[tenv.text(k.FULFILLMENT_CHOSEN_FIELD)] == tenv.text(k.option_key("delivery", "label"))
@@ -185,7 +185,7 @@ async def test_every_step_shows_reference_status_progress_selection_and_actions(
         message=message,
     )
     _header(tenv, message)
-    _progress(tenv, message, 4, 5)
+    _progress(tenv, message, 3, 5)
     entered = field_map(message)
     assert entered[tenv.text(k.form_field_key("name", "label"))] == "[sample name]"
     assert entered[tenv.text(k.FULFILLMENT_CHOSEN_FIELD)] == tenv.text(k.option_key("delivery", "label"))
@@ -196,7 +196,7 @@ async def test_every_step_shows_reference_status_progress_selection_and_actions(
 
     await go(tenv, customer, message, sid, m.REVIEW)
     _header(tenv, message)
-    _progress(tenv, message, 5, 5)
+    _progress(tenv, message, 4, 5)  # the payment is step 5
     review = field_map(message)
     # The summary: selections, the details the customer entered, totals, and the status.
     assert review[tenv.text(k.form_field_key("name", "label"))] == "[sample name]"

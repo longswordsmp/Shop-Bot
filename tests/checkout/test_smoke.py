@@ -11,6 +11,7 @@ from tests.checkout.util import (
     money,
     op_text,
     order,
+    payment_section,
     place_order,
     press,
     product,
@@ -32,8 +33,8 @@ async def test_full_lifecycle(co: TestEnv) -> None:
     assert message.embeds[0].title == render(
         co, k.SUBMITTED_TITLE, order_number=str(placed.number), total=money(co, 2800)
     )
-    assert message.embeds[1].description == render(
-        co, "checkout.payment.manual.instructions", order_number=str(placed.number), total=money(co, 2800)
+    assert message.embeds[0].description.endswith(  # type: ignore[union-attr]
+        payment_section(co, order_number=str(placed.number), total=money(co, 2800))
     )
     assert (await product(co, p1.id)).reserved == 2
 

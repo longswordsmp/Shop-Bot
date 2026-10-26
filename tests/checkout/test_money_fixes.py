@@ -20,11 +20,13 @@ from tests.checkout.util import (
     control_ids,
     give_credits,
     go,
+    last_paragraph,
     make_env,
     money,
     op_text,
     order,
     orders,
+    payment_section,
     place_order,
     press,
     reject,
@@ -92,7 +94,7 @@ async def test_price_change_is_caught_when_store_credit_covers_the_whole_order(c
     assert await balance(co, customer.id) == 5000  # nothing was debited
     assert changed.last_sent is None  # the review is shown again, with the notice
     assert message.embeds[0].title == co.text(k.REVIEW_TITLE)
-    assert message.embeds[1].description == render(co, k.REVIEW_PRICE_CHANGED, total=money(co, 0))
+    assert last_paragraph(message) == render(co, k.REVIEW_PRICE_CHANGED, total=money(co, 0))
     fields = {f.name: f.value for f in message.embeds[0].fields}
     assert fields[co.text(k.REVIEW_CREDITS_FIELD)] == money(co, 4000)
     # Submitting what is shown now debits exactly what is shown.
@@ -141,7 +143,7 @@ async def test_a_submit_button_rendered_before_the_guard_counts_as_changed(co: T
     result = await press(co, customer, message, legacy)
     assert await orders(co) == []
     assert result.last_sent is None
-    assert message.embeds[1].description == render(co, k.REVIEW_PRICE_CHANGED, total=money(co, 2000))
+    assert last_paragraph(message) == render(co, k.REVIEW_PRICE_CHANGED, total=money(co, 2000))
     await press(co, customer, message, _submit_button(message))
     assert len(await orders(co)) == 1
     assert (await service.submit(co.app, await _reloaded(co, session.id), 2000)).id == 1  # already submitted
@@ -373,7 +375,7 @@ async def test_order_amounts_keep_the_order_currency_after_the_shop_currency_cha
 
         assert await service.refresh_customer_message(tenv.app, placed.id)
         assert message.embeds[0].title == render(tenv, k.SUBMITTED_TITLE, **values)
-        assert message.embeds[1].description == render(tenv, "checkout.payment.manual.instructions", **values)
+        assert message.embeds[0].description.endswith(payment_section(tenv, **values))  # type: ignore[union-attr]
         assert usd in {f.value for f in message.embeds[0].fields}
         assert await service.refresh_staff_message(tenv.app, placed.id)
         control = staff_message(tenv, await order(tenv, placed.id))
@@ -383,13 +385,15 @@ async def test_order_amounts_keep_the_order_currency_after_the_shop_currency_cha
         tenv.clock.advance(30 * 60)
         await tenv.app.scheduler.run_due()  # the payment reminder
         reminder = customer.dms[-1]
-        assert reminder.embeds[0].description == render(
-            tenv,
-            k.notify_description_key(k.NOTIFY_PAYMENT_REMINDER),
-            channel_mention=f"<#{ch.id}>",
-            **values,
+        assert reminder.embeds[0].description.startswith(  # type: ignore[union-attr]
+            render(
+                tenv,
+                k.notify_description_key(k.NOTIFY_PAYMENT_REMINDER),
+                channel_mention=f"<#{ch.id}>",
+                **values,
+            )
         )
-        assert reminder.embeds[1].description == render(tenv, "checkout.payment.manual.instructions", **values)
+        assert reminder.embeds[0].description.endswith(payment_section(tenv, **values))  # type: ignore[union-attr]
 
         await _staff_status(tenv, staffer, placed, m.PAID)
         assert customer.dms[-1].embeds[0].description == render(

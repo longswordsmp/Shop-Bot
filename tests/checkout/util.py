@@ -371,3 +371,16 @@ async def run_command(
 
 def texts(interaction: FakeInteraction) -> str:
     return "\n".join(message.text() for message in interaction.sent)
+
+
+def last_paragraph(message: FakeMessage) -> str:
+    """The last paragraph of the message's card: a notice (empty catalog, minimum, changed total) or the payment
+    instructions, which are part of the card instead of a card of their own."""
+    return (message.embeds[0].description or "").rsplit("\n\n", 1)[-1]
+
+
+def payment_section(tenv: TestEnv, provider: str = "manual", **values: str | int) -> str:
+    """The payment instructions as the last section of the order card: their title as a bold heading, then the text."""
+    title = tenv.app.content.render(f"checkout.payment.{provider}.title", **values)
+    text = tenv.app.content.render(f"checkout.payment.{provider}.instructions", **values)
+    return f"**{title}**\n{text}" if title else str(text)

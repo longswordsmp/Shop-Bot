@@ -50,6 +50,7 @@ from shopbot.features.tickets import views as tickets_views
 from shopbot.ui.card import heading, with_paragraph
 from shopbot.ui.custom_ids import cid
 from shopbot.ui.limits import (
+    EMBED_DESCRIPTION,
     EMBED_FIELD_VALUE,
     EMBED_FIELDS,
     EMBED_TOTAL_CHARS,
@@ -368,9 +369,12 @@ def _optional_field(ui: Ui, name_key: str, value: str, *, inline: bool = False) 
     return EmbedField(name=name, value=value, inline=inline) if name else None
 
 
-def _notice(ui: Ui, text: str, *, tone: str = "warning") -> EmbedSpec:
-    """A second card under the main one (no repeated author/footer)."""
-    return ui.embed(description=text, tone=tone, branding_text=False)
+def _with_notice(embeds: Sequence[EmbedSpec], text: str | None) -> list[EmbedSpec]:
+    """The step card with a notice (an empty catalog, a minimum not met, a changed total) as its last paragraph: one
+    card, unless the text would not fit next to the rest (then it follows on its own, nothing is cut)."""
+    if not embeds:
+        return []
+    return [*with_paragraph(embeds[0], text), *embeds[1:]]
 
 
 def _description_message(
@@ -432,11 +436,13 @@ def _spread(head: EmbedSpec, fields: Sequence[EmbedField]) -> list[EmbedSpec]:
 
 
 def _fits(embeds: Sequence[EmbedSpec]) -> bool:
-    """Whether the cards fit one message (10 cards, 6000 characters; each card holds at most 25 fields)."""
+    """Whether the cards fit one message (10 cards, 6000 characters; each card holds at most 25 fields and a
+    description of at most 4096 characters)."""
     return (
         len(embeds) <= EMBEDS_PER_MESSAGE
         and sum(e.text_length() for e in embeds) <= EMBED_TOTAL_CHARS
         and all(len(e.fields) <= EMBED_FIELDS for e in embeds)
+        and all(len(e.description or "") <= EMBED_DESCRIPTION for e in embeds)
     )
 
 
@@ -669,10 +675,21 @@ def _footer(ui: Ui, settings: Settings, data: m.WorkflowData, step: str) -> str 
     browse = data.browse
     if step == m.BROWSE and browse is not None and browse.pages > 1:
         parts.append(ui.page_indicator(browse.page + 1, browse.pages))
-    steps = flow.steps_for(settings.checkout, data.session.fulfillment_option)
-    if step in steps:
-        parts.append(ui.progress(steps.index(step) + 1, len(steps)))
+    current, total = step_number(settings, data.session.fulfillment_option, step)
+    if current:
+        parts.append(ui.progress(current, total))
     return "\n".join(p for p in parts if p) or None
+
+
+def step_number(settings: Settings, option: str | None, step: str | None) -> tuple[int, int]:
+    """(step, number of steps) as the customer sees them: choosing items and the cart are one step, the payment after
+    the review is the last one (``step`` None). (0, total) for a step that is not shown."""
+    shown = [s for s in flow.steps_for(settings.checkout, option) if s != m.CART]
+    total = len(shown) + 1
+    if step is None:
+        return total, total
+    step = m.BROWSE if step == m.CART else step
+    return (shown.index(step) + 1 if step in shown else 0), total
 
 
 def _step_embed(
@@ -773,7 +790,7 @@ def _browse(ui: Ui, settings: Settings, data: m.WorkflowData) -> MessageSpec:
     rows: list[tuple[Component, ...]] = []
     browse = data.browse
     if browse is None or browse.total == 0 or not browse.products:
-        embeds.append(_notice(ui, _text(ui, k.BROWSE_EMPTY_CATALOG), tone="neutral"))
+        embeds = _with_notice(embeds, _text(ui, k.BROWSE_EMPTY_CATALOG))
     else:
         select = SelectSpec(
             custom_id=pick_id(session.id, browse.page),
@@ -817,7 +834,7 @@ def _cart(ui: Ui, settings: Settings, data: m.WorkflowData) -> MessageSpec:
     met = minimum_met(settings, data)
     if data.lines and not met:
         minimum = money(ui, settings.checkout.min_order_total_minor)
-        embeds.append(_notice(ui, _text(ui, k.CART_MINIMUM_NOT_MET, minimum=minimum)))
+        embeds = _with_notice(embeds, _text(ui, k.CART_MINIMUM_NOT_MET, minimum=minimum))
     rows: list[tuple[Component, ...]] = []
     if data.lines:
         rows.append(
@@ -1049,9 +1066,6 @@ def review_fields(ui: Ui, settings: Settings, data: m.WorkflowData) -> list[Embe
     )
     if chosen is not None:
         fields.append(_field(ui, k.FULFILLMENT_CHOSEN_FIELD, _text(ui, k.option_key(chosen.id, "label")), inline=True))
-    destination = ship_to(ui, settings, session.details) if settings.checkout.ask_address else None
-    if destination is not None:
-        fields.append(EmbedField(name=_text(ui, k.ADDRESS_HEADING), value=destination))
     if totals.fulfillment_fee_minor > 0:
         fields.append(_field(ui, k.FULFILLMENT_FEE_FIELD, money(ui, totals.fulfillment_fee_minor), inline=True))
     for fee in totals.fees:
@@ -1063,24 +1077,26 @@ def review_fields(ui: Ui, settings: Settings, data: m.WorkflowData) -> list[Embe
         if available is not None:
             fields.append(available)
     fields.append(_field(ui, k.REVIEW_TOTAL_FIELD, money(ui, totals.total_minor), inline=True))
+    destination = ship_to(ui, settings, session.details) if settings.checkout.ask_address else None
+    if destination is not None:
+        fields.append(EmbedField(name=_text(ui, k.ADDRESS_HEADING), value=destination))
     return fields
 
 
-def _review(ui: Ui, settings: Settings, data: m.WorkflowData, notice: EmbedSpec | None) -> MessageSpec:
+def _review(ui: Ui, settings: Settings, data: m.WorkflowData, notice: str | None) -> MessageSpec:
     session = data.session
-    embeds = _step_embeds(
-        ui,
-        k.REVIEW_TITLE,
-        k.REVIEW_DESCRIPTION,
-        _session_header(ui, settings, data) + review_fields(ui, settings, data),
-        _footer(ui, settings, data, m.REVIEW),
+    embeds = _with_notice(
+        _step_embeds(
+            ui,
+            k.REVIEW_TITLE,
+            k.REVIEW_DESCRIPTION,
+            _session_header(ui, settings, data) + review_fields(ui, settings, data),
+            _footer(ui, settings, data, m.REVIEW),
+        ),
+        notice,
     )
     # The summary also lists the details the customer entered (as many as fit next to the configured text).
-    embeds, _ = _with_answers(
-        embeds, _detail_answer_fields(ui, settings, session), budget=[notice] if notice is not None else []
-    )
-    if notice is not None:
-        embeds.append(notice)
+    embeds, _ = _with_answers(embeds, _detail_answer_fields(ui, settings, session))
     credit_buttons: list[ButtonSpec] = []
     if data.credits_enabled:
         if data.totals.credits_applied_minor > 0:
@@ -1103,13 +1119,11 @@ def _review(ui: Ui, settings: Settings, data: m.WorkflowData, notice: EmbedSpec 
     )
 
 
-def price_changed_notice(ui: Ui, total_minor: int) -> EmbedSpec:
-    return _notice(ui, _text(ui, k.REVIEW_PRICE_CHANGED, total=money(ui, total_minor)))
+def price_changed_notice(ui: Ui, total_minor: int) -> str:
+    return _text(ui, k.REVIEW_PRICE_CHANGED, total=money(ui, total_minor))
 
 
-def workflow_message(
-    ui: Ui, settings: Settings, data: m.WorkflowData, *, notice: EmbedSpec | None = None
-) -> MessageSpec:
+def workflow_message(ui: Ui, settings: Settings, data: m.WorkflowData, *, notice: str | None = None) -> MessageSpec:
     """The single editable workflow message of an active session, at its current step."""
     step = effective_step(settings, data.session)
     if step == m.BROWSE:
@@ -1132,8 +1146,8 @@ def cancel_confirm(ui: Ui, session_id: int) -> MessageSpec:
         tone="warning",
     )
     rows = rows_of(
-        _button(ui, core.BUTTON_CONFIRM, cancel_yes_id(session_id), style="danger"),
-        _button(ui, core.BUTTON_CANCEL, cancel_no_id(session_id)),
+        _button(ui, k.BUTTON_CANCEL_YES, cancel_yes_id(session_id), style="danger"),
+        _button(ui, k.BUTTON_KEEP_ORDER, cancel_no_id(session_id)),
     )
     return MessageSpec(embeds=(embed,), rows=rows, banner=ui.banner("general-response"))
 
@@ -1321,9 +1335,20 @@ def order_header_fields(ui: Ui, settings: Settings, view: m.OrderView) -> list[E
 
 
 def instructions_embed(ui: Ui, instructions: PaymentInstructions, values: Mapping[str, str | int]) -> EmbedSpec:
+    """The payment instructions as a card of their own (only when they do not fit into the order card)."""
     title = _optional(ui, instructions.title_key, **values)
     description = _text(ui, instructions.description_key, **values)
     return ui.embed(title=title, description=description, tone="info", fields=instructions.fields, branding_text=False)
+
+
+def _with_instructions(
+    ui: Ui, card: EmbedSpec, instructions: PaymentInstructions, values: Mapping[str, str | int]
+) -> EmbedSpec:
+    """``card`` with the payment instructions as its last section (their title as the section heading)."""
+    title = _optional(ui, instructions.title_key, **values)
+    text = _text(ui, instructions.description_key, **values)
+    section = f"{heading(title)}\n{text}" if title else text
+    return replace(card, description=f"{card.description}\n\n{section}" if card.description else section)
 
 
 def _payment_buttons(ui: Ui, instructions: PaymentInstructions | None, order_id: int) -> tuple[ButtonSpec, ...]:
@@ -1372,8 +1397,16 @@ def order_messages(
     total_fields = _order_total_fields(ui, view, fmt) + timeline_fields(ui, view.timeline)
     pending = order.status == m.PENDING
     if pending:
+        # Paying is the last step of ordering (the steps before it are on the workflow message).
+        current, total = step_number(settings, order.fulfillment_option, None)
         head = _content_embed(
-            ui, k.SUBMITTED_TITLE, k.SUBMITTED_DESCRIPTION, required=(k.SUBMITTED_TITLE,), values=values, tone="success"
+            ui,
+            k.SUBMITTED_TITLE,
+            k.SUBMITTED_DESCRIPTION,
+            required=(k.SUBMITTED_TITLE,),
+            values=values,
+            tone="primary",
+            footer_extra=ui.progress(current, total),
         )
     else:
         title_key = k.status_title_key(order.status)
@@ -1385,13 +1418,17 @@ def order_messages(
             values=values,
             tone=_STATUS_TONES.get(order.status, "info"),
         )
-    tail = [instructions_embed(ui, instructions, values)] if pending and instructions is not None else []
+    paying = instructions if pending else None
+    tail = [instructions_embed(ui, paying, values)] if paying is not None else []
     pay = _payment_buttons(ui, instructions, order.id) if pending else ()
     cancel = _button(ui, k.BUTTON_CANCEL_ORDER, order_cancel_id(order.id), style="danger") if pending else None
 
     def embeds_for(with_lines: bool, with_instructions: bool) -> list[EmbedSpec]:
         fields = header_fields + (line_fields if with_lines else []) + total_fields
-        return _spread(head, fields) + (tail if with_instructions else [])
+        if with_instructions and paying is not None:
+            # One card: the instructions are its last section, what was paid so far follows the totals.
+            return _spread(_with_instructions(ui, head, paying, values), [*fields, *paying.fields])
+        return _spread(head, fields)
 
     # Most complete first: everything; the lines separately; the instructions separately; both separately.
     layouts = ((True, True), (False, True), (True, False), (False, False))
@@ -1425,8 +1462,8 @@ def order_cancel_confirm(ui: Ui, order: m.Order) -> MessageSpec:
         tone="warning",
     )
     rows = rows_of(
-        _button(ui, core.BUTTON_CONFIRM, order_cancel_yes_id(order.id), style="danger"),
-        _button(ui, core.BUTTON_BACK, order_cancel_no_id(order.id)),
+        _button(ui, k.BUTTON_CANCEL_YES, order_cancel_yes_id(order.id), style="danger"),
+        _button(ui, k.BUTTON_KEEP_ORDER, order_cancel_no_id(order.id)),
     )
     return MessageSpec(embeds=(embed,), rows=rows, banner=ui.banner("general-response"))
 
@@ -1646,7 +1683,11 @@ def reminder_notification(
     )
     embeds = [embed]
     if instructions is not None:
-        embeds.append(instructions_embed(ui, instructions, order_values(ui, settings, view.order)))
+        order_text = order_values(ui, settings, view.order)
+        merged = replace(
+            _with_instructions(ui, embed, instructions, order_text), fields=embed.fields + instructions.fields
+        )
+        embeds = [merged] if _fits([merged]) else [embed, instructions_embed(ui, instructions, order_text)]
     link = _instruction_link(ui, instructions)
     return MessageSpec(embeds=tuple(embeds), rows=rows_of(link), banner=ui.banner("reminder"))
 

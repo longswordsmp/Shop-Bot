@@ -136,6 +136,8 @@ STAFF_CLOSED_DESCRIPTION = "checkout.staff_closed.description"
 ORDER_CANCEL_CONFIRM_TITLE = "checkout.order_cancel_confirm.title"
 ORDER_CANCEL_CONFIRM_DESCRIPTION = "checkout.order_cancel_confirm.description"
 BUTTON_CANCEL_ORDER = "checkout.button.cancel_order"
+BUTTON_CANCEL_YES = "checkout.button.cancel_yes"
+BUTTON_KEEP_ORDER = "checkout.button.keep_order"
 
 # -- submitted order ----------------------------------------------------------------------------------
 SUBMITTED_TITLE = "checkout.submitted.title"
@@ -885,6 +887,20 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             FEATURE,
             g_cancel,
             "Button under a submitted order that lets the customer cancel it while it is not paid yet.",
+        ),
+        ck(
+            BUTTON_CANCEL_YES,
+            Kind.BUTTON_LABEL,
+            FEATURE,
+            g_cancel,
+            "Button of the cancel question (an unfinished order or an unpaid one) that cancels it.",
+        ),
+        ck(
+            BUTTON_KEEP_ORDER,
+            Kind.BUTTON_LABEL,
+            FEATURE,
+            g_cancel,
+            "Button of the cancel question that keeps the order and goes back to it.",
         ),
         ck(
             SUBMITTED_TITLE,

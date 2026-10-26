@@ -78,8 +78,9 @@ async def test_a_full_cart_with_long_names_never_hides_the_payment_instructions(
         values = {"order_number": "1", "total": money(tenv, 20_000)}
         # The workflow message: status text, totals, the payment instructions and the cancel button.
         assert message.embeds[0].title == render(tenv, k.SUBMITTED_TITLE, **values)
-        assert message.embeds[0].description == DESCRIPTION
-        assert message.embeds[-1].description == INSTRUCTIONS
+        # One card: the status text, then the payment instructions as its last section.
+        assert message.embeds[0].description.startswith(DESCRIPTION)  # type: ignore[union-attr]
+        assert message.embeds[0].description.endswith(INSTRUCTIONS)  # type: ignore[union-attr]
         assert message.custom_ids() == [views.order_cancel_id(placed.id)]
         fields = {f.name: f.value for f in message.embeds[0].fields}
         assert fields[tenv.text(k.REVIEW_TOTAL_FIELD)] == money(tenv, 20_000)
@@ -103,7 +104,7 @@ async def test_a_full_cart_with_long_names_never_hides_the_payment_instructions(
         # Going back from the cancel question and later status changes render without errors and post nothing twice.
         await press(tenv, customer, message, views.order_cancel_id(placed.id))
         back = await press(tenv, customer, message, views.order_cancel_no_id(placed.id))
-        assert error_text(back) is None and message.embeds[-1].description == INSTRUCTIONS
+        assert error_text(back) is None and message.embeds[0].description.endswith(INSTRUCTIONS)  # type: ignore[union-attr]
         posted = len(ch.messages)
         await press(tenv, staffer, control, views.staff_action_id(m.PAID, placed.id, m.PENDING))
         paid = await order(tenv, placed.id)

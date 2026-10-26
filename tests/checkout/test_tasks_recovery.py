@@ -18,6 +18,7 @@ from tests.checkout.util import (
     make_env,
     money,
     order,
+    payment_section,
     place_order,
     press,
     product,
@@ -106,10 +107,10 @@ async def test_payment_reminder_once_then_expiry(tmp_path: Path) -> None:
         values = {"order_number": "1", "total": money(tenv, 1900), "channel_mention": f"<#{ch.id}>"}
         assert len(customer.dms) == 2  # submission received, then the reminder
         dm = customer.dms[1]
-        assert dm.embeds[0].description == render(tenv, k.notify_description_key(k.NOTIFY_PAYMENT_REMINDER), **values)
-        assert dm.embeds[1].description == render(
-            tenv, "checkout.payment.manual.instructions", order_number="1", total=money(tenv, 1900)
-        )
+        # One card: the reminder, then the payment instructions as its last section.
+        reminder = render(tenv, k.notify_description_key(k.NOTIFY_PAYMENT_REMINDER), **values)
+        section = payment_section(tenv, order_number="1", total=money(tenv, 1900))
+        assert len(dm.embeds) == 1 and dm.embeds[0].description == f"{reminder}\n\n{section}"
         # the reminder is sent once, even if its task runs again
         await tenv.app.db.transaction(
             task_repo.schedule,
