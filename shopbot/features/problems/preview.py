@@ -47,9 +47,9 @@ def sample_text(unit: str, length: int) -> str:
 
 
 def _status_label(ui: Ui, status: str) -> str:
-    text = ui.text(checkout_keys.status_label_key(status))
+    text = ui.text(checkout_keys.stage_key(status))
     if text is None:
-        raise MissingContent(checkout_keys.status_label_key(status))
+        raise MissingContent(checkout_keys.stage_key(status))
     return text
 
 
@@ -201,14 +201,15 @@ def preview(app: App) -> list[PreviewState]:
             continue
         add(
             f"details.{problem_type.id}",
-            f"The customer's answers to the '{problem_type.id}' form, posted below the report panel.",
+            f"The customer's answers to the '{problem_type.id}' form as a card posted below the report panel: the "
+            "heading, then each question in bold with the answer under it.",
             partial(_first, views.details_messages, ui, problem_type, sample_answers(problem_type)),
         )
         for index, spec in enumerate(_longest(ui, problem_type), start=1):
             add(
                 f"details.{problem_type.id}.longest.{index}",
-                f"Answers to the '{problem_type.id}' form at their maximum lengths (message {index}; long answers "
-                "continue in further messages, nothing is cut).",
+                f"Answers to the '{problem_type.id}' form at their maximum lengths (message {index}; a long card "
+                "continues in its next embed and further messages, nothing is cut, no banner).",
                 partial(_same, spec),
             )
 
@@ -264,12 +265,8 @@ def preview(app: App) -> list[PreviewState]:
         "Staff only: private reply after a decision.",
         lambda: views.operator_reply(
             ui,
-            app.op(
-                "problems.op.decided",
-                number=number,
-                status=app.op("problems.op.status.resolved"),
-                delivery=app.op("problems.op.delivery.dm"),
-            ),
+            app.op("problems.op.decided_title", number=number, status=app.op("problems.op.status.resolved")),
+            app.op("problems.op.decided", delivery=app.op("problems.op.delivery.dm")),
             tone="success",
         ),
     )
@@ -278,8 +275,20 @@ def preview(app: App) -> list[PreviewState]:
         "Staff only: private reply when the report was already decided (double or concurrent decision).",
         lambda: views.operator_reply(
             ui,
-            app.op("problems.op.already_decided", number=number, status=app.op("problems.op.status.rejected")),
+            app.op("problems.op.already_decided_title", number=number, status=app.op("problems.op.status.rejected")),
+            app.op("problems.op.already_decided"),
             tone="warning",
+        ),
+    )
+    add(
+        "staff.reason_required",
+        "Staff only: private reply when Reject was submitted without the required reason.",
+        lambda: views.operator_reply(
+            ui,
+            app.op("problems.op.reason_required_title"),
+            app.op("problems.op.reason_required"),
+            tone="warning",
+            banner="error",
         ),
     )
     return states

@@ -38,9 +38,16 @@ def _fields(message: object) -> dict[str, str]:
     return {f.name: f.value for f in embed.fields}
 
 
-def _op_title(interaction: object) -> str | None:
+def _op_reply(interaction: object) -> tuple[str | None, str | None]:
+    """(title, text) of the staff-only private reply: what happened, over its details."""
     sent = interaction.last_sent  # type: ignore[attr-defined]
-    return sent.embeds[0].title if sent is not None else None
+    if sent is None:
+        return None, None
+    return sent.embeds[0].title, sent.embeds[0].description
+
+
+def _op_text(interaction: object) -> str:
+    return str(_op_reply(interaction)[1])
 
 
 async def test_staff_resolves_with_a_note(pr: TestEnv) -> None:
@@ -54,11 +61,9 @@ async def test_staff_resolves_with_a_note(pr: TestEnv) -> None:
     decided = await report_of(pr, report.id)
     assert decided.status == k.RESOLVED and decided.reason == "replaced it" and decided.decided_by == staff.id
     assert decided.decided_at is not None
-    assert _op_title(done) == pr.app.op(
-        "problems.op.decided",
-        number=number,
-        status=pr.app.op("problems.op.status.resolved"),
-        delivery=pr.app.op("problems.op.delivery.dm"),
+    assert _op_reply(done) == (
+        pr.app.op("problems.op.decided_title", number=number, status=pr.app.op("problems.op.status.resolved")),
+        pr.app.op("problems.op.decided", delivery=pr.app.op("problems.op.delivery.dm")),
     )
     assert done.last_sent is not None and done.last_sent.flags.ephemeral
 
@@ -99,10 +104,16 @@ async def test_reject_requires_a_reason(pr: TestEnv) -> None:
     assert modal.title == pr.app.op("problems.form.reject_title", number=service.number_text(pr.app, 1))
 
     empty = await decide(pr, staff, report, "reject", "   ")
-    assert _op_title(empty) == pr.app.op("problems.op.reason_required")
+    assert _op_reply(empty) == (
+        pr.app.op("problems.op.reason_required_title"),
+        pr.app.op("problems.op.reason_required"),
+    )
     assert (await report_of(pr, report.id)).is_open
     too_long = await decide(pr, staff, report, "reject", "x" * (k.REASON_MAX + 1))
-    assert _op_title(too_long) == pr.app.op("problems.op.reason_too_long", max=k.REASON_MAX, length=k.REASON_MAX + 1)
+    assert _op_reply(too_long) == (
+        pr.app.op("problems.op.reason_too_long_title"),
+        pr.app.op("problems.op.reason_too_long", max=k.REASON_MAX, length=k.REASON_MAX + 1),
+    )
 
     await decide(pr, staff, report, "reject", "not *our* fault")
     decided = await report_of(pr, report.id)
@@ -173,14 +184,18 @@ async def test_a_report_is_decided_exactly_once(pr: TestEnv) -> None:
     again = await decide(pr, second, report, "reject", "no")
     number = service.number_text(pr.app, 1)
     status = pr.app.op("problems.op.status.resolved")
-    assert _op_title(again) == pr.app.op("problems.op.already_decided", number=number, status=status)
+    already = (
+        pr.app.op("problems.op.already_decided_title", number=number, status=status),
+        pr.app.op("problems.op.already_decided"),
+    )
+    assert _op_reply(again) == already
     decided = await report_of(pr, report.id)
     assert decided.status == k.RESOLVED and decided.decided_by == first.id
     # A form submitted after the decision (opened before it) changes nothing either.
     late = await submit_modal(
         pr.app, user=second, custom_id=views.reject_form_id(report.id), fields={views.REASON_INPUT: "late"}
     )
-    assert _op_title(late) == pr.app.op("problems.op.already_decided", number=number, status=status)
+    assert _op_reply(late) == already
     assert await audit_actions(pr) == ["problems.reported", "problems.resolved"]
     assert len(user.dms) == 1
 
@@ -214,7 +229,7 @@ async def test_decision_without_direct_messages_uses_the_panel(tmp_path: Path) -
         assert user.dms == []
         ch = await ticket_channel(tenv, report)
         assert len(ch.messages) == 2  # no extra message: the updated panel is the notification
-        assert _op_title(done) is not None and tenv.app.op("problems.op.delivery.panel") in str(_op_title(done))
+        assert tenv.app.op("problems.op.delivery.panel") in _op_text(done)
     finally:
         await tenv.close()
 
@@ -227,7 +242,7 @@ async def test_closed_direct_messages_fall_back_to_the_panel(pr: TestEnv) -> Non
     ch = await ticket_channel(pr, report)
     assert len(ch.messages) == 2  # the panel shows the decision; nothing else is posted
     assert _fields(await panel_message(pr, report))[pr.text(k.FIELD_STATUS)] == pr.text(k.status_key(k.REJECTED))
-    assert pr.app.op("problems.op.delivery.none") in str(_op_title(done))
+    assert pr.app.op("problems.op.delivery.none") in _op_text(done)
 
 
 async def test_when_the_panel_is_gone_the_decision_is_posted_in_the_ticket(tmp_path: Path) -> None:
@@ -246,7 +261,7 @@ async def test_when_the_panel_is_gone_the_decision_is_posted_in_the_ticket(tmp_p
         assert posted.content == f"<@{user.id}>"  # pings the customer
         assert posted.embeds[0].description is not None
         assert _fields(posted)[tenv.text(k.FIELD_REASON)] == "fixed"
-        assert tenv.app.op("problems.op.delivery.channel") in str(_op_title(done))
+        assert tenv.app.op("problems.op.delivery.channel") in _op_text(done)
         assert (await report_of(tenv, report.id)).status == k.RESOLVED
     finally:
         await tenv.close()

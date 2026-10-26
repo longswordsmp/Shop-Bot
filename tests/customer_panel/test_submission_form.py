@@ -19,8 +19,9 @@ from tests.checkout.util import (
     add_product,
     channel,
     error_text,
-    last_paragraph,
+    order_facts,
     orders,
+    paragraphs,
     post_answers_in_channel,
     press,
     reload_session,
@@ -29,7 +30,7 @@ from tests.checkout.util import (
     start,
     to_review,
 )
-from tests.customer_panel.util import SUBMISSION_FORM, env, field_map
+from tests.customer_panel.util import SUBMISSION_FORM, env
 from tests.fakes import FakeMember, FakeMessage, modal_input_ids, modal_of, submit_modal
 from tests.helpers import GUILD_ID, TestEnv, make_settings
 
@@ -109,9 +110,8 @@ async def test_a_price_change_before_the_form_shows_the_notice(sf: TestEnv) -> N
     await set_price(tenv, product_id, 1500)
     clicked = await press(tenv, customer, message, views.submit_id(session.id, total, gross))
     assert modal_of(clicked) is None
-    assert last_paragraph(message) == tenv.app.content.render(
-        k.REVIEW_PRICE_CHANGED, total=tenv.app.ui.money(1500) or ""
-    )
+    notice = tenv.app.content.render(k.REVIEW_PRICE_CHANGED, total=tenv.app.ui.money(1500) or "")
+    assert notice in paragraphs(message)
     assert views.submit_id(session.id, 1500, 1500) in message.custom_ids()
 
 
@@ -214,8 +214,9 @@ async def test_without_a_form_submit_creates_the_order_directly(tmp_path: Path) 
         total, gross = await _totals(tenv, session.id)
         clicked = await press(tenv, customer, message, views.submit_id(session.id, total, gross))
         assert modal_of(clicked) is None
-        assert len(await orders(tenv)) == 1
-        assert tenv.text(k.TICKET_ORDER_NUMBER_FIELD) in field_map(message)
+        placed = await orders(tenv)
+        assert len(placed) == 1
+        assert paragraphs(message)[0] == order_facts(tenv, placed[0])  # the panel shows the placed order
     finally:
         await tenv.close()
 

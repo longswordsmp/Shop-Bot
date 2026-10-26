@@ -108,7 +108,7 @@ async def test_panel_edit_failure_keeps_the_decision_and_tells_the_customer(
     ch = await ticket_channel(pr, report)
     assert ch.messages[-1].content == f"<@{user.id}>"
     assert ch.messages[-1].embeds[0].description is not None
-    assert pr.app.op("problems.op.delivery.channel") in str(done.last_sent and done.last_sent.embeds[0].title)
+    assert pr.app.op("problems.op.delivery.channel") in str(done.last_sent and done.last_sent.embeds[0].description)
     assert await audit_actions(pr) == ["problems.reported", "problems.rejected"]
 
 

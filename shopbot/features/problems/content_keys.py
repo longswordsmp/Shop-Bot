@@ -52,7 +52,9 @@ TYPE_PLACEHOLDER = "problems.choose.type_placeholder"
 ATTACHMENTS_NOTE = "problems.attachments_note"
 
 # -- private replies -------------------------------------------------------------------------------------------
+CREATED_TITLE = "problems.created.title"
 CREATED = "problems.created.description"
+LIMIT_REACHED_TITLE = "problems.limit_reached.title"
 LIMIT_REACHED = "problems.limit_reached.description"
 NO_ORDERS = "problems.no_orders.description"
 
@@ -69,6 +71,7 @@ FIELD_REASON = "problems.ticket.reason_field"
 FIELD_DECIDED_BY = "problems.ticket.decided_by_field"
 BUTTON_RESOLVE = "problems.button.resolve"
 BUTTON_REJECT = "problems.button.reject"
+DETAILS_HEADING = "problems.details.heading"
 
 # -- staff alert -------------------------------------------------------------------------------------------------
 STAFF_ALERT_TITLE = "problems.staff_alert.title"
@@ -85,7 +88,7 @@ _NUMBER_DOC = "{number} is the report's ticket number (zero-padded to tickets.nu
 _TYPE_DOC = "{type_label} is the label of the chosen issue type (problems.type.<id>.label)."
 _ORDER_DOC = (
     "{order_number} is the order number, {total} the order total written with common.money_format, {status} the "
-    "order's status name (checkout.status_label.<status>)."
+    "order's status name as the customer's order ticket writes it (checkout.ticket.stage.<status>)."
 )
 _CHANNEL_LINKS_DOC = "You can link server channels with {channel_<key>} (for example {channel_faq})."
 
@@ -179,8 +182,8 @@ def _type_keys(problem_type: ProblemType) -> list[ContentKey]:
                     Kind.INPUT_LABEL,
                     FEATURE,
                     group,
-                    f"Label of the '{f}' field of the '{t}' form (also the field name of the answer on the report's "
-                    "ticket).",
+                    f"Label of the '{f}' field of the '{t}' form (also the question shown in bold above the answer on "
+                    "the report's ticket).",
                 ),
                 ck(
                     form_field_key(t, f, "description"),
@@ -311,8 +314,17 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             FEATURE,
             g_choose,
             "Tells the customer that screenshots or files can be uploaded in the private ticket once it is open "
-            "(the ticket channel allows attachments). Shown below the choice step, below the confirmation after "
-            "the report was created, and on the report's ticket panel while the report is open.",
+            "(the ticket channel allows attachments). Shown below the confirmation after the report was created "
+            "and on the report's ticket panel while the report is open.",
+        ),
+        ck(
+            CREATED_TITLE,
+            Kind.TITLE,
+            FEATURE,
+            g_replies,
+            f"Optional title of the private confirmation after the report's ticket was created. {_NUMBER_DOC}",
+            required=False,
+            placeholders=("number",),
         ),
         ck(
             CREATED,
@@ -324,12 +336,21 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             placeholders=("channel_mention", "number"),
         ),
         ck(
+            LIMIT_REACHED_TITLE,
+            Kind.TITLE,
+            FEATURE,
+            g_replies,
+            "Optional title of the private reply when the customer already has the maximum number of open reports.",
+            required=False,
+        ),
+        ck(
             LIMIT_REACHED,
             Kind.DESCRIPTION,
             FEATURE,
             g_replies,
             "Private reply when the customer already has problems.max_open_per_user undecided reports with an open "
-            "ticket. {limit} is that number; {channel_mention} links the ticket of their newest open report.",
+            "ticket. {limit} is that number; {channel_mention} links the ticket of their newest open report (a line "
+            "with {channel_mention} is left out when that ticket cannot be linked).",
             placeholders=("limit", "channel_mention"),
         ),
         ck(
@@ -377,8 +398,19 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             g_ticket,
             "Text of the report panel, for example that only the customer and authorized staff can see this "
             "ticket. {user_mention} mentions the customer, {user_name} is their display name. "
-            f"{_NUMBER_DOC} {_TYPE_DOC} {_CHANNEL_LINKS_DOC} The form answers are posted below the panel.",
+            f"{_NUMBER_DOC} {_TYPE_DOC} {_CHANNEL_LINKS_DOC} The form answers are posted below the panel "
+            "(problems.details.heading).",
             placeholders=(*TICKET_PLACEHOLDERS, *links),
+        ),
+        ck(
+            DETAILS_HEADING,
+            Kind.TITLE,
+            FEATURE,
+            g_ticket,
+            "Optional heading of the card with the customer's form answers, posted below the report panel, shown in "
+            "bold (it may start with an icon, e.g. {icon_file}). Each question follows in bold with the answer under "
+            "it. If empty, the answers are shown without a heading.",
+            required=False,
         ),
         ck(FIELD_TYPE, Kind.FIELD_NAME, FEATURE, g_ticket, "Field name of the issue type on the report panel."),
         ck(
@@ -400,7 +432,13 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             required=orders,
             placeholders=ORDER_PLACEHOLDERS,
         ),
-        ck(FIELD_STATUS, Kind.FIELD_NAME, FEATURE, g_ticket, "Field name of the report status on the report panel."),
+        ck(
+            FIELD_STATUS,
+            Kind.FIELD_NAME,
+            FEATURE,
+            g_ticket,
+            "Field name of the report status on the report panel and in the decision message.",
+        ),
         ck(
             FIELD_REASON,
             Kind.FIELD_NAME,
@@ -446,7 +484,8 @@ def content_keys(settings: Settings) -> list[ContentKey]:
                 Kind.FIELD_VALUE,
                 FEATURE,
                 g_status,
-                f"Name of the report status '{status}' ({status_docs[status]}), shown on the report panel.",
+                f"Name of the report status '{status}' ({status_docs[status]}), shown on the report panel (and in the "
+                "decision message). It may start with an icon, e.g. {icon_check}.",
             )
         )
     for decision in DECISIONS:
@@ -470,7 +509,7 @@ def content_keys(settings: Settings) -> list[ContentKey]:
                 "reason/note follows under problems.ticket.reason_field). Sent by direct message when "
                 "features.dm_notifications is on; the report panel in the ticket always shows the decision, and "
                 "this message is posted in the ticket when the panel cannot be updated. {channel_mention} links the "
-                f"ticket. {_NUMBER_DOC} {_TYPE_DOC}",
+                f"ticket (a line with it is left out when the ticket cannot be linked). {_NUMBER_DOC} {_TYPE_DOC}",
                 placeholders=NOTIFY_PLACEHOLDERS,
             ),
         ]
@@ -510,7 +549,7 @@ def shared_keys(settings: Settings) -> list[str]:
         keys.append(core.BUTTON_CONTINUE)
     if orders_possible(settings):
         keys.append(core.MONEY_FORMAT)
-        keys += [checkout_keys.status_label_key(status) for status in settings.problems.eligible_statuses]
+        keys += [checkout_keys.stage_key(status) for status in settings.problems.eligible_statuses]
     return keys
 
 

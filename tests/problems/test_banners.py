@@ -100,9 +100,9 @@ async def test_replies_outside_the_step(bp: TestEnv) -> None:
     assert submitted.last_sent is not None and banner_names(submitted.last_sent) == [name(bp, "ticket-created")]
     limited = (await start(bp, user)).last_sent
     assert limited is not None and banner_names(limited) == [name(bp, "rejected-or-unsuccessful-submission")]
-    # An invalid form submission is a shared error reply.
+    # An invalid form submission is a shared error reply (a routine refusal: the general picture).
     invalid = await submit_form(bp, user, views.form_id("f" * 16, views.NO_ORDER, "general"), {"details": ""})
-    assert invalid.last_sent is not None and banner_names(invalid.last_sent) == [name(bp, "error")]
+    assert invalid.last_sent is not None and banner_names(invalid.last_sent) == [name(bp, "general-response")]
     assert len(await reports(bp)) == 1 and (await reports(bp))[0].id == report.id
 
 
@@ -197,7 +197,9 @@ async def test_preview_states_show_the_mapped_banners(tmp_path: Path) -> None:
                 assert banner is None, state
             else:
                 assert banner is not None and banner.filename == name(tenv, banner_id), state
-        error = views.error_reply(tenv.app.ui, core.ERROR_NOT_FOUND).banner
-        assert error is not None and error.filename == name(tenv, "error")
+        refusal = views.error_reply(tenv.app.ui, core.ERROR_NOT_FOUND).banner
+        assert refusal is not None and refusal.filename == name(tenv, "general-response")
+        failure = views.error_reply(tenv.app.ui, core.ERROR_GENERIC, error_id="abc").banner
+        assert failure is not None and failure.filename == name(tenv, "error")
     finally:
         await tenv.close()

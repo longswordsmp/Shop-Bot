@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from shopbot.features import core_keys as core
+from shopbot.features.checkout import content_keys as k
 from shopbot.features.checkout import handling_repo, repo, views
 from shopbot.features.checkout import models as m
 from tests.checkout.util import (
@@ -14,10 +15,12 @@ from tests.checkout.util import (
     error_text,
     go,
     make_env,
+    money,
     op_text,
     order,
     place_order,
     press,
+    render,
     run_command,
     set_qty,
     start,
@@ -120,7 +123,9 @@ async def test_lookup_shows_everything(cof: TestEnv) -> None:
     text = texts(found)
     assert tenv.app.op("checkout.lookup.title", number=1) in text
     assert "[p\\_1]" in text and "[sample name]" in text
-    assert tenv.app.op("checkout.lookup.fee_line", fee="tax", amount="1.00 USD") in text
+    # A fee by its name, one amount per line in the shop's money format (as on the live record).
+    tax = tenv.app.content.render(k.fee_label_key("tax"))
+    assert render(tenv, k.SUMMARY_LINE, label=tax or "", amount=money(tenv, 100)) in text
     assert all(len(msg.embeds) <= 10 for msg in found.sent)
     missing = await run_command(tenv, "lookup", user=staffer, number=7)
     assert op_text(missing) == tenv.app.op("checkout.op.not_found", number=7)

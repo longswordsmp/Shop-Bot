@@ -226,8 +226,9 @@ Use a second (non-staff) Discord account as the "customer".
 - [ ] Buy on a #catalog item while the ticket is open → the item is added to that ticket instead of a new one.
 - [ ] Start again with an open order → private link to the existing ticket.
 - [ ] Payment methods: the order card lists the methods (cards etc. "temporarily down", the DoorDash eGift card
-      "available now") with a button each. Press Credit or debit card → a private "Dear customer, we're sorry …"
-      message with Pay with gift card and Buy a gift card; Pay with gift card opens the gift card form.
+      "available now") with a button each: Submit gift card and Buy a gift card first, the methods that are down on
+      the next row, Cancel order last. Press Credit or debit card → a private "Dear customer, we're sorry …" message
+      with Submit gift card and Buy a gift card; Submit gift card opens the gift card form.
 - [ ] Payment: the order card shows Submit gift card and Buy a gift card. Submit a card worth less than the total →
       "received … still to pay"; a second card → "Order placed" in the ticket and by DM, a payment alert in
       #staff-chat. Type a code in the ticket chat → the message disappears and you get a private note.

@@ -197,7 +197,7 @@ async def test_decision_followups_that_fail_are_retried_by_the_task(
     monkeypatch.setattr(service, "refresh_panel", broken)
     done = await decide(pr, staff, report, "resolve", "ok")
     assert (await report_of(pr, report.id)).status == k.RESOLVED  # the decision itself is kept
-    assert pr.app.op("problems.op.delivery.failed") in str(done.last_sent and done.last_sent.embeds[0].title)
+    assert pr.app.op("problems.op.delivery.failed") in str(done.last_sent and done.last_sent.embeds[0].description)
     assert user.dms == []
     pending = await pr.app.db.run(repo_task, f"problems.after_decision:{report.id}")
     assert pending is not None and pending.status == "pending"

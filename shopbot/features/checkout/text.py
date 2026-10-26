@@ -4,7 +4,8 @@ lookup, and /setup report lines.
 
 Shown only after a staff/admin check passed, always privately. Never shown to customers. The staff order-control
 message and every customer notification are business text (content keys), not operator text. Each entry can be
-overridden in content.toml under ``operator.<key>``.
+overridden in content.toml under ``operator.<key>``. The gift card reveal reply shows the bot's icons
+(``{icon_<name>}``, rendered by ``staff_views.gift_card_reveal``).
 """
 
 from __future__ import annotations
@@ -128,10 +129,11 @@ OPERATOR_TEXT: dict[str, str] = {
     # gift card payments (payments.provider = "gift_card"; staff with payments.gift_card.staff_roles only)
     "checkout.gift.reveal.title": "Gift cards · order #{number}",
     "checkout.gift.reveal.intro": (
-        "Redeem the cards now in the shop's account and check that each card's value matches the amount shown (that "
-        "amount counts toward the order, and anything beyond the total becomes the customer's store credit). Then "
-        "press **Payment confirmed** on the order record, or **Card problem** for a card that is used, worth less "
-        "or not accepted. The codes are deleted as soon as you decide. Do not copy them anywhere else."
+        "{icon_step_1} Redeem the cards now in the shop's account. Check that each card's value matches the amount "
+        "shown: that amount counts toward the order, and anything beyond the total becomes store credit.\n"
+        "{icon_step_2} Press **Payment confirmed** on the order record, or **Card problem** for a card that is used, "
+        "worth less or not accepted.\n"
+        "{icon_step_3} The codes are deleted as soon as you decide. Do not copy them anywhere else."
     ),
     "checkout.gift.reveal.card": "Card {index} · {amount} · ending {last4}",
     "checkout.gift.reveal.code": "Code: ||`{code}`||",
@@ -145,8 +147,8 @@ OPERATOR_TEXT: dict[str, str] = {
         "The code was deleted after {days} days without a decision. Use Card problem so the customer submits the card "
         "again."
     ),
-    "checkout.gift.reveal.redeemed_button": "Card {index} redeemed",
-    "checkout.gift.reveal.problem_button": "Card {index} problem",
+    "checkout.gift.reveal.redeemed_button": "{icon_check} Card {index} redeemed",
+    "checkout.gift.reveal.problem_button": "{icon_flag} Card {index} problem",
     "checkout.gift.problem.title": "Card problem · order #{number}",
     "checkout.gift.problem.reason": "What's wrong? (the customer sees this)",
     "checkout.gift.problem.reason_hint": "For example: The card was already redeemed.",
@@ -179,43 +181,47 @@ OPERATOR_TEXT: dict[str, str] = {
     "checkout.list.title": "Orders ({total})",
     "checkout.list.empty": "No orders match.",
     "checkout.list.line": "#{number} · {status} · {customer} · {total} · {created}",
-    "checkout.list.page": "Page {page}/{pages}",
+    "checkout.list.page": "Page {page} of {pages}",
     "checkout.list.previous": "Previous",
     "checkout.list.next": "Next",
     # /order lookup
     "checkout.lookup.title": "Order #{number}",
+    "checkout.lookup.record": "Order",
+    "checkout.lookup.fact": "{label}: {value}",
     "checkout.lookup.status": "Status",
     "checkout.lookup.customer": "Customer",
-    "checkout.lookup.channel": "Order channel",
-    "checkout.lookup.created": "Submitted",
-    "checkout.lookup.paid": "Paid",
-    "checkout.lookup.fulfilled": "Fulfilled",
-    "checkout.lookup.subtotal": "Subtotal",
-    "checkout.lookup.fulfillment": "Fulfillment",
-    "checkout.lookup.fulfillment_value": "{option} (fee {fee})",
-    "checkout.lookup.fees": "Fees",
-    "checkout.lookup.credits": "Credits applied",
-    "checkout.lookup.total": "Total",
-    "checkout.lookup.refunded": "Refunded",
-    "checkout.lookup.credit_returned": "Credit given back",
+    "checkout.lookup.channel": "Order ticket",
+    "checkout.lookup.claimed": "Claimed by",
+    "checkout.lookup.claimed_value": "{staff} since {when}",
     "checkout.lookup.payment": "Payment",
     "checkout.lookup.payment_value": "{provider} · {status} · reference {reference}",
     "checkout.lookup.items": "Items",
     "checkout.lookup.item": "{quantity} × {name} (product {product_id}) · {unit} each · {total}",
-    "checkout.lookup.fee_lines": "Fee details",
-    "checkout.lookup.fee_line": "{fee}: {amount}",
+    "checkout.lookup.summary": "Summary",
+    "checkout.lookup.subtotal": "Subtotal",
+    "checkout.lookup.total": "Total",
+    "checkout.lookup.refunded": "Refunded",
+    "checkout.lookup.dates": "Dates",
+    "checkout.lookup.created": "Submitted",
+    "checkout.lookup.paid": "Paid",
+    "checkout.lookup.fulfilled": "Delivered",
     "checkout.lookup.unlabelled": "Answer '{key}'",
     "checkout.lookup.refunds": "Refunds",
     "checkout.lookup.refund_line": "{amount} · {method} · {actor} · {when} · {reason}",
     "checkout.lookup.credit_return_line": "{amount} · store credit given back · {actor} · {when} · {reason}",
     "checkout.lookup.history": "History (latest)",
-    "checkout.lookup.event": "{when} · {old} → {new} · {actor} · {note}",
+    "checkout.lookup.event": "{when} · **{status}** · {actor}",
+    "checkout.lookup.with_text": "{line} · {text}",
     "checkout.lookup.automatic": "automatic",
-    "checkout.lookup.claimed": "Claimed by",
-    "checkout.lookup.claimed_value": "{staff} since {when}",
     "checkout.lookup.tracking": "Tracking details",
     "checkout.lookup.activity": "Staff activity (latest)",
-    "checkout.lookup.activity_line": "{when} · {kind} · {actor} · {text}",
+    "checkout.lookup.activity_line": "{when} · {kind} · {actor}",
+    "checkout.lookup.kind.claim": "Claimed",
+    "checkout.lookup.kind.unclaim": "Claim released",
+    "checkout.lookup.kind.correction": "Correction requested",
+    "checkout.lookup.kind.note": "Note",
+    "checkout.lookup.kind.rejection": "Rejection reason",
+    "checkout.lookup.kind.tracking": "Tracking details updated",
     # /setup report
     "checkout.publish.no_guild": "Shop panel: the configured server is not available.",
     "checkout.publish.no_channel": "Shop panel: channel '{name}' does not exist yet (run /setup to create it).",

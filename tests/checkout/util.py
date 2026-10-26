@@ -14,9 +14,11 @@ from shopbot.db.repos import tasks as task_repo
 from shopbot.features import all_modules
 from shopbot.features.catalog import repo as catalog_repo
 from shopbot.features.catalog.repo import Product
+from shopbot.features.checkout import content_keys as k
 from shopbot.features.checkout import models as m
 from shopbot.features.checkout import repo, views
 from shopbot.features.credits import repo as credits_repo
+from shopbot.features.server_keys import channel_mentions
 from tests.fakes import FakeBot, FakeInteraction, FakeMember, FakeMessage, FakeTextChannel, click, submit_modal
 from tests.helpers import GUILD_ID, TestEnv, deep_merge, make_settings, make_test_env, provision_channels
 
@@ -373,14 +375,82 @@ def texts(interaction: FakeInteraction) -> str:
     return "\n".join(message.text() for message in interaction.sent)
 
 
-def last_paragraph(message: FakeMessage) -> str:
-    """The last paragraph of the message's card: a notice (empty catalog, minimum, changed total) or the payment
-    instructions, which are part of the card instead of a card of their own."""
-    return (message.embeds[0].description or "").rsplit("\n\n", 1)[-1]
+def card_text(message: FakeMessage) -> str:
+    """The text of the message's card as the customer reads it (a long card continues in a second one)."""
+    return "\n\n".join(embed.description for embed in message.embeds if embed.description)
+
+
+def paragraphs(message: FakeMessage) -> list[str]:
+    """The paragraphs of the message's card: the key facts line, the lead text, a notice (empty catalog, minimum,
+    changed total), then the sections (a bold heading over its lines)."""
+    return card_text(message).split("\n\n")
+
+
+def section_lines(tenv: TestEnv, message: FakeMessage, heading_key: str, **values: str | int) -> list[str] | None:
+    """The lines of the card's section headed by ``heading_key`` (None when the card has no such section)."""
+    heading = f"**{render(tenv, heading_key, **values)}**"
+    for paragraph in paragraphs(message):
+        first, *lines = paragraph.split("\n")
+        if first == heading:
+            return lines
+    return None
+
+
+def facts_line(message: FakeMessage) -> str:
+    """The first line of the card: the key facts (ticket, order number, status)."""
+    return card_text(message).split("\n", 1)[0]
+
+
+def amount_line(tenv: TestEnv, label: str, minor: int) -> str:
+    """One amount of the card's summary, e.g. a fee (``label`` as shown)."""
+    return render(tenv, k.SUMMARY_LINE, label=label, amount=money(tenv, minor))
+
+
+def total_line(tenv: TestEnv, minor: int, label_key: str = k.REVIEW_TOTAL_FIELD) -> str:
+    """The last line of the card's summary: the total (or the subtotal while nothing else is known)."""
+    return render(tenv, k.SUMMARY_TOTAL_LINE, label=tenv.text(label_key), amount=money(tenv, minor))
+
+
+def section(tenv: TestEnv, heading_key: str, lines: list[str]) -> str:
+    """A section of the card as it is written: its heading in bold over its lines."""
+    return "\n".join([f"**{render(tenv, heading_key)}**", *lines])
+
+
+def item_line(tenv: TestEnv, name: str, quantity: int, price: int) -> str:
+    """One item as the card lists it (the name escaped, the amounts in the shop currency)."""
+    return render(
+        tenv,
+        k.CART_LINE,
+        name=views.escape(name),
+        quantity=quantity,
+        unit_price=money(tenv, price),
+        line_total=money(tenv, price * quantity),
+    )
+
+
+def progress_line(tenv: TestEnv, key: str, status: str, at: int | None = None) -> str:
+    """One line of the progress tracker: ``key`` (done, current, next, stopped) for the stage of ``status`` (the first
+    stage has its own name), reached at ``at``."""
+    stage = tenv.text(k.PROGRESS_START) if status == m.PENDING else tenv.text(k.stage_key(status))
+    if at is None:
+        return render(tenv, key, stage=stage)
+    return render(tenv, key, stage=stage, date=f"<t:{at}:d>", time=f"<t:{at}:f>", relative=f"<t:{at}:R>")
+
+
+def order_facts(tenv: TestEnv, order: m.Order, ticket: str = "0001") -> str:
+    """The key facts line of a placed order's card: ticket, order number and the current stage."""
+    status = tenv.text(k.stage_key(order.status))
+    return render(tenv, k.TICKET_ORDER_LINE, ticket_number=ticket, order_number=str(order.number), status=status)
+
+
+def purchase_link(tenv: TestEnv) -> dict[str, str | int]:
+    """``{channel_purchase}`` in the texts that point to Report a problem, as the runtime writes it: a link to the
+    place-order channel (its name while /setup has not created it)."""
+    return views.purchase_values(tenv.app.ui, tenv.app.settings, channel_mentions(tenv.app))
 
 
 def payment_section(tenv: TestEnv, provider: str = "manual", **values: str | int) -> str:
-    """The payment instructions as the last section of the order card: their title as a bold heading, then the text."""
+    """The payment instructions as a section of the order card: their title as a bold heading, then the text."""
     title = tenv.app.content.render(f"checkout.payment.{provider}.title", **values)
     text = tenv.app.content.render(f"checkout.payment.{provider}.instructions", **values)
     return f"**{title}**\n{text}" if title else str(text)

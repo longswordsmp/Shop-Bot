@@ -10,6 +10,7 @@ from shopbot.config.content_keys import Kind, ck
 from shopbot.config.settings import IconSettings
 from shopbot.db.repos import app_emojis as repo
 from shopbot.features.admin import edit_text
+from shopbot.ui.component_emoji import WHITE_SUFFIX, shown_button
 from shopbot.ui.icons import (
     MAX_ICON_BYTES,
     keep_uploaded_ids,
@@ -17,6 +18,7 @@ from shopbot.ui.icons import (
     load_uploaded_ids,
     sync_application_emojis,
 )
+from shopbot.ui.spec import ButtonSpec
 from tests.helpers import ROOT, make_settings, make_test_env, tiny_png
 
 ICONS_ON = {"icons": {"enabled": True}}
@@ -34,12 +36,30 @@ def test_the_shipped_icons_all_load() -> None:
     assert library.problems == ()
     assert {"dot_blue", "dot_yellow", "dot_grey", "step_1", "truck", "gift", "st_shipped"} <= library.names
     assert all(len(icon.data) <= MAX_ICON_BYTES for icon in library.files.values())
-    # The folder holds exactly the rendered set: every icon of tools/icons/icons.json, nothing else.
+    # The folder holds exactly the rendered set: every icon of tools/icons/icons.json (with the white-glyph variant
+    # "<name>_w" of those marked "white"), nothing else.
     spec = json.loads((ROOT / "tools" / "icons" / "icons.json").read_text(encoding="utf-8"))
     names = [icon["name"] for icon in spec["icons"]]
+    names += [icon["name"] + WHITE_SUFFIX for icon in spec["icons"] if icon.get("white")]
     assert len(names) == len(set(names))
     assert library.names == set(names)
     assert all(icon["color"] in spec["colors"] for icon in spec["icons"])
+    # The badges of the coloured buttons have their white variant (a green check on a green button melts, a blue
+    # arrow on a blurple one looks muddy).
+    coloured = {"check", "cross", "alert", "flag", "trash", "door", "st_confirmed", "st_shipped", "arrow_right", "cart"}
+    assert coloured <= {name.removesuffix(WHITE_SUFFIX) for name in library.names if name.endswith(WHITE_SUFFIX)}
+
+
+def test_an_icon_records_its_uploaded_white_variant(tmp_path: Path) -> None:
+    write_icons(tmp_path, "check", "check_w", "flag", "flag_w")
+    library = load_icons(tmp_path, IconSettings(enabled=True))
+    library.ids.update(check=111111111111111111, check_w=222222222222222222, flag=333333333333333333)
+    assert library.text("check") == "<:check:111111111111111111>"
+    assert library.text("flag") == "<:flag:333333333333333333>"  # its variant is not uploaded (yet)
+    green = ButtonSpec(label="<:check:111111111111111111> Mark paid", custom_id="sb:x:a", style="success")
+    red = ButtonSpec(label="<:flag:333333333333333333> Card problem", custom_id="sb:x:b", style="danger")
+    assert shown_button(green).emoji == "<:check_w:222222222222222222>"
+    assert shown_button(red).emoji == "<:flag:333333333333333333>"  # no variant: the badge as it is
 
 
 def test_bad_icon_files_are_problems_not_failures(tmp_path: Path) -> None:

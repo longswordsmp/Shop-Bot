@@ -21,7 +21,6 @@ ERROR_INVALID_INPUT = "common.error.invalid_input"
 ERROR_BUSY = "common.error.busy"
 ERROR_TITLE = "common.error.title"
 
-BUTTON_CONFIRM = "common.button.confirm"
 BUTTON_CANCEL = "common.button.cancel"
 BUTTON_BACK = "common.button.back"
 BUTTON_CONTINUE = "common.button.continue"
@@ -107,7 +106,6 @@ def core_keys(settings: Settings) -> list[ContentKey]:
             required=False,
         ),
         ck(ERROR_TITLE, Kind.TITLE, CORE, g_err, "Optional title above every error message.", required=False),
-        ck(BUTTON_CONFIRM, Kind.BUTTON_LABEL, CORE, g_btn, "Confirm button on confirmation prompts.", required=False),
         ck(BUTTON_CANCEL, Kind.BUTTON_LABEL, CORE, g_btn, "Cancel button on prompts and workflows.", required=False),
         ck(BUTTON_BACK, Kind.BUTTON_LABEL, CORE, g_btn, "Back button in multi-step workflows.", required=False),
         ck(BUTTON_CONTINUE, Kind.BUTTON_LABEL, CORE, g_btn, "Continue button in multi-step workflows.", required=False),

@@ -132,7 +132,7 @@ async def test_the_customer_is_warned_in_the_ticket_before_the_cart_expires(tmp_
         tenv.clock.advance(10 * 60)
         await tenv.app.scheduler.run_due()
         assert (await reload_session(tenv, session.id)).status == m.SESSION_EXPIRED
-        assert message.embeds[0].description == tenv.text(k.EXPIRED_DESCRIPTION)
+        assert (message.embeds[0].description or "").endswith(f"\n\n{tenv.text(k.EXPIRED_DESCRIPTION)}")
         assert len(_warnings(tenv, ch)) == 1
         assert (await task(tenv, repo.session_warning_key(session.id))).status in ("done", "cancelled")
     finally:

@@ -7,12 +7,17 @@ of the server's emoji slots and need no permission. ``sync_application_emojis`` 
 emojis already uploaded (recorded in ``app_emojis`` with the picture's sha256), uploads missing ones, and replaces an
 emoji whose picture changed.
 
-Texts use an icon with the global placeholder ``{icon_<name>}`` (any content key, see ``ContentStore.render``); a
-button emoji can be ``{icon_<name>}`` too, and a button or select option label may start with one (``{icon_cart} Start
-order``, or a button's icon alone), which Discord then shows as the component's emoji (``ui.component_emoji``). Until
+Texts use an icon with the global placeholder ``{icon_<name>}`` (any content key, see ``ContentStore.render``); a button
+emoji can be ``{icon_<name>}`` too, and a button or select option label may start with one (``{icon_cart} Start order``,
+or an optional button's icon alone), which Discord then shows as the component's emoji (``ui.component_emoji``). Until
 an icon is uploaded (or if its upload failed) the placeholder renders as ``IconLibrary.fallback`` (nothing for section
-icons, a plain dot for status dots), never as raw text: a label then shows without an emoji (a status dot's plain dot
-stays in front of it), and a button that is only an icon is left out.
+icons, a plain dot for status dots), never as raw text; in a button or option label it renders as nothing at all, so the
+label shows without an emoji, and an optional button that is only an icon is left out (a required label always has words
+after its icon: ``config.content.validate_value``).
+
+An icon may come with a white-glyph variant ``<name>_w`` (its glyph alone, white): uploaded like every icon, and shown
+instead of the coloured badge on green, red and blurple buttons (``ui.component_emoji.shown_button``).
+``IconLibrary.text`` records the pair whenever it writes an icon whose variant is uploaded.
 """
 
 from __future__ import annotations
@@ -28,6 +33,7 @@ from typing import TYPE_CHECKING
 from shopbot.config.settings import IconSettings
 from shopbot.db.repos import app_emojis as repo
 from shopbot.logging_setup import log_event
+from shopbot.ui.component_emoji import WHITE_SUFFIX, record_white_variant
 from shopbot.ui.image_types import sniff
 
 if TYPE_CHECKING:
@@ -64,11 +70,19 @@ class IconLibrary:
         return frozenset(self.files)
 
     def text(self, name: str) -> str:
-        """The icon as message text: ``<:name:id>`` once uploaded, else the fallback (never raw placeholder text)."""
+        """The icon as message text: ``<:name:id>`` once uploaded, else the fallback (never raw placeholder text).
+        When its white-glyph variant is uploaded too, the pair is recorded for the buttons that show it."""
+        emoji = self._uploaded(name)
+        if emoji is None:
+            return self.fallback(name)
+        white = self._uploaded(name + WHITE_SUFFIX)
+        if white is not None:
+            record_white_variant(emoji, white)
+        return emoji
+
+    def _uploaded(self, name: str) -> str | None:
         emoji_id = self.ids.get(name)
-        if emoji_id is not None and name in self.files:
-            return f"<:{name}:{emoji_id}>"
-        return self.fallback(name)
+        return f"<:{name}:{emoji_id}>" if emoji_id is not None and name in self.files else None
 
     @staticmethod
     def fallback(name: str) -> str:

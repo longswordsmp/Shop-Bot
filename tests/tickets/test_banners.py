@@ -169,7 +169,9 @@ async def test_delete_prompt_and_transcript_button_reply(bt: TestEnv) -> None:
     assert reply is not None and banner_names(reply) == [name(bt, "transcripts")]
 
 
-async def test_error_replies_carry_the_error_banner(bt: TestEnv) -> None:
+async def test_refusals_carry_the_general_response_banner(bt: TestEnv) -> None:
+    """Routine refusals that say what to do are shared error replies with the gentle picture (``Ui.error_message``:
+    the error banner is for real failures)."""
     customer = bt.member()
     _, ticket, _ = await open_ticket(bt, customer)
     cooldown = (await click(bt.app, user=customer, custom_id=cid("tk", "open", "general"))).last_sent
@@ -178,7 +180,7 @@ async def test_error_replies_carry_the_error_banner(bt: TestEnv) -> None:
     await service.close_ticket(bt.app, ticket.id, actor_id=customer.id)
     not_open = (await click(bt.app, user=customer, custom_id=cid("tk", "close", ticket.id))).last_sent
     for reply in (cooldown, limited, not_open):
-        assert reply is not None and banner_names(reply) == [name(bt, "error")]
+        assert reply is not None and banner_names(reply) == [name(bt, "general-response")]
     assert limited is not None and limited.embeds[0].description == bt.app.content.render(k.LIMIT_REACHED, limit=1)
     assert not_open is not None and not_open.embeds[0].description == bt.text(k.NOT_OPEN)
 
@@ -225,8 +227,8 @@ async def test_staff_command_replies_and_status_messages(bt: TestEnv) -> None:
     # Refusals: wrong state, not a ticket channel.
     assert reply(await run_command(bt, "close", user=staff, channel=ch)) == [name(bt, "error")]
     assert reply(await run_command(bt, "info", user=staff, channel=channel(bt, "staff_alerts"))) == [name(bt, "error")]
-    # A customer is refused by the shared error path.
-    assert reply(await run_command(bt, "close", user=customer, channel=ch)) == [name(bt, "error")]
+    # A customer is refused by the shared error path (a routine refusal: the general picture).
+    assert reply(await run_command(bt, "close", user=customer, channel=ch)) == [name(bt, "general-response")]
 
 
 async def test_transcript_files_follow_the_banner_and_a_large_transcript_drops_it(
@@ -309,8 +311,8 @@ async def test_preview_states_show_the_mapped_banners(bt: TestEnv) -> None:
         "transcript": "transcripts",
         "transcript_dm": "transcripts",
         "reply.created": "ticket-created",
-        "reply.limit_reached": "error",
-        "reply.not_open": "error",
+        "reply.limit_reached": "general-response",
+        "reply.not_open": "general-response",
     }
     for state, banner_id in expected.items():
         spec = states[state]

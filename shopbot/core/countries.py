@@ -322,16 +322,30 @@ US_STATES: dict[str, str] = {
 # Countries whose excluded areas are written as state codes (``[shipping.excluded_areas]``).
 AREA_CODES: dict[str, dict[str, str]] = {"US": US_STATES}
 US_TERRITORIES = frozenset({"AS", "GU", "MP", "PR", "VI"})
+# The everyday name #shipping shows for an area whose official name reads oddly in a list of states. Display only:
+# address checks (``matches_area``) keep the official names above.
+AREA_DISPLAY_NAMES: dict[str, dict[str, str]] = {"US": {"DC": "Washington, D.C."}}
 # The areas #shipping can list one by one (``shipping.list_areas``): the 50 US states and the District of Columbia,
-# alphabetically by name.
+# alphabetically by the name shown.
 LISTED_AREAS: dict[str, tuple[str, ...]] = {
-    "US": tuple(sorted((code for code in US_STATES if code not in US_TERRITORIES), key=lambda c: US_STATES[c])),
+    "US": tuple(
+        sorted(
+            (code for code in US_STATES if code not in US_TERRITORIES),
+            key=lambda c: AREA_DISPLAY_NAMES["US"].get(c, US_STATES[c]),
+        )
+    ),
 }
 
 
 def area_name(country: str, area: str) -> str:
     """The display name of an excluded area: a US state code becomes the state's name; other areas are names."""
     return AREA_CODES.get(country, {}).get(area, area)
+
+
+def area_display_name(country: str, area: str) -> str:
+    """The name #shipping shows for an area: its everyday name where it has one ("Washington, D.C."), else
+    ``area_name``."""
+    return AREA_DISPLAY_NAMES.get(country, {}).get(area) or area_name(country, area)
 
 
 def matches_area(country: str, area: str, typed: str) -> bool:

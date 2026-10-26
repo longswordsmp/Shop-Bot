@@ -36,6 +36,7 @@ if TYPE_CHECKING:
 
 SAMPLE_USER_ID = 100_000_000_000_000_001
 SAMPLE_CHANNEL_ID = 100_000_000_000_000_003
+SAMPLE_PANEL_CHANNEL_ID = 100_000_000_000_000_004
 SAMPLE_SESSION_ID = 1
 SAMPLE_ORDER_ID = 1
 SAMPLE_ORDER_NUMBER = 1001
@@ -252,6 +253,12 @@ def _order(
         ticket_number=SAMPLE_TICKET_NUMBER,
         timeline=sample_timeline(status),
     )
+
+
+def sample_links(settings: Settings) -> dict[str, str]:
+    """A sample link to the place-order channel for ``{channel_purchase}`` (as the bot links it once /setup created
+    the channel)."""
+    return {name: f"<#{SAMPLE_PANEL_CHANNEL_ID}>" for name in k.purchase_placeholder(settings)}
 
 
 def _same(spec: MessageSpec) -> MessageSpec:
@@ -565,12 +572,23 @@ def preview(app: App) -> list[PreviewState]:
         "Customer confirms cancelling an unpaid order.",
         lambda: views.order_cancel_confirm(ui, pending.order),
     )
+    links = sample_links(settings)
     for status in m.STATUS_VIEWS:
         view = _order(settings, status, lines)
+        shipped = status == m.SHIPPED
         add(
             f"order_{status}",
-            f"Workflow message once the order is '{status}'.",
-            partial(views.order_message, ui, settings, view, instructions=None),
+            f"Workflow message once the order is '{status}'."
+            + (" The carrier, tracking number and Track package button come from Mark shipped." if shipped else ""),
+            partial(
+                views.order_message,
+                ui,
+                settings,
+                view,
+                instructions=None,
+                shipment=staff_preview.SAMPLE_SHIPMENT if shipped else None,
+                links=links,
+            ),
         )
     staff_preview.add_states(
         app,
@@ -595,7 +613,7 @@ def preview(app: App) -> list[PreviewState]:
         add(
             f"notify_{status}",
             f"Customer notification: the order is '{status}'.",
-            partial(views.status_notification, ui, settings, view, status),
+            partial(views.status_notification, ui, settings, view, status, links=links),
         )
     add(
         "notify_submitted",
@@ -622,7 +640,7 @@ def preview(app: App) -> list[PreviewState]:
     add(
         "notify_refund",
         "Customer notification: a refund was recorded (or applied store credit was given back).",
-        lambda: views.refund_notification(ui, settings, _order(settings, m.PAID, lines), 500),
+        lambda: views.refund_notification(ui, settings, _order(settings, m.PAID, lines), 500, links=links),
     )
 
     gift_card_preview.add_states(app, add, pending, _order(settings, m.PAYMENT_SUBMITTED, lines), instructions)

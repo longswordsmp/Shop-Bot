@@ -101,9 +101,12 @@ async def test_report_without_an_order_opens_the_form_right_away(pr: TestEnv) ->
         views.reject_id(report.id),
         cid("tk", "close", ticket.id),
     ]
+    # The answers card below it: the heading, then the question in bold with the escaped answer under it.
     details = ch.messages[1]
-    assert details.embeds[0].fields[0].name == pr.text(k.form_field_key("general", "details", "label"))
-    assert details.embeds[0].fields[0].value == r"the  \*box\* was empty"
+    question = pr.text(k.form_field_key("general", "details", "label"))
+    heading = pr.text(k.DETAILS_HEADING)
+    assert details.embeds[0].description == f"**{heading}**\n**{question}**\n" + r"the  \*box\* was empty"
+    assert details.embeds[0].fields == [] and details.files == []  # one card, no banner (it continues the panel)
     assert len(ch.messages) == 2
 
     # Staff alert in the staff alert channel (no report details there), audit, no task left behind.
@@ -125,7 +128,7 @@ async def test_report_about_an_order(pr: TestEnv) -> None:
 
     step = private_step(await start(pr, user))
     choose = render(pr, k.CHOOSE_DESCRIPTION, **channel_mentions(pr.app))
-    assert [e.description for e in step.embeds] == [f"{choose}\n\n{pr.text(k.ATTACHMENTS_NOTE)}"]  # one card
+    assert [e.description for e in step.embeds] == [choose]  # one card; the photo note comes with the ticket
     menu = step.components()[0].item
     assert [o.value for o in menu.options] == [str(newer), str(older), views.NO_ORDER]  # newest first
     total = pr.app.ui.money(2500)
@@ -135,7 +138,7 @@ async def test_report_about_an_order(pr: TestEnv) -> None:
         k.ORDER_OPTION,
         order_number=await order_number(pr, newer),
         total=total,
-        status=pr.text(checkout_keys.status_label_key("paid")),
+        status=pr.text(checkout_keys.stage_key("paid")),
     )
     assert menu.options[0].label == expected
     assert menu.options[-1].label == pr.text(k.NO_ORDER_OPTION)
@@ -152,7 +155,7 @@ async def test_report_about_an_order(pr: TestEnv) -> None:
         k.ORDER_VALUE,
         order_number=await order_number(pr, newer),
         total=total,
-        status=pr.text(checkout_keys.status_label_key("paid")),
+        status=pr.text(checkout_keys.stage_key("paid")),
     )
     notes = await order_notes(pr, newer)
     ticket = await ticket_of(pr, report)

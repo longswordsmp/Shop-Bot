@@ -16,20 +16,21 @@ and the bot can see it), or privately answers with:
 
 Every reply can carry an optional link button that opens the ticket (`checkout.ticket_link.button`).
 
-**The ticket introduction.** The first message of every order ticket identifies the ticket (its number, also shown
-as a field) and explains who can see it (`checkout.ticket.intro_title` optional, `checkout.ticket.intro_description`
+**The ticket introduction.** The first message of every order ticket identifies the ticket (its number, in the
+reference line `checkout.ticket.reference_line` at the top of the card) and explains who can see it (`checkout.ticket.intro_title` optional, `checkout.ticket.intro_description`
 required). It is posted once per ticket (recorded with a dedupe key), before the live panel; if it cannot be posted,
 the ticket is not opened (the half-made channel is removed, as when the panel itself fails). Restart recovery posts
 it if a ticket never got it.
 
-**The live panel** (one message, edited as the customer progresses) always shows:
+**The live panel** (one message, edited as the customer progresses) is one card that reads like a receipt: a key
+facts line at the top, the step's lead text, then sections (a bold heading starting with an icon over short lines).
+It always shows:
 
 | What | How |
 |---|---|
-| Unique reference | field `checkout.ticket.reference_field` = the ticket number (padded like the channel name) |
+| Unique reference and current status | the key facts line: `checkout.ticket.draft_line` (ticket number, padded like the channel name, and `checkout.ticket.status_in_progress`) before submission, `checkout.ticket.order_line` (ticket number, order number and the stage name `checkout.ticket.stage.<status>`) afterwards |
 | Current step and progress | the step's title, and `common.progress_format` in the footer (now required for checkout) |
-| What was entered/selected | the cart on every step (on later steps only its subtotal when the lines do not fit next to the rest), the chosen fulfillment option and fee, the details-form answers; the review lists everything incl. the answers |
-| Current status | field `checkout.ticket.status_field` = `checkout.ticket.status_in_progress` before submission, the stage name (`checkout.ticket.stage.<status>`) afterwards |
+| What was entered/selected | the items section (`checkout.cart.heading`, one `checkout.cart.line` per item) on every step (on later steps left out only when the card would not fit one message; a long card continues in a second one of the same colour), the summary section (`checkout.summary.*`: subtotal, the chosen delivery option and its fee, extras and fees, store credit, the total in bold), the details-form answers; the review lists everything incl. the answers |
 | Actions | Back on every step after the first, Continue/Submit, Cancel; after submission the customer's cancel button while unpaid |
 
 **Closed by staff.** Staff can close the ticket of an order that was never submitted with `/ticket close`: the
@@ -37,13 +38,17 @@ unfinished order is cancelled and the panel shows `checkout.staff_closed.title` 
 the cancelled texts) without controls. A submitted open order is refused; staff end it from #orders (see
 `docs/features/orders_privacy.md`).
 
-After submission the panel shows the reference, the order number (`checkout.ticket.order_number_field`), the
-current stage, the order lines and totals, the payment instructions (while unpaid) and the **timeline**
-(`checkout.ticket.timeline_field`): one line per stage reached, written with `checkout.ticket.timeline_entry`
-(`{stage}`, `{time}`, `{relative}` - Discord timestamps, shown in each reader's own time zone). The timeline comes
-from `order_events` status changes only; staff notes are never shown to customers. The panel is re-rendered on every
-status change (the existing durable follow-up of every transition). A stage without a configured name (e.g. a
-status added later) is left out rather than shown with invented text.
+After submission the panel shows the key facts line (ticket, order number, current stage), the items, the summary,
+the payment sections (while unpaid: the payment methods, how to pay, what was paid so far), the shipment while the
+order is shipped (fields `checkout.notify.shipped.carrier_field` and `.number_field`, and the
+`checkout.notify.shipped.track_button` link, the same texts as the shipped notification) and the **progress**
+section (`checkout.progress.heading`): the first stage `checkout.progress.start`, then one line per stage reached
+(`checkout.progress.done`, the current one `checkout.progress.current`, an ending stage `checkout.progress.stopped`)
+and the stages still to come (`checkout.progress.next`), each with `{stage}` and a date (`{date}`, `{time}`,
+`{relative}` - Discord timestamps, shown in each reader's own time zone). The progress comes from `order_events`
+status changes only; staff notes are never shown to customers. The panel is re-rendered on every status change (the
+existing durable follow-up of every transition). A stage without a configured name (e.g. a status added later) is
+left out rather than shown with invented text.
 
 **Submission form** (`checkout.submission_form`, optional, at most 5 fields, same schema as `details_form`). When
 configured, pressing Submit opens a form (title `checkout.submission.modal_title`, labels
@@ -67,10 +72,10 @@ shown and nothing is submitted. Empty `submission_form` = submit directly (previ
   per idle period, a new one after the customer was active again; it ends with the session (submitted, cancelled,
   expired) and is re-armed by restart recovery (also when the warning is switched on later).
 
-**`/myorders`** (the only customer command, any member, private reply): the member's own orders, newest first, one
-card per order with the order number, current stage, total, timeline, a link to its ticket while it is open
-(optional `my_orders.order.ticket_field`) and the tracking details staff recorded (optional
-`my_orders.order.tracking_field`). Pages hold at most `my_orders.orders_per_page` orders and only as many as fit one
+**`/myorders`** (the only customer command, any member, private reply): one card with the member's own orders,
+newest first, one section per order: its number and current stage in bold (`my_orders.order.title`), its total and
+date (`my_orders.order.summary`), a link to its ticket while it is open (optional `my_orders.order.ticket_field`) and
+the tracking details staff recorded (optional `my_orders.order.tracking_field`). Pages hold at most `my_orders.orders_per_page` orders and only as many as fit one
 Discord message next to the configured text; previous/next buttons (`common.button.previous_page/next_page`, page
 indicator `common.page_indicator`) carry only the member's id and the page, re-check that the clicking member owns
 the list and reload from the database, so they keep working after a restart and never show another member's orders.
@@ -89,8 +94,11 @@ the list and reload from the database, so they keep working after a restart and 
 All in `config/content.toml` / `docs/CONTENT_CHECKLIST.md` with their documentation:
 
 - Checkout, group "order ticket": `checkout.ticket.intro_title` (optional), `checkout.ticket.intro_description`,
-  `checkout.ticket.reference_field`, `checkout.ticket.order_number_field`, `checkout.ticket.status_field`,
-  `checkout.ticket.status_in_progress`, `checkout.ticket.timeline_field`, `checkout.ticket.timeline_entry`.
+  `checkout.ticket.reference_line`, `checkout.ticket.draft_line`, `checkout.ticket.order_line`,
+  `checkout.ticket.status_in_progress`.
+- Checkout, group "order ticket - items, summary and progress": `checkout.cart.heading`, `checkout.summary.heading`,
+  `.line`, `.total_line`, `.credit_line`, `.free` (optional), `checkout.progress.heading`, `.start`, `.done`,
+  `.current`, `.stopped`, `.next`.
 - Checkout, group "order stage names": `checkout.ticket.stage.<status>` for every order status (also used by
   `/myorders`).
 - Checkout, private replies: `checkout.order_exists.description`, `checkout.ticket_link.button` (optional).
@@ -101,8 +109,8 @@ All in `config/content.toml` / `docs/CONTENT_CHECKLIST.md` with their documentat
 - Shared: `common.progress_format` is now required by checkout (the panel always shows the progress).
 - My orders: `my_orders.command.description` (the command's description in Discord, max 100 characters),
   `my_orders.list.title` (`{count}`), `my_orders.list.description` (optional), `my_orders.empty.description`,
-  `my_orders.order.title` (`{order_number}`, `{status}`, `{total}`, `{date}`), `my_orders.order.number_field`,
-  `.status_field`, `.total_field`, `.timeline_field`, `.ticket_field` (optional), `.tracking_field` (optional).
+  `my_orders.order.title` and `my_orders.order.summary` (`{order_number}`, `{status}`, `{total}`, `{date}`),
+  `.ticket_field` (optional), `.tracking_field` (optional).
 
 Missing required text keeps the feature unavailable (checkout: its panel is withdrawn and controls answer with the
 "unavailable" text; `/myorders`: answers with the "unavailable" text, or is not registered at all when its
@@ -119,12 +127,12 @@ and valid when the bot starts. Discord receives command descriptions when the co
 
 1. Configure the content keys above (and the checkout prerequisites), run `/setup`, restart the bot.
 2. As a member, press Start in #purchase: the new ticket shows the introduction (ticket number, who can see it), then
-   the panel with reference, status and progress. Go through the steps: every step shows what you selected, Back and
+   the panel with its key facts line (ticket number, status) and progress. Go through the steps: every step shows what you selected, Back and
    Cancel.
 3. On the review step, check the summary (cart, option, fees, your answers, total, status). Press Submit (with a
    `submission_form`, fill the form). You get the 'submission received' DM; the panel shows the order number, the
-   stage and a one-line timeline.
-4. As staff, mark the order paid / in progress / fulfilled: the panel's stage and timeline update each time; a
+   stage and the progress section.
+4. As staff, mark the order paid / in progress / fulfilled: the panel's stage and progress update each time; a
    staff note never appears in the customer's ticket.
 5. Press Start again while the order is open: you get a private link to its ticket.
 6. With `session_expiry_minutes = 30` and `session_expiry_warning_minutes = 10`, start a ticket and wait 20 minutes:

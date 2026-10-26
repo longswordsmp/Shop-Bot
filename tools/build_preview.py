@@ -28,7 +28,7 @@ from shopbot.config.content import ContentFileError
 from shopbot.config.settings import SettingsError
 from shopbot.ui import custom_ids
 from shopbot.ui.banners import banner_inside, place_banner
-from shopbot.ui.component_emoji import split_button, split_option, strip_custom_emoji
+from shopbot.ui.component_emoji import shown_button, split_option, strip_custom_emoji
 from shopbot.ui.limits import validate_message, validate_modal
 from shopbot.ui.routing import Route, Router
 from shopbot.ui.spec import (
@@ -218,13 +218,13 @@ def _route_title(custom_id: str | None, kind: str, router: Router) -> str:
 
 def render_components(spec: MessageSpec, router: Router) -> str:
     """Buttons and select menus as Discord shows them: an icon at the start of a label is drawn as the component's
-    emoji picture, before the label (``ui.component_emoji``)."""
+    emoji picture, before the label, in its white variant on a green, red or blurple button (``ui.component_emoji``)."""
     rows: list[str] = []
     for row in spec.rows:
         items: list[str] = []
         for component in row:
             if isinstance(component, ButtonSpec):
-                component = split_button(component)
+                component = shown_button(component)
                 emoji = f'<span class="emoji">{emoji_html(component.emoji)}</span>' if component.emoji else ""
                 label = plain(component.label)
                 ext = ' <span class="ext">↗</span>' if component.style == "link" else ""

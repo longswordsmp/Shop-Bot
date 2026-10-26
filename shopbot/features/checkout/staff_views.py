@@ -54,6 +54,9 @@ CARRIER_INPUT = "carrier"
 TRACKING_NUMBER_INPUT = "number"
 TRACKING_URL_INPUT = "url"
 
+# The name of a field that continues the list above it (an invisible character: Discord needs a name).
+CONTINUED = "\u200b"
+
 # At most this many timeline entries / internal notes are listed on the live record (latest first kept).
 TIMELINE_MAX = 20
 NOTES_MAX = 5
@@ -198,6 +201,15 @@ class TimelineEntry:
     order: int  # tie-breaker: events before activity at the same second, then by id
 
 
+def stage_name(ui: Ui, kind: str) -> str | None:
+    """The stage name of a staff activity (Claimed, Claim released, Correction requested, Tracking details updated);
+    None for an activity that is not a stage (a note, a rejection reason) or whose optional name is not set."""
+    key = _STAGE_KEYS.get(kind)
+    if key is None:
+        return None
+    return _text(ui, key) if key != sk.STAGE_TRACKING else _optional(ui, key)
+
+
 def timeline_entries(ui: Ui, data: h.StaffData) -> list[TimelineEntry]:
     """Every stage of the order, oldest first: status changes and the staff activity that has a stage name."""
     entries: list[TimelineEntry] = []
@@ -206,10 +218,7 @@ def timeline_entries(ui: Ui, data: h.StaffData) -> list[TimelineEntry]:
             continue  # a note without a status change (recorded by an older version)
         entries.append(TimelineEntry(event.created_at, status_label(ui, event.to_status), event.actor_id, event.id))
     for item in data.activity:
-        key = _STAGE_KEYS.get(item.kind)
-        if key is None:
-            continue
-        stage = _text(ui, key) if key != sk.STAGE_TRACKING else _optional(ui, key)
+        stage = stage_name(ui, item.kind)
         if stage:
             entries.append(TimelineEntry(item.created_at, stage, item.actor_id, 1_000_000_000 + item.id))
     return sorted(entries, key=lambda e: (e.created_at, e.order))
@@ -245,7 +254,10 @@ def note_lines(ui: Ui, notes: Sequence[h.Activity]) -> list[str]:
 
 
 def _blocks(name: str, lines: Sequence[str]) -> list[EmbedField]:
-    return [EmbedField(name=name, value=block) for block in chunk_lines(list(lines), EMBED_FIELD_VALUE)]
+    """``lines`` in fields within the field limit: the first one under the heading ``name``, the ones that continue it
+    under a blank name, so a long list shows its heading (and its icon) once."""
+    blocks = chunk_lines(list(lines), EMBED_FIELD_VALUE)
+    return [EmbedField(name=name if index == 0 else CONTINUED, value=block) for index, block in enumerate(blocks)]
 
 
 def _summary_fields(ui: Ui, settings: Settings, view: m.OrderView) -> tuple[list[EmbedField], list[EmbedField]]:
@@ -272,8 +284,7 @@ def _summary_fields(ui: Ui, settings: Settings, view: m.OrderView) -> tuple[list
     destination = _destination(ui, settings, order)
     if destination is not None:
         after.append(EmbedField(_text(ui, sk.SHIP_TO_FIELD), destination))
-    amount_name = _text(ui, sk.AMOUNT_FIELD)
-    after += [EmbedField(amount_name, value) for value in _joined(_amounts(ui, view, fmt, option_label))]
+    after += _blocks(_text(ui, sk.AMOUNT_FIELD), amount_lines(ui, view, fmt))
     return line_fields, after
 
 
@@ -300,28 +311,44 @@ def _joined(parts: Sequence[str], limit: int = EMBED_FIELD_VALUE) -> list[str]:
     return values
 
 
-def _amounts(ui: Ui, view: m.OrderView, fmt: views.Money, option_label: str | None) -> list[str]:
-    """Every amount of the order, in order ("Subtotal $12.97", "Standard shipping $5.00", "Total **$17.97**")."""
+def amount_lines(ui: Ui, view: m.OrderView, fmt: views.Money) -> list[str]:
+    """Every amount of the order, one per line like the customer's summary ("Subtotal · $12.97", "Standard shipping ·
+    $5.00", the extras, the store credit applied, "**Total · $17.97**"), then what was refunded and what applied store
+    credit was given back, each on its own line (the live record and the full record)."""
     order = view.order
-    parts = [(_text(ui, k.CART_SUBTOTAL_FIELD), order.subtotal_minor)]
+
+    def line(label: str, minor: int) -> str:
+        return _text(ui, k.SUMMARY_LINE, label=label, amount=fmt(minor))
+
+    lines = [line(_text(ui, k.CART_SUBTOTAL_FIELD), order.subtotal_minor)]
+    option = order.fulfillment_option
     if order.fulfillment_fee_minor > 0:
-        parts.append((option_label or _optional(ui, k.FULFILLMENT_FEE_FIELD) or "", order.fulfillment_fee_minor))
-    parts += [(_optional(ui, k.fee_label_key(fee.fee_id)) or "", fee.amount_minor) for fee in view.fees]
-    if order.credits_applied_minor > 0:
-        parts.append((_optional(ui, k.REVIEW_CREDITS_FIELD) or "", order.credits_applied_minor))
+        name = (_optional(ui, k.option_key(option, "label")) if option else None) or _optional(
+            ui, k.FULFILLMENT_FEE_FIELD
+        )
+        if name:
+            lines.append(line(name, order.fulfillment_fee_minor))
     # A fee whose label is no longer configured is left out, as it is everywhere else (the total includes it).
-    text = [f"{label} {fmt(amount)}" for label, amount in parts if label]
-    text.append(f"{_text(ui, k.REVIEW_TOTAL_FIELD)} **{fmt(order.total_minor)}**")
+    for fee in view.fees:
+        label = _optional(ui, k.fee_label_key(fee.fee_id))
+        if label:
+            lines.append(line(label, fee.amount_minor))
+    credit_name = _optional(ui, k.REVIEW_CREDITS_FIELD) if order.credits_applied_minor > 0 else None
+    if credit_name:
+        credit = _optional(ui, k.SUMMARY_CREDIT_LINE, label=credit_name, amount=fmt(order.credits_applied_minor))
+        lines.append(credit or line(credit_name, order.credits_applied_minor))
+    lines.append(_text(ui, k.SUMMARY_TOTAL_LINE, label=_text(ui, k.REVIEW_TOTAL_FIELD), amount=fmt(order.total_minor)))
     if order.refunded_minor > 0:
-        text.append(f"{_text(ui, k.STAFF_REFUNDED_FIELD)} {fmt(order.refunded_minor)}")
+        lines.append(line(_text(ui, k.STAFF_REFUNDED_FIELD), order.refunded_minor))
     returned_name = _optional(ui, k.STAFF_CREDIT_RETURNED_FIELD)
     if order.credit_returned_minor > 0 and returned_name:
-        text.append(f"{returned_name} {fmt(order.credit_returned_minor)}")
-    return text
+        lines.append(line(returned_name, order.credit_returned_minor))
+    return lines
 
 
 def _record_fields(ui: Ui, view: m.OrderView, data: h.StaffData) -> list[EmbedField]:
-    """Customer, order channel and claim (the number and status are in the title)."""
+    """Customer and order ticket side by side (two short mentions), the claim full width under them, so no fact is
+    squeezed into a third of the card (the number and status are in the title)."""
     order = view.order
     fields = [EmbedField(_text(ui, sk.CUSTOMER_FIELD), views.user_mention(order.user_id), inline=True)]
     channel_name = _optional(ui, sk.CHANNEL_FIELD)
@@ -330,9 +357,9 @@ def _record_fields(ui: Ui, view: m.OrderView, data: h.StaffData) -> list[EmbedFi
     handling = data.handling
     if handling.claimed_by is not None and handling.claimed_at is not None:
         claimed = f"{views.user_mention(handling.claimed_by)} {_relative(handling.claimed_at)}"
-        fields.append(EmbedField(_text(ui, sk.CLAIMED_FIELD), claimed, inline=True))
+        fields.append(EmbedField(_text(ui, sk.CLAIMED_FIELD), claimed))
     elif order.status in h.CLAIMABLE_STATUSES:
-        fields.append(EmbedField(_text(ui, sk.CLAIMED_FIELD), _text(ui, sk.NOT_CLAIMED), inline=True))
+        fields.append(EmbedField(_text(ui, sk.CLAIMED_FIELD), _text(ui, sk.NOT_CLAIMED)))
     return fields
 
 
@@ -673,8 +700,10 @@ class RevealedCard:
 def gift_card_reveal(
     op: OperatorText, ui: Ui, settings: Settings, order: m.Order, cards: Sequence[RevealedCard], *, keep_days: int
 ) -> MessageSpec:
-    """The private reply with the waiting cards' codes (spoiler-hidden). With more than one waiting card, each gets
-    its own redeemed / problem buttons; the record's Payment confirmed and Card problem act on all of them."""
+    """The private reply with the waiting cards' codes (spoiler-hidden) under the three steps to take. With more than
+    one waiting card, each gets its own row of redeemed / problem buttons (only the problem button for a card whose
+    code was deleted unread); the record's Payment confirmed and Card problem act on all of them. Its operator text
+    shows the bot's icons."""
     fmt = views.order_money(ui, settings, order.currency)
     fields: list[EmbedField] = []
     for item in cards:
@@ -698,28 +727,27 @@ def gift_card_reveal(
         fields.append(EmbedField(name, value))
     embed = ui.operator_embed(
         op("checkout.gift.reveal.title", number=order.number),
-        op("checkout.gift.reveal.intro"),
+        ui.with_icons(op("checkout.gift.reveal.intro")),
         tone="warning",
         fields=fields,
     )
-    buttons: list[ButtonSpec] = []
+    rows: list[tuple[Component, ...]] = []
     if len(cards) > 1:
         for item in cards:
-            buttons.append(
-                ButtonSpec(
-                    label=op("checkout.gift.reveal.redeemed_button", index=item.index),
-                    custom_id=views.gift_card_redeemed_id(order.id, item.card.id),
-                    style="success",
-                )
+            # A card whose code was deleted unread cannot be redeemed any more: only its problem button.
+            erased = item.secret is None and not item.card.stored
+            redeemed = ButtonSpec(
+                label=ui.with_icons(op("checkout.gift.reveal.redeemed_button", index=item.index)),
+                custom_id=views.gift_card_redeemed_id(order.id, item.card.id),
+                style="success",
             )
-            buttons.append(
-                ButtonSpec(
-                    label=op("checkout.gift.reveal.problem_button", index=item.index),
-                    custom_id=views.gift_card_problem_id(order.id, item.card.id),
-                    style="danger",
-                )
+            problem = ButtonSpec(
+                label=ui.with_icons(op("checkout.gift.reveal.problem_button", index=item.index)),
+                custom_id=views.gift_card_problem_id(order.id, item.card.id),
+                style="danger",
             )
-    return MessageSpec(embeds=(embed,), rows=rows_of(*buttons, per_row=2), banner=ui.banner("staff-dashboard"))
+            rows.append((problem,) if erased else (redeemed, problem))  # one row per card
+    return MessageSpec(embeds=(embed,), rows=tuple(rows), banner=ui.banner("staff-dashboard"))
 
 
 def _spoiler_safe(text: str) -> str:

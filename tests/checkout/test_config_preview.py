@@ -50,7 +50,6 @@ def test_conditional_requirements() -> None:
     plain = _keys()
     for key in (
         k.FULFILLMENT_TITLE,
-        k.FULFILLMENT_CHOSEN_FIELD,
         k.FULFILLMENT_FEE_FIELD,
         k.DETAILS_TITLE,
         k.DETAILS_MODAL_TITLE,
@@ -63,10 +62,16 @@ def test_conditional_requirements() -> None:
         k.notify_description_key(k.NOTIFY_PAYMENT_REMINDER),
     ):
         assert not plain[key].required, key  # type: ignore[attr-defined]
-    for key in (k.REVIEW_CREDITS_FIELD, k.BUTTON_APPLY_CREDITS, k.BUTTON_REMOVE_CREDITS, k.STAFF_BUTTON_REFUND_CREDIT):
+    for key in (
+        k.REVIEW_CREDITS_FIELD,
+        k.SUMMARY_CREDIT_LINE,
+        k.BUTTON_APPLY_CREDITS,
+        k.BUTTON_REMOVE_CREDITS,
+        k.STAFF_BUTTON_REFUND_CREDIT,
+    ):
         assert plain[key].required, key  # type: ignore[attr-defined]
     no_credits = _keys({"features": {"credits": False}})
-    for key in (k.REVIEW_CREDITS_FIELD, k.BUTTON_APPLY_CREDITS, k.STAFF_BUTTON_REFUND_CREDIT):
+    for key in (k.REVIEW_CREDITS_FIELD, k.SUMMARY_CREDIT_LINE, k.BUTTON_APPLY_CREDITS, k.STAFF_BUTTON_REFUND_CREDIT):
         assert not no_credits[key].required, key  # type: ignore[attr-defined]
     timers = _keys(
         {
@@ -106,7 +111,6 @@ def test_shared_keys() -> None:
         core.BUTTON_BACK,
         core.BUTTON_CONTINUE,
         core.BUTTON_CANCEL,
-        core.BUTTON_CONFIRM,
         core.BUTTON_PREV,
         core.BUTTON_NEXT,
     ]
@@ -304,9 +308,14 @@ async def test_full_workflow_preview_states(tmp_path: Path) -> None:
         assert "staff_details_1" not in states
         review = states["workflow_review"]
         assert isinstance(review, MessageSpec)
-        names = [f.name for f in review.embeds[0].fields]
-        assert tenv.text(k.fee_label_key("service")) in names and tenv.text(k.fee_label_key("tax")) in names
-        assert tenv.text(k.FULFILLMENT_FEE_FIELD) in names
+        # The review's summary lists the delivery option and every fee with its amount (the sample chooses
+        # 'delivery', the option with a fee and a form).
+        text = "\n\n".join(e.description or "" for e in review.embeds)
+        heading = f"**{tenv.text(k.SUMMARY_HEADING)}**"
+        summary = next(p.split("\n")[1:] for p in text.split("\n\n") if p.startswith(heading))
+        for label_key in (k.option_key("delivery", "label"), k.fee_label_key("service"), k.fee_label_key("tax")):
+            assert any(tenv.text(label_key) in line for line in summary), label_key
+        assert not any(f.inline for f in review.embeds[0].fields)  # only the customer's answers are fields
     finally:
         await tenv.close()
 
@@ -337,7 +346,7 @@ async def test_preview_sample_data_is_synthetic(tenv: TestEnv) -> None:
     states = {s.name: s.spec for s in MODULE.preview(tenv.app)}
     cart = states["workflow_cart"]
     assert isinstance(cart, MessageSpec)
-    assert any("sample product 1" in f.value for f in cart.embeds[0].fields)
+    assert "sample product 1" in (cart.embeds[0].description or "")
 
 
 async def test_panel_spec_and_publish(co: TestEnv) -> None:

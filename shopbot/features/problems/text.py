@@ -10,17 +10,23 @@ from __future__ import annotations
 
 OPERATOR_TEXT: dict[str, str] = {
     # decision forms (staff only)
-    "problems.form.resolve_title": "Resolve problem report {number}",
+    "problems.form.resolve_title": "Resolve report #{number}",
     "problems.form.resolve_note": "Note for the customer (optional)",
     "problems.form.resolve_note_help": "Shown to the customer on the ticket and in the decision message.",
-    "problems.form.reject_title": "Reject problem report {number}",
+    "problems.form.reject_title": "Reject report #{number}",
     "problems.form.reject_reason": "Reason for the customer",
     "problems.form.reject_reason_help": "Shown to the customer on the ticket and in the decision message.",
-    # staff replies
-    "problems.op.decided": "Problem report {number} was {status}. Customer notification: {delivery}.",
-    "problems.op.already_decided": "Problem report {number} was already {status}; nothing was changed.",
-    "problems.op.reason_required": "A reason is required to reject a problem report.",
-    "problems.op.reason_too_long": "The reason may be at most {max} characters (it was {length}).",
+    # staff replies: a short title over one line of details
+    "problems.op.decided_title": "Report #{number} {status}",
+    "problems.op.decided": "Customer notification: {delivery}.",
+    "problems.op.already_decided_title": "Report #{number} already {status}",
+    "problems.op.already_decided": "Another decision came first, so nothing was changed.",
+    "problems.op.reason_required_title": "Reason needed",
+    "problems.op.reason_required": "A reason is required to reject a report. Press **Reject** again and enter one.",
+    "problems.op.reason_too_long_title": "Text too long",
+    "problems.op.reason_too_long": (
+        "The text may be at most {max} characters (it was {length}). Open the form again and shorten it."
+    ),
     "problems.op.status.resolved": "resolved",
     "problems.op.status.rejected": "rejected",
     "problems.op.delivery.dm": "sent by direct message",

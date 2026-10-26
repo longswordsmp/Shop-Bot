@@ -17,7 +17,7 @@ from shopbot.features import core_keys as core
 from shopbot.features.checkout import models as m
 from shopbot.features.checkout import payment_methods, staff_keys
 from shopbot.features.checkout.payments import PROVIDERS
-from shopbot.features.server_keys import private_channel_problems, reference_problems
+from shopbot.features.server_keys import channel_placeholder, private_channel_problems, reference_problems
 
 FEATURE = "checkout"
 ROUTE = "co"
@@ -44,12 +44,26 @@ BUTTON_OPEN_TICKET = "checkout.ticket_link.button"
 # -- the order ticket: introduction and the parts every state of the live panel shows -------------------
 TICKET_INTRO_TITLE = "checkout.ticket.intro_title"
 TICKET_INTRO_DESCRIPTION = "checkout.ticket.intro_description"
-TICKET_REFERENCE_FIELD = "checkout.ticket.reference_field"
-TICKET_ORDER_NUMBER_FIELD = "checkout.ticket.order_number_field"
-TICKET_STATUS_FIELD = "checkout.ticket.status_field"
+# The key facts, one line at the top of every card of the ticket: the ticket alone (introduction, closed panel), with
+# the status while the order is put together, with the order number and status once it was placed.
+TICKET_REFERENCE_LINE = "checkout.ticket.reference_line"
+TICKET_DRAFT_LINE = "checkout.ticket.draft_line"
+TICKET_ORDER_LINE = "checkout.ticket.order_line"
 TICKET_STATUS_IN_PROGRESS = "checkout.ticket.status_in_progress"
-TICKET_TIMELINE_FIELD = "checkout.ticket.timeline_field"
-TICKET_TIMELINE_ENTRY = "checkout.ticket.timeline_entry"
+
+# -- receipt sections of the live panel (items, summary, progress tracker) ---------------------------------
+ITEMS_HEADING = "checkout.cart.heading"
+SUMMARY_HEADING = "checkout.summary.heading"
+SUMMARY_LINE = "checkout.summary.line"
+SUMMARY_TOTAL_LINE = "checkout.summary.total_line"
+SUMMARY_CREDIT_LINE = "checkout.summary.credit_line"
+SUMMARY_FREE = "checkout.summary.free"
+PROGRESS_HEADING = "checkout.progress.heading"
+PROGRESS_START = "checkout.progress.start"
+PROGRESS_DONE = "checkout.progress.done"
+PROGRESS_CURRENT = "checkout.progress.current"
+PROGRESS_NEXT = "checkout.progress.next"
+PROGRESS_STOPPED = "checkout.progress.stopped"
 
 # -- submission form (checkout.submission_form, collected when the customer presses Submit) ---------------
 SUBMISSION_MODAL_TITLE = "checkout.submission.modal_title"
@@ -75,7 +89,6 @@ CART_MINIMUM_NOT_MET = "checkout.cart.minimum_not_met"
 FULFILLMENT_TITLE = "checkout.fulfillment_step.title"
 FULFILLMENT_DESCRIPTION = "checkout.fulfillment_step.description"
 FULFILLMENT_SELECT_PLACEHOLDER = "checkout.fulfillment_step.select_placeholder"
-FULFILLMENT_CHOSEN_FIELD = "checkout.fulfillment_step.chosen_field"
 FULFILLMENT_FEE_FIELD = "checkout.fulfillment_step.fee_field"
 EXTRAS_HEADING = "checkout.extras.heading"
 EXTRA_LINE = "checkout.extras.line"
@@ -189,6 +202,16 @@ NOTIFIED_STATUSES = (
 
 ORDER_PLACEHOLDERS = ("order_number", "total")
 NOTIFY_PLACEHOLDERS = ("order_number", "total", "channel_mention")
+# Statuses whose view and notification point to Report a problem on the shop panel: their texts may link the
+# place-order channel (``purchase_placeholder``).
+REPORT_STATUSES = (m.FULFILLED, m.CANCELLED, m.REFUNDED)
+# One date per stage of the progress tracker, as Discord timestamps (each reader's own time zone and language).
+PROGRESS_PLACEHOLDERS = ("stage", "date", "time", "relative")
+_PROGRESS_DOC = (
+    "{stage} is the stage name (checkout.ticket.stage.*, or checkout.progress.start for the first one), {date} the "
+    "date it was reached, {time} the date and time, {relative} the same as a relative time (e.g. '2 hours ago'); use "
+    "one of them."
+)
 STAFF_TITLE_PLACEHOLDERS = ("order_number", "total", "status")
 STAFF_PLACEHOLDERS = ("order_number", "user_mention", "channel_mention", "total", "status")
 
@@ -274,6 +297,13 @@ def submission_field_key(field_id: str, name: str) -> str:
     return f"checkout.submission.form.{field_id}.{name}"
 
 
+def purchase_placeholder(settings: Settings) -> tuple[str, ...]:
+    """The placeholder that links the place-order channel (the shop panel's, e.g. ``channel_purchase``), as a
+    clickable #channel in descriptions; none while ``checkout.panel_channel`` is not set."""
+    channel = settings.checkout.panel_channel
+    return (channel_placeholder(channel),) if channel else ()
+
+
 def session_warning_enabled(settings: Settings) -> bool:
     """The expiry warning is on and can be sent before the unfinished order expires."""
     c = settings.checkout
@@ -353,8 +383,9 @@ def content_keys(settings: Settings) -> list[ContentKey]:
     g_notify = "Checkout: customer notifications (direct message, or the order channel)"
     g_staff = "Checkout: staff order controls (staff channel)"
     g_errors = "Checkout: error messages (private)"
-    g_ticket = "Checkout: order ticket (introduction, reference, status and timeline on the live panel)"
-    g_stages = "Checkout: order stage names (live panel, timeline, /myorders)"
+    g_ticket = "Checkout: order ticket (introduction, and the ticket, order number and status on the live panel)"
+    g_receipt = "Checkout: order ticket - items, summary and progress (live panel)"
+    g_stages = "Checkout: order stage names (live panel, progress tracker, /myorders)"
     keys: list[ContentKey] = [
         ck(PANEL_TITLE, Kind.TITLE, FEATURE, g_panel, "Title of the shop panel (the message with the start button)."),
         ck(PANEL_DESCRIPTION, Kind.DESCRIPTION, FEATURE, g_panel, "Text of the shop panel."),
@@ -461,31 +492,38 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             g_ticket,
             "First message in every order ticket, posted before the live panel: identifies the ticket and explains "
             "that only the customer and authorized staff can see it. {ticket_number} is the ticket number (it is also "
-            "shown in the reference field under the text), {user_mention} mentions the customer (no ping).",
+            "shown in checkout.ticket.reference_line above the text), {user_mention} mentions the customer (no ping).",
             placeholders=("ticket_number", "user_mention"),
         ),
         ck(
-            TICKET_REFERENCE_FIELD,
-            Kind.FIELD_NAME,
+            TICKET_REFERENCE_LINE,
+            Kind.FIELD_VALUE,
             FEATURE,
             g_ticket,
-            "Name of the field showing the ticket's unique reference (the ticket number, as in the channel name) on "
-            "the ticket introduction and on every state of the live panel.",
+            "First line of the ticket introduction and of the closed panel of an order that was never placed: the "
+            "ticket's unique reference, e.g. '{icon_ticket} Ticket **#{ticket_number}**'. {ticket_number} is the "
+            "ticket number (as in the channel name).",
+            placeholders=("ticket_number",),
         ),
         ck(
-            TICKET_ORDER_NUMBER_FIELD,
-            Kind.FIELD_NAME,
+            TICKET_DRAFT_LINE,
+            Kind.FIELD_VALUE,
             FEATURE,
             g_ticket,
-            "Name of the field showing the order number on the live panel once the order was submitted.",
+            "First line of every step of the live panel while the customer puts the order together, e.g. "
+            "'{icon_ticket} Ticket **#{ticket_number}** · {status}'. {ticket_number} is the ticket number, {status} "
+            "checkout.ticket.status_in_progress.",
+            placeholders=("ticket_number", "status"),
         ),
         ck(
-            TICKET_STATUS_FIELD,
-            Kind.FIELD_NAME,
+            TICKET_ORDER_LINE,
+            Kind.FIELD_VALUE,
             FEATURE,
             g_ticket,
-            "Name of the field showing the current status on every state of the live panel (the value is "
-            "checkout.ticket.status_in_progress before submission, then the order's stage name).",
+            "First line of the live panel once the order was placed (every status), e.g. '{icon_ticket} Ticket "
+            "**#{ticket_number}** · Order **#{order_number}** · {status}'. {ticket_number} is the ticket number, "
+            "{order_number} the order number, {status} the current stage name (checkout.ticket.stage.*).",
+            placeholders=("ticket_number", "order_number", "status"),
         ),
         ck(
             TICKET_STATUS_IN_PROGRESS,
@@ -493,25 +531,113 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             FEATURE,
             g_ticket,
             "Status shown on the live panel while the customer is still putting the order together (not submitted "
-            "yet).",
+            "yet), as {status} in checkout.ticket.draft_line.",
         ),
         ck(
-            TICKET_TIMELINE_FIELD,
-            Kind.FIELD_NAME,
+            ITEMS_HEADING,
+            Kind.TITLE,
             FEATURE,
-            g_ticket,
-            "Name of the field listing the order's stages so far (the timeline) on the live panel after submission "
-            "(also in /myorders). Each stage is written with checkout.ticket.timeline_entry.",
+            g_receipt,
+            "Heading of the items section of the live panel (every step and every status), shown in bold, e.g. "
+            "'{icon_cart} ITEMS'. Each item is written with checkout.cart.line.",
         ),
         ck(
-            TICKET_TIMELINE_ENTRY,
+            SUMMARY_HEADING,
+            Kind.TITLE,
+            FEATURE,
+            g_receipt,
+            "Heading of the amounts section of the live panel, shown in bold, e.g. '{icon_receipt} SUMMARY': the "
+            "subtotal, the delivery option and extras with their prices, fees, store credit and the total (what is "
+            "known so far while the order is put together).",
+        ),
+        ck(
+            SUMMARY_LINE,
             Kind.FORMAT,
             FEATURE,
-            g_ticket,
-            "How one stage of the timeline is written, e.g. '{time} {stage}'. {stage} is the stage name "
-            "(checkout.ticket.stage.*), {time} the date and time it was reached and {relative} the same as a "
-            "relative time (both shown by Discord in each reader's own time zone and language).",
-            placeholders=("stage", "time", "relative"),
+            g_receipt,
+            "How one amount of the summary is written, e.g. '{label} · {amount}'. {label} is its name (the subtotal, "
+            "the delivery option, an extra or fee), {amount} the amount (common.money_format).",
+            placeholders=("label", "amount"),
+        ),
+        ck(
+            SUMMARY_TOTAL_LINE,
+            Kind.FORMAT,
+            FEATURE,
+            g_receipt,
+            "Last line of the summary: the total (or the subtotal while nothing else is known), e.g. "
+            "'**{label} · {amount}**'. {label} is checkout.review.total_field (or checkout.cart.subtotal_field), "
+            "{amount} the amount.",
+            placeholders=("label", "amount"),
+        ),
+        ck(
+            SUMMARY_CREDIT_LINE,
+            Kind.FORMAT,
+            FEATURE,
+            g_receipt,
+            "How the store credit applied to the order is written in the summary (it is taken off the total), e.g. "
+            "'{label} · -{amount}'. {label} is checkout.review.credits_field, {amount} the credit applied. Needed when "
+            "credits are enabled and credits.allow_at_checkout = true.",
+            required=credits,
+            placeholders=("label", "amount"),
+        ),
+        ck(
+            SUMMARY_FREE,
+            Kind.FORMAT,
+            FEATURE,
+            g_receipt,
+            "Optional: shown as the amount of a delivery option without a fee, e.g. 'Free' (when empty, the option is "
+            "listed without an amount).",
+            required=False,
+        ),
+        ck(
+            PROGRESS_HEADING,
+            Kind.TITLE,
+            FEATURE,
+            g_receipt,
+            "Heading of the progress tracker on the live panel once the order was placed, shown in bold, e.g. "
+            "'{icon_clock} PROGRESS'. It lists the stages reached (with their date), then the ones still to come.",
+        ),
+        ck(
+            PROGRESS_START,
+            Kind.FORMAT,
+            FEATURE,
+            g_receipt,
+            "Name of the first stage in the progress tracker, when the customer pressed Confirm order and the "
+            "items were reserved for them, e.g. 'Items reserved'. The later stages use their stage names "
+            "(checkout.ticket.stage.*).",
+        ),
+        ck(
+            PROGRESS_DONE,
+            Kind.FIELD_VALUE,
+            FEATURE,
+            g_receipt,
+            f"A stage the order went through, e.g. '{{icon_check}} {{stage}} · {{date}}'. {_PROGRESS_DOC}",
+            placeholders=PROGRESS_PLACEHOLDERS,
+        ),
+        ck(
+            PROGRESS_CURRENT,
+            Kind.FIELD_VALUE,
+            FEATURE,
+            g_receipt,
+            f"The stage the order is in now, e.g. '{{icon_check}} **{{stage}}** · {{date}}'. {_PROGRESS_DOC}",
+            placeholders=PROGRESS_PLACEHOLDERS,
+        ),
+        ck(
+            PROGRESS_NEXT,
+            Kind.FIELD_VALUE,
+            FEATURE,
+            g_receipt,
+            "A stage still to come, e.g. '{icon_dot_grey} {stage}'. {stage} is the stage name.",
+            placeholders=("stage",),
+        ),
+        ck(
+            PROGRESS_STOPPED,
+            Kind.FIELD_VALUE,
+            FEATURE,
+            g_receipt,
+            "The stage that ended the order (cancelled, rejected, expired or refunded), e.g. "
+            f"'{{icon_cross}} **{{stage}}** · {{date}}'. {_PROGRESS_DOC}",
+            placeholders=PROGRESS_PLACEHOLDERS,
         ),
         ck(
             BROWSE_TITLE,
@@ -556,17 +682,18 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             Kind.FIELD_NAME,
             FEATURE,
             g_cart,
-            "Name of the field listing the cart lines (product steps, cart, review, the submitted order and the "
-            "staff order controls). Each line is written with checkout.cart.line.",
+            "Name of the field listing the order lines on the staff order record (the customer's live panel lists "
+            "them under checkout.cart.heading). Each line is written with checkout.cart.line.",
         ),
         ck(
             CART_LINE,
             Kind.FORMAT,
             FEATURE,
             g_cart,
-            "How one cart/order line is written, e.g. '{quantity} x {name}: {line_total}'. {name} is the product "
-            "name, {quantity} the quantity, {unit_price} the price of one unit and {line_total} the line price "
-            "(both written with common.money_format).",
+            "How one cart/order line is written (the customer's items and the staff order record), e.g. "
+            "'`{quantity}×` **{name}** · {line_total}'. {name} is the product name, {quantity} the quantity, "
+            "{unit_price} the price of one unit and {line_total} the line price (both written with "
+            "common.money_format).",
             placeholders=("name", "quantity", "unit_price", "line_total"),
         ),
         ck(
@@ -574,14 +701,15 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             Kind.FIELD_VALUE,
             FEATURE,
             g_cart,
-            "Shown in the cart field while the cart is empty.",
+            "Shown under the items heading while the cart is empty.",
         ),
         ck(
             CART_SUBTOTAL_FIELD,
             Kind.FIELD_NAME,
             FEATURE,
             g_cart,
-            "Name of the subtotal field (sum of the cart lines before fees and credits).",
+            "Name of the subtotal (sum of the cart lines before fees and credits) in the summary and on the staff "
+            "order record.",
         ),
         ck(
             CART_EDIT_PLACEHOLDER,
@@ -663,21 +791,13 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             required=options,
         ),
         ck(
-            FULFILLMENT_CHOSEN_FIELD,
-            Kind.FIELD_NAME,
-            FEATURE,
-            g_ful,
-            "Name of the field showing the chosen fulfillment option (its label). Needed when "
-            "checkout.fulfillment_options are defined.",
-            required=options,
-        ),
-        ck(
             FULFILLMENT_FEE_FIELD,
             Kind.FIELD_NAME,
             FEATURE,
             g_ful,
-            "Name of the field showing the chosen option's fee (fee_minor, written with common.money_format; "
-            "shown only when that fee is above 0). Needed when an option has a fee.",
+            "Name of the delivery fee in the summary and on the staff order record when the chosen option's name "
+            "is not configured any more (an order placed before the option was removed); otherwise the option's "
+            "name is shown with its fee. Needed when an option has a fee.",
             required=any(o.fee_minor > 0 for o in c.fulfillment_options),
         ),
         ck(
@@ -743,15 +863,16 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             Kind.FIELD_NAME,
             FEATURE,
             g_review,
-            "Name of the field showing the total to pay (review step, submitted order, staff order controls).",
+            "Name of the total to pay: the last line of the summary (review step and the placed order) and on the "
+            "staff order record.",
         ),
         ck(
             REVIEW_CREDITS_FIELD,
             Kind.FIELD_NAME,
             FEATURE,
             g_review,
-            "Name of the field showing the store credit applied to the order (written with "
-            "common.money_format). Needed when credits are enabled and credits.allow_at_checkout = true.",
+            "Name of the store credit applied to the order, in the summary (checkout.summary.credit_line) and on the "
+            "staff order record. Needed when credits are enabled and credits.allow_at_checkout = true.",
             required=credits,
         ),
         ck(
@@ -759,8 +880,8 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             Kind.FIELD_NAME,
             FEATURE,
             g_review,
-            "Optional name of a field showing how much store credit the customer could apply (shown while "
-            "credits are not applied).",
+            "Optional name of the line under the review step's total showing how much store credit the customer "
+            "could apply (shown while it is not applied).",
             required=False,
         ),
         ck(
@@ -920,9 +1041,12 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             placeholders=ORDER_PLACEHOLDERS,
         ),
     ]
+    purchase = purchase_placeholder(settings)
+    purchase_doc = f" {{{purchase[0]}}} links the place-order channel (where Report a problem is)." if purchase else ""
     for status in m.STATUS_VIEWS:
         required = status != m.EXPIRED or c.payment_expiry_minutes > 0
         condition = " Needed when checkout.payment_expiry_minutes is above 0." if status == m.EXPIRED else ""
+        links = purchase if status in REPORT_STATUSES else ()
         keys += [
             ck(
                 status_title_key(status),
@@ -939,9 +1063,11 @@ def content_keys(settings: Settings) -> list[ContentKey]:
                 Kind.DESCRIPTION,
                 FEATURE,
                 g_status,
-                f"Optional text of the order workflow message once the order is '{status}'. {_ORDER_DOC}",
+                f"Optional text of the order workflow message once the order is '{status}' (under the ticket, order "
+                f"number and status line; the items, summary and progress follow). {_ORDER_DOC}"
+                f"{purchase_doc if links else ''}",
                 required=False,
-                placeholders=ORDER_PLACEHOLDERS,
+                placeholders=(*ORDER_PLACEHOLDERS, *links),
             ),
         ]
     for status in m.ORDER_STATUSES:
@@ -951,8 +1077,8 @@ def content_keys(settings: Settings) -> list[ContentKey]:
                 Kind.FORMAT,
                 FEATURE,
                 g_stages,
-                f"Name of the stage '{status}' ({_STATUS_DOC[status]}) shown to the customer: the status field of "
-                "the live panel, the order timeline and /myorders.",
+                f"Name of the stage '{status}' ({_STATUS_DOC[status]}) shown to the customer: the status on the "
+                "live panel, the progress tracker and /myorders.",
             )
         )
     for status in m.ORDER_STATUSES:
@@ -974,6 +1100,7 @@ def content_keys(settings: Settings) -> list[ContentKey]:
     for status in NOTIFIED_STATUSES:
         required = status != m.EXPIRED or c.payment_expiry_minutes > 0
         condition = " Needed when checkout.payment_expiry_minutes is above 0." if status == m.EXPIRED else ""
+        links = purchase if status in REPORT_STATUSES else ()
         keys += [
             ck(
                 notify_title_key(status),
@@ -990,9 +1117,9 @@ def content_keys(settings: Settings) -> list[ContentKey]:
                 FEATURE,
                 g_notify,
                 f"Notification sent to the customer when their order becomes '{status}' "
-                f"({_STATUS_DOC[status]}). {notify_doc}{condition}",
+                f"({_STATUS_DOC[status]}). {notify_doc}{condition}{purchase_doc if links else ''}",
                 required=required,
-                placeholders=NOTIFY_PLACEHOLDERS,
+                placeholders=(*NOTIFY_PLACEHOLDERS, *links),
             ),
         ]
     keys += [
@@ -1077,8 +1204,8 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             g_notify,
             "Notification sent to the customer when staff record a partial refund (a refund that completes the "
             "full refund sends the 'refunded' notification instead). {order_number} is the order number, {amount} "
-            "the refunded amount (common.money_format), {channel_mention} links the order channel.",
-            placeholders=("order_number", "amount", "channel_mention"),
+            f"the refunded amount (common.money_format), {{channel_mention}} links the order channel.{purchase_doc}",
+            placeholders=("order_number", "amount", "channel_mention", *purchase),
         ),
         ck(
             STAFF_TITLE,
@@ -1527,7 +1654,7 @@ def _extra_keys(c: CheckoutSettings) -> list[ContentKey]:
 
 def shared_keys(settings: Settings) -> list[str]:
     """Shared keys the workflow displays: prices, the step indicator (the live panel always shows the progress),
-    step navigation, cancel confirmation and paging."""
+    step navigation (Back, Continue, Cancel) and paging."""
     del settings
     return [
         core.MONEY_FORMAT,
@@ -1535,7 +1662,6 @@ def shared_keys(settings: Settings) -> list[str]:
         core.BUTTON_BACK,
         core.BUTTON_CONTINUE,
         core.BUTTON_CANCEL,
-        core.BUTTON_CONFIRM,
         core.BUTTON_PREV,
         core.BUTTON_NEXT,
     ]

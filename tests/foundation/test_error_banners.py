@@ -1,5 +1,7 @@
-"""The shared error replies carry the error banner, built in one place (``Ui.error_message``) for the router
-(``Ctx.fail``), slash commands (``reply_content_error``), the staff "command failed" reply and the previews."""
+"""The shared error replies, built in one place (``Ui.error_message``) for the router (``Ctx.fail``), slash commands
+(``reply_content_error``) and the previews: a real failure (the generic error, an error reference) carries the error
+banner, a routine refusal that tells the customer what to do the gentler general response banner. Both keep the error
+title and colour. The staff "command failed" reply carries the error banner too."""
 
 from __future__ import annotations
 
@@ -32,16 +34,32 @@ def error_banner(tenv: TestEnv) -> list[str]:
     return [found.filename]
 
 
+def refusal_banner(tenv: TestEnv) -> list[str]:
+    found = tenv.app.ui.banner("general-response")
+    assert found is not None and [found.filename] != error_banner(tenv)
+    return [found.filename]
+
+
 def _route(tenv: TestEnv, action: str, handler, **kwargs) -> str:  # type: ignore[no-untyped-def]
     tenv.app.router.add(Route("zz", action, handler, "component", **kwargs))
     return f"sb:zz:{action}"
 
 
-def test_error_message_is_the_error_embed_below_the_error_banner(benv: TestEnv) -> None:
+def test_error_message_is_the_error_embed_above_its_banner(benv: TestEnv) -> None:
     ui = benv.app.ui
+    # A routine refusal: the error embed (title, colour), closed by the general response banner.
     spec = ui.error_message(ck.ERROR_COOLDOWN, retry_after=3)
     assert spec is not None and spec.embeds == (ui.error_embed(ck.ERROR_COOLDOWN, retry_after=3),)
-    assert spec.banner is ui.banner("error") and spec.rows == () and spec.files is None
+    assert spec.embeds[0].title == benv.text(ck.ERROR_TITLE) and spec.embeds[0].color == ui.color("danger")
+    assert spec.banner is ui.banner("general-response") and spec.rows == () and spec.files is None
+    # A real failure: the generic error (with or without its reference) or any reply with an error reference.
+    for failure in (
+        ui.error_message(ck.ERROR_GENERIC, error_id="abc"),
+        ui.error_message(ck.ERROR_GENERIC),
+        ui.error_message(ck.ERROR_UNAVAILABLE, error_id="abc"),
+    ):
+        assert failure is not None and failure.banner is ui.banner("error")
+        assert failure.embeds[0].color == ui.color("danger")
     values = dict(benv.content)
     del values[ck.ERROR_NOT_FOUND]
     benv.app.content.replace(file_values=values)
@@ -53,7 +71,7 @@ def test_error_message_has_no_banner_when_banners_are_off(tenv: TestEnv) -> None
     assert spec is not None and spec.banner is None
 
 
-async def test_every_router_failure_reply_carries_the_error_banner(benv: TestEnv) -> None:
+async def test_router_failures_carry_the_error_banner_and_refusals_the_general_one(benv: TestEnv) -> None:
     async def not_found(ctx: Ctx) -> None:
         raise HandlerError(ck.ERROR_NOT_FOUND)
 
@@ -67,17 +85,21 @@ async def test_every_router_failure_reply_carries_the_error_banner(benv: TestEnv
         raise AssertionError("must not run")
 
     user = benv.member()
-    clicks = [
-        await click(benv.app, user=user, custom_id=_route(benv, "nf", not_found, feature=None)),
+    failures = [
         await click(benv.app, user=user, custom_id=_route(benv, "crash", crash, feature=None)),
         await click(benv.app, user=user, custom_id=_route(benv, "forbidden", forbidden, feature=None)),
+    ]
+    refusals = [
+        await click(benv.app, user=user, custom_id=_route(benv, "nf", not_found, feature=None)),
         await click(benv.app, user=user, custom_id=_route(benv, "staff", never, feature=None, access="staff")),
         await click(benv.app, user=user, custom_id="sb:nope:nothing"),  # unknown (stale) control
     ]
-    for interaction in clicks:
-        reply = interaction.last_sent
-        assert reply is not None and reply.flags.ephemeral
-        assert banner_names(reply) == error_banner(benv) and reply.embeds[0].description
+    for interactions, banner in ((failures, error_banner(benv)), (refusals, refusal_banner(benv))):
+        for interaction in interactions:
+            reply = interaction.last_sent
+            assert reply is not None and reply.flags.ephemeral
+            assert banner_names(reply) == banner and reply.embeds[0].description
+            assert reply.embeds[0].title == benv.text(ck.ERROR_TITLE)
 
     # A failure after the click was acknowledged is a new private message, with the banner too.
     async def late(ctx: Ctx) -> None:
@@ -86,10 +108,10 @@ async def test_every_router_failure_reply_carries_the_error_banner(benv: TestEnv
 
     deferred = await click(benv.app, user=user, custom_id=_route(benv, "late", late, feature=None))
     assert deferred.response_kinds() == ["defer"] and len(deferred.sent) == 1
-    assert banner_names(deferred.sent[0]) == error_banner(benv)
+    assert banner_names(deferred.sent[0]) == refusal_banner(benv)
 
 
-async def test_slash_command_errors_carry_the_error_banner(benv: TestEnv) -> None:
+async def test_slash_command_errors_carry_their_banner(benv: TestEnv) -> None:
     def interaction(user: object) -> FakeInteraction:
         return FakeInteraction(
             client=benv.bot, user=user, guild=benv.guild, type=discord.InteractionType.application_command
@@ -102,8 +124,9 @@ async def test_slash_command_errors_carry_the_error_banner(benv: TestEnv) -> Non
     await on_tree_error(failed, app_commands.AppCommandError("boom"))  # type: ignore[arg-type]
     staff_failed = interaction(staff)
     await on_tree_error(staff_failed, app_commands.AppCommandError("boom"))  # type: ignore[arg-type]
-    for sent in (denied, failed, staff_failed):
+    for sent in (failed, staff_failed):
         assert sent.last_sent is not None and banner_names(sent.last_sent) == error_banner(benv)
+    assert denied.last_sent is not None and banner_names(denied.last_sent) == refusal_banner(benv)
     assert denied.last_sent is not None and denied.last_sent.embeds[0].description == benv.text(ck.ERROR_PERMISSION)
     staff_title = staff_failed.last_sent.embeds[0].title if staff_failed.last_sent is not None else None
     assert staff_title is not None and staff_title.startswith(benv.app.op("command.failed", error_id="X").split("X")[0])

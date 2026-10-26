@@ -95,7 +95,8 @@ placeholders):
 - `problems.staff_alert.title|description`: the new-report staff alert (required when an alert channel is set).
 
 Shared keys it shows: `tickets.button.close`, `common.button.continue`, `common.money_format` and
-`checkout.status_label.<status>` (order menu and order field). Staff-only forms and replies use operator text
+`checkout.ticket.stage.<status>` (the status names of the customer's order ticket, in the order menu and order
+field). Staff-only forms and replies use operator text
 (`problems.form.*`, `problems.op.*`, `problems.order_note.*`, `problems.publish.*`; overridable with
 `operator.<key>`).
 

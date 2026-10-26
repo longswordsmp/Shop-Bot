@@ -18,6 +18,7 @@ from tests.checkout.util import (
     channel,
     error_text,
     make_env,
+    paragraphs,
     place_order,
     press,
     reload_session,
@@ -50,7 +51,8 @@ async def test_start_creates_private_channel_and_workflow(co: TestEnv) -> None:
     assert not ch.permissions_for(co.member(name="other")).view_channel
     # the workflow message: browse step with exact configured text
     assert message.embeds[0].title == co.text(k.BROWSE_TITLE)
-    assert message.embeds[0].description == co.text(k.BROWSE_DESCRIPTION)
+    facts = render(co, k.TICKET_DRAFT_LINE, ticket_number="0001", status=co.text(k.TICKET_STATUS_IN_PROGRESS))
+    assert paragraphs(message)[:2] == [facts, co.text(k.BROWSE_DESCRIPTION)]
     assert views.pick_id(session.id, 0) in message.custom_ids()
     ticket = await tickets_service.get_ticket(co.app, session.ticket_id)
     assert ticket is not None and ticket.status == "open" and ticket.kind == "order"

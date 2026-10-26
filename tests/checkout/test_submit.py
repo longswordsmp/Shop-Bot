@@ -11,6 +11,7 @@ from shopbot.features.checkout import models as m
 from shopbot.features.checkout import repo, service, staff_keys, views
 from tests.checkout.util import (
     add_product,
+    amount_line,
     audit_actions,
     balance,
     channel,
@@ -19,17 +20,22 @@ from tests.checkout.util import (
     error_text,
     give_credits,
     go,
-    last_paragraph,
+    item_line,
     money,
     order,
+    order_facts,
     orders,
+    paragraphs,
     payment_section,
     place_order,
     post_answers_in_channel,
     press,
     product,
+    progress_line,
     reload_session,
     render,
+    section,
+    section_lines,
     set_price,
     set_qty,
     staff_message,
@@ -37,6 +43,7 @@ from tests.checkout.util import (
     submit,
     task,
     to_review,
+    total_line,
 )
 from tests.fakes import submit_modal
 from tests.helpers import GUILD_ID, TestEnv
@@ -65,10 +72,25 @@ async def test_submit_creates_the_order_atomically(co: TestEnv) -> None:
     # customer view: submitted title, items, total, payment instructions, cancel button
     values = {"order_number": "1", "total": money(co, 2800)}
     assert message.embeds[0].title == render(co, k.SUBMITTED_TITLE, **values)
-    # One card: the submitted text, then the payment instructions as its last section.
-    assert message.embeds[0].description == f"{render(co, k.SUBMITTED_DESCRIPTION, **values)}\n\n" + payment_section(
-        co, **values
-    )
+    # One card read like a receipt: the key facts, the submitted text, how to pay, the items, the summary and the
+    # progress (the order is placed; payment and delivery are still to come: no shipping address, so no shipping).
+    assert len(message.embeds) == 1 and message.embeds[0].fields == []
+    assert paragraphs(message) == [
+        order_facts(co, placed),
+        render(co, k.SUBMITTED_DESCRIPTION, **values),
+        payment_section(co, **values),
+        section(co, k.ITEMS_HEADING, [item_line(co, "[p1]", 2, 1250), item_line(co, "[p2]", 1, 300)]),
+        section(co, k.SUMMARY_HEADING, [total_line(co, 2800)]),
+        section(
+            co,
+            k.PROGRESS_HEADING,
+            [
+                progress_line(co, k.PROGRESS_CURRENT, m.PENDING, placed.created_at),
+                progress_line(co, k.PROGRESS_NEXT, m.PAID),
+                progress_line(co, k.PROGRESS_NEXT, m.FULFILLED),
+            ],
+        ),
+    ]
     assert message.custom_ids() == [views.order_cancel_id(placed.id)]
     # staff controls
     control = staff_message(co, placed)
@@ -171,7 +193,7 @@ async def test_price_change_between_review_and_submit(co: TestEnv) -> None:
     assert await orders(co) == []
     assert error_text(changed) is None
     assert message.embeds[0].title == co.text(k.REVIEW_TITLE)
-    assert last_paragraph(message) == render(co, k.REVIEW_PRICE_CHANGED, total=money(co, 2200))
+    assert render(co, k.REVIEW_PRICE_CHANGED, total=money(co, 2200)) in paragraphs(message)
     assert views.submit_id(session.id, 2200, 2200) in message.custom_ids()
     await press(co, customer, message, views.submit_id(session.id, 2200, 2200))
     placed = await orders(co)
@@ -223,8 +245,12 @@ async def test_credits_are_debited_and_returned_on_cancel(co: TestEnv) -> None:
     placed = (await orders(co))[0]
     assert placed.credits_applied_minor == 400 and placed.total_minor == 600
     assert await balance(co, customer.id) == 0
-    fields = {f.name: f.value for f in message.embeds[0].fields}
-    assert fields[co.text(k.REVIEW_CREDITS_FIELD)] == money(co, 400)
+    credit = render(co, k.SUMMARY_CREDIT_LINE, label=co.text(k.REVIEW_CREDITS_FIELD), amount=money(co, 400))
+    assert section_lines(co, message, k.SUMMARY_HEADING) == [
+        amount_line(co, co.text(k.CART_SUBTOTAL_FIELD), 1000),
+        credit,
+        total_line(co, 600),
+    ]
 
     await press(co, customer, message, views.order_cancel_id(placed.id))
     assert message.embeds[0].description == render(co, k.ORDER_CANCEL_CONFIRM_DESCRIPTION, order_number="1")
@@ -254,7 +280,7 @@ async def test_credits_changed_since_review_is_a_price_change(co: TestEnv) -> No
     await give_credits(co, customer.id, -300)  # spent elsewhere meanwhile
     await press(co, customer, message, views.submit_id(session.id, 600, 1000))
     assert await orders(co) == []
-    assert last_paragraph(message) == render(co, k.REVIEW_PRICE_CHANGED, total=money(co, 900))
+    assert render(co, k.REVIEW_PRICE_CHANGED, total=money(co, 900)) in paragraphs(message)
 
 
 async def test_full_workflow_order_keeps_details_fees_and_posts_staff_details(cof: TestEnv) -> None:

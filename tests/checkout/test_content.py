@@ -18,8 +18,12 @@ from tests.checkout.util import (
     go,
     make_env,
     order,
+    order_facts,
+    paragraphs,
     place_order,
     press,
+    render,
+    section,
     set_qty,
     staff_message,
     start,
@@ -49,7 +53,10 @@ async def test_optional_text_is_omitted(tmp_path: Path) -> None:
         _, session, ch, message = await start(tenv, customer)
         assert ch.topic in (None, discord.utils.MISSING)  # no topic is set
         embed = message.embeds[0]
-        assert embed.title == tenv.text(k.BROWSE_TITLE) and embed.description is None
+        # Without the step's text the card shows only the key facts and the (empty) items.
+        facts = render(tenv, k.TICKET_DRAFT_LINE, ticket_number="0001", status=tenv.text(k.TICKET_STATUS_IN_PROGRESS))
+        assert embed.title == tenv.text(k.BROWSE_TITLE)
+        assert paragraphs(message) == [facts, section(tenv, k.ITEMS_HEADING, [tenv.text(k.CART_EMPTY)])]
         # The step indicator is required (the live panel always shows the progress); nothing else is added.
         assert embed.footer.text == tenv.app.ui.progress(1, 3) and embed.author.name is None
         # Menu placeholders are required: an empty one would make Discord show its own default wording.
@@ -59,16 +66,19 @@ async def test_optional_text_is_omitted(tmp_path: Path) -> None:
         edit = component(message, views.edit_id(session.id))
         assert edit.placeholder == tenv.text(k.CART_EDIT_PLACEHOLDER) and edit.options[0].description is None
         placed, _, submitted = await place_order(tenv, tenv.member(name="b"), [(p1.id, 1)])
-        # Without a submitted description and an instructions title, the card's text is just the instructions.
+        # Without a submitted description and an instructions title, the key facts are followed by the
+        # instructions (no heading), then the items.
         assert len(submitted.embeds) == 1
-        assert submitted.embeds[0].description == tenv.app.content.render(
+        assert paragraphs(submitted)[1] == tenv.app.content.render(
             "checkout.payment.manual.instructions", order_number="1", total=tenv.app.ui.money(1000) or ""
         )
+        assert paragraphs(submitted)[2].startswith(f"**{tenv.text(k.ITEMS_HEADING)}**")
         await press(tenv, staffer, staff_message(tenv, placed), views.staff_action_id(m.PAID, placed.id))
         buyer = tenv.guild.get_member(placed.user_id)
         assert buyer is not None
         assert buyer.dms[-1].embeds[0].title is None  # type: ignore[attr-defined]
-        assert submitted.embeds[0].description is None
+        assert paragraphs(submitted)[0] == order_facts(tenv, await order(tenv, placed.id), ticket="0002")
+        assert paragraphs(submitted)[1].startswith(f"**{tenv.text(k.ITEMS_HEADING)}**")  # no status text
     finally:
         await tenv.close()
 

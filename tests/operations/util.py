@@ -3,6 +3,7 @@ Owner in the fake guild, plus shortcuts for the live order record's controls."""
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
@@ -141,7 +142,20 @@ async def mark(tenv: TestEnv, user: FakeMember, order_id: int, target: str) -> F
 
 
 def field_values(message: FakeMessage, name: str) -> list[str]:
-    return [f.value or "" for e in message.embeds for f in e.fields if f.name == name]
+    """The values under the heading ``name``: its fields and the ones that continue them (named
+    ``staff_views.CONTINUED``)."""
+    return section_values([(f.name or "", f.value or "") for e in message.embeds for f in e.fields], name)
+
+
+def section_values(fields: Sequence[tuple[str, str]], name: str) -> list[str]:
+    values: list[str] = []
+    current = None
+    for field_name, value in fields:
+        if field_name != staff_views.CONTINUED:
+            current = field_name
+        if current == name:
+            values.append(value)
+    return values
 
 
 def alert_key(alert: str, order_id: int) -> str:

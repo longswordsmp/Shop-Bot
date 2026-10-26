@@ -25,6 +25,7 @@ from tests.helpers import (
     make_test_env,
     shipped_settings_dict,
 )
+from tests.operations.util import section_values
 from tools.check_limits import unrouted_components
 
 
@@ -202,8 +203,28 @@ async def test_the_record_leaves_out_the_oldest_notes_when_discord_limits_are_re
     assert all(validate_message(part) == [] for part in extra)
     names = [f.name for e in spec.embeds for f in e.fields]
     notes_name = tenv.text(staff_keys.NOTES_FIELD)
-    listed = "\n".join(f.value for e in spec.embeds for f in e.fields if f.name == notes_name)
+    listed = "\n".join(section_values([(f.name, f.value) for e in spec.embeds for f in e.fields], notes_name))
     kept = [i for i in range(5) if f"<{i}>" in listed]
     assert kept and kept == list(range(5 - len(kept), 5)) and len(kept) < 5  # the oldest notes were left out
     assert tenv.text(staff_keys.TIMELINE_FIELD) in names
     assert tenv.text(staff_keys.CUSTOMER_FIELD) in names and tenv.text(staff_keys.AMOUNT_FIELD) in names
+
+
+async def test_a_long_list_on_the_record_shows_its_heading_once(tenv: TestEnv) -> None:
+    """The largest record splits its order lines over several fields: only the first carries the Items heading (and
+    its icon); the ones that continue it have a blank name."""
+    from shopbot.features.checkout import content_keys as ck
+    from shopbot.features.checkout import preview as checkout_preview
+
+    settings, ui = tenv.app.settings, tenv.app.ui
+    view = checkout_preview._order(settings, m.PENDING, checkout_preview._largest_cart(settings))
+    data = staff_preview.sample_data(view.order, claimed=True)
+    messages = staff_views.staff_messages(
+        ui, settings, view, data, staff_confirms_payment=True, credit_refunds=True, tracking=True
+    )
+    names = [f.name for spec in messages for e in spec.embeds for f in e.fields]
+    items = tenv.text(ck.CART_FIELD)
+    assert names.count(items) == 1
+    after = names[names.index(items) + 1 :]
+    assert after[0] == staff_views.CONTINUED  # the lines go on under no heading
+    assert len(section_values([(name, "") for name in names], items)) > 1

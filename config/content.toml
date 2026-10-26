@@ -30,10 +30,6 @@ common.button.back = "{icon_arrow_left} Back"
 # button_label · max 80 characters · optional
 common.button.cancel = "{icon_cross} Cancel"
 
-# Confirm button on confirmation prompts.
-# button_label · max 80 characters · optional
-common.button.confirm = "{icon_check} Confirm"
-
 # Continue button in multi-step workflows.
 # button_label · max 80 characters · optional
 common.button.continue = "{icon_arrow_right} Continue"
@@ -76,7 +72,7 @@ common.error.permission_denied = "You can't use this. It is reserved for staff o
 
 # Optional title above every error message.
 # title · max 256 characters · optional
-common.error.title = "Action not completed"
+common.error.title = "Couldn't complete that"
 
 # Shown when a feature is switched off or not fully configured.
 # description · max 4096 characters · required
@@ -541,7 +537,7 @@ faq.section.payment.q.1.question = "Which payment methods do you take?"
 
 # Answer to question 2 of 5 in the 'payment' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-faq.section.payment.q.2.answer = "Our card option is currently down. Regular payment options will resume as soon as they are back up; until then, DoorDash eGift cards are the only way to pay."
+faq.section.payment.q.2.answer = "Our card payments and other regular payment options are temporarily down. They will be back as soon as possible; until then, DoorDash eGift cards are the only way to pay."
 
 # Question 2 of 5 in the 'payment' section (channel links do not work in questions).
 # field_name · max 256 characters · required
@@ -665,8 +661,8 @@ faq.section.tracking.q.1.question = "Where is my tracking number?"
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
 faq.section.tracking.q.2.answer = '''
 {icon_st_submitted} **Payment submitted**: we're verifying your payment.
-{icon_st_confirmed} **Paid**: payment confirmed.
-{icon_box} **Processing**: being prepared.
+{icon_st_confirmed} **Payment confirmed**: we checked your payment.
+{icon_clock} **Being prepared**: our team is packing your order.
 {icon_st_shipped} **Shipped**: on its way, with your tracking number.
 {icon_st_delivered} **Delivered**: it arrived.
 
@@ -809,25 +805,31 @@ tickets.auto_close_warning.description = '''
 {icon_hourglass} {user_mention}, this ticket has had no new messages for a while and will close automatically in **{minutes} minutes**.
 {icon_chat} Send a message here to keep it open.'''
 
+# Optional title of the message posted in the ticket before it closes automatically for inactivity.
+# title · max 256 characters · optional
+tickets.auto_close_warning.title = "Ticket closing soon"
+
 # Text of the ticket-closed message when the ticket was closed automatically for inactivity (used instead of tickets.closed.description). {number} is the ticket number, zero-padded to tickets.number_padding digits. Needed when tickets.auto_close_inactive_minutes is above 0.
 # description · max 4096 characters · optional · placeholders: {number}
 tickets.auto_closed.description = '''
-This ticket was closed automatically because there were no new messages for a while.
+This ticket was closed automatically because there were no new messages for a while. You can still read it, but only our team can post here now.
 
-{icon_eye} You can still read it, but only our team can post here now.
-{icon_lock} The buttons below are for our team, for example to reopen the ticket if more help is needed.'''
+{icon_lock} The buttons below are for our team only, for example to reopen the ticket if you need more help.'''
 
 # Posted in the ticket when a staff member claims it. {staff_mention} mentions that staff member.
 # description · max 4096 characters · required · placeholders: {staff_mention}
 tickets.claimed.description = "{icon_user_check} {staff_mention} from our team is now handling this ticket and will help you here."
 
+# Optional title of the message posted in the ticket when a staff member claims it.
+# title · max 256 characters · optional
+tickets.claimed.title = "Ticket assigned"
+
 # Text of the ticket-closed message when someone closed it. {closer_mention} mentions who closed it. {number} is the ticket number, zero-padded to tickets.number_padding digits.
 # description · max 4096 characters · required · placeholders: {closer_mention}, {number}
 tickets.closed.description = '''
-{closer_mention} closed this ticket.
+{closer_mention} closed this ticket. You can still read it, but only our team can post here now.
 
-{icon_eye} You can still read it, but only our team can post here now.
-{icon_lock} The buttons below are for our team, for example to reopen the ticket if more help is needed.'''
+{icon_lock} The buttons below are for our team only, for example to reopen the ticket if you need more help.'''
 
 # Optional field name under which the close reason given by staff (/ticket close reason) is shown on the ticket-closed message. If empty, the reason is not shown to the customer.
 # field_name · max 256 characters · optional
@@ -841,21 +843,41 @@ tickets.closed.title = "Ticket #{number} closed"
 # description · max 4096 characters · optional · placeholders: {minutes}
 tickets.deletion_scheduled.description = "{icon_trash} This ticket channel will be deleted automatically in **{minutes} minutes**."
 
+# Optional title of the message posted in the ticket after closing when the channel will be deleted automatically.
+# title · max 256 characters · optional
+tickets.deletion_scheduled.title = "Ticket deletion scheduled"
+
 # Posted in the ticket when it is reopened. {actor_mention} mentions who reopened it. Needed when tickets.allow_reopen = true.
 # description · max 4096 characters · required · placeholders: {actor_mention}
 tickets.reopened.description = "{icon_lock_open} {actor_mention} reopened this ticket. You can post here again."
 
+# Optional title of the message posted in the ticket when it is reopened.
+# title · max 256 characters · optional
+tickets.reopened.title = "Ticket reopened"
+
 # Posted in the ticket when it is unclaimed.
 # description · max 4096 characters · required
-tickets.unclaimed.description = "{icon_user_minus} This ticket is no longer assigned to a specific team member. Our team will still reply here."
+tickets.unclaimed.description = "{icon_user_minus} This ticket is no longer assigned to one team member. Our team will still reply here."
+
+# Optional title of the message posted in the ticket when it is unclaimed.
+# title · max 256 characters · optional
+tickets.unclaimed.title = "Ticket unassigned"
 
 # Posted in the ticket when staff add someone to it (/ticket add). {user_mention} mentions (and pings) the added member.
 # description · max 4096 characters · required · placeholders: {user_mention}
 tickets.user_added.description = "{icon_user_plus} {user_mention} has been added to this ticket by our team."
 
+# Optional title of the message posted in the ticket when staff add someone to it (/ticket add).
+# title · max 256 characters · optional
+tickets.user_added.title = "Member added"
+
 # Posted in the ticket when staff remove someone from it (/ticket remove). {user_mention} mentions the removed member.
 # description · max 4096 characters · required · placeholders: {user_mention}
 tickets.user_removed.description = "{icon_user_minus} {user_mention} has been removed from this ticket."
+
+# Optional title of the message posted in the ticket when staff remove someone from it (/ticket remove).
+# title · max 256 characters · optional
+tickets.user_removed.title = "Member removed"
 
 # --- Ticket buttons ---
 
@@ -863,11 +885,11 @@ tickets.user_removed.description = "{icon_user_minus} {user_mention} has been re
 # button_label · max 80 characters · required
 tickets.button.claim = "{icon_user_check} Claim ticket"
 
-# Close button on the ticket welcome message.
+# Close button on the ticket welcome message (and on a report's panel); also the button that confirms closing on the private close prompt.
 # button_label · max 80 characters · required
 tickets.button.close = "{icon_door} Close ticket"
 
-# Delete button on the ticket-closed message (staff only; asks for confirmation).
+# Delete button on the ticket-closed message (staff only; asks for confirmation), and the button that confirms the deletion on that private prompt.
 # button_label · max 80 characters · required
 tickets.button.delete = "{icon_trash} Delete ticket"
 
@@ -885,23 +907,26 @@ tickets.button.unclaim = "{icon_user_minus} Unclaim ticket"
 
 # --- Ticket confirmation prompts (private) ---
 
-# Text of the private prompt asking to confirm closing a ticket (uses the shared confirm/cancel buttons). Needed when tickets.close_confirmation = true.
+# Text of the private prompt asking to confirm closing a ticket (buttons: tickets.button.close confirms, the shared Cancel button keeps it open). Needed when tickets.close_confirmation = true.
 # description · max 4096 characters · required
 tickets.close_confirm.description = '''
-Once the ticket is closed:
-{icon_eye} The customer can still read it, but can no longer post in it
-{icon_file} A copy of the conversation is saved
-{icon_lock_open} Our team can reopen it if more help is needed'''
+Press **Close ticket** to close it, or **Cancel** to keep it open.
+
+**{icon_door} ONCE IT IS CLOSED**
+{icon_eye} You can still read it, but only our team can post in it.
+{icon_file} A copy of the conversation is saved.
+{icon_lock_open} Our team can reopen it if more help is needed.'''
 
 # Optional title of the private prompt asking to confirm closing a ticket.
 # title · max 256 characters · optional
 tickets.close_confirm.title = "Close this ticket?"
 
-# Text of the private prompt asking staff to confirm deleting a ticket channel (uses the shared confirm/cancel buttons).
+# Text of the private prompt asking staff to confirm deleting a ticket channel (buttons: tickets.button.delete confirms, the shared Cancel button keeps it).
 # description · max 4096 characters · required
 tickets.delete_confirm.description = '''
-This permanently deletes the ticket channel and all of its messages. If a transcript is still pending, it is posted first.
+Press **Delete ticket** to delete this ticket channel and all of its messages, or **Cancel** to keep it.
 
+{icon_file} A transcript that is still pending is posted first.
 {icon_alert} **This cannot be undone.**'''
 
 # Optional title of the private prompt asking staff to confirm deleting a ticket channel.
@@ -913,8 +938,14 @@ tickets.delete_confirm.title = "Delete this ticket?"
 # Private reply after a ticket was created. {channel_mention} links the new ticket channel. {number} is the ticket number, zero-padded to tickets.number_padding digits.
 # description · max 4096 characters · required · placeholders: {channel_mention}, {number}
 tickets.created.description = '''
-{icon_check} Your ticket **#{number}** is open: {channel_mention}
+Your private ticket is ready. Our team will reply there.
+
+{icon_ticket} **Ticket:** {channel_mention}
 {icon_lock} Only you and our team can see it.'''
+
+# Optional title of the private reply after a ticket was created. {number} is the ticket number, zero-padded to tickets.number_padding digits.
+# title · max 256 characters · optional · placeholders: {number}
+tickets.created.title = "Ticket #{number} opened"
 
 # Private error when a ticket button cannot be used in the ticket's current state (e.g. closing an already closed ticket, claiming an already claimed ticket, deleting an open ticket).
 # description · max 4096 characters · required
@@ -938,7 +969,7 @@ tickets.panel.select_placeholder = "Choose a topic"
 
 # Title of the ticket panel (the message with the open buttons). Needed when tickets.panel_channel is set.
 # title · max 256 characters · optional
-tickets.panel.title = "{icon_headset} Need help?"
+tickets.panel.title = "Need help?"
 
 # --- New-ticket staff alert ---
 
@@ -951,15 +982,16 @@ tickets.staff_alert.description = '''
 
 # Title of the alert posted in the staff alert channel for each new ticket. {number} is the ticket number, zero-padded to tickets.number_padding digits. Needed when tickets.staff_alert_channel is set.
 # title · max 256 characters · required · placeholders: {number}, {category_label}
-tickets.staff_alert.title = "{icon_headset} New ticket #{number}"
+tickets.staff_alert.title = "New ticket #{number}"
 
 # --- Ticket transcripts ---
 
 # Text of the transcript message in the transcript channel. {user_mention} mentions the customer; {closer_mention} mentions who closed the ticket (the bot for automatic closes, or the staff member who requested the transcript while the ticket was open); {closed_at} is when it was closed (shown in each reader's time zone; empty while it is open); {final_status} is the order's final status name (checkout.status_label.*) for order channels, empty for support tickets; {close_reason} is the recorded close reason (the reason staff gave, or the automatic reason). {number} is the ticket number, zero-padded to tickets.number_padding digits. Needed when tickets.transcript_channel is set.
 # description · max 4096 characters · required · placeholders: {number}, {user_mention}, {closer_mention}, {closed_at}, {final_status}, {close_reason}
 tickets.transcript.description = '''
-{icon_file} The full conversation is in the attached file.
+The full conversation is in the attached file.
 
+**{icon_list} DETAILS**
 {icon_user} **Customer:** {user_mention}
 {icon_door} **Closed or requested by:** {closer_mention}
 {icon_calendar} **Closed on:** {closed_at}
@@ -968,15 +1000,15 @@ tickets.transcript.description = '''
 
 # Title of the message (with the transcript file) posted in the transcript channel. {number} is the ticket number, zero-padded to tickets.number_padding digits. Needed when tickets.transcript_channel is set.
 # title · max 256 characters · required · placeholders: {number}
-tickets.transcript.title = "Transcript · ticket #{number}"
+tickets.transcript.title = "Ticket #{number} transcript"
 
 # Text of the direct message that sends the customer their transcript file. {number} is the ticket number, zero-padded to tickets.number_padding digits. Needed when tickets.transcript_dm_user = true and a transcript channel is set.
 # description · max 4096 characters · optional · placeholders: {number}
-tickets.transcript_dm.description = "{icon_file} Here is a copy of the conversation in your ticket **#{number}**, attached as a file for your records."
+tickets.transcript_dm.description = "Here is a copy of the conversation in your ticket **#{number}**, attached as a file for your records."
 
 # Title of the direct message that sends the customer their transcript file. {number} is the ticket number, zero-padded to tickets.number_padding digits. Needed when tickets.transcript_dm_user = true and a transcript channel is set.
 # title · max 256 characters · optional · placeholders: {number}
-tickets.transcript_dm.title = "Your ticket #{number} transcript"
+tickets.transcript_dm.title = "Transcript of your ticket #{number}"
 
 # ==================================================================================================
 # Feature: catalog
@@ -1107,7 +1139,7 @@ new_arrivals.subscribed.description = "We'll mention you in {channel_new_arrival
 
 # Optional title of the private confirmation shown after a member turned notifications on.
 # title · max 256 characters · optional
-new_arrivals.subscribed.title = "Restock Alerts is on"
+new_arrivals.subscribed.title = "Restock alerts are on"
 
 # Private confirmation shown after a member turned notifications off (the notification role was removed; clicking the button again turns them back on). {role} shows the notification role as a mention (it displays the role's name and pings nobody). Channel links such as {channel_catalog} become clickable #channel links once /setup created the channel.
 # description · max 4096 characters · required · placeholders: {role}, {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
@@ -1115,7 +1147,7 @@ new_arrivals.unsubscribed.description = "We won't mention you anymore. Updates a
 
 # Optional title of the private confirmation shown after a member turned notifications off.
 # title · max 256 characters · optional
-new_arrivals.unsubscribed.title = "Restock Alerts is off"
+new_arrivals.unsubscribed.title = "Restock alerts are off"
 
 # ==================================================================================================
 # Feature: checkout
@@ -1274,11 +1306,11 @@ checkout.button.remove_credits = "{icon_cross} Remove store credit"
 # button_label · max 80 characters · required
 checkout.button.submit = "{icon_check} Confirm order"
 
-# Optional name of a field showing how much store credit the customer could apply (shown while credits are not applied).
+# Optional name of the line under the review step's total showing how much store credit the customer could apply (shown while it is not applied).
 # field_name · max 256 characters · optional
 checkout.review.credits_available_field = "Store credit available"
 
-# Name of the field showing the store credit applied to the order (written with common.money_format). Needed when credits are enabled and credits.allow_at_checkout = true.
+# Name of the store credit applied to the order, in the summary (checkout.summary.credit_line) and on the staff order record. Needed when credits are enabled and credits.allow_at_checkout = true.
 # field_name · max 256 characters · required
 checkout.review.credits_field = "Store credit applied"
 
@@ -1287,7 +1319,7 @@ checkout.review.credits_field = "Store credit applied"
 checkout.review.description = '''
 Check everything below. You can still go back and change it.
 
-Press **Confirm order** to place it. Then you pay with a DoorDash eGift card for exactly the total, right here in this ticket.'''
+Press **Confirm order** to reserve your items, then pay with a DoorDash eGift card for exactly the total, right here in this ticket.'''
 
 # Shown in the review step when the total changed since the customer looked at it (prices, fees or their credit balance changed); nothing was submitted yet. {total} is the new total.
 # description · max 4096 characters · required · placeholders: {total}
@@ -1297,7 +1329,7 @@ checkout.review.price_changed = "{icon_alert} The total changed to **{total}** b
 # title · max 256 characters · required
 checkout.review.title = "Review your order"
 
-# Name of the field showing the total to pay (review step, submitted order, staff order controls).
+# Name of the total to pay: the last line of the summary (review step and the placed order) and on the staff order record.
 # field_name · max 256 characters · required
 checkout.review.total_field = "Total"
 
@@ -1473,29 +1505,79 @@ checkout.cart.edit_option = "In cart: {quantity} · {line_total}"
 # select_placeholder · max 150 characters · required
 checkout.cart.edit_placeholder = "Change the quantity of an item"
 
-# Shown in the cart field while the cart is empty.
+# Shown under the items heading while the cart is empty.
 # field_value · max 1024 characters · required
 checkout.cart.empty = "Your cart is empty."
 
-# Name of the field listing the cart lines (product steps, cart, review, the submitted order and the staff order controls). Each line is written with checkout.cart.line.
+# Name of the field listing the order lines on the staff order record (the customer's live panel lists them under checkout.cart.heading). Each line is written with checkout.cart.line.
 # field_name · max 256 characters · required
 checkout.cart.field = "{icon_box} Items"
 
-# How one cart/order line is written, e.g. '{quantity} x {name}: {line_total}'. {name} is the product name, {quantity} the quantity, {unit_price} the price of one unit and {line_total} the line price (both written with common.money_format).
+# How one cart/order line is written (the customer's items and the staff order record), e.g. '`{quantity}×` **{name}** · {line_total}'. {name} is the product name, {quantity} the quantity, {unit_price} the price of one unit and {line_total} the line price (both written with common.money_format).
 # format · max 100 characters · required · placeholders: {name}, {quantity}, {unit_price}, {line_total}
-checkout.cart.line = "• {quantity} × **{name}** ({unit_price} each): {line_total}"
+checkout.cart.line = "`{quantity}×` **{name}** · {line_total}"
 
 # Shown in the cart step while the subtotal is below checkout.min_order_total_minor (the continue button stays disabled). {minimum} is that minimum written with common.money_format. Needed when checkout.min_order_total_minor is above 0.
 # description · max 4096 characters · optional · placeholders: {minimum}
 checkout.cart.minimum_not_met = "{icon_alert} The minimum order is **{minimum}**. Please add more items to continue."
 
-# Name of the subtotal field (sum of the cart lines before fees and credits).
+# Name of the subtotal (sum of the cart lines before fees and credits) in the summary and on the staff order record.
 # field_name · max 256 characters · required
 checkout.cart.subtotal_field = "Subtotal"
 
 # Title of the cart step (the customer checks and edits quantities).
 # title · max 256 characters · required
 checkout.cart.title = "Your cart"
+
+# --- Checkout: order ticket - items, summary and progress (live panel) ---
+
+# Heading of the items section of the live panel (every step and every status), shown in bold, e.g. '{icon_cart} ITEMS'. Each item is written with checkout.cart.line.
+# title · max 256 characters · required
+checkout.cart.heading = "{icon_cart} ITEMS"
+
+# The stage the order is in now, e.g. '{icon_check} **{stage}** · {date}'. {stage} is the stage name (checkout.ticket.stage.*, or checkout.progress.start for the first one), {date} the date it was reached, {time} the date and time, {relative} the same as a relative time (e.g. '2 hours ago'); use one of them.
+# field_value · max 1024 characters · required · placeholders: {stage}, {date}, {time}, {relative}
+checkout.progress.current = "{icon_check} **{stage}** · {date}"
+
+# A stage the order went through, e.g. '{icon_check} {stage} · {date}'. {stage} is the stage name (checkout.ticket.stage.*, or checkout.progress.start for the first one), {date} the date it was reached, {time} the date and time, {relative} the same as a relative time (e.g. '2 hours ago'); use one of them.
+# field_value · max 1024 characters · required · placeholders: {stage}, {date}, {time}, {relative}
+checkout.progress.done = "{icon_check} {stage} · {date}"
+
+# Heading of the progress tracker on the live panel once the order was placed, shown in bold, e.g. '{icon_clock} PROGRESS'. It lists the stages reached (with their date), then the ones still to come.
+# title · max 256 characters · required
+checkout.progress.heading = "{icon_clock} PROGRESS"
+
+# A stage still to come, e.g. '{icon_dot_grey} {stage}'. {stage} is the stage name.
+# field_value · max 1024 characters · required · placeholders: {stage}
+checkout.progress.next = "{icon_dot_grey} {stage}"
+
+# Name of the first stage in the progress tracker, when the customer pressed Confirm order and the items were reserved for them, e.g. 'Items reserved'. The later stages use their stage names (checkout.ticket.stage.*).
+# format · max 100 characters · required
+checkout.progress.start = "Items reserved"
+
+# The stage that ended the order (cancelled, rejected, expired or refunded), e.g. '{icon_cross} **{stage}** · {date}'. {stage} is the stage name (checkout.ticket.stage.*, or checkout.progress.start for the first one), {date} the date it was reached, {time} the date and time, {relative} the same as a relative time (e.g. '2 hours ago'); use one of them.
+# field_value · max 1024 characters · required · placeholders: {stage}, {date}, {time}, {relative}
+checkout.progress.stopped = "{icon_cross} **{stage}** · {date}"
+
+# How the store credit applied to the order is written in the summary (it is taken off the total), e.g. '{label} · -{amount}'. {label} is checkout.review.credits_field, {amount} the credit applied. Needed when credits are enabled and credits.allow_at_checkout = true.
+# format · max 100 characters · required · placeholders: {label}, {amount}
+checkout.summary.credit_line = "{label} · -{amount}"
+
+# Optional: shown as the amount of a delivery option without a fee, e.g. 'Free' (when empty, the option is listed without an amount).
+# format · max 100 characters · optional
+checkout.summary.free = "Free"
+
+# Heading of the amounts section of the live panel, shown in bold, e.g. '{icon_receipt} SUMMARY': the subtotal, the delivery option and extras with their prices, fees, store credit and the total (what is known so far while the order is put together).
+# title · max 256 characters · required
+checkout.summary.heading = "{icon_receipt} SUMMARY"
+
+# How one amount of the summary is written, e.g. '{label} · {amount}'. {label} is its name (the subtotal, the delivery option, an extra or fee), {amount} the amount (common.money_format).
+# format · max 100 characters · required · placeholders: {label}, {amount}
+checkout.summary.line = "{label} · {amount}"
+
+# Last line of the summary: the total (or the subtotal while nothing else is known), e.g. '**{label} · {amount}**'. {label} is checkout.review.total_field (or checkout.cart.subtotal_field), {amount} the amount.
+# format · max 100 characters · required · placeholders: {label}, {amount}
+checkout.summary.total_line = "**{label} · {amount}**"
 
 # --- Checkout: private order channel ---
 
@@ -1601,15 +1683,11 @@ checkout.fulfillment.standard.label = "Standard shipping"
 
 # --- Checkout: order workflow - fulfillment option ---
 
-# Name of the field showing the chosen fulfillment option (its label). Needed when checkout.fulfillment_options are defined.
-# field_name · max 256 characters · required
-checkout.fulfillment_step.chosen_field = "Delivery option"
-
 # Optional text of the fulfillment step.
 # description · max 4096 characters · optional
 checkout.fulfillment_step.description = "Choose how fast you want your order in the menu below and add extras if you like, then press **Continue**."
 
-# Name of the field showing the chosen option's fee (fee_minor, written with common.money_format; shown only when that fee is above 0). Needed when an option has a fee.
+# Name of the delivery fee in the summary and on the staff order record when the chosen option's name is not configured any more (an order placed before the option was removed); otherwise the option's name is shown with its fee. Needed when an option has a fee.
 # field_name · max 256 characters · required
 checkout.fulfillment_step.fee_field = "Delivery fee"
 
@@ -1623,12 +1701,12 @@ checkout.fulfillment_step.title = "Delivery and extras"
 
 # --- Checkout: customer notifications (direct message, or the order channel) ---
 
-# Notification sent to the customer when their order becomes 'cancelled' (the order was cancelled (by the customer before paying, or by staff)). {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention.
-# description · max 4096 characters · required · placeholders: {order_number}, {total}, {channel_mention}
+# Notification sent to the customer when their order becomes 'cancelled' (the order was cancelled (by the customer before paying, or by staff)). {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention. {channel_purchase} links the place-order channel (where Report a problem is).
+# description · max 4096 characters · required · placeholders: {order_number}, {total}, {channel_mention}, {channel_purchase}
 checkout.notify.cancelled.description = '''
 Your order **#{order_number}** ({total}) has been cancelled, and its ticket {channel_mention} is now closed.
 
-{icon_flag} If you did not expect this or have questions, press **Report a problem** in the place-order channel.'''
+{icon_flag} If you did not expect this or have questions, press **Report a problem** in {channel_purchase}.'''
 
 # Optional title of the notification sent when an order becomes 'cancelled'. {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention.
 # title · max 256 characters · optional · placeholders: {order_number}, {total}, {channel_mention}
@@ -1645,13 +1723,13 @@ Your order **#{order_number}** ({total}) was not paid in time and has expired. I
 # title · max 256 characters · optional · placeholders: {order_number}, {total}, {channel_mention}
 checkout.notify.expired.title = "Order #{order_number} expired"
 
-# Notification sent to the customer when their order becomes 'fulfilled' (the order was delivered). {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention.
-# description · max 4096 characters · required · placeholders: {order_number}, {total}, {channel_mention}
+# Notification sent to the customer when their order becomes 'fulfilled' (the order was delivered). {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention. {channel_purchase} links the place-order channel (where Report a problem is).
+# description · max 4096 characters · required · placeholders: {order_number}, {total}, {channel_mention}, {channel_purchase}
 checkout.notify.fulfilled.description = '''
 Your package for order **#{order_number}** was delivered. Thank you for shopping with AmazonYaarts, we hope you enjoy it.
 
 {icon_star} In 7 days we will ask you to rate your order.
-{icon_flag} Problem with it? Press **Report a problem** in the place-order channel within 14 days.'''
+{icon_flag} Problem with it? Press **Report a problem** in {channel_purchase} within 14 days.'''
 
 # Optional title of the notification sent when an order becomes 'fulfilled'. {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention.
 # title · max 256 characters · optional · placeholders: {order_number}, {total}, {channel_mention}
@@ -1684,7 +1762,7 @@ checkout.notify.payment_reminder.title = "Reminder: order #{order_number} waits 
 checkout.notify.payment_submitted.description = '''
 Thank you. We've received your order **#{order_number}** ({total}) and your payment.
 
-**{icon_clock} WHAT HAPPENS NOW**
+**{icon_hourglass} WHAT HAPPENS NOW**
 Our team is verifying your payment. As soon as your order has been confirmed and shipped, your **tracking number will be sent in** {channel_mention}. You'll also get a DM.'''
 
 # Optional title of the notification sent when an order becomes 'payment_submitted'. {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention.
@@ -1711,24 +1789,24 @@ checkout.notify.processing.description = "Our team has started preparing your or
 # title · max 256 characters · optional · placeholders: {order_number}, {total}, {channel_mention}
 checkout.notify.processing.title = "Order #{order_number} is being prepared"
 
-# Notification sent to the customer when staff record a partial refund (a refund that completes the full refund sends the 'refunded' notification instead). {order_number} is the order number, {amount} the refunded amount (common.money_format), {channel_mention} links the order channel.
-# description · max 4096 characters · required · placeholders: {order_number}, {amount}, {channel_mention}
+# Notification sent to the customer when staff record a partial refund (a refund that completes the full refund sends the 'refunded' notification instead). {order_number} is the order number, {amount} the refunded amount (common.money_format), {channel_mention} links the order channel. {channel_purchase} links the place-order channel (where Report a problem is).
+# description · max 4096 characters · required · placeholders: {order_number}, {amount}, {channel_mention}, {channel_purchase}
 checkout.notify.refund.description = '''
 Our team recorded a partial refund of **{amount}** for your order **#{order_number}**.
 
-{icon_flag} If you have questions, press **Report a problem** in the place-order channel.
+{icon_flag} If you have questions, press **Report a problem** in {channel_purchase}.
 {icon_ticket} Your order ticket: {channel_mention}'''
 
 # Optional title of the notification sent when staff record a partial refund. {order_number} is the order number, {amount} the refunded amount, {channel_mention} links the order channel.
 # title · max 256 characters · optional · placeholders: {order_number}, {amount}, {channel_mention}
 checkout.notify.refund.title = "Refund for order #{order_number}"
 
-# Notification sent to the customer when their order becomes 'refunded' (the order was fully refunded). {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention.
-# description · max 4096 characters · required · placeholders: {order_number}, {total}, {channel_mention}
+# Notification sent to the customer when their order becomes 'refunded' (the order was fully refunded). {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention. {channel_purchase} links the place-order channel (where Report a problem is).
+# description · max 4096 characters · required · placeholders: {order_number}, {total}, {channel_mention}, {channel_purchase}
 checkout.notify.refunded.description = '''
 Your order **#{order_number}** ({total}) has been fully refunded.
 
-{icon_flag} If you have questions about your refund, press **Report a problem** in the place-order channel.
+{icon_flag} If you have questions about your refund, press **Report a problem** in {channel_purchase}.
 {icon_ticket} Your order ticket: {channel_mention}'''
 
 # Optional title of the notification sent when an order becomes 'refunded'. {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention.
@@ -1845,15 +1923,15 @@ checkout.notify.correction.title = "Action needed on order #{order_number}"
 # field_name · max 256 characters · required
 checkout.notify.rejected.reason_field = "{icon_info} Reason"
 
-# Name of the field showing the carrier in the shipped notification (Mark shipped), e.g. '{icon_truck} Carrier'.
+# Name of the field showing the carrier in the shipped notification (Mark shipped) and on the customer's order ticket card while the order is shipped, e.g. '{icon_truck} Carrier'.
 # field_name · max 256 characters · required
 checkout.notify.shipped.carrier_field = "{icon_truck} Carrier"
 
-# Name of the field showing the tracking number in the shipped notification, e.g. '{icon_location} Tracking number'.
+# Name of the field showing the tracking number in the shipped notification and on the customer's order ticket card while the order is shipped, e.g. '{icon_location} Tracking number'.
 # field_name · max 256 characters · required
-checkout.notify.shipped.number_field = "{icon_location} Tracking number"
+checkout.notify.shipped.number_field = "{icon_map} Tracking number"
 
-# Label of the link button under the shipped notification that opens the carrier's tracking page (shown when staff entered a tracking link), e.g. 'Track package'.
+# Label of the link button under the shipped notification and on the customer's order ticket card while the order is shipped, that opens the carrier's tracking page (shown when staff entered a tracking link), e.g. 'Track package'.
 # button_label · max 80 characters · required
 checkout.notify.shipped.track_button = "{icon_truck} Track package"
 
@@ -1863,7 +1941,7 @@ checkout.notify.tracking.description = "Our team added or updated the tracking d
 
 # Name of the field showing the tracking details in the customer's completion notification and in the tracking notification. Needed when checkout.staff.button.tracking is configured.
 # field_name · max 256 characters · optional
-checkout.notify.tracking.details_field = "{icon_location} Tracking details"
+checkout.notify.tracking.details_field = "{icon_map} Tracking details"
 
 # Optional title of the notification sent when staff add or change tracking details of a completed order. {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention.
 # title · max 256 characters · optional · placeholders: {order_number}, {total}, {channel_mention}
@@ -1873,7 +1951,7 @@ checkout.notify.tracking.title = "Tracking details for order #{order_number}"
 
 # Heading of the pop-up's list of the methods that work right now (it may start with an icon).
 # title · max 256 characters · required
-checkout.payment.down.active_heading = "{icon_check} WORKING RIGHT NOW"
+checkout.payment.down.active_heading = "{icon_dot_blue} AVAILABLE NOW"
 
 # How each method that works right now is listed in the pop-up. {method} is its name, {description} its description (empty when it has none).
 # field_value · max 1024 characters · required · placeholders: {method}, {description}
@@ -1883,11 +1961,11 @@ checkout.payment.down.active_line = '''
 
 # Text of that pop-up: the method is temporarily down (and when it comes back, if known). {method} is the method's name. The methods that work right now and their buttons follow.
 # description · max 4096 characters · required · placeholders: {method}
-checkout.payment.down.description = "Dear customer, we're sorry to inform you that **{method}** payments are currently down. Regular payment options will resume as soon as they are back up."
+checkout.payment.down.description = "Dear customer, we're sorry to inform you that **{method}** payments are temporarily down. They will be back as soon as possible; until then, you can pay with a method that is available now."
 
 # Button in the pop-up that opens the private gift card form (as Submit gift card does).
 # button_label · max 80 characters · required
-checkout.payment.down.gift_card_button = "{icon_gift} Pay with gift card"
+checkout.payment.down.gift_card_button = "{icon_gift} Submit gift card"
 
 # Optional last line of the pop-up, e.g. 'Press a button below to use one of them.'
 # description · max 4096 characters · optional
@@ -1901,7 +1979,7 @@ checkout.payment.down.title = "{method} is temporarily down"
 
 # Link button to payments.gift_card.buy_url (where customers buy a card).
 # button_label · max 80 characters · required
-checkout.payment.gift_card.buy_button = "{icon_cart} Buy a gift card"
+checkout.payment.gift_card.buy_button = "{icon_link} Buy a gift card"
 
 # One submitted card: {number} (1, 2...), {amount}, {last4} (the code's last characters) and {status} (one of the card_status texts).
 # format · max 100 characters · required · placeholders: {number}, {amount}, {last4}, {status}
@@ -1919,21 +1997,19 @@ checkout.payment.gift_card.card_status.refused = "not accepted: {reason}"
 # format · max 100 characters · required
 checkout.payment.gift_card.card_status.waiting = "received"
 
-# Field listing the cards the customer submitted for the order (under the instructions and in the card problem notification).
+# Heading of the section listing the cards the customer submitted for the order (under the instructions on the order card and in the card problem notification), shown in bold, e.g. '{icon_gift} GIFT CARDS'.
 # field_name · max 256 characters · required
-checkout.payment.gift_card.cards_field = "{icon_gift} Gift cards"
+checkout.payment.gift_card.cards_field = "{icon_gift} GIFT CARDS"
 
 # How to pay with gift cards, shown in the order ticket and in the payment reminder. {total} is the amount to pay.
 # description · max 4096 characters · required · placeholders: {order_number}, {total}
 checkout.payment.gift_card.instructions = '''
-Pay with a **DoorDash eGift card** worth exactly **{total}**.
 {icon_step_1} Press **Buy a gift card** and choose a **DoorDash eGift Card** (not another brand).
-{icon_step_2} Set the amount to **{total}** and buy it. You receive the card by email or text.
-{icon_step_3} Press **Submit gift card** and enter the code (and the PIN, if your card has one).
+{icon_step_2} Set the amount to exactly **{total}** and buy it. It arrives by email or text.
+{icon_step_3} Press **Submit gift card** and enter the code (and the PIN, if it has one).
+{icon_lock} Only our payment team sees your code. Never post it in this chat or send it by DM.'''
 
-{icon_lock} Only our payment team can see your code, and it is deleted once it is redeemed. Never post it in this chat and never send it to anyone by DM.'''
-
-# Line under the cards while part of the total is still to pay: {remaining} (still to pay) and {received} (the cards that count).
+# Last line of the cards section while part of the total is still to pay: {remaining} (still to pay) and {received} (the cards that count).
 # format · max 100 characters · required · placeholders: {remaining}, {received}
 checkout.payment.gift_card.remaining = "**Still to pay: {remaining}** (received {received})"
 
@@ -1943,7 +2019,7 @@ checkout.payment.gift_card.submit_button = "{icon_gift} Submit gift card"
 
 # Optional title of the payment instructions shown in the order ticket while the order waits for payment.
 # title · max 256 characters · optional · placeholders: {order_number}, {total}
-checkout.payment.gift_card.title = "{icon_gift} HOW TO PAY"
+checkout.payment.gift_card.title = "{icon_list} HOW TO PAY"
 
 # --- Checkout: gift card payment form ---
 
@@ -2041,13 +2117,13 @@ checkout.payment.methods.heading = "{icon_wallet} PAYMENT METHODS"
 # field_value · max 1024 characters · required · placeholders: {method}
 checkout.payment.methods.line_active = "{icon_dot_blue} **{method}** · available now"
 
-# How a method that is temporarily down is listed, e.g. '{icon_dot_grey} {method} · temporarily down'.
+# How the methods that are temporarily down are listed (one line for all of them), e.g. '{icon_dot_grey} {method} · temporarily down'. {method} is their names, separated by commas.
 # field_value · max 1024 characters · required · placeholders: {method}
 checkout.payment.methods.line_down = "{icon_dot_grey} {method} · temporarily down"
 
 # Optional text under the list of payment methods, e.g. why only some work right now.
 # description · max 4096 characters · optional
-checkout.payment.methods.note = "Our card option is currently down. Regular payment options will resume as soon as they are back up; until then, please pay with a DoorDash eGift card."
+checkout.payment.methods.note = "They will be back as soon as possible. Until then, please pay with a method marked available now."
 
 # --- Checkout: payment by a method our team handles ---
 
@@ -2087,7 +2163,7 @@ checkout.quantity.title = "Choose a quantity"
 
 # --- Checkout: staff order controls (staff channel) ---
 
-# Name of the field on the staff order record with the amounts on one line: items, delivery, extras and other fees, store credit, the total, and refunds.
+# Name of the field on the staff order record with the amounts, one per line as in the customer's summary (checkout.summary.line, .total_line): items, delivery, extras and other fees, store credit, the total, and refunds.
 # field_name · max 256 characters · required
 checkout.staff.amount_field = "{icon_coins} Amount"
 
@@ -2113,7 +2189,7 @@ checkout.staff.button.fulfilled = "{icon_st_delivered} Mark delivered"
 
 # Staff button: the payment was received (unpaid -> paid; stock is then taken).
 # button_label · max 80 characters · required
-checkout.staff.button.mark_paid = "{icon_check} Mark paid"
+checkout.staff.button.mark_paid = "{icon_st_confirmed} Mark paid"
 
 # Staff button: add an internal note (opens a staff-only form; notes are never shown to the customer).
 # button_label · max 80 characters · required
@@ -2141,11 +2217,11 @@ checkout.staff.button.return_credit = "{icon_wallet} Return applied credit"
 
 # Staff button: the order was shipped. Opens a form for the carrier, the tracking number and an optional tracking link, which the customer receives in the ticket and by direct message.
 # button_label · max 80 characters · required
-checkout.staff.button.shipped = "{icon_package_out} Mark shipped"
+checkout.staff.button.shipped = "{icon_st_shipped} Mark shipped"
 
 # Optional staff button on a paid, in-progress or completed order: add or change tracking details (included in the customer's completion notification, or sent to them when the order is already completed). Leave empty if your workflow does not use tracking details.
 # button_label · max 80 characters · optional
-checkout.staff.button.tracking = "{icon_truck} Update tracking"
+checkout.staff.button.tracking = "{icon_map} Update tracking"
 
 # Staff button: release the claim (only the member holding it, or an admin).
 # button_label · max 80 characters · required
@@ -2199,7 +2275,7 @@ checkout.staff.title = "Order #{order_number} · {total} · {status}"
 
 # Name of the field on the staff order record showing the tracking details staff entered. Needed when checkout.staff.button.tracking is configured.
 # field_name · max 256 characters · optional
-checkout.staff.tracking_field = "{icon_package_out} Tracking details"
+checkout.staff.tracking_field = "{icon_map} Tracking details"
 
 # --- Checkout: staff gift card controls ---
 
@@ -2227,7 +2303,7 @@ checkout.staff.gift_card.line = "Card {index} · {amount} · ending {last4} · {
 # format · max 100 characters · required · placeholders: {count}, {staff}
 checkout.staff.gift_card.revealed = "revealed {count}× (last by {staff})"
 
-# Added to a waiting card whose code was deleted after payments.gift_card.keep_days.
+# State of a card no one decided on whose code was deleted after payments.gift_card.keep_days (shown instead of the waiting state).
 # format · max 100 characters · required
 checkout.staff.gift_card.state.erased = "code deleted unread"
 
@@ -2287,18 +2363,18 @@ checkout.staff.timeline_line = "{time} · **{stage}** {actor}"
 
 # --- Checkout: order status views (order channel) ---
 
-# Optional text of the order workflow message once the order is 'cancelled'. {order_number} is the order number, {total} the order total written with common.money_format.
-# description · max 4096 characters · optional · placeholders: {order_number}, {total}
+# Optional text of the order workflow message once the order is 'cancelled' (under the ticket, order number and status line; the items, summary and progress follow). {order_number} is the order number, {total} the order total written with common.money_format. {channel_purchase} links the place-order channel (where Report a problem is).
+# description · max 4096 characters · optional · placeholders: {order_number}, {total}, {channel_purchase}
 checkout.status.cancelled.description = '''
 This order was cancelled. This ticket is now closed, but you can still read it.
 
-{icon_flag} If you have questions, press **Report a problem** in the place-order channel.'''
+{icon_flag} If you have questions, press **Report a problem** in {channel_purchase}.'''
 
 # Title of the order workflow message once the order is 'cancelled' (the order was cancelled (by the customer before paying, or by staff)). {order_number} is the order number, {total} the order total written with common.money_format.
 # title · max 256 characters · required · placeholders: {order_number}, {total}
 checkout.status.cancelled.title = "Order #{order_number} cancelled"
 
-# Optional text of the order workflow message once the order is 'expired'. {order_number} is the order number, {total} the order total written with common.money_format.
+# Optional text of the order workflow message once the order is 'expired' (under the ticket, order number and status line; the items, summary and progress follow). {order_number} is the order number, {total} the order total written with common.money_format.
 # description · max 4096 characters · optional · placeholders: {order_number}, {total}
 checkout.status.expired.description = '''
 This order was not paid in time, so it expired. This ticket is now closed, but you can still read it.
@@ -2309,18 +2385,18 @@ This order was not paid in time, so it expired. This ticket is now closed, but y
 # title · max 256 characters · optional · placeholders: {order_number}, {total}
 checkout.status.expired.title = "Order #{order_number} expired"
 
-# Optional text of the order workflow message once the order is 'fulfilled'. {order_number} is the order number, {total} the order total written with common.money_format.
-# description · max 4096 characters · optional · placeholders: {order_number}, {total}
+# Optional text of the order workflow message once the order is 'fulfilled' (under the ticket, order number and status line; the items, summary and progress follow). {order_number} is the order number, {total} the order total written with common.money_format. {channel_purchase} links the place-order channel (where Report a problem is).
+# description · max 4096 characters · optional · placeholders: {order_number}, {total}, {channel_purchase}
 checkout.status.fulfilled.description = '''
 Your package was delivered. We hope you enjoy it. This ticket is now closed, but you can still read it.
 
-{icon_flag} Problem with your order? Press **Report a problem** in the place-order channel within 14 days.'''
+{icon_flag} Problem with your order? Press **Report a problem** in {channel_purchase} within 14 days.'''
 
 # Title of the order workflow message once the order is 'fulfilled' (the order was delivered). {order_number} is the order number, {total} the order total written with common.money_format.
 # title · max 256 characters · required · placeholders: {order_number}, {total}
 checkout.status.fulfilled.title = "Order #{order_number} delivered"
 
-# Optional text of the order workflow message once the order is 'paid'. {order_number} is the order number, {total} the order total written with common.money_format.
+# Optional text of the order workflow message once the order is 'paid' (under the ticket, order number and status line; the items, summary and progress follow). {order_number} is the order number, {total} the order total written with common.money_format.
 # description · max 4096 characters · optional · placeholders: {order_number}, {total}
 checkout.status.paid.description = '''
 Thank you, your payment is confirmed. We're preparing your order now.
@@ -2331,19 +2407,19 @@ Your tracking number will be posted here as soon as it ships.'''
 # title · max 256 characters · required · placeholders: {order_number}, {total}
 checkout.status.paid.title = "Payment confirmed for order #{order_number}"
 
-# Optional text of the order workflow message once the order is 'payment_submitted'. {order_number} is the order number, {total} the order total written with common.money_format.
+# Optional text of the order workflow message once the order is 'payment_submitted' (under the ticket, order number and status line; the items, summary and progress follow). {order_number} is the order number, {total} the order total written with common.money_format.
 # description · max 4096 characters · optional · placeholders: {order_number}, {total}
 checkout.status.payment_submitted.description = '''
 Thank you. We've received your order and your payment.
 
-**{icon_clock} WHAT HAPPENS NOW**
+**{icon_hourglass} WHAT HAPPENS NOW**
 Our team is verifying your payment. As soon as your order has been confirmed and shipped, your **tracking number will be sent in this ticket**. You'll also get a DM.'''
 
 # Title of the order workflow message once the order is 'payment_submitted' (the customer submitted their payment; staff are verifying it). {order_number} is the order number, {total} the order total written with common.money_format.
 # title · max 256 characters · required · placeholders: {order_number}, {total}
 checkout.status.payment_submitted.title = "Order #{order_number} placed"
 
-# Optional text of the order workflow message once the order is 'processing'. {order_number} is the order number, {total} the order total written with common.money_format.
+# Optional text of the order workflow message once the order is 'processing' (under the ticket, order number and status line; the items, summary and progress follow). {order_number} is the order number, {total} the order total written with common.money_format.
 # description · max 4096 characters · optional · placeholders: {order_number}, {total}
 checkout.status.processing.description = "Our team is preparing your order. Your tracking number will be posted here as soon as it ships."
 
@@ -2351,18 +2427,18 @@ checkout.status.processing.description = "Our team is preparing your order. Your
 # title · max 256 characters · required · placeholders: {order_number}, {total}
 checkout.status.processing.title = "Order #{order_number} is being prepared"
 
-# Optional text of the order workflow message once the order is 'refunded'. {order_number} is the order number, {total} the order total written with common.money_format.
-# description · max 4096 characters · optional · placeholders: {order_number}, {total}
+# Optional text of the order workflow message once the order is 'refunded' (under the ticket, order number and status line; the items, summary and progress follow). {order_number} is the order number, {total} the order total written with common.money_format. {channel_purchase} links the place-order channel (where Report a problem is).
+# description · max 4096 characters · optional · placeholders: {order_number}, {total}, {channel_purchase}
 checkout.status.refunded.description = '''
 This order has been fully refunded. This ticket is closed, but you can still read it.
 
-{icon_flag} If you have questions about your refund, press **Report a problem** in the place-order channel.'''
+{icon_flag} If you have questions about your refund, press **Report a problem** in {channel_purchase}.'''
 
 # Title of the order workflow message once the order is 'refunded' (the order was fully refunded). {order_number} is the order number, {total} the order total written with common.money_format.
 # title · max 256 characters · required · placeholders: {order_number}, {total}
 checkout.status.refunded.title = "Order #{order_number} refunded"
 
-# Optional text of the order workflow message once the order is 'rejected'. {order_number} is the order number, {total} the order total written with common.money_format.
+# Optional text of the order workflow message once the order is 'rejected' (under the ticket, order number and status line; the items, summary and progress follow). {order_number} is the order number, {total} the order total written with common.money_format.
 # description · max 4096 characters · optional · placeholders: {order_number}, {total}
 checkout.status.rejected.description = '''
 Our team could not accept this order. We sent you a message about it, with the reason if our team gave one.
@@ -2374,10 +2450,10 @@ This ticket is now closed, but you can still read it.
 # title · max 256 characters · required · placeholders: {order_number}, {total}
 checkout.status.rejected.title = "Order #{order_number} rejected"
 
-# Optional text of the order workflow message once the order is 'shipped'. {order_number} is the order number, {total} the order total written with common.money_format.
+# Optional text of the order workflow message once the order is 'shipped' (under the ticket, order number and status line; the items, summary and progress follow). {order_number} is the order number, {total} the order total written with common.money_format.
 # description · max 4096 characters · optional · placeholders: {order_number}, {total}
 checkout.status.shipped.description = '''
-Your order is on its way. The carrier and tracking number were sent to you by DM (or posted in this ticket) and **/myorders** shows them any time.
+Your order is on its way. **/myorders** shows the carrier and tracking number any time.
 
 {icon_clock} Delivery times depend on your country and the carrier.'''
 
@@ -2431,18 +2507,19 @@ checkout.status_label.shipped = "Shipped"
 
 # Optional text of the submitted order. The payment instructions follow below it. {order_number} is the order number, {total} the order total written with common.money_format.
 # description · max 4096 characters · optional · placeholders: {order_number}, {total}
-checkout.submitted.description = '''
-Your items are reserved for you. Choose how to pay below.
-
-Changed your mind? You can press **Cancel order** until you submit your payment.'''
+checkout.submitted.description = "Your items are reserved for you. Choose how to pay below. Changed your mind? Press **Cancel order** until you submit your payment."
 
 # Title of the workflow message after the order was submitted (waiting for payment). {order_number} is the order number, {total} the order total written with common.money_format.
 # title · max 256 characters · required · placeholders: {order_number}, {total}
 checkout.submitted.title = "Pay for order #{order_number}"
 
-# --- Checkout: order ticket (introduction, reference, status and timeline on the live panel) ---
+# --- Checkout: order ticket (introduction, and the ticket, order number and status on the live panel) ---
 
-# First message in every order ticket, posted before the live panel: identifies the ticket and explains that only the customer and authorized staff can see it. {ticket_number} is the ticket number (it is also shown in the reference field under the text), {user_mention} mentions the customer (no ping).
+# First line of every step of the live panel while the customer puts the order together, e.g. '{icon_ticket} Ticket **#{ticket_number}** · {status}'. {ticket_number} is the ticket number, {status} checkout.ticket.status_in_progress.
+# field_value · max 1024 characters · required · placeholders: {ticket_number}, {status}
+checkout.ticket.draft_line = "{icon_ticket} Ticket **#{ticket_number}** · {status}"
+
+# First message in every order ticket, posted before the live panel: identifies the ticket and explains that only the customer and authorized staff can see it. {ticket_number} is the ticket number (it is also shown in checkout.ticket.reference_line above the text), {user_mention} mentions the customer (no ping).
 # description · max 4096 characters · required · placeholders: {ticket_number}, {user_mention}
 checkout.ticket.intro_description = '''
 Hi {user_mention}, this is your private order ticket. Only you and our team can see it.
@@ -2463,69 +2540,57 @@ Every step happens in the panel below.
 # title · max 256 characters · optional · placeholders: {ticket_number}
 checkout.ticket.intro_title = "Your order ticket"
 
-# Name of the field showing the order number on the live panel once the order was submitted.
-# field_name · max 256 characters · required
-checkout.ticket.order_number_field = "Order number"
+# First line of the live panel once the order was placed (every status), e.g. '{icon_ticket} Ticket **#{ticket_number}** · Order **#{order_number}** · {status}'. {ticket_number} is the ticket number, {order_number} the order number, {status} the current stage name (checkout.ticket.stage.*).
+# field_value · max 1024 characters · required · placeholders: {ticket_number}, {order_number}, {status}
+checkout.ticket.order_line = "{icon_ticket} Ticket **#{ticket_number}** · Order **#{order_number}** · {status}"
 
-# Name of the field showing the ticket's unique reference (the ticket number, as in the channel name) on the ticket introduction and on every state of the live panel.
-# field_name · max 256 characters · required
-checkout.ticket.reference_field = "Ticket number"
+# First line of the ticket introduction and of the closed panel of an order that was never placed: the ticket's unique reference, e.g. '{icon_ticket} Ticket **#{ticket_number}**'. {ticket_number} is the ticket number (as in the channel name).
+# field_value · max 1024 characters · required · placeholders: {ticket_number}
+checkout.ticket.reference_line = "{icon_ticket} Ticket **#{ticket_number}**"
 
-# Name of the field showing the current status on every state of the live panel (the value is checkout.ticket.status_in_progress before submission, then the order's stage name).
-# field_name · max 256 characters · required
-checkout.ticket.status_field = "Status"
-
-# Status shown on the live panel while the customer is still putting the order together (not submitted yet).
+# Status shown on the live panel while the customer is still putting the order together (not submitted yet), as {status} in checkout.ticket.draft_line.
 # field_value · max 1024 characters · required
 checkout.ticket.status_in_progress = "Not placed yet"
 
-# How one stage of the timeline is written, e.g. '{time} {stage}'. {stage} is the stage name (checkout.ticket.stage.*), {time} the date and time it was reached and {relative} the same as a relative time (both shown by Discord in each reader's own time zone and language).
-# format · max 100 characters · required · placeholders: {stage}, {time}, {relative}
-checkout.ticket.timeline_entry = "• **{stage}**: {time} ({relative})"
+# --- Checkout: order stage names (live panel, progress tracker, /myorders) ---
 
-# Name of the field listing the order's stages so far (the timeline) on the live panel after submission (also in /myorders). Each stage is written with checkout.ticket.timeline_entry.
-# field_name · max 256 characters · required
-checkout.ticket.timeline_field = "{icon_calendar} Timeline"
-
-# --- Checkout: order stage names (live panel, timeline, /myorders) ---
-
-# Name of the stage 'cancelled' (the order was cancelled (by the customer before paying, or by staff)) shown to the customer: the status field of the live panel, the order timeline and /myorders.
+# Name of the stage 'cancelled' (the order was cancelled (by the customer before paying, or by staff)) shown to the customer: the status on the live panel, the progress tracker and /myorders.
 # format · max 100 characters · required
 checkout.ticket.stage.cancelled = "Cancelled"
 
-# Name of the stage 'expired' (the order was not paid within checkout.payment_expiry_minutes) shown to the customer: the status field of the live panel, the order timeline and /myorders.
+# Name of the stage 'expired' (the order was not paid within checkout.payment_expiry_minutes) shown to the customer: the status on the live panel, the progress tracker and /myorders.
 # format · max 100 characters · required
 checkout.ticket.stage.expired = "Expired"
 
-# Name of the stage 'fulfilled' (the order was delivered) shown to the customer: the status field of the live panel, the order timeline and /myorders.
+# Name of the stage 'fulfilled' (the order was delivered) shown to the customer: the status on the live panel, the progress tracker and /myorders.
 # format · max 100 characters · required
 checkout.ticket.stage.fulfilled = "Delivered"
 
-# Name of the stage 'paid' (staff confirmed the payment) shown to the customer: the status field of the live panel, the order timeline and /myorders.
+# Name of the stage 'paid' (staff confirmed the payment) shown to the customer: the status on the live panel, the progress tracker and /myorders.
 # format · max 100 characters · required
-checkout.ticket.stage.paid = "Paid"
+checkout.ticket.stage.paid = "Payment confirmed"
 
-# Name of the stage 'payment_submitted' (the customer submitted their payment; staff are verifying it) shown to the customer: the status field of the live panel, the order timeline and /myorders.
+# Name of the stage 'payment_submitted' (the customer submitted their payment; staff are verifying it) shown to the customer: the status on the live panel, the progress tracker and /myorders.
 # format · max 100 characters · required
 checkout.ticket.stage.payment_submitted = "Payment submitted"
 
-# Name of the stage 'pending_payment' (waiting for payment) shown to the customer: the status field of the live panel, the order timeline and /myorders.
+# Name of the stage 'pending_payment' (waiting for payment) shown to the customer: the status on the live panel, the progress tracker and /myorders.
 # format · max 100 characters · required
 checkout.ticket.stage.pending_payment = "Pending payment"
 
-# Name of the stage 'processing' (staff are preparing the order) shown to the customer: the status field of the live panel, the order timeline and /myorders.
+# Name of the stage 'processing' (staff are preparing the order) shown to the customer: the status on the live panel, the progress tracker and /myorders.
 # format · max 100 characters · required
-checkout.ticket.stage.processing = "Processing"
+checkout.ticket.stage.processing = "Being prepared"
 
-# Name of the stage 'refunded' (the order was fully refunded) shown to the customer: the status field of the live panel, the order timeline and /myorders.
+# Name of the stage 'refunded' (the order was fully refunded) shown to the customer: the status on the live panel, the progress tracker and /myorders.
 # format · max 100 characters · required
 checkout.ticket.stage.refunded = "Refunded"
 
-# Name of the stage 'rejected' (staff rejected the order before payment) shown to the customer: the status field of the live panel, the order timeline and /myorders.
+# Name of the stage 'rejected' (staff rejected the order before payment) shown to the customer: the status on the live panel, the progress tracker and /myorders.
 # format · max 100 characters · required
 checkout.ticket.stage.rejected = "Rejected"
 
-# Name of the stage 'shipped' (the order was shipped (carrier and tracking number entered with Mark shipped)) shown to the customer: the status field of the live panel, the order timeline and /myorders.
+# Name of the stage 'shipped' (the order was shipped (carrier and tracking number entered with Mark shipped)) shown to the customer: the status on the live panel, the progress tracker and /myorders.
 # format · max 100 characters · required
 checkout.ticket.stage.shipped = "Shipped"
 
@@ -2565,7 +2630,7 @@ my_orders.order.title = "#{order_number} · {status}"
 
 # Optional label of the line showing the tracking details staff recorded for the order, e.g. 'Tracking' (shown only when there are tracking details; omitted when empty).
 # field_name · max 256 characters · optional
-my_orders.order.tracking_field = "{icon_truck} Tracking"
+my_orders.order.tracking_field = "{icon_map} Tracking"
 
 # ==================================================================================================
 # Feature: credits
@@ -2862,17 +2927,19 @@ reviews.rating.5.label = "5 stars - Excellent"
 
 # Tells the customer that screenshots or files can be uploaded in the private ticket once it is open (the ticket channel allows attachments). Shown below the choice step, below the confirmation after the report was created, and on the report's ticket panel while the report is open.
 # description · max 4096 characters · required
-problems.attachments_note = "{icon_photo} Photos or screenshots help our team review your report. You can upload them in your report ticket while it is open."
+problems.attachments_note = "{icon_photo} Photos or screenshots help our team review your report. You can add them here while the ticket is open."
 
 # Text of the private message in which the customer chooses the order the problem is about (their orders in problems.eligible_statuses, newest first) and/or the issue type, then presses the shared Continue button to describe the problem. Shown only when there is something to choose. You can link server channels with {channel_<key>} (for example {channel_faq}).
 # description · max 4096 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
 problems.choose.description = '''
-Tell us what went wrong in a few quick steps:
+Tell us what went wrong and our team will help you in a private ticket.
+
+**{icon_list} HOW IT WORKS**
 {icon_step_1} Choose the order it is about, if your orders are listed below
 {icon_step_2} Choose the type of problem
 {icon_step_3} Press **Continue** and describe what happened
 
-{icon_lock} A private **report ticket** then opens that only you and our team can see.'''
+{icon_lock} Only you and our team can see your report ticket.'''
 
 # Label of the last option of the order menu, for a problem that is not about one of the listed orders. Needed when problems.allow_without_order = true and problems.eligible_statuses is not empty.
 # option_label · max 100 characters · required
@@ -2882,11 +2949,11 @@ problems.choose.no_order_option = "{icon_help} Not about an order"
 # option_description · max 100 characters · optional
 problems.choose.no_order_option_description = "Your problem or question is not about one of these orders"
 
-# Label of each order in the order menu. {order_number} is the order number, {total} the order total written with common.money_format, {status} the order's status name (checkout.status_label.<status>). Needed when problems.eligible_statuses is not empty.
+# Label of each order in the order menu. {order_number} is the order number, {total} the order total written with common.money_format, {status} the order's status name as the customer's order ticket writes it (checkout.ticket.stage.<status>). Needed when problems.eligible_statuses is not empty.
 # option_label · max 100 characters · required · placeholders: {order_number}, {total}, {status}
 problems.choose.order_option = "{icon_receipt} Order #{order_number} · {total}"
 
-# Optional small text under each order in the order menu. {order_number} is the order number, {total} the order total written with common.money_format, {status} the order's status name (checkout.status_label.<status>).
+# Optional small text under each order in the order menu. {order_number} is the order number, {total} the order total written with common.money_format, {status} the order's status name as the customer's order ticket writes it (checkout.ticket.stage.<status>).
 # option_description · max 100 characters · optional · placeholders: {order_number}, {total}, {status}
 problems.choose.order_option_description = "Status: {status}"
 
@@ -2920,32 +2987,34 @@ problems.channel_prefix = "report"
 # channel_topic · max 1024 characters · optional · placeholders: {number}, {user_name}
 problems.channel_topic = "Private report ticket #{number} for {user_name}. Only they and our team can see it."
 
+# Optional heading of the card with the customer's form answers, posted below the report panel, shown in bold (it may start with an icon, e.g. {icon_file}). Each question follows in bold with the answer under it. If empty, the answers are shown without a heading.
+# title · max 256 characters · optional
+problems.details.heading = "{icon_file} YOUR REPORT"
+
 # Optional field name under which the staff member who decided is mentioned on the report panel. If empty, it is not shown.
 # field_name · max 256 characters · optional
 problems.ticket.decided_by_field = "{icon_user_check} Decided by"
 
-# Text of the report panel, for example that only the customer and authorized staff can see this ticket. {user_mention} mentions the customer, {user_name} is their display name. {number} is the report's ticket number (zero-padded to tickets.number_padding digits). {type_label} is the label of the chosen issue type (problems.type.<id>.label). You can link server channels with {channel_<key>} (for example {channel_faq}). The form answers are posted below the panel.
+# Text of the report panel, for example that only the customer and authorized staff can see this ticket. {user_mention} mentions the customer, {user_name} is their display name. {number} is the report's ticket number (zero-padded to tickets.number_padding digits). {type_label} is the label of the chosen issue type (problems.type.<id>.label). You can link server channels with {channel_<key>} (for example {channel_faq}). The form answers are posted below the panel (problems.details.heading).
 # description · max 4096 characters · required · placeholders: {user_mention}, {user_name}, {number}, {type_label}, {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
 problems.ticket.description = '''
-Thanks for letting us know, {user_name}.
+Thanks for letting us know, {user_name}. Our team answers in this ticket, and your answers are just below this message.
 
-{icon_lock} Only you and our team can see this ticket.
-{icon_note} Your description is posted below.
-{icon_headset} Our team reviews your report and replies here. The status below shows our decision.'''
+{icon_lock} Only you and our team can see this ticket.'''
 
 # Field name of the order the report is about (report panel, staff alert, decision message; omitted when the report is not about an order). Needed when problems.eligible_statuses is not empty.
 # field_name · max 256 characters · required
 problems.ticket.order_field = "{icon_receipt} Order"
 
-# The order the report is about, shown under problems.ticket.order_field. {order_number} is the order number, {total} the order total written with common.money_format, {status} the order's status name (checkout.status_label.<status>). Needed when problems.eligible_statuses is not empty.
+# The order the report is about, shown under problems.ticket.order_field. {order_number} is the order number, {total} the order total written with common.money_format, {status} the order's status name as the customer's order ticket writes it (checkout.ticket.stage.<status>). Needed when problems.eligible_statuses is not empty.
 # field_value · max 1024 characters · required · placeholders: {order_number}, {total}, {status}
-problems.ticket.order_value = "#{order_number} · {total} · {status}"
+problems.ticket.order_value = "**#{order_number}** · {total} · {status}"
 
 # Field name of the reason (rejection) or note (resolution) staff gave, shown exactly as staff wrote it on the report panel and in the decision message (omitted when staff gave none).
 # field_name · max 256 characters · required
 problems.ticket.reason_field = "{icon_chat} Message from our team"
 
-# Field name of the report status on the report panel.
+# Field name of the report status on the report panel and in the decision message.
 # field_name · max 256 characters · required
 problems.ticket.status_field = "{icon_info} Status"
 
@@ -2972,12 +3041,26 @@ problems.button.report_emoji = ""
 # Private confirmation after the report's ticket was created. {channel_mention} links the ticket; {number} is the report's ticket number (zero-padded to tickets.number_padding digits). Also shown when the same report form is submitted again.
 # description · max 4096 characters · required · placeholders: {channel_mention}, {number}
 problems.created.description = '''
-{icon_check} Your report ticket **#{number}** is open: {channel_mention}
-{icon_lock} Only you and our team can see it, and our team will reply there.'''
+Thanks for letting us know. Our team will reply in your private report ticket.
 
-# Private reply when the customer already has problems.max_open_per_user undecided reports with an open ticket. {limit} is that number; {channel_mention} links the ticket of their newest open report.
+{icon_ticket} **Report ticket:** {channel_mention}
+{icon_lock} Only you and our team can see it.'''
+
+# Optional title of the private confirmation after the report's ticket was created. {number} is the report's ticket number (zero-padded to tickets.number_padding digits).
+# title · max 256 characters · optional · placeholders: {number}
+problems.created.title = "Report #{number} received"
+
+# Private reply when the customer already has problems.max_open_per_user undecided reports with an open ticket. {limit} is that number; {channel_mention} links the ticket of their newest open report (a line with {channel_mention} is left out when that ticket cannot be linked).
 # description · max 4096 characters · required · placeholders: {limit}, {channel_mention}
-problems.limit_reached.description = "{icon_alert} You already have the maximum number of open reports ({limit}). Please continue in {channel_mention}. You can start a new report once our team has decided on your open report or its ticket is closed."
+problems.limit_reached.description = '''
+Please continue in your report ticket. Our team is still reviewing it.
+{icon_ticket} **Report ticket:** {channel_mention}
+
+{icon_info} You can start a new report once our team has decided on it or its ticket is closed (open reports at a time: {limit}).'''
+
+# Optional title of the private reply when the customer already has the maximum number of open reports.
+# title · max 256 characters · optional
+problems.limit_reached.title = "You already have an open report"
 
 # Private reply when the customer has no order a report may refer to (statuses in problems.eligible_statuses). Needed when problems.allow_without_order = false. You can link server channels with {channel_<key>} (for example {channel_faq}).
 # description · max 4096 characters · optional · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
@@ -2988,23 +3071,23 @@ problems.no_orders.description = '''
 
 # --- Report a Problem: decision messages to the customer ---
 
-# Text of the private message telling the customer their report was rejected (staff's reason/note follows under problems.ticket.reason_field). Sent by direct message when features.dm_notifications is on; the report panel in the ticket always shows the decision, and this message is posted in the ticket when the panel cannot be updated. {channel_mention} links the ticket. {number} is the report's ticket number (zero-padded to tickets.number_padding digits). {type_label} is the label of the chosen issue type (problems.type.<id>.label).
+# Text of the private message telling the customer their report was rejected (staff's reason/note follows under problems.ticket.reason_field). Sent by direct message when features.dm_notifications is on; the report panel in the ticket always shows the decision, and this message is posted in the ticket when the panel cannot be updated. {channel_mention} links the ticket (a line with it is left out when the ticket cannot be linked). {number} is the report's ticket number (zero-padded to tickets.number_padding digits). {type_label} is the label of the chosen issue type (problems.type.<id>.label).
 # description · max 4096 characters · required · placeholders: {number}, {type_label}, {channel_mention}
 problems.notify.rejected.description = '''
 Our team reviewed your report and could not accept it. The reason is shown below.
 
-{icon_ticket} Your report ticket: {channel_mention}'''
+{icon_ticket} **Report ticket:** {channel_mention}'''
 
 # Optional title of the private message telling the customer their report was rejected. {number} is the report's ticket number (zero-padded to tickets.number_padding digits). {type_label} is the label of the chosen issue type (problems.type.<id>.label).
 # title · max 256 characters · optional · placeholders: {number}, {type_label}
 problems.notify.rejected.title = "Report #{number} rejected"
 
-# Text of the private message telling the customer their report was resolved (staff's reason/note follows under problems.ticket.reason_field). Sent by direct message when features.dm_notifications is on; the report panel in the ticket always shows the decision, and this message is posted in the ticket when the panel cannot be updated. {channel_mention} links the ticket. {number} is the report's ticket number (zero-padded to tickets.number_padding digits). {type_label} is the label of the chosen issue type (problems.type.<id>.label).
+# Text of the private message telling the customer their report was resolved (staff's reason/note follows under problems.ticket.reason_field). Sent by direct message when features.dm_notifications is on; the report panel in the ticket always shows the decision, and this message is posted in the ticket when the panel cannot be updated. {channel_mention} links the ticket (a line with it is left out when the ticket cannot be linked). {number} is the report's ticket number (zero-padded to tickets.number_padding digits). {type_label} is the label of the chosen issue type (problems.type.<id>.label).
 # description · max 4096 characters · required · placeholders: {number}, {type_label}, {channel_mention}
 problems.notify.resolved.description = '''
 Our team has resolved your report. Thank you for your patience.
 
-{icon_ticket} Your report ticket: {channel_mention}'''
+{icon_ticket} **Report ticket:** {channel_mention}'''
 
 # Optional title of the private message telling the customer their report was resolved. {number} is the report's ticket number (zero-padded to tickets.number_padding digits). {type_label} is the label of the chosen issue type (problems.type.<id>.label).
 # title · max 256 characters · optional · placeholders: {number}, {type_label}
@@ -3015,10 +3098,9 @@ problems.notify.resolved.title = "Report #{number} resolved"
 # Text of the new-report staff alert (the report details stay in the private ticket). {user_mention} mentions the customer, {channel_mention} links the ticket. {number} is the report's ticket number (zero-padded to tickets.number_padding digits). {type_label} is the label of the chosen issue type (problems.type.<id>.label). Needed when tickets.staff_alert_channel is set.
 # description · max 4096 characters · required · placeholders: {user_mention}, {channel_mention}, {number}, {type_label}
 problems.staff_alert.description = '''
-{user_mention} opened a new report.
+{user_mention} opened a new report. The description and any photos are in the ticket.
 
-{icon_ticket} **Report ticket:** {channel_mention}
-{icon_photo} The description and any photos are in the ticket.'''
+{icon_ticket} **Report ticket:** {channel_mention}'''
 
 # Title of the alert posted in the staff alert channel (tickets.staff_alert_channel) for each new report. {number} is the report's ticket number (zero-padded to tickets.number_padding digits). {type_label} is the label of the chosen issue type (problems.type.<id>.label). Needed when tickets.staff_alert_channel is set.
 # title · max 256 characters · required · placeholders: {number}, {type_label}
@@ -3026,15 +3108,15 @@ problems.staff_alert.title = "New report #{number}"
 
 # --- Report a Problem: report statuses and decisions ---
 
-# Name of the report status 'open' (waiting for a staff decision), shown on the report panel.
+# Name of the report status 'open' (waiting for a staff decision), shown on the report panel (and in the decision message). It may start with an icon, e.g. {icon_check}.
 # field_value · max 1024 characters · required
-problems.status.open = "{icon_hourglass} Open, under review"
+problems.status.open = "{icon_hourglass} Under review"
 
-# Name of the report status 'rejected' (staff rejected the report), shown on the report panel.
+# Name of the report status 'rejected' (staff rejected the report), shown on the report panel (and in the decision message). It may start with an icon, e.g. {icon_check}.
 # field_value · max 1024 characters · required
 problems.status.rejected = "{icon_cross} Rejected"
 
-# Name of the report status 'resolved' (staff resolved the report), shown on the report panel.
+# Name of the report status 'resolved' (staff resolved the report), shown on the report panel (and in the decision message). It may start with an icon, e.g. {icon_check}.
 # field_value · max 1024 characters · required
 problems.status.resolved = "{icon_check} Resolved"
 
@@ -3052,7 +3134,7 @@ problems.type.damaged.emoji = "{icon_alert}"
 # input_description · max 100 characters · optional
 problems.type.damaged.form.details.description = "Describe the damage and the packaging. You can upload photos in your report ticket next."
 
-# Label of the 'details' field of the 'damaged' form (also the field name of the answer on the report's ticket).
+# Label of the 'details' field of the 'damaged' form (also the question shown in bold above the answer on the report's ticket).
 # input_label · max 45 characters · required
 problems.type.damaged.form.details.label = "What is damaged?"
 
@@ -3082,7 +3164,7 @@ problems.type.general.emoji = "{icon_chat}"
 # input_description · max 100 characters · optional
 problems.type.general.form.details.description = "Describe the problem or your question. You can upload photos in your report ticket next."
 
-# Label of the 'details' field of the 'general' form (also the field name of the answer on the report's ticket).
+# Label of the 'details' field of the 'general' form (also the question shown in bold above the answer on the report's ticket).
 # input_label · max 45 characters · required
 problems.type.general.form.details.label = "What do you need help with?"
 
@@ -3112,7 +3194,7 @@ problems.type.not_received.emoji = "{icon_package_off}"
 # input_description · max 100 characters · optional
 problems.type.not_received.form.details.description = "Tell us what is missing, what tracking shows (if any) and what you expected."
 
-# Label of the 'details' field of the 'not_received' form (also the field name of the answer on the report's ticket).
+# Label of the 'details' field of the 'not_received' form (also the question shown in bold above the answer on the report's ticket).
 # input_label · max 45 characters · required
 problems.type.not_received.form.details.label = "What happened with your delivery?"
 
@@ -3142,7 +3224,7 @@ problems.type.wrong_item.emoji = "{icon_swap}"
 # input_description · max 100 characters · optional
 problems.type.wrong_item.form.details.description = "Tell us what arrived and what you expected. You can upload photos in your report ticket next."
 
-# Label of the 'details' field of the 'wrong_item' form (also the field name of the answer on the report's ticket).
+# Label of the 'details' field of the 'wrong_item' form (also the question shown in bold above the answer on the report's ticket).
 # input_label · max 45 characters · required
 problems.type.wrong_item.form.details.label = "What did you receive?"
 

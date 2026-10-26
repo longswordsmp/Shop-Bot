@@ -27,6 +27,7 @@ from tests.checkout.util import (
     channel,
     error_text,
     order,
+    paragraphs,
     place_order,
     press,
     reload_session,
@@ -94,10 +95,11 @@ async def test_staff_close_cancels_the_unsubmitted_order_and_closes_the_ticket(o
     assert (await reload_session(tenv, session.id)).status == m.SESSION_CANCELLED
     closed = await ticket_of(tenv, ticket.id)
     assert (closed.status, closed.closed_by, closed.close_reason) == ("closed", staffer.id, m.SESSION_CANCELLED)
-    # The live panel shows the staff-closed text with the ticket reference, without any control.
-    assert message.embeds[0].description == tenv.text(k.STAFF_CLOSED_DESCRIPTION)
+    # The live panel shows the staff-closed text under the ticket's reference line, without any control.
+    reference = views.reference_line(tenv.app.ui, views.ticket_reference(tenv.app.settings, ticket.number))
+    assert paragraphs(message) == [reference, tenv.text(k.STAFF_CLOSED_DESCRIPTION)]
     assert message.embeds[0].title == tenv.text(k.STAFF_CLOSED_TITLE)
-    assert [f.value for f in message.embeds[0].fields] == [views.ticket_reference(tenv.app.settings, ticket.number)]
+    assert message.embeds[0].fields == []
     assert message.custom_ids() == []
     # The channel is locked for the customer (still readable), nothing was ordered or reserved.
     assert ch.permissions_for(customer).view_channel and not ch.permissions_for(customer).send_messages
@@ -125,7 +127,7 @@ async def test_the_staff_closed_panel_falls_back_to_the_cancelled_text(tmp_path:
         customer, staffer = tenv.member(), tenv.member(name="staffer", staff=True)
         _, ch, message = await _abandoned_cart(tenv, customer)
         await _close(tenv, staffer, ch)
-        assert message.embeds[0].description == tenv.text(k.CANCELLED_DESCRIPTION)
+        assert paragraphs(message)[1:] == [tenv.text(k.CANCELLED_DESCRIPTION)]
         assert message.embeds[0].title == tenv.text(k.CANCELLED_TITLE)
     finally:
         await tenv.close()
@@ -499,7 +501,7 @@ async def test_the_staff_closed_view_is_previewed_within_limits(op: TestEnv) -> 
     spec = states["workflow_closed_by_staff"].spec
     assert isinstance(spec, MessageSpec)
     validate_message(spec)
-    assert spec.embeds[0].description == op.text(k.STAFF_CLOSED_DESCRIPTION)
+    assert (spec.embeds[0].description or "").split("\n\n")[1:] == [op.text(k.STAFF_CLOSED_DESCRIPTION)]
     assert spec.rows == ()
 
 

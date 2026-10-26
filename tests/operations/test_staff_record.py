@@ -74,7 +74,11 @@ async def test_record_always_shows_reference_customer_status_and_timeline(ops: T
     assert fields[ops.text(staff_keys.CLAIMED_FIELD)] == ops.text(staff_keys.NOT_CLAIMED)
     amounts = fields[ops.text(staff_keys.AMOUNT_FIELD)]
     price = money(ops, 1000)
-    assert amounts == f"{ops.text(k.CART_SUBTOTAL_FIELD)} {price} · {ops.text(k.REVIEW_TOTAL_FIELD)} **{price}**"
+    # One amount per line, as in the customer's summary; the total in bold.
+    assert amounts.split("\n") == [
+        render(ops, k.SUMMARY_LINE, label=ops.text(k.CART_SUBTOTAL_FIELD), amount=price),
+        render(ops, k.SUMMARY_TOTAL_LINE, label=ops.text(k.REVIEW_TOTAL_FIELD), amount=price),
+    ]
     timeline = fields[ops.text(staff_keys.TIMELINE_FIELD)]
     assert timeline == render(
         ops,

@@ -65,7 +65,8 @@ def test_conditional_requiredness() -> None:
     assert form[k.form_field_key("billing", "details", "label")]
     assert not form[k.form_field_key("billing", "details", "placeholder")]
     assert not form[k.form_field_key("billing", "details", "description")]
-    assert MODULE.shared_keys(make_settings()) == ["common.button.confirm", "common.button.cancel"]
+    # The close and delete prompts confirm with the ticket's own Close and Delete buttons; only Cancel is shared.
+    assert MODULE.shared_keys(make_settings()) == ["common.button.cancel"]
 
 
 @pytest.mark.parametrize(

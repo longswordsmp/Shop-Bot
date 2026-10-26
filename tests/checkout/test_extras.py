@@ -21,6 +21,7 @@ from tests.checkout.util import (
     order,
     press,
     reload_session,
+    render,
     staff_message,
     start,
     submit,
@@ -82,19 +83,17 @@ async def test_extras_are_toggled_on_the_delivery_step_and_charged_as_fees(tmp_p
         view = await tenv.app.db.run(repo.order_view, placed.id)
         assert view is not None and [(f.fee_id, f.amount_minor) for f in view.fees] == [("x.discreet", 200)]
         assert k.fee_label_key("x.discreet") == k.extra_key("discreet", "label")  # shown with the extra's name
-        # The staff record names the delivery option and the extras on one line, and every amount on another.
+        # The staff record names the delivery option and the extras on one line, and lists every amount on its own.
         await tenv.app.scheduler.run_due()
         fields = {f.name: f.value for f in staff_message(tenv, await order(tenv, placed.id)).embeds[0].fields}
         option, extra = tenv.text(k.option_key("standard", "label")), tenv.text(k.extra_key("discreet", "label"))
         assert fields[tenv.text(staff_keys.DELIVERY_FIELD)] == f"{option} · {extra}"
-        assert fields[tenv.text(staff_keys.AMOUNT_FIELD)] == " · ".join(
-            [
-                f"{tenv.text(k.CART_SUBTOTAL_FIELD)} {money(tenv, 2000)}",
-                f"{option} {money(tenv, 500)}",
-                f"{extra} {money(tenv, 200)}",
-                f"{tenv.text(k.REVIEW_TOTAL_FIELD)} **{money(tenv, 2700)}**",
-            ]
-        )
+        assert fields[tenv.text(staff_keys.AMOUNT_FIELD)].split("\n") == [
+            render(tenv, k.SUMMARY_LINE, label=tenv.text(k.CART_SUBTOTAL_FIELD), amount=money(tenv, 2000)),
+            render(tenv, k.SUMMARY_LINE, label=option, amount=money(tenv, 500)),
+            render(tenv, k.SUMMARY_LINE, label=extra, amount=money(tenv, 200)),
+            render(tenv, k.SUMMARY_TOTAL_LINE, label=tenv.text(k.REVIEW_TOTAL_FIELD), amount=money(tenv, 2700)),
+        ]
     finally:
         await tenv.close()
 

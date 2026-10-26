@@ -527,7 +527,7 @@ class GiftCardSettings:
 
 PAYMENT_METHOD_STATUSES = ("active", "down")
 PAYMENT_METHOD_KINDS = ("gift_card", "staff", "link")
-MAX_PAYMENT_METHODS = 10  # two rows of buttons on the order card
+MAX_PAYMENT_METHODS = 10  # with the gift card and Cancel order, at most 5 rows of buttons on the order card
 
 
 @dataclass(frozen=True)
@@ -1168,7 +1168,7 @@ def parse_settings(data: dict[str, Any]) -> Settings:
     pa.finish()
     _unique(payments.methods, lambda x: x.id, "payments.methods", errors)
     if len(payments.methods) > MAX_PAYMENT_METHODS:
-        errors.append(f"payments.methods: at most {MAX_PAYMENT_METHODS} methods (two rows of buttons)")
+        errors.append(f"payments.methods: at most {MAX_PAYMENT_METHODS} methods (the buttons must fit the order card)")
     if payments.methods and not any(m.active for m in payments.methods):
         errors.append('payments.methods: at least one method must be status = "active" (customers need a way to pay)')
     gift_methods = [m for m in payments.methods if m.kind == "gift_card"]

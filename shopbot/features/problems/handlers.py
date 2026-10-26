@@ -246,13 +246,17 @@ async def _number(ctx: Ctx, report: Report) -> str:
     return service.number_text(ctx.app, ticket.number) if ticket is not None else str(report.id)
 
 
-async def _staff_reply(ctx: Ctx, text: str, *, tone: str, banner: BannerId = "general-response") -> None:
-    await ctx.respond(views.operator_reply(ctx.app.ui, text, tone=tone, banner=banner))
+async def _staff_reply(
+    ctx: Ctx, title: str, text: str | None = None, *, tone: str, banner: BannerId = "general-response"
+) -> None:
+    await ctx.respond(views.operator_reply(ctx.app.ui, title, text, tone=tone, banner=banner))
 
 
 async def _already_decided(ctx: Ctx, report: Report, number: str) -> None:
-    status = ctx.app.op(f"problems.op.status.{report.status}") if report.status in k.DECISIONS else report.status
-    await _staff_reply(ctx, ctx.app.op("problems.op.already_decided", number=number, status=status), tone="warning")
+    app = ctx.app
+    status = app.op(f"problems.op.status.{report.status}") if report.status in k.DECISIONS else report.status
+    title = app.op("problems.op.already_decided_title", number=number, status=status)
+    await _staff_reply(ctx, title, app.op("problems.op.already_decided"), tone="warning")
 
 
 async def resolve_button(ctx: Ctx) -> None:
@@ -279,24 +283,21 @@ async def _decide(ctx: Ctx, status: str, *, reason_required: bool) -> None:
     report = await _load_report(ctx)
     reason = ctx.fields.get(views.REASON_INPUT, "").strip()
     if reason_required and not reason:
-        await _staff_reply(ctx, app.op("problems.op.reason_required"), tone="warning", banner="error")
+        title = app.op("problems.op.reason_required_title")
+        await _staff_reply(ctx, title, app.op("problems.op.reason_required"), tone="warning", banner="error")
         return
     if len(reason) > k.REASON_MAX:
         text = app.op("problems.op.reason_too_long", max=k.REASON_MAX, length=len(reason))
-        await _staff_reply(ctx, text, tone="warning", banner="error")
+        await _staff_reply(ctx, app.op("problems.op.reason_too_long_title"), text, tone="warning", banner="error")
         return
     await ctx.defer_reply(ephemeral=True)
     outcome = await service.decide(app, report.id, status=status, reason=reason or None, actor_id=ctx.user_id)
     if not outcome.applied:
         await _already_decided(ctx, outcome.report, outcome.number)
         return
-    text = app.op(
-        "problems.op.decided",
-        number=outcome.number,
-        status=app.op(f"problems.op.status.{status}"),
-        delivery=app.op(f"problems.op.delivery.{outcome.delivery or 'none'}"),
-    )
-    await _staff_reply(ctx, text, tone="success")
+    title = app.op("problems.op.decided_title", number=outcome.number, status=app.op(f"problems.op.status.{status}"))
+    text = app.op("problems.op.decided", delivery=app.op(f"problems.op.delivery.{outcome.delivery or 'none'}"))
+    await _staff_reply(ctx, title, text, tone="success")
 
 
 async def resolve_submit(ctx: Ctx) -> None:

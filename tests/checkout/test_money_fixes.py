@@ -17,18 +17,20 @@ from shopbot.ui.custom_ids import cid
 from tests.checkout.util import (
     add_product,
     balance,
+    card_text,
     control_ids,
     give_credits,
     go,
-    last_paragraph,
     make_env,
     money,
     op_text,
     order,
     orders,
+    paragraphs,
     payment_section,
     place_order,
     press,
+    purchase_link,
     reject,
     render,
     set_price,
@@ -94,9 +96,9 @@ async def test_price_change_is_caught_when_store_credit_covers_the_whole_order(c
     assert await balance(co, customer.id) == 5000  # nothing was debited
     assert changed.last_sent is None  # the review is shown again, with the notice
     assert message.embeds[0].title == co.text(k.REVIEW_TITLE)
-    assert last_paragraph(message) == render(co, k.REVIEW_PRICE_CHANGED, total=money(co, 0))
-    fields = {f.name: f.value for f in message.embeds[0].fields}
-    assert fields[co.text(k.REVIEW_CREDITS_FIELD)] == money(co, 4000)
+    assert render(co, k.REVIEW_PRICE_CHANGED, total=money(co, 0)) in paragraphs(message)
+    credit = render(co, k.SUMMARY_CREDIT_LINE, label=co.text(k.REVIEW_CREDITS_FIELD), amount=money(co, 4000))
+    assert credit in card_text(message)
     # Submitting what is shown now debits exactly what is shown.
     assert _submit_button(message) == views.submit_id(session.id, 0, 4000)
     await press(co, customer, message, _submit_button(message))
@@ -143,7 +145,7 @@ async def test_a_submit_button_rendered_before_the_guard_counts_as_changed(co: T
     result = await press(co, customer, message, legacy)
     assert await orders(co) == []
     assert result.last_sent is None
-    assert last_paragraph(message) == render(co, k.REVIEW_PRICE_CHANGED, total=money(co, 2000))
+    assert render(co, k.REVIEW_PRICE_CHANGED, total=money(co, 2000)) in paragraphs(message)
     await press(co, customer, message, _submit_button(message))
     assert len(await orders(co)) == 1
     assert (await service.submit(co.app, await _reloaded(co, session.id), 2000)).id == 1  # already submitted
@@ -216,6 +218,7 @@ async def test_credit_of_an_order_paid_entirely_with_credit_is_given_back_after_
         order_number="1",
         total=money(co, 0),
         channel_mention=f"<#{await _channel_id(co, done)}>",
+        **purchase_link(co),
     )
     # Idempotent: a second request changes nothing.
     again = await _return_credit(co, staffer, placed)
@@ -292,6 +295,7 @@ async def test_credit_given_back_first_then_money_completes_the_refund(co: TestE
         order_number="1",
         amount=money(co, 300),
         channel_mention=f"<#{await _channel_id(co, paid)}>",
+        **purchase_link(co),
     )
     with pytest.raises(service.RefundError) as too_much:
         await service.refund(co.app, placed.id, amount_minor=701, to_credit=False, reason=None, actor_id=staffer.id)
@@ -375,8 +379,10 @@ async def test_order_amounts_keep_the_order_currency_after_the_shop_currency_cha
 
         assert await service.refresh_customer_message(tenv.app, placed.id)
         assert message.embeds[0].title == render(tenv, k.SUBMITTED_TITLE, **values)
-        assert message.embeds[0].description.endswith(payment_section(tenv, **values))  # type: ignore[union-attr]
-        assert usd in {f.value for f in message.embeds[0].fields}
+        assert payment_section(tenv, **values) in paragraphs(message)
+        assert render(tenv, k.SUMMARY_TOTAL_LINE, label=tenv.text(k.REVIEW_TOTAL_FIELD), amount=usd) in card_text(
+            message
+        )
         assert await service.refresh_staff_message(tenv.app, placed.id)
         control = staff_message(tenv, await order(tenv, placed.id))
         status = tenv.text(k.status_label_key(m.PENDING))
@@ -421,6 +427,7 @@ async def test_order_amounts_keep_the_order_currency_after_the_shop_currency_cha
             order_number="1",
             amount=render(tenv, core.MONEY_FORMAT, amount="5.00", currency="USD"),
             channel_mention=f"<#{ch.id}>",
+            **purchase_link(tenv),
         )
     finally:
         await tenv.close()

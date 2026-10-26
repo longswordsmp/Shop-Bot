@@ -112,7 +112,7 @@ OPERATOR_TEXT: dict[str, str] = {
     "catalog.list.title_archived": "Products including archived ({total})",
     "catalog.list.line": "`#{product_id}` {name} | {price} | {stock} | {status}",
     "catalog.list.empty": "No products yet. Use /product add.",
-    "catalog.list.page": "Page {page}/{pages}",
+    "catalog.list.page": "Page {page} of {pages}",
     "catalog.list.previous": "Previous",
     "catalog.list.next": "Next",
     "catalog.list.stock_unlimited": "unlimited",

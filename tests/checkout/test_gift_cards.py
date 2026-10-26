@@ -12,12 +12,13 @@ from typing import Any
 
 import pytest
 
+from shopbot.features.checkout import MODULE, gift_cards, handling_repo, staff_views, views
 from shopbot.features.checkout import gift_card_store as store
-from shopbot.features.checkout import gift_cards, handling_repo, staff_views, views
 from shopbot.features.checkout import models as m
 from shopbot.features.checkout import service as checkout_service
 from shopbot.features.checkout.payments import gift_card
 from shopbot.features.credits import repo as credits_repo
+from shopbot.ui.spec import ButtonSpec, MessageSpec
 from tests.checkout.util import (
     add_product,
     control_ids,
@@ -494,3 +495,21 @@ def _spec_of(message: Any) -> Any:
         for e in message.embeds
     )
     return MessageSpec(embeds=embeds)
+
+
+async def test_a_card_whose_code_was_deleted_offers_only_its_problem_button(gc: TestEnv) -> None:
+    # Two waiting cards, the second one's code deleted unread (the preview's sample): no redeemed button for it, and
+    # the record says only that its code was deleted (not also that it waits for a decision).
+    assert MODULE.preview is not None
+    states = {state.name: state.spec for state in MODULE.preview(gc.app)}
+    reveal = states["staff_gift_card_reveal"]
+    assert isinstance(reveal, MessageSpec)
+    rows = [[button.custom_id or "" for button in row if isinstance(button, ButtonSpec)] for row in reveal.rows]
+    assert [len(row) for row in rows] == [2, 1]  # one row per card
+    assert ":gcproblem:" in rows[1][0]
+    record = states["staff_payment_submitted_gift_cards"]
+    assert isinstance(record, MessageSpec)
+    name = gc.text(gift_card.RECORD_FIELD)
+    [payment] = [f.value for f in record.embeds[0].fields if f.name == name]
+    erased_line = payment.split("\n")[1]
+    assert gc.text(gift_card.RECORD_ERASED) in erased_line and gc.text(gift_card.RECORD_WAITING) not in erased_line

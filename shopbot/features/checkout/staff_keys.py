@@ -129,8 +129,9 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             Kind.FIELD_NAME,
             FEATURE,
             _G_STAFF,
-            "Name of the field on the staff order record with the amounts on one line: items, delivery, extras and "
-            "other fees, store credit, the total, and refunds.",
+            "Name of the field on the staff order record with the amounts, one per line as in the customer's summary "
+            "(checkout.summary.line, .total_line): items, delivery, extras and other fees, store credit, the total, "
+            "and refunds.",
         ),
         ck(
             TRACKING_FIELD,
@@ -313,24 +314,25 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             Kind.FIELD_NAME,
             FEATURE,
             _G_NOTIFY,
-            "Name of the field showing the carrier in the shipped notification (Mark shipped), e.g. "
-            "'{icon_truck} Carrier'.",
+            "Name of the field showing the carrier in the shipped notification (Mark shipped) and on the customer's "
+            "order ticket card while the order is shipped, e.g. '{icon_truck} Carrier'.",
         ),
         ck(
             SHIPMENT_NUMBER_FIELD,
             Kind.FIELD_NAME,
             FEATURE,
             _G_NOTIFY,
-            "Name of the field showing the tracking number in the shipped notification, e.g. "
-            "'{icon_location} Tracking number'.",
+            "Name of the field showing the tracking number in the shipped notification and on the customer's order "
+            "ticket card while the order is shipped, e.g. '{icon_location} Tracking number'.",
         ),
         ck(
             SHIPMENT_TRACK_BUTTON,
             Kind.BUTTON_LABEL,
             FEATURE,
             _G_NOTIFY,
-            "Label of the link button under the shipped notification that opens the carrier's tracking page (shown "
-            "when staff entered a tracking link), e.g. 'Track package'.",
+            "Label of the link button under the shipped notification and on the customer's order ticket card while "
+            "the order is shipped, that opens the carrier's tracking page (shown when staff entered a tracking link), "
+            "e.g. 'Track package'.",
         ),
         ck(
             TRACKING_DETAILS_FIELD,

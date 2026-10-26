@@ -156,8 +156,9 @@ class GiftCardProvider:
                 Kind.FIELD_NAME,
                 FEATURE,
                 pay,
-                "Field listing the cards the customer submitted for the "
-                "order (under the instructions and in the card problem notification).",
+                "Heading of the section listing the cards the customer submitted for the order (under the "
+                "instructions on the order card and in the card problem notification), shown in bold, e.g. "
+                "'{icon_gift} GIFT CARDS'.",
             ),
             ck(
                 CARD_LINE,
@@ -183,7 +184,7 @@ class GiftCardProvider:
                 Kind.FORMAT,
                 FEATURE,
                 pay,
-                "Line under the cards while part of the total is still to pay: "
+                "Last line of the cards section while part of the total is still to pay: "
                 "{remaining} (still to pay) and {received} (the cards that count).",
                 placeholders=("remaining", "received"),
             ),
@@ -359,7 +360,8 @@ class GiftCardProvider:
                 Kind.FORMAT,
                 FEATURE,
                 staff,
-                "Added to a waiting card whose code was deleted after payments.gift_card.keep_days.",
+                "State of a card no one decided on whose code was deleted after payments.gift_card.keep_days (shown "
+                "instead of the waiting state).",
             ),
             ck(
                 RECORD_REVEALED,
@@ -505,9 +507,8 @@ def record_fields(ui: Ui, settings: Settings, order: Order, cards: tuple[store.G
 def _record_state(ui: Ui, card: store.GiftCard) -> str:
     parts: list[str | None] = []
     if card.status == store.SUBMITTED:
-        parts.append(ui.text(RECORD_WAITING))
-        if not card.stored:
-            parts.append(ui.text(RECORD_ERASED))
+        # A waiting card whose code was deleted unread no longer waits for anything: only that is said.
+        parts.append(ui.text(RECORD_WAITING if card.stored else RECORD_ERASED))
     elif card.status == store.REDEEMED:
         parts.append(ui.text(RECORD_REDEEMED))
     elif card.status == store.REFUSED:

@@ -1,8 +1,9 @@
 """Payment methods in the order ticket (``[[payments.methods]]``) and the pop-up of a method that is temporarily down.
 
-While an order waits for payment, its card lists the shop's payment methods with their state and shows a button per
-method. A method that is ``down`` opens a private pop-up when pressed: it is temporarily unavailable, here are the
-methods that work right now, with buttons to use them. What an ``active`` method does depends on its kind:
+While an order waits for payment, its card lists the shop's payment methods with their state - one line per method
+that works right now, one line for all the methods that are temporarily down - and shows a button per method. A
+method that is ``down`` opens a private pop-up when pressed: it is temporarily unavailable, here are the methods that
+work right now, with buttons to use them. What an ``active`` method does depends on its kind:
 
 - ``gift_card``: the gift card form of the ``gift_card`` provider (Submit gift card) and its Buy a gift card link;
 - ``staff``: pressing it posts in the order ticket that the customer wants to pay this way and alerts the staff
@@ -131,7 +132,8 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             Kind.FIELD_VALUE,
             FEATURE,
             g_methods,
-            "How a method that is temporarily down is listed, e.g. '{icon_dot_grey} {method} · temporarily down'.",
+            "How the methods that are temporarily down are listed (one line for all of them), e.g. "
+            "'{icon_dot_grey} {method} · temporarily down'. {method} is their names, separated by commas.",
             placeholders=_METHOD,
         ),
         ck(
@@ -270,30 +272,33 @@ def method_name(ui: Ui, method_id: str) -> str:
 
 
 def section_text(ui: Ui, settings: Settings) -> str | None:
-    """The payment-methods section of the order card (None without ``payments.methods``)."""
+    """The payment-methods section of the order card (None without ``payments.methods``): each method that works
+    right now on its own line, then one line naming every method that is temporarily down and the note under it (only
+    while a method is down: once every method works again, nothing says one is down)."""
     methods = settings.payments.methods
     if not methods:
         return None
     lines = [heading(_text(ui, SECTION_HEADING))]
-    for method in methods:
-        line = LINE_ACTIVE if method.active else LINE_DOWN
-        lines.append(_text(ui, line, method=method_name(ui, method.id)).strip())
-    note = ui.text(NOTE)
-    if note:
-        lines.append(note)
+    for method in active_methods(settings):
+        lines.append(_text(ui, LINE_ACTIVE, method=method_name(ui, method.id)).strip())
+    down = [method_name(ui, method.id) for method in methods if not method.active]
+    if down:
+        lines.append(_text(ui, LINE_DOWN, method=", ".join(down)).strip())
+        note = ui.text(NOTE)
+        if note:
+            lines.append(note)
     return "\n".join(lines)
 
 
-def method_buttons(ui: Ui, settings: Settings, order_id: int) -> list[ButtonSpec]:
-    """A button per method that is not the gift card (whose own buttons are Submit gift card and Buy a gift card):
-    the methods that are down (secondary), an active method our team handles (primary), an active payment page
-    (link)."""
-    buttons: list[ButtonSpec] = []
-    for method in settings.payments.methods:
-        if method.kind == "gift_card":
-            continue
-        buttons.append(_method_button(ui, order_id, method))
-    return buttons
+def method_buttons(ui: Ui, settings: Settings, order_id: int, *, active: bool) -> list[ButtonSpec]:
+    """A button per method that is not the gift card (whose own buttons are Submit gift card and Buy a gift card),
+    either the methods that work right now (``active``: one our team handles is primary, a payment page a link) or
+    the ones that are down (secondary; pressing one opens the pop-up)."""
+    return [
+        _method_button(ui, order_id, method)
+        for method in settings.payments.methods
+        if method.kind != "gift_card" and method.active == active
+    ]
 
 
 def _method_button(ui: Ui, order_id: int, method: PaymentMethod) -> ButtonSpec:
@@ -370,9 +375,13 @@ def link_message(ui: Ui, method: PaymentMethod) -> MessageSpec:
 def payment_rows(
     ui: Ui, settings: Settings, order_id: int, provider_buttons: Sequence[ButtonSpec], cancel: ButtonSpec | None
 ) -> tuple[tuple[ButtonSpec, ...], ...]:
-    """The buttons of an order that waits for payment: the method buttons first (up to five per row), then the
-    provider's buttons (Submit gift card, Buy a gift card) and Cancel order."""
-    methods = method_buttons(ui, settings, order_id)
-    method_rows = rows_of(*methods)
-    action_rows = rows_of(*provider_buttons, cancel)
-    return tuple(tuple(b for b in row if isinstance(b, ButtonSpec)) for row in (*method_rows, *action_rows))
+    """The buttons of an order that waits for payment: what works right now first - the provider's buttons (Submit
+    gift card, Buy a gift card), then the other methods that work on their own row (one main action per row) - then
+    the methods that are temporarily down, and Cancel order alone last (at most 5 rows with ``MAX_PAYMENT_METHODS``)."""
+    rows = (
+        *rows_of(*provider_buttons),
+        *rows_of(*method_buttons(ui, settings, order_id, active=True)),
+        *rows_of(*method_buttons(ui, settings, order_id, active=False)),
+        *rows_of(cancel),
+    )
+    return tuple(tuple(b for b in row if isinstance(b, ButtonSpec)) for row in rows)

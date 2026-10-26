@@ -425,13 +425,14 @@ EXPECTED: dict[str, BannerId] = {
     "notify_tracking": "order-status",
     "notify_payment_reminder": "reminder",
     "notify_session_expiry_warning": "reminder",
-    "error_session_closed": "error",
-    "error_out_of_stock": "error",
-    "error_quantity_invalid": "error",
-    "error_cart_full": "error",
-    "error_product_unavailable": "error",
-    "error_order_not_cancellable": "error",
-    "error_minimum_not_met": "error",
+    # Routine refusals that say what to do instead: the gentle general picture (the error one is for real failures).
+    "error_session_closed": "general-response",
+    "error_out_of_stock": "general-response",
+    "error_quantity_invalid": "general-response",
+    "error_cart_full": "general-response",
+    "error_product_unavailable": "general-response",
+    "error_order_not_cancellable": "general-response",
+    "error_minimum_not_met": "general-response",
 }
 
 

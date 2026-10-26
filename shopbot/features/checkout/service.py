@@ -78,6 +78,7 @@ from shopbot.features.checkout.payments import (
 )
 from shopbot.features.checkout.totals import compute_totals
 from shopbot.features.credits import service as credits_service
+from shopbot.features.server_keys import channel_mentions
 from shopbot.features.tickets import service as tickets_service
 from shopbot.features.tickets.models import CREATING, KIND_ORDER, OPEN, Ticket
 from shopbot.logging_setup import log_event
@@ -1202,7 +1203,12 @@ async def _notify_submitted(app: App, order_id: int) -> None:
     if view is None or view.order.status != m.PENDING:
         return
     kind = k.NOTIFY_SUBMITTED
-    await notify_customer(app, view, kind, lambda: views.status_notification(app.ui, app.settings, view, kind))
+    await notify_customer(
+        app,
+        view,
+        kind,
+        lambda: views.status_notification(app.ui, app.settings, view, kind, links=channel_mentions(app)),
+    )
 
 
 async def _start_payment(app: App, order_id: int) -> None:
@@ -1267,12 +1273,28 @@ async def payment_instructions(app: App, order: m.Order) -> PaymentInstructions 
     return instructions
 
 
+async def _order_messages(app: App, view: m.OrderView) -> views.OrderMessages:
+    """The order's workflow message: with the payment instructions while it waits for payment, the shipment (carrier,
+    tracking number, link) once it shipped, and the place-order channel linked."""
+    shipment = None
+    if view.order.status == m.SHIPPED:
+        shipment = (await app.db.run(h.get_handling, view.order.id)).shipment
+    return views.order_messages(
+        app.ui,
+        app.settings,
+        view,
+        instructions=await payment_instructions(app, view.order),
+        shipment=shipment,
+        links=channel_mentions(app),
+    )
+
+
 async def customer_order_messages(app: App, order_id: int) -> views.OrderMessages:
     """The order's workflow message and what did not fit into it (see ``views.order_messages``)."""
     view = await order_view(app, order_id)
     if view is None:
         raise HandlerError(core.ERROR_NOT_FOUND)
-    return views.order_messages(app.ui, app.settings, view, instructions=await payment_instructions(app, view.order))
+    return await _order_messages(app, view)
 
 
 async def customer_order_spec(app: App, order_id: int) -> MessageSpec:
@@ -1307,9 +1329,7 @@ async def refresh_customer_message(app: App, order_id: int) -> bool:
     if channel is None:
         return False
     try:
-        messages = views.order_messages(
-            app.ui, app.settings, view, instructions=await payment_instructions(app, view.order)
-        )
+        messages = await _order_messages(app, view)
         await edit_spec(channel.get_partial_message(view.order.customer_message_id), messages.main)
     except MissingContent as exc:
         _content_missing(exc, "checkout.order_view")
@@ -1669,7 +1689,7 @@ async def _notify_status(app: App, order_id: int, status: str) -> None:
         status,
         lambda: replace(
             staff_views.with_fields(
-                views.status_notification(app.ui, app.settings, view, status),
+                views.status_notification(app.ui, app.settings, view, status, links=channel_mentions(app)),
                 staff_views.notification_fields(app.ui, status, extras),
             ),
             rows=staff_views.notification_rows(app.ui, status, extras),
@@ -1880,7 +1900,7 @@ async def _after_refund(app: App, record: repo.RefundRecord, *, amount_minor: in
             app,
             view,
             k.NOTIFY_REFUND,
-            lambda: views.refund_notification(app.ui, app.settings, view, amount_minor),
+            lambda: views.refund_notification(app.ui, app.settings, view, amount_minor, links=channel_mentions(app)),
             dedupe_suffix=str(record.adjustment.id),
         )
 

@@ -65,9 +65,11 @@ def test_operator_text_has_no_unknown_placeholders(tenv: TestEnv) -> None:
         "{status}",
         "{error}",
     }
+    # The /reset headings and buttons show the bot's icons (rendered by the views, ``Ui.with_icons``).
+    icons = {"{icon_trash}", "{icon_shield}", "{icon_alert}", "{icon_cross}"}
     for key, text in MODULE.operator_text.items():
         assert key.startswith("server.")
-        assert set(_LEFTOVER.findall(text)) <= allowed, key
+        assert set(_LEFTOVER.findall(text)) <= allowed | (icons if key.startswith("server.reset.") else set()), key
 
 
 async def test_report_lines_render_without_leftover_placeholders(tenv: TestEnv) -> None:

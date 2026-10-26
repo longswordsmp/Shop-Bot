@@ -9,7 +9,7 @@ texts; the others are reviewed by eye with `python -m tools.build_preview` befor
 
 - **L1 One card per message.** A message is one embed (a long card may continue in a second embed of the same
   colour). No stacks of small embeds. [checked: at most 2 embeds per customer message, except the catalog
-  listing's product cards and the /myorders page]
+  listing's product cards when `catalog.products_per_listing_message` is more than 1]
 - **L2 Title says what this is.** Short (at most 60 characters), plain text, no ending period. [checked]
 - **L3 Lead first.** One or two short sentences under the title: what happened and what to do next.
 - **L4 Sections.** Each part of a card starts with a heading line: an icon and an UPPERCASE label in bold

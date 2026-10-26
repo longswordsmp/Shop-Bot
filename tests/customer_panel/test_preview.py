@@ -68,17 +68,21 @@ async def test_every_new_state_is_built_within_limits_and_routed(tmp_path: Path)
             "s.reference",
             "s.note",
         ]
-        # Every live panel step carries the reference and the status.
+        # Every live panel step starts with the key facts line: the ticket's reference and the status.
+        status = tenv.text("checkout.ticket.status_in_progress")
+        draft = tenv.app.content.render("checkout.ticket.draft_line", ticket_number="0042", status=status)
         for name in ("workflow_cart", "workflow_fulfillment_chosen", "workflow_details_answered", "workflow_review"):
             spec = checkout_states[name]
             assert isinstance(spec, MessageSpec)
-            names = [f.name for f in spec.embeds[0].fields[:2]]
-            assert names == [tenv.text("checkout.ticket.reference_field"), tenv.text("checkout.ticket.status_field")]
+            assert (spec.embeds[0].description or "").split("\n")[0] == draft, name
+        # A placed order shows the order number in that line and the progress tracker in every status.
+        progress = f"**{tenv.text('checkout.progress.heading')}**"
         for name in ("order_submitted", "order_paid", "order_fulfilled", "order_refunded"):
             spec = checkout_states[name]
             assert isinstance(spec, MessageSpec)
-            names = {f.name for e in spec.embeds for f in e.fields}
-            assert tenv.text("checkout.ticket.timeline_field") in names, name
+            text = "\n\n".join(e.description or "" for e in spec.embeds)
+            assert f"\n\n{progress}\n" in text, name
+            assert not any(f.inline for e in spec.embeds for f in e.fields), name
     finally:
         await tenv.close()
 

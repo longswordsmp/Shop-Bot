@@ -39,20 +39,28 @@ CLOSE_CONFIRM_DESCRIPTION = "tickets.close_confirm.description"
 DELETE_CONFIRM_TITLE = "tickets.delete_confirm.title"
 DELETE_CONFIRM_DESCRIPTION = "tickets.delete_confirm.description"
 
-# -- in-channel status messages ---------------------------------------------------------------------
+# -- in-channel status messages (an optional title over the text) -----------------------------------
+CLAIMED_TITLE = "tickets.claimed.title"
 CLAIMED = "tickets.claimed.description"
+UNCLAIMED_TITLE = "tickets.unclaimed.title"
 UNCLAIMED = "tickets.unclaimed.description"
 CLOSED_TITLE = "tickets.closed.title"
 CLOSED_DESCRIPTION = "tickets.closed.description"
 CLOSED_REASON_LABEL = "tickets.closed.reason_label"
+REOPENED_TITLE = "tickets.reopened.title"
 REOPENED = "tickets.reopened.description"
+DELETION_SCHEDULED_TITLE = "tickets.deletion_scheduled.title"
 DELETION_SCHEDULED = "tickets.deletion_scheduled.description"
+AUTO_CLOSE_WARNING_TITLE = "tickets.auto_close_warning.title"
 AUTO_CLOSE_WARNING = "tickets.auto_close_warning.description"
 AUTO_CLOSED = "tickets.auto_closed.description"
+USER_ADDED_TITLE = "tickets.user_added.title"
 USER_ADDED = "tickets.user_added.description"
+USER_REMOVED_TITLE = "tickets.user_removed.title"
 USER_REMOVED = "tickets.user_removed.description"
 
 # -- private replies --------------------------------------------------------------------------------
+CREATED_TITLE = "tickets.created.title"
 CREATED = "tickets.created.description"
 LIMIT_REACHED = "tickets.limit_reached.description"
 NOT_OPEN = "tickets.error.not_open"
@@ -267,7 +275,14 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             "tickets.panel_channel is set).",
             required=panel and t.panel_style == "select",
         ),
-        ck(BUTTON_CLOSE, Kind.BUTTON_LABEL, FEATURE, g_buttons, "Close button on the ticket welcome message."),
+        ck(
+            BUTTON_CLOSE,
+            Kind.BUTTON_LABEL,
+            FEATURE,
+            g_buttons,
+            "Close button on the ticket welcome message (and on a report's panel); also the button that confirms "
+            "closing on the private close prompt.",
+        ),
         ck(
             BUTTON_CLAIM,
             Kind.BUTTON_LABEL,
@@ -287,7 +302,8 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             Kind.BUTTON_LABEL,
             FEATURE,
             g_buttons,
-            "Delete button on the ticket-closed message (staff only; asks for confirmation).",
+            "Delete button on the ticket-closed message (staff only; asks for confirmation), and the button that "
+            "confirms the deletion on that private prompt.",
         ),
         ck(
             BUTTON_TRANSCRIPT,
@@ -319,8 +335,8 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             Kind.DESCRIPTION,
             FEATURE,
             g_confirm,
-            "Text of the private prompt asking to confirm closing a ticket (uses the shared confirm/cancel "
-            "buttons). Needed when tickets.close_confirmation = true.",
+            "Text of the private prompt asking to confirm closing a ticket (buttons: tickets.button.close confirms, "
+            "the shared Cancel button keeps it open). Needed when tickets.close_confirmation = true.",
             required=t.close_confirmation,
         ),
         ck(
@@ -336,8 +352,16 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             Kind.DESCRIPTION,
             FEATURE,
             g_confirm,
-            "Text of the private prompt asking staff to confirm deleting a ticket channel (uses the shared "
-            "confirm/cancel buttons).",
+            "Text of the private prompt asking staff to confirm deleting a ticket channel (buttons: "
+            "tickets.button.delete confirms, the shared Cancel button keeps it).",
+        ),
+        ck(
+            CLAIMED_TITLE,
+            Kind.TITLE,
+            FEATURE,
+            g_status,
+            "Optional title of the message posted in the ticket when a staff member claims it.",
+            required=False,
         ),
         ck(
             CLAIMED,
@@ -346,6 +370,14 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             g_status,
             "Posted in the ticket when a staff member claims it. {staff_mention} mentions that staff member.",
             placeholders=("staff_mention",),
+        ),
+        ck(
+            UNCLAIMED_TITLE,
+            Kind.TITLE,
+            FEATURE,
+            g_status,
+            "Optional title of the message posted in the ticket when it is unclaimed.",
+            required=False,
         ),
         ck(UNCLAIMED, Kind.DESCRIPTION, FEATURE, g_status, "Posted in the ticket when it is unclaimed."),
         ck(
@@ -376,6 +408,14 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             required=False,
         ),
         ck(
+            REOPENED_TITLE,
+            Kind.TITLE,
+            FEATURE,
+            g_status,
+            "Optional title of the message posted in the ticket when it is reopened.",
+            required=False,
+        ),
+        ck(
             REOPENED,
             Kind.DESCRIPTION,
             FEATURE,
@@ -386,6 +426,15 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             placeholders=("actor_mention",),
         ),
         ck(
+            DELETION_SCHEDULED_TITLE,
+            Kind.TITLE,
+            FEATURE,
+            g_status,
+            "Optional title of the message posted in the ticket after closing when the channel will be deleted "
+            "automatically.",
+            required=False,
+        ),
+        ck(
             DELETION_SCHEDULED,
             Kind.DESCRIPTION,
             FEATURE,
@@ -394,6 +443,14 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             "is tickets.delete_after_close_minutes. Needed when that setting is above 0.",
             required=t.delete_after_close_minutes > 0,
             placeholders=("minutes",),
+        ),
+        ck(
+            AUTO_CLOSE_WARNING_TITLE,
+            Kind.TITLE,
+            FEATURE,
+            g_status,
+            "Optional title of the message posted in the ticket before it closes automatically for inactivity.",
+            required=False,
         ),
         ck(
             AUTO_CLOSE_WARNING,
@@ -418,6 +475,14 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             placeholders=("number",),
         ),
         ck(
+            USER_ADDED_TITLE,
+            Kind.TITLE,
+            FEATURE,
+            g_status,
+            "Optional title of the message posted in the ticket when staff add someone to it (/ticket add).",
+            required=False,
+        ),
+        ck(
             USER_ADDED,
             Kind.DESCRIPTION,
             FEATURE,
@@ -427,6 +492,14 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             placeholders=("user_mention",),
         ),
         ck(
+            USER_REMOVED_TITLE,
+            Kind.TITLE,
+            FEATURE,
+            g_status,
+            "Optional title of the message posted in the ticket when staff remove someone from it (/ticket remove).",
+            required=False,
+        ),
+        ck(
             USER_REMOVED,
             Kind.DESCRIPTION,
             FEATURE,
@@ -434,6 +507,15 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             "Posted in the ticket when staff remove someone from it (/ticket remove). {user_mention} "
             "mentions the removed member.",
             placeholders=("user_mention",),
+        ),
+        ck(
+            CREATED_TITLE,
+            Kind.TITLE,
+            FEATURE,
+            g_private,
+            f"Optional title of the private reply after a ticket was created. {_NUMBER_DOC}",
+            required=False,
+            placeholders=("number",),
         ),
         ck(
             CREATED,
@@ -535,9 +617,10 @@ def content_keys(settings: Settings) -> list[ContentKey]:
 
 
 def shared_keys(settings: Settings) -> list[str]:
-    """Shared confirm/cancel buttons: the delete confirmation always uses them."""
+    """The shared Cancel button: the close and delete prompts always offer it (their confirm buttons are the ticket's
+    own Close and Delete buttons)."""
     del settings
-    return [core.BUTTON_CONFIRM, core.BUTTON_CANCEL]
+    return [core.BUTTON_CANCEL]
 
 
 def settings_problems(settings: Settings) -> list[str]:

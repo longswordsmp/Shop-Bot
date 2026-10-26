@@ -11,7 +11,7 @@ comes from operator text, never from customer content.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 
 from shopbot.config.banner_ids import BannerId
 from shopbot.config.content import ContentStore
@@ -152,12 +152,15 @@ class Ui:
         return self.embed(title=self.content.get(ck.ERROR_TITLE), description=description, tone="danger")
 
     def error_message(self, key: str, /, **values: str | int) -> MessageSpec | None:
-        """The private error reply for ``key`` exactly as it is sent (and previewed): the error banner closing the error
-        embed. None when the text is not configured (the caller then answers without inventing wording)."""
+        """The private error reply for ``key`` exactly as it is sent (and previewed): the error embed (its title and
+        colour), closed by a banner. A real failure - the generic error, or any reply with an error reference
+        (``error_id``) - shows the error banner; a routine refusal that tells the customer what to do instead (a
+        smaller quantity, an item that is no longer available) shows the general response banner, so it does not read
+        like a crash. None when the text is not configured (the caller then answers without inventing wording)."""
         embed = self.error_embed(key, **values)
         if embed is None:
             return None
-        return MessageSpec(embeds=(embed,), banner=self.banner("error"))
+        return MessageSpec(embeds=(embed,), banner=self.banner(error_banner(key, values)))
 
     def field(
         self, name_key: str, value: str | None, *, inline: bool = False, values: dict[str, str | int] | None = None
@@ -166,6 +169,12 @@ class Ui:
         if name is None or not value:
             return None
         return EmbedField(name=name, value=value, inline=inline)
+
+    def with_icons(self, text: str) -> str:
+        """Operator text with the bot's icons: its ``{icon_<name>}`` placeholders rendered as in content texts (operator
+        text is not a content key, so a view that gives it icons renders them here; use it only where Discord shows
+        icons: descriptions, field names and values, and the start of a button label)."""
+        return self.content.render_icons(text)
 
     # -- components -------------------------------------------------------------------------------
 
@@ -179,9 +188,9 @@ class Ui:
         disabled: bool = False,
         values: dict[str, str | int] | None = None,
     ) -> ButtonSpec | None:
-        """A button from content. Its label may start with an icon ("{icon_cart} Start order", or the icon alone),
-        which Discord shows as the button's emoji (``ui.component_emoji``); an ``emoji_key`` emoji wins over it. None
-        when there is nothing to show."""
+        """A button from content. Its label may start with an icon ("{icon_cart} Start order", or the icon alone for an
+        optional button), which Discord shows as the button's emoji (``ui.component_emoji``); an ``emoji_key`` emoji
+        wins over it. None when there is nothing to show."""
         label = self.content.render(label_key, **(values or {})) if label_key else None
         emoji = self.content.render(emoji_key) if emoji_key else None
         if not label and not emoji:
@@ -232,6 +241,16 @@ class Ui:
             footer_text=footer_text,
             timestamp=self.clock.now(),
         )
+
+
+def error_banner(key: str, values: Mapping[str, object]) -> BannerId:
+    """The banner of a private error reply: "error" for a real failure (the generic error, or a reply that carries an
+    error reference), "general-response" for a routine refusal that tells the customer what to do.
+
+    ``common.error.unavailable`` counts as a refusal on purpose, also when the router sends it for text that went
+    missing at runtime (``content_missing_at_runtime``, logged at ERROR level for the operator): for the customer it
+    reads like a feature that is not ready (paused, shutting down, not configured), with nothing to report."""
+    return "error" if key == ck.ERROR_GENERIC or "error_id" in values else "general-response"
 
 
 def chunk_lines(lines: Sequence[str], limit: int) -> list[str]:

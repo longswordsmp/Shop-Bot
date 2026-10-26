@@ -58,8 +58,12 @@ SAMPLE_DATA = "[sample "  # how previews write data people type
 
 # Accepted exceptions: (rule, feature, state name or prefix ending in "*", reason). Keep this short.
 EXCEPTIONS: tuple[tuple[str, str, str, str], ...] = (
-    ("L1", "catalog", "listing_message_*", "the catalog listing posts several product cards per message on purpose"),
-    ("L1", "my_orders", "*", "/myorders shows one small card per order on a page"),
+    (
+        "L1",
+        "catalog",
+        "listing_message_*",
+        "catalog.products_per_listing_message (1-10) puts that many product cards in one listing message on purpose",
+    ),
     ("W1", "shipping", "shipping_message_*", "a region's country list is one long line of names by nature"),
 )
 

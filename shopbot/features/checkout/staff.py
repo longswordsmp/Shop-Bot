@@ -17,8 +17,10 @@ from typing import TYPE_CHECKING
 from discord.utils import escape_markdown
 
 from shopbot.config.banner_ids import BannerId
+from shopbot.config.content import MissingContent
 from shopbot.core.money import MoneyError, currency_exponent, format_amount, parse_amount
-from shopbot.features.checkout import flow, repo, service, staff_keys, views
+from shopbot.features.checkout import content_keys as k
+from shopbot.features.checkout import flow, repo, service, staff_keys, staff_views, views
 from shopbot.features.checkout import handling_repo as h
 from shopbot.features.checkout import models as m
 from shopbot.ui.limits import EMBED_FIELD_VALUE, EMBED_FIELDS, EMBED_TOTAL_CHARS, EMBEDS_PER_MESSAGE
@@ -49,7 +51,7 @@ def reply_spec(app: App, reply: OpReply) -> MessageSpec:
     return MessageSpec(embeds=(app.ui.operator_embed(reply.text, tone=reply.tone),), banner=banner)
 
 
-# -- amounts (operator wording: separators from settings + the currency code) ----------------------------------------
+# -- amounts (operator wording: separators from settings + the currency code; the order list as the records) ---------
 
 
 def _exponent(app: App, currency: str) -> int:
@@ -64,6 +66,15 @@ def plain_amount(app: App, minor: int, currency: str) -> str:
 
 def amount(app: App, minor: int, currency: str) -> str:
     return app.op("checkout.amount", amount=plain_amount(app, minor, currency), currency=currency)
+
+
+def record_amount(app: App, minor: int, currency: str) -> str:
+    """An amount as the order record writes it (``common.money_format``, in the order's currency), or the operator
+    wording above while that format is not configured, so staff lists work with operator text alone."""
+    try:
+        return views.order_money(app.ui, app.settings, currency)(minor)
+    except MissingContent:
+        return amount(app, minor, currency)
 
 
 def example_amount(app: App, currency: str) -> str:
@@ -452,7 +463,7 @@ async def list_view(app: App, page: int, status: str, user_id: int) -> MessageSp
     return views.order_list_page(
         app.ui,
         app.op,
-        lambda minor, currency: amount(app, minor, currency),
+        lambda minor, currency: record_amount(app, minor, currency),
         orders,
         page=current,
         pages=pages,
@@ -536,41 +547,28 @@ def lookup_specs(
     data: h.StaffData,
 ) -> list[MessageSpec]:
     """The full order record (``/order lookup``/``view``, the details button) from loaded data (pure; the preview
-    builds it from sample data)."""
+    builds it from sample data). Like the live record it reads in sections of lines: the key facts, the items, the
+    amounts (one per line, in the shop's money format), the dates, the answers, refunds, the status history and the
+    staff activity, with the shop's status and stage names."""
     order = view.order
     history = list(data.events)
     op = app.op
-    cur = order.currency
 
     def money(minor: int) -> str:
-        return amount(app, minor, cur)
+        return record_amount(app, minor, order.currency)
 
-    fields = [
-        EmbedField(op("checkout.lookup.status"), order.status, inline=True),
-        EmbedField(op("checkout.lookup.customer"), views.user_mention(order.user_id), inline=True),
-        EmbedField(op("checkout.lookup.channel"), views.channel_mention(view.channel_id) or "-", inline=True),
-        EmbedField(op("checkout.lookup.created"), _when(order.created_at), inline=True),
-        EmbedField(op("checkout.lookup.paid"), _when(order.paid_at), inline=True),
-        EmbedField(op("checkout.lookup.fulfilled"), _when(order.fulfilled_at), inline=True),
-        EmbedField(op("checkout.lookup.subtotal"), money(order.subtotal_minor), inline=True),
-        EmbedField(
-            op("checkout.lookup.fulfillment"),
-            op(
-                "checkout.lookup.fulfillment_value",
-                option=order.fulfillment_option or "-",
-                fee=money(order.fulfillment_fee_minor),
-            ),
-            inline=True,
-        ),
-        EmbedField(op("checkout.lookup.fees"), money(order.fees_minor), inline=True),
-        EmbedField(op("checkout.lookup.credits"), money(order.credits_applied_minor), inline=True),
-        EmbedField(op("checkout.lookup.total"), money(order.total_minor), inline=True),
-        EmbedField(op("checkout.lookup.refunded"), money(order.refunded_minor), inline=True),
+    def actor(user_id: int | None) -> str:
+        return views.user_mention(user_id) if user_id else op("checkout.lookup.automatic")
+
+    def fact(label_key: str, value: str) -> str:
+        return op("checkout.lookup.fact", label=op(label_key), value=value)
+
+    facts = [
+        fact("checkout.lookup.status", f"**{_status_name(app, order.status)}**"),
+        fact("checkout.lookup.customer", views.user_mention(order.user_id)),
     ]
-    if order.credits_applied_minor > 0:
-        fields.append(
-            EmbedField(op("checkout.lookup.credit_returned"), money(order.credit_returned_minor), inline=True)
-        )
+    if view.channel_id:
+        facts.append(fact("checkout.lookup.channel", views.channel_mention(view.channel_id)))
     handling = data.handling
     if handling.claimed_by is not None:
         claimed = op(
@@ -578,19 +576,21 @@ def lookup_specs(
             staff=views.user_mention(handling.claimed_by),
             when=_when(handling.claimed_at),
         )
-        fields.append(EmbedField(op("checkout.lookup.claimed"), claimed, inline=True))
+        facts.append(fact("checkout.lookup.claimed", claimed))
     if payment is not None:
-        fields.append(
-            EmbedField(
-                op("checkout.lookup.payment"),
+        reference = escape_markdown(payment.external_ref) if payment.external_ref else "-"
+        facts.append(
+            fact(
+                "checkout.lookup.payment",
                 op(
                     "checkout.lookup.payment_value",
                     provider=payment.provider,
                     status=payment.status,
-                    reference=escape_markdown(payment.external_ref) if payment.external_ref else "-",
+                    reference=reference,
                 ),
             )
         )
+    fields = _blocks(op("checkout.lookup.record"), facts)
     item_lines = [
         op(
             "checkout.lookup.item",
@@ -603,9 +603,12 @@ def lookup_specs(
         for i in view.items
     ]
     fields += _blocks(op("checkout.lookup.items"), item_lines)
-    fee_lines = [op("checkout.lookup.fee_line", fee=f.fee_id, amount=money(f.amount_minor)) for f in view.fees]
-    fields += _blocks(op("checkout.lookup.fee_lines"), fee_lines)
+    fields += _blocks(op("checkout.lookup.summary"), _amount_lines(app, view))
+    dates = [fact(key, _when(stamp)) for key, attribute in _DATES if (stamp := getattr(order, attribute))]
+    fields += _blocks(op("checkout.lookup.dates"), dates)
     for answer_key, answer in views.ordered_answers(app.settings, order):
+        if answer_key.startswith(flow.EXTRA_PREFIX):
+            continue  # a chosen extra: listed with its fee in the summary
         fields += views.answer_fields(_label(app, answer_key), answer)
     refund_lines = [
         op(
@@ -621,13 +624,15 @@ def lookup_specs(
     # Free text (refund reasons, rejection reasons, notes) may be long: split, never cut.
     fields += _blocks(op("checkout.lookup.refunds"), [piece for line in refund_lines for piece in _pieces(line)])
     event_lines = [
-        op(
-            "checkout.lookup.event",
-            when=_when(e.created_at),
-            old=e.from_status or "-",
-            new=e.to_status,
-            actor=views.user_mention(e.actor_id) if e.actor_id else op("checkout.lookup.automatic"),
-            note=escape_markdown(e.note) if e.note else "-",
+        _with_text(
+            app,
+            op(
+                "checkout.lookup.event",
+                when=_when(e.created_at),
+                status=_status_name(app, e.to_status),
+                actor=actor(e.actor_id),
+            ),
+            e.note,
         )
         for e in history[-LOOKUP_EVENTS:]
     ]
@@ -635,15 +640,77 @@ def lookup_specs(
     if handling.tracking:
         fields += views.answer_fields(op("checkout.lookup.tracking"), handling.tracking)
     activity_lines = [
-        op(
-            "checkout.lookup.activity_line",
-            when=_when(a.created_at),
-            kind=a.kind,
-            actor=views.user_mention(a.actor_id) if a.actor_id else op("checkout.lookup.automatic"),
-            text=escape_markdown(a.text) if a.text else "-",
+        _with_text(
+            app,
+            op(
+                "checkout.lookup.activity_line",
+                when=_when(a.created_at),
+                kind=_activity_name(app, a.kind),
+                actor=actor(a.actor_id),
+            ),
+            a.text,
         )
         for a in data.activity[-LOOKUP_ACTIVITY:]
     ]
     # A long note or message is split over several lines (never cut).
     fields += _blocks(op("checkout.lookup.activity"), [piece for line in activity_lines for piece in _pieces(line)])
     return _pack(app, op("checkout.lookup.title", number=order.number), fields)
+
+
+# The dates of the full record: (label, the order's timestamp attribute), each shown once it is set.
+_DATES = (
+    ("checkout.lookup.created", "created_at"),
+    ("checkout.lookup.paid", "paid_at"),
+    ("checkout.lookup.fulfilled", "fulfilled_at"),
+)
+
+
+def _status_name(app: App, status: str) -> str:
+    """The shop's name of an order status (``checkout.status_label.*``, as on the live record); the status itself only
+    while that name is not configured."""
+    key = k.status_label_key(status)
+    return (app.ui.text(key) if key in app.content.registry else None) or status
+
+
+def _activity_name(app: App, kind: str) -> str:
+    """The stage name of a staff activity as the live record's timeline writes it (Claimed, Tracking details updated),
+    or the operator name of one that is not a stage (a note, a rejection reason)."""
+    try:
+        stage = staff_views.stage_name(app.ui, kind)
+    except MissingContent:
+        stage = None  # the shop's texts are not configured: the operator name below
+    if stage:
+        return stage
+    names = {
+        h.CLAIM: "checkout.lookup.kind.claim",
+        h.UNCLAIM: "checkout.lookup.kind.unclaim",
+        h.CORRECTION: "checkout.lookup.kind.correction",
+        h.TRACKING: "checkout.lookup.kind.tracking",
+        h.NOTE: "checkout.lookup.kind.note",
+        h.REJECTION: "checkout.lookup.kind.rejection",
+    }
+    key = names.get(kind)
+    return app.op(key) if key is not None else kind
+
+
+def _with_text(app: App, line: str, text: str | None) -> str:
+    """``line``, followed by the staff-entered ``text`` (escaped) when there is one."""
+    return app.op("checkout.lookup.with_text", line=line, text=escape_markdown(text)) if text else line
+
+
+def _amount_lines(app: App, view: m.OrderView) -> list[str]:
+    """The order's amounts one per line as the live record lists them (``common.money_format``), or each with the
+    operator wording while the shop's texts are not configured, so the record works with operator text alone."""
+    try:
+        return staff_views.amount_lines(app.ui, view, views.order_money(app.ui, app.settings, view.order.currency))
+    except MissingContent:
+        order = view.order
+        amounts = (
+            ("checkout.lookup.subtotal", order.subtotal_minor),
+            ("checkout.lookup.total", order.total_minor),
+            ("checkout.lookup.refunded", order.refunded_minor),
+        )
+        return [
+            app.op("checkout.lookup.fact", label=app.op(key), value=amount(app, minor, order.currency))
+            for key, minor in amounts
+        ]

@@ -1,6 +1,7 @@
 """The /reset messages (operator wording, ``server.reset.*``): the private preview with Continue/Cancel, the
 confirmation form, and the progress and result DMs. Pure builders over plain data, shared by the handlers and the
-offline preview."""
+offline preview. Their section headings and buttons show the bot's icons (``Ui.with_icons``); the preview of what is
+about to be deleted closes with the error banner, as a warning."""
 
 from __future__ import annotations
 
@@ -123,29 +124,37 @@ def preview_message(ui: Ui, op: Op, view: PlanView) -> MessageSpec:
     description = op("server.reset.preview_description", data=data, phrase=phrase)
     counts = {"orders": view.open_orders, "unpaid": view.unpaid_orders, "tickets": view.open_tickets}
     work = op("server.reset.work_wiped", **counts) if view.wipe else op("server.reset.work_kept", **counts)
+    heading = ui.with_icons
     fields = (
         EmbedField(
-            op("server.reset.field.channels", count=len(view.channels)), name_list(op, reset.CHANNEL, view.channels)
+            heading(op("server.reset.field.channels", count=len(view.channels))),
+            name_list(op, reset.CHANNEL, view.channels),
         ),
         EmbedField(
-            op("server.reset.field.categories", count=len(view.categories)),
+            heading(op("server.reset.field.categories", count=len(view.categories))),
             name_list(op, reset.CATEGORY, view.categories),
         ),
-        EmbedField(op("server.reset.field.roles", count=len(view.roles)), name_list(op, reset.ROLE, view.roles)),
-        EmbedField(op("server.reset.field.kept"), _fit(op, _kept_lines(op, view.kept))),
-        EmbedField(op("server.reset.field.work"), work),
+        EmbedField(
+            heading(op("server.reset.field.roles", count=len(view.roles))), name_list(op, reset.ROLE, view.roles)
+        ),
+        EmbedField(heading(op("server.reset.field.kept")), _fit(op, _kept_lines(op, view.kept))),
+        EmbedField(heading(op("server.reset.field.work")), work),
     )
     embed = ui.operator_embed(op("server.reset.preview_title"), description, tone="danger", fields=fields)
     wipe_arg = 1 if view.wipe else 0
     buttons = rows_of(
         ButtonSpec(
-            label=op("server.reset.button.continue"),
+            label=ui.with_icons(op("server.reset.button.continue")),
             custom_id=cid(ROUTE, CONTINUE_ACTION, wipe_arg, view.fingerprint),
             style="danger",
         ),
-        ButtonSpec(label=op("server.reset.button.cancel"), custom_id=cid(ROUTE, CANCEL_ACTION), style="secondary"),
+        ButtonSpec(
+            label=ui.with_icons(op("server.reset.button.cancel")),
+            custom_id=cid(ROUTE, CANCEL_ACTION),
+            style="secondary",
+        ),
     )
-    return MessageSpec(embeds=(embed,), rows=buttons, banner=ui.banner("staff-dashboard"))
+    return MessageSpec(embeds=(embed,), rows=buttons, banner=ui.banner("error"))
 
 
 def confirm_modal(op: Op, server_name: str, *, wipe: bool, fingerprint: str) -> ModalSpec:
@@ -205,9 +214,11 @@ def result_message(ui: Ui, op: Op, result: reset.ResetResult) -> MessageSpec:
             )
             for f in result.failures
         ]
-        fields.append(EmbedField(op("server.reset.field.failed", count=len(result.failures)), _fit(op, lines)))
+        failed = ui.with_icons(op("server.reset.field.failed", count=len(result.failures)))
+        fields.append(EmbedField(failed, _fit(op, lines)))
     if result.kept:
-        fields.append(EmbedField(op("server.reset.field.kept"), op("server.reset.result_kept", count=result.kept)))
+        kept = ui.with_icons(op("server.reset.field.kept"))
+        fields.append(EmbedField(kept, op("server.reset.result_kept", count=result.kept)))
     banner: BannerId
     if result.failures:
         title, tone, banner = op("server.reset.result_title_problems"), "warning", "staff-notifications"

@@ -11,19 +11,23 @@ from shopbot.features.checkout import views
 from tests.checkout.util import (
     FULL_SETTINGS,
     add_product,
+    amount_line,
+    card_text,
     component,
     error_text,
     give_credits,
     go,
-    last_paragraph,
     make_env,
     money,
+    paragraphs,
     press,
     reload_session,
     render,
+    section_lines,
     set_qty,
     start,
     ticket_status,
+    total_line,
 )
 from tests.fakes import modal_input_ids, modal_of, submit_modal
 from tests.helpers import TestEnv, deep_merge
@@ -54,9 +58,10 @@ async def test_pick_opens_quantity_form_and_cart_is_rendered(co: TestEnv) -> Non
     assert modal_input_ids(modal) == [views.QUANTITY_INPUT]
 
     await set_qty(co, customer, message, session.id, p1.id, 2)
-    fields = {f.name: f.value for f in message.embeds[0].fields}
-    assert fields[co.text(k.CART_FIELD)] == _line(co, "[p_1*]", 2, 1250)  # escaped in the embed
-    assert fields[co.text(k.CART_SUBTOTAL_FIELD)] == money(co, 2500)
+    assert message.embeds[0].fields == []  # the items and amounts are sections of the card, not fields
+    assert section_lines(co, message, k.ITEMS_HEADING) == [_line(co, "[p_1*]", 2, 1250)]  # escaped in the embed
+    # Nothing but the subtotal is known yet: it is the summary's only (bold) line.
+    assert section_lines(co, message, k.SUMMARY_HEADING) == [total_line(co, 2500, k.CART_SUBTOTAL_FIELD)]
 
     again = await press(co, customer, message, views.pick_id(session.id, 0), values=[str(p1.id)])
     prefilled = modal_of(again)
@@ -151,7 +156,9 @@ async def test_paging_through_products(tmp_path: Path) -> None:
 async def test_empty_catalog(co: TestEnv) -> None:
     customer = co.member()
     _, session, _, message = await start(co, customer)
-    assert len(message.embeds) == 1 and last_paragraph(message) == co.text(k.BROWSE_EMPTY_CATALOG)
+    assert len(message.embeds) == 1 and co.text(k.BROWSE_EMPTY_CATALOG) in paragraphs(message)
+    assert section_lines(co, message, k.ITEMS_HEADING) == [co.text(k.CART_EMPTY)]
+    assert section_lines(co, message, k.SUMMARY_HEADING) is None  # nothing to sum up yet
     assert views.pick_id(session.id, 0) not in message.custom_ids()
     assert component(message, views.go_id(session.id, m.CART)).disabled  # empty cart: cannot continue
 
@@ -188,7 +195,9 @@ async def test_minimum_order_total(tmp_path: Path) -> None:
         _, session, _, message = await start(tenv, customer)
         await set_qty(tenv, customer, message, session.id, p1.id, 2)
         await go(tenv, customer, message, session.id, m.CART)
-        assert last_paragraph(message) == render(tenv, k.CART_MINIMUM_NOT_MET, minimum=money(tenv, 2000))
+        # The notice follows the step's text, before the items.
+        notice = render(tenv, k.CART_MINIMUM_NOT_MET, minimum=money(tenv, 2000))
+        assert paragraphs(message)[1:3] == [tenv.text(k.CART_DESCRIPTION), notice]
         assert component(message, views.go_id(session.id, m.REVIEW)).disabled
         forged = await go(tenv, customer, message, session.id, m.REVIEW)
         assert error_text(forged) == render(tenv, k.CART_MINIMUM_NOT_MET, minimum=money(tenv, 2000))
@@ -230,7 +239,10 @@ async def test_cancel_confirmation_flow(co: TestEnv) -> None:
     assert message.embeds[0].title == co.text(k.BROWSE_TITLE)
     await press(co, customer, message, views.cancel_id(session.id))
     await press(co, customer, message, views.cancel_yes_id(session.id))
-    assert message.embeds[0].description == co.text(k.CANCELLED_DESCRIPTION)
+    assert paragraphs(message) == [
+        render(co, k.TICKET_REFERENCE_LINE, ticket_number="0001"),
+        co.text(k.CANCELLED_DESCRIPTION),
+    ]
     assert message.custom_ids() == []
     assert (await reload_session(co, session.id)).status == m.SESSION_CANCELLED
     assert await ticket_status(co, session.ticket_id) == "closed"
@@ -260,10 +272,16 @@ async def test_fulfillment_details_and_review(cof: TestEnv) -> None:
     invalid = await press(tenv, customer, message, views.fulfillment_id(session.id), values=["teleport"])
     assert error_text(invalid) == tenv.text(core.ERROR_INVALID_INPUT)
 
+    await press(tenv, customer, message, views.fulfillment_id(session.id), values=["pickup"])
+    free = render(
+        tenv, k.SUMMARY_LINE, label=tenv.text(k.option_key("pickup", "label")), amount=tenv.text(k.SUMMARY_FREE)
+    )
+    assert free in (section_lines(tenv, message, k.SUMMARY_HEADING) or [])
     await press(tenv, customer, message, views.fulfillment_id(session.id), values=["delivery"])
-    fields = {f.name: f.value for f in message.embeds[0].fields}
-    assert fields[tenv.text(k.FULFILLMENT_CHOSEN_FIELD)] == tenv.text(k.option_key("delivery", "label"))
-    assert fields[tenv.text(k.FULFILLMENT_FEE_FIELD)] == money(tenv, 500)
+    # The chosen option is listed with its fee in the summary, with the fees and the total so far.
+    delivery = amount_line(tenv, tenv.text(k.option_key("delivery", "label")), 500)
+    summary = section_lines(tenv, message, k.SUMMARY_HEADING)
+    assert summary is not None and summary[1] == delivery and summary[-1] == total_line(tenv, 2000 + 500 + 150 + 200)
 
     await go(tenv, customer, message, session.id, m.DETAILS)
     assert message.embeds[0].title == tenv.text(k.DETAILS_TITLE)
@@ -301,11 +319,16 @@ async def test_fulfillment_details_and_review(cof: TestEnv) -> None:
     assert not component(message, views.go_id(session.id, m.REVIEW)).disabled
 
     await go(tenv, customer, message, session.id, m.REVIEW)
+    assert section_lines(tenv, message, k.SUMMARY_HEADING) == [
+        amount_line(tenv, tenv.text(k.CART_SUBTOTAL_FIELD), 2000),
+        amount_line(tenv, tenv.text(k.option_key("delivery", "label")), 500),
+        amount_line(tenv, tenv.text(k.fee_label_key("service")), 150),
+        amount_line(tenv, tenv.text(k.fee_label_key("tax")), 200),  # 10 % of the 20.00 subtotal
+        total_line(tenv, 2000 + 500 + 150 + 200),
+    ]
+    # The customer's answer is shown (escaped) as a field under the card.
     fields = {f.name: f.value for f in message.embeds[0].fields}
-    assert fields[tenv.text(k.fee_label_key("service"))] == money(tenv, 150)
-    assert fields[tenv.text(k.fee_label_key("tax"))] == money(tenv, 200)  # 10 % of the 20.00 subtotal
-    assert fields[tenv.text(k.FULFILLMENT_FEE_FIELD)] == money(tenv, 500)
-    assert fields[tenv.text(k.REVIEW_TOTAL_FIELD)] == money(tenv, 2000 + 500 + 150 + 200)
+    assert fields[tenv.text(k.form_field_key("name", "label"))] == views.escape("[sample *name*]")
     assert views.submit_id(session.id, 2850, 2850) in message.custom_ids()
     # Items (choosing and the cart) · details · delivery · review · payment: the review is step 4 of 5.
     assert render(tenv, core.PROGRESS_FORMAT, current=4, total=5, bar="") in (message.embeds[0].footer.text or "")
@@ -364,14 +387,21 @@ async def test_credits_toggle(co: TestEnv) -> None:
     await set_qty(co, customer, message, session.id, p1.id, 1)
     await go(co, customer, message, session.id, m.CART)
     await go(co, customer, message, session.id, m.REVIEW)
-    fields = {f.name: f.value for f in message.embeds[0].fields}
-    assert fields[co.text(k.REVIEW_CREDITS_AVAILABLE_FIELD)] == money(co, 300)
+    # The credit that could be applied is shown under the total (it is not taken off yet).
+    assert section_lines(co, message, k.SUMMARY_HEADING) == [
+        total_line(co, 1000),
+        amount_line(co, co.text(k.REVIEW_CREDITS_AVAILABLE_FIELD), 300),
+    ]
     apply = component(message, views.credits_id(session.id, True))
     assert apply.label == co.text(k.BUTTON_APPLY_CREDITS)
     await press(co, customer, message, views.credits_id(session.id, True))
-    fields = {f.name: f.value for f in message.embeds[0].fields}
-    assert fields[co.text(k.REVIEW_CREDITS_FIELD)] == money(co, 300)
-    assert fields[co.text(k.REVIEW_TOTAL_FIELD)] == money(co, 700)
+    credit = render(co, k.SUMMARY_CREDIT_LINE, label=co.text(k.REVIEW_CREDITS_FIELD), amount=money(co, 300))
+    assert section_lines(co, message, k.SUMMARY_HEADING) == [
+        amount_line(co, co.text(k.CART_SUBTOTAL_FIELD), 1000),
+        credit,
+        total_line(co, 700),
+    ]
+    assert money(co, 300) in card_text(message)
     assert views.submit_id(session.id, 700, 1000) in message.custom_ids()
     await press(co, customer, message, views.credits_id(session.id, False))
     assert views.submit_id(session.id, 1000, 1000) in message.custom_ids()

@@ -1,6 +1,7 @@
 """Operator wording for /setup (admin-only ephemeral replies and the Discord audit-log reason).
 
-Every entry can be overridden in content.toml under ``operator.<key>``. Customers never see this text.
+Every entry can be overridden in content.toml under ``operator.<key>``. Customers never see this text. The /reset
+headings and buttons show the bot's icons (``{icon_<name>}``, rendered by ``reset_views``).
 """
 
 from __future__ import annotations
@@ -120,12 +121,12 @@ OPERATOR_TEXT: dict[str, str] = {
         "**The shop data is deleted too:** every order, product, review, ticket, store credit balance and customer "
         "record (they stay in the backup)."
     ),
-    "server.reset.field.channels": "Channels to delete ({count})",
-    "server.reset.field.categories": "Categories to delete ({count})",
-    "server.reset.field.roles": "Roles to delete ({count})",
-    "server.reset.field.kept": "Kept",
-    "server.reset.field.work": "Orders and tickets",
-    "server.reset.field.failed": "Not deleted ({count})",
+    "server.reset.field.channels": "{icon_trash} Channels to delete ({count})",
+    "server.reset.field.categories": "{icon_trash} Categories to delete ({count})",
+    "server.reset.field.roles": "{icon_trash} Roles to delete ({count})",
+    "server.reset.field.kept": "{icon_shield} Kept",
+    "server.reset.field.work": "{icon_alert} Orders and tickets",
+    "server.reset.field.failed": "{icon_alert} Not deleted ({count})",
     "server.reset.none": "None",
     "server.reset.more": "… and {count} more",
     "server.reset.kept.everyone": "`@everyone`",
@@ -154,8 +155,8 @@ OPERATOR_TEXT: dict[str, str] = {
         "data. Members lose the deleted roles (Restock Alerts sign-ups too) and verify again on the new welcome "
         "panel."
     ),
-    "server.reset.button.continue": "Continue",
-    "server.reset.button.cancel": "Cancel",
+    "server.reset.button.continue": "{icon_alert} Continue",
+    "server.reset.button.cancel": "{icon_cross} Cancel",
     "server.reset.form_title": "Confirm the server reset",
     "server.reset.form_title_wipe": "Confirm the reset and the data wipe",
     "server.reset.form_label": "Type RESET and the server name",

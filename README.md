@@ -75,6 +75,7 @@ Production runs on Railway as a worker with a persistent volume at `/data` — s
 | `docs/TESTING.md` | Quality gates and what tests do and do not prove |
 | `docs/SECURITY.md` | Secrets, authorization, private data, payments |
 | `docs/QUALITY_STANDARDS.md` | The house style every message follows, and how it is checked |
+| `docs/NEXT_STEPS.md` | What to check on the real server, decisions for the owner, features worth building next |
 | `docs/DECISIONS.md` | Architecture, technical decisions, assumptions, limitations |
 
 ## Tools

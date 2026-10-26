@@ -89,14 +89,18 @@ async def test_the_order_card_lists_the_methods_and_shows_a_button_for_each(pay:
     description = message.embeds[0].description or ""
     assert pay.text(pm.SECTION_HEADING) in description
     card, paypal, gift = (pm.method_name(pay.app.ui, i) for i in ("card", "paypal", "gift_card"))
-    assert rendered(pay, pm.LINE_DOWN, method=card) in description
-    assert rendered(pay, pm.LINE_DOWN, method=paypal) in description
-    assert rendered(pay, pm.LINE_ACTIVE, method=gift) in description
-    assert pay.text(pm.NOTE) in description
+    # The method that works first, then one line for every method that is down, then the note.
+    section = next(p for p in description.split("\n\n") if p.startswith(f"**{pay.text(pm.SECTION_HEADING)}**"))
+    assert section.split("\n")[1:] == [
+        rendered(pay, pm.LINE_ACTIVE, method=gift),
+        rendered(pay, pm.LINE_DOWN, method=f"{card}, {paypal}"),
+        pay.text(pm.NOTE),
+    ]
     rows = _rows(message)
-    # The methods that are down first, then the gift card's own buttons and Cancel order.
-    assert rows[0] == [pm.method_custom_id(placed.id, "card"), pm.method_custom_id(placed.id, "paypal")]
-    assert rows[1] == [views.payment_form_id(placed.id), BUY_URL, views.order_cancel_id(placed.id)]
+    # What works first (the gift card's own buttons), then the methods that are down, then Cancel order alone.
+    assert rows[0] == [views.payment_form_id(placed.id), BUY_URL]
+    assert rows[1] == [pm.method_custom_id(placed.id, "card"), pm.method_custom_id(placed.id, "paypal")]
+    assert rows[2] == [views.order_cancel_id(placed.id)]
     styles = {b.custom_id: b.style.name for b in _buttons(message) if b.custom_id}
     assert styles[pm.method_custom_id(placed.id, "card")] == "secondary"
 
@@ -166,6 +170,11 @@ async def test_a_method_our_team_handles_is_posted_once_and_alerts_the_staff(tmp
         customer, placed, message = await _placed(tenv)
         button = next(b for b in _buttons(message) if b.custom_id == pm.method_custom_id(placed.id, "card"))
         assert button.style.name == "primary"
+        # The gift card's buttons, then the other method that works on its own row (one main action per row).
+        rows = _rows(message)
+        assert rows[0] == [views.payment_form_id(placed.id), BUY_URL]
+        assert rows[1] == [pm.method_custom_id(placed.id, "card")]
+        assert rows[2] == [views.order_cancel_id(placed.id)]
         ticket = message.channel
         before = len(ticket.messages)
         first = await press(tenv, customer, message, pm.method_custom_id(placed.id, "card"))
@@ -199,6 +208,10 @@ async def test_a_payment_page_is_a_link_button(tmp_path: Path) -> None:
     try:
         customer, placed, message = await _placed(tenv)
         assert PAGE_URL in [b.url for b in _buttons(message) if b.url]
+        # Every method works: nothing on the card says one is down (no down line, no note).
+        description = message.embeds[0].description or ""
+        assert tenv.text(pm.NOTE) not in description
+        assert rendered(tenv, pm.LINE_ACTIVE, method=pm.method_name(tenv.app.ui, "card")) in description
         assert pm.method_custom_id(placed.id, "card") not in message.custom_ids()
         # An older button of the method (from before it became a page) offers the page privately.
         older: FakeInteraction = await press(tenv, customer, message, pm.method_custom_id(placed.id, "card"))

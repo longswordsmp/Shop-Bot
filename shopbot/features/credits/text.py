@@ -44,7 +44,7 @@ OPERATOR_TEXT: dict[str, str] = {
     "credits.history.by_system": "automatic",
     "credits.history.order": "order #{order_number}",
     "credits.history.note": "Note: {note}",
-    "credits.history.page": "Page {page}/{pages}",
+    "credits.history.page": "Page {page} of {pages}",
     "credits.history.previous": "Previous",
     "credits.history.next": "Next",
     # ledger entry kinds

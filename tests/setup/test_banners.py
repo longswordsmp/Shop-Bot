@@ -10,7 +10,8 @@ import pytest
 from shopbot.config.banner_ids import BannerId
 from shopbot.features.setup.preview import preview
 from shopbot.features.setup.service import setup_lock
-from shopbot.ui.spec import MessageSpec, PreviewState
+from shopbot.ui.icons import IconFile, IconLibrary
+from shopbot.ui.spec import ButtonSpec, MessageSpec, PreviewState
 from tests.helpers import TestEnv, banner_names, make_banner_env
 from tests.setup.util import invoke_setup
 
@@ -63,3 +64,21 @@ async def test_busy_and_unavailable_server_replies(benv: TestEnv, monkeypatch: p
     assert unavailable.last_sent is not None
     assert unavailable.last_sent.embeds[0].title == benv.app.op("server.setup.no_guild")
     assert banner_names(unavailable.last_sent) == [banner_file(benv, "error")]
+
+
+async def test_the_reset_preview_warns_with_the_error_banner_and_shows_its_icons(benv: TestEnv) -> None:
+    """What /reset is about to delete closes with the error banner (not the dashboard); its headings and buttons show
+    the bot's icons, rendered from the operator text (nothing while an icon is not uploaded, never raw text)."""
+    states = {s.name: s for s in preview(benv.app)}
+    for name in ("reset_preview", "reset_preview_wipe", "reset_preview_large"):
+        assert message_spec(states[name]).banner == benv.app.ui.banner("error"), name
+    ids = {"trash": 111111111111111111, "alert": 222222222222222222, "cross": 333333333333333333}
+    files = {name: IconFile(name, b"png", name, "image/png") for name in ids}
+    benv.app.icons = IconLibrary(files=files, ids=ids, enabled=True)  # the icons, uploaded
+    spec = message_spec({s.name: s for s in preview(benv.app)}["reset_preview"])
+    names = [field.name for field in spec.embeds[0].fields]
+    assert names[0].startswith("<:trash:111111111111111111> ") and names[-1].startswith("<:alert:222222222222222222> ")
+    labels = [component.label for row in spec.rows for component in row if isinstance(component, ButtonSpec)]
+    assert labels[0] == "<:alert:222222222222222222> " + benv.app.op("server.reset.button.continue").split(" ", 1)[1]
+    assert labels[1] is not None and labels[1].startswith("<:cross:333333333333333333> ")
+    assert not any("{icon_" in text for text in [*names, *(label or "" for label in labels)])

@@ -7,8 +7,8 @@ Customer data (display names, form answers, staff reasons) is escaped with ``dis
 pings: embeds do not mention, only the explicit ``mention_user_ids``/``mention_role_ids`` of a spec do.
 
 Every message carries the banner of its kind (``Ui.banner``). The private step and the report panel are each ONE
-message whose banner follows its state (``STATUS_BANNERS``, ``REFUSED_BANNER``); the answers posted under the panel have
-none (they continue it).
+message whose banner follows its state (``STATUS_BANNERS``, ``REFUSED_BANNER``); the answers card posted under the panel
+has none (it continues the panel).
 
 Custom ids (route ``pr``) carry only identifiers; handlers reload and re-validate everything:
 - ``sb:pr:start`` - the Report a Problem button on the #purchase panel;
@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 
 from discord.utils import escape_markdown
 
@@ -35,9 +35,9 @@ from shopbot.config.settings import ProblemSettings, ProblemType
 from shopbot.features import core_keys as core
 from shopbot.features.problems import content_keys as k
 from shopbot.features.tickets import content_keys as tk
-from shopbot.ui.card import with_paragraph
+from shopbot.ui.card import PARAGRAPH, heading, pack_messages, with_paragraph
 from shopbot.ui.custom_ids import cid
-from shopbot.ui.limits import EMBED_FIELDS, EMBED_TOTAL_CHARS, EMBEDS_PER_MESSAGE
+from shopbot.ui.limits import EMBED_DESCRIPTION
 from shopbot.ui.spec import (
     ButtonSpec,
     ButtonStyle,
@@ -60,9 +60,9 @@ NOT_CHOSEN = "-"
 NO_ORDER = "0"
 NONCE_RE = re.compile(r"^[0-9a-f]{16}$")
 REASON_INPUT = "reason"
-# Raw characters of a form answer per embed field. Escaping at most doubles the length, so every field value stays
-# within Discord's 1024-character limit without cutting any character.
-ANSWER_CHUNK = 500
+# The answers card continues in its next embed only where one is full; with less room than this left, the next answer
+# (or the rest of a long one) starts in the next embed instead of a few words at the bottom of this one.
+MIN_PIECE = 200
 # Options in one selection menu (Discord's limit).
 MENU_OPTIONS = 25
 
@@ -223,37 +223,22 @@ def type_label(ui: Ui, settings: ProblemSettings, type_id: str) -> str | None:
     return _text(ui, k.type_key(type_id, "label"))
 
 
-def _split(text: str, size: int) -> list[str]:
-    """Split ``text`` into pieces of at most ``size`` characters, preferring line boundaries. Whitespace-only pieces
-    are dropped (an embed field value cannot be blank). Nothing is cut away."""
-    pieces: list[str] = []
-    current = ""
-    for line in text.splitlines(keepends=True):
-        while len(line) > size:
-            if current:
-                pieces.append(current)
-                current = ""
-            pieces.append(line[:size])
-            line = line[size:]
-        if len(current) + len(line) > size:
-            pieces.append(current)
-            current = ""
-        current += line
-    if current:
-        pieces.append(current)
-    return [p.strip("\n") for p in pieces if p.strip()]
-
-
 def _order_field(ui: Ui, order: OrderInfo | None) -> EmbedField | None:
+    """The order the report is about, full width under the short facts (number, total and status never squeezed into
+    a third of the card)."""
     if order is None:
         return None
-    return EmbedField(name=_text(ui, k.FIELD_ORDER), value=_text(ui, k.ORDER_VALUE, **order.values()), inline=True)
+    return EmbedField(name=_text(ui, k.FIELD_ORDER), value=_text(ui, k.ORDER_VALUE, **order.values()))
 
 
 def _type_field(ui: Ui, label: str | None) -> EmbedField | None:
     if label is None:
         return None
     return EmbedField(name=_text(ui, k.FIELD_TYPE), value=label, inline=True)
+
+
+def _status_field(ui: Ui, status: str) -> EmbedField:
+    return EmbedField(name=_text(ui, k.FIELD_STATUS), value=_text(ui, k.status_key(status)), inline=True)
 
 
 def _reason_field(ui: Ui, reason: str | None) -> EmbedField | None:
@@ -343,7 +328,7 @@ def choose_message(
         disabled=not choice.complete,
     )
     return MessageSpec(
-        embeds=with_paragraph(main, _text(ui, k.ATTACHMENTS_NOTE)),
+        embeds=(main,),
         rows=rows_of(order_menu, type_menu, proceed),
         banner=ui.banner("support-request"),
     )
@@ -374,22 +359,29 @@ def form_modal(ui: Ui, problem_type: ProblemType, *, nonce: str, order_sel: str)
 # -- private replies ------------------------------------------------------------------------------------------------
 
 
-def _reply(ui: Ui, key: str, *, tone: str, values: Values | None = None) -> EmbedSpec:
-    return ui.embed(description=_text(ui, key, **(values or {})), tone=tone)
+def _reply(ui: Ui, key: str, *, tone: str, values: Values | None = None, title_key: str | None = None) -> EmbedSpec:
+    values = values or {}
+    title = ui.text(title_key, **values) if title_key else None
+    return ui.embed(title=title, description=_text(ui, key, **values), tone=tone)
 
 
 def created_reply(ui: Ui, *, channel_id: int, number: str) -> MessageSpec:
-    embed = _reply(
-        ui, k.CREATED, tone="success", values={"channel_mention": channel_mention(channel_id), "number": number}
-    )
+    """The private confirmation once the report's ticket exists: an optional title, the link to the ticket, then the
+    attachments note as the card's last paragraph."""
+    values: Values = {"channel_mention": channel_mention(channel_id), "number": number}
+    embed = _reply(ui, k.CREATED, tone="success", values=values, title_key=k.CREATED_TITLE)
     return MessageSpec(embeds=with_paragraph(embed, _text(ui, k.ATTACHMENTS_NOTE)), banner=ui.banner("ticket-created"))
 
 
 def limit_reply(ui: Ui, *, limit: int, channel_id: int | None) -> MessageSpec:
+    """The open-report limit is reached. The line linking the newest open report's ticket is left out when that ticket
+    cannot be linked (``render_lines``), so no sentence ends in an empty link."""
     values: Values = {"limit": limit, "channel_mention": channel_mention(channel_id) if channel_id else ""}
-    return MessageSpec(
-        embeds=(_reply(ui, k.LIMIT_REACHED, tone="warning", values=values),), banner=ui.banner(REFUSED_BANNER)
-    )
+    description = ui.content.render_lines(k.LIMIT_REACHED, **values)
+    if description is None:
+        raise MissingContent(k.LIMIT_REACHED)
+    embed = ui.embed(title=ui.text(k.LIMIT_REACHED_TITLE), description=description, tone="warning")
+    return MessageSpec(embeds=(embed,), banner=ui.banner(REFUSED_BANNER))
 
 
 def no_orders_reply(ui: Ui, *, links: Mapping[str, str] | None = None) -> MessageSpec:
@@ -448,10 +440,11 @@ def ticket_panel(
     decided_by = None
     if data.status != k.OPEN and data.decided_by is not None:
         decided_by = ui.field(k.FIELD_DECIDED_BY, user_mention(data.decided_by), inline=True)
+    # Two short facts side by side, then the order full width, then the decision (never three squeezed columns).
     fields = _fields(
         _type_field(ui, label),
+        _status_field(ui, data.status),
         _order_field(ui, data.order),
-        EmbedField(name=_text(ui, k.FIELD_STATUS), value=_text(ui, k.status_key(data.status)), inline=True),
         _reason_field(ui, data.reason if data.status != k.OPEN else None),
         decided_by,
     )
@@ -472,50 +465,82 @@ def ticket_panel(
     )
 
 
-def answer_fields(ui: Ui, problem_type: ProblemType, answers: Mapping[str, str]) -> list[EmbedField]:
-    """Form answers as fields named by the form labels (escaped, never cut; empty optional answers are skipped)."""
-    fields: list[EmbedField] = []
+def answer_lines(ui: Ui, problem_type: ProblemType, answers: Mapping[str, str]) -> list[str]:
+    """The answers card's lines: each answered question in bold (its form label) with the escaped answer under it, in
+    one line, so a question always opens its answer; questions are separated by ``PARAGRAPH`` and empty optional answers
+    are skipped."""
+    lines: list[str] = []
     for field in problem_type.form:
         answer = (answers.get(field.id) or "").strip()
         if not answer:
             continue
         label = _text(ui, k.form_field_key(problem_type.id, field.id, "label"))
-        for piece in _split(answer, ANSWER_CHUNK):
-            fields.append(EmbedField(name=label, value=escape(piece)))
-    return fields
+        if lines:
+            lines.append(PARAGRAPH)
+        lines.append(f"{heading(label)}\n{escape(answer)}")
+    return lines
 
 
-def _pack(fields: Sequence[EmbedField], base: EmbedSpec) -> list[MessageSpec]:
-    """Fields in as many embeds/messages as needed: 25 fields per embed, 10 embeds and 6000 characters per message."""
-    messages: list[MessageSpec] = []
-    embeds: list[EmbedSpec] = []
-    current: list[EmbedField] = []
-    used = 0
-    for item in fields:
-        size = len(item.name) + len(item.value)
-        if current and len(current) >= EMBED_FIELDS:
-            embeds.append(replace(base, fields=tuple(current)))
-            current = []
-        if used + size > EMBED_TOTAL_CHARS or (not current and len(embeds) >= EMBEDS_PER_MESSAGE):
-            if current:
-                embeds.append(replace(base, fields=tuple(current)))
-                current = []
-            if embeds:
-                messages.append(MessageSpec(embeds=tuple(embeds)))
-            embeds, used = [], 0
-        current.append(item)
-        used += size
+def _split_at(text: str, room: int) -> tuple[str, str]:
+    """``text`` (longer than ``room``) as a first part of at most ``room`` characters and the rest: split at the last
+    line break, else the last space, in the second half of the room (that one whitespace character is the break);
+    without either, exactly at ``room``, but never between a backslash and the character it escapes."""
+    for separator in ("\n", " "):
+        at = text.rfind(separator, room // 2, room + 1)
+        if at > 0:
+            return text[:at], text[at + 1 :]
+    cut = room
+    while cut > 1 and text[cut - 1] == "\\":
+        cut -= 1
+    if cut <= 1:
+        cut = room
+    return text[:cut], text[cut:]
+
+
+def _descriptions(lines: Sequence[str]) -> list[str]:
+    """``lines`` joined into embed descriptions of at most 4096 characters (``PARAGRAPH`` starts a new paragraph). A
+    line that does not fit continues in the next description, split by ``_split_at``; nothing is cut."""
+    texts: list[str] = []
+    current = ""
+    paragraph = False
+    for line in lines:
+        if line == PARAGRAPH:
+            paragraph = True
+            continue
+        rest = line
+        while rest:
+            separator = ("\n\n" if paragraph else "\n") if current else ""
+            room = EMBED_DESCRIPTION - len(current) - len(separator)
+            if len(rest) <= room:
+                current += separator + rest
+                break
+            if current and room < MIN_PIECE:
+                texts.append(current)
+                current = ""
+                continue
+            first, rest = _split_at(rest, room)
+            texts.append(current + separator + first)
+            current = ""
+        paragraph = False
     if current:
-        embeds.append(replace(base, fields=tuple(current)))
-    if embeds:
-        messages.append(MessageSpec(embeds=tuple(embeds)))
-    return messages
+        texts.append(current)
+    return texts
 
 
 def details_messages(ui: Ui, problem_type: ProblemType, answers: Mapping[str, str]) -> list[MessageSpec]:
-    """The customer's form answers, posted once below the report panel (none when the type has no form). No banner:
-    they continue the panel above."""
-    return _pack(answer_fields(ui, problem_type, answers), ui.embed(tone="info", branding_text=False))
+    """The customer's form answers as one card posted once below the report panel: the optional heading
+    (``problems.details.heading``), then each question in bold with the answer under it. A card longer than one embed
+    continues in the next embed of the same colour, and in further messages within Discord's limits (6000 characters
+    per message); nothing is cut. None when the type has no form or no answer. No banner, author or footer: the card
+    continues the panel above."""
+    lines = answer_lines(ui, problem_type, answers)
+    if not lines:
+        return []
+    title = ui.text(k.DETAILS_HEADING)
+    if title:
+        lines = [heading(title), *lines]
+    embeds = [ui.embed(description=text, tone="info", branding_text=False) for text in _descriptions(lines)]
+    return [MessageSpec(embeds=group) for group in pack_messages(embeds)]
 
 
 # -- decision, notifications, staff alert ----------------------------------------------------------------------------
@@ -532,18 +557,25 @@ def decision_notification(
     reason: str | None,
     channel_id: int | None,
 ) -> MessageSpec:
-    """The private message telling the customer about the decision (direct message, or posted in the ticket)."""
+    """The private message telling the customer about the decision (direct message, or posted in the ticket): the same
+    key facts as the report panel (issue type, order, status), then staff's note or reason. A line linking the ticket is
+    left out when the ticket cannot be linked (``render_lines``)."""
     label = type_label(ui, settings, type_id)
     values: Values = {
         "number": number,
         "type_label": label or "",
         "channel_mention": channel_mention(channel_id) if channel_id else "",
     }
+    description_key = k.notify_key(status, "description")
+    if not ui.content.has(description_key):
+        raise MissingContent(description_key)
     embed = ui.embed(
         title=ui.text(k.notify_key(status, "title"), number=number, type_label=label or ""),
-        description=_text(ui, k.notify_key(status, "description"), **values),
+        description=ui.content.render_lines(description_key, **values),
         tone=_STATUS_TONES.get(status, "info"),
-        fields=_fields(_type_field(ui, label), _order_field(ui, order), _reason_field(ui, reason)),
+        fields=_fields(
+            _type_field(ui, label), _status_field(ui, status), _order_field(ui, order), _reason_field(ui, reason)
+        ),
         timestamp=True,
     )
     return MessageSpec(embeds=(embed,), banner=_status_banner(ui, status))
@@ -609,6 +641,9 @@ def reject_modal(op: OpText, *, report_id: int, number: str, required: bool) -> 
     )
 
 
-def operator_reply(ui: Ui, text: str, *, tone: str = "info", banner: BannerId = "general-response") -> MessageSpec:
-    """A staff-only private reply: ``general-response`` for answers, ``error`` for refused input."""
-    return MessageSpec(embeds=(ui.operator_embed(text, tone=tone),), banner=ui.banner(banner))
+def operator_reply(
+    ui: Ui, title: str, text: str | None = None, *, tone: str = "info", banner: BannerId = "general-response"
+) -> MessageSpec:
+    """A staff-only private reply: a short title (what happened) over the details; ``general-response`` for answers,
+    ``error`` for refused input."""
+    return MessageSpec(embeds=(ui.operator_embed(title, text, tone=tone),), banner=ui.banner(banner))

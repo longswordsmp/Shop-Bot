@@ -141,7 +141,7 @@ def test_conditional_requiredness() -> None:
 def test_shared_keys() -> None:
     shared = MODULE.shared_keys(_settings())
     assert tk.BUTTON_CLOSE in shared and core.BUTTON_CONTINUE in shared and core.MONEY_FORMAT in shared
-    assert checkout_keys.status_label_key("fulfilled") in shared
+    assert checkout_keys.stage_key("fulfilled") in shared
     plain = MODULE.shared_keys(_settings({"problems": {"eligible_statuses": []}}))
     assert plain == [tk.BUTTON_CLOSE]
 
@@ -267,8 +267,8 @@ async def test_preview_with_every_optional_setting(tmp_path: Path) -> None:
         assert "form.other" not in names and "staff_alert" in names
         # The longest answers of the billing form (4000 characters) continue in further messages; nothing is cut.
         longest = [s for s in states if s.name.startswith("details.billing.longest.")]
-        values = "".join(f.value for s in longest for e in s.spec.embeds for f in e.fields)  # type: ignore[union-attr]
-        assert values.count("[sample answer]") > 100
+        text = "".join(e.description or "" for s in longest for e in s.spec.embeds)  # type: ignore[union-attr]
+        assert text.count("[sample answer]") > 100
         _assert_valid(states, tenv.app.router)
     finally:
         await tenv.close()
@@ -279,7 +279,7 @@ async def test_preview_sample_data_is_synthetic(pr: TestEnv) -> None:
     states = {s.name: s.spec for s in MODULE.preview(pr.app)}
     details = states["details.general"]
     assert isinstance(details, MessageSpec)
-    assert "[sample answer]" in details.embeds[0].fields[0].value
+    assert "[sample answer]" in (details.embeds[0].description or "")
     open_panel = states["ticket.open"]
     assert isinstance(open_panel, MessageSpec)
     assert "sample member" in (open_panel.embeds[0].title or "")

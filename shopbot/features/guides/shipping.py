@@ -8,8 +8,8 @@ and North Dakota)"), then the countries listed as not available. Below come the 
 embed continues in the next embed and message; nothing is cut.
 
 For each country in ``shipping.list_areas`` (the US) a second card lists every area one by one (``LISTED_AREAS``:
-the 50 states and DC) in three columns, each with its dot: available, or not available when it is one of the
-country's ``excluded_areas``.
+the 50 states and DC, written "Washington, D.C.": ``area_display_name``) in three columns, each with its dot:
+available, or not available when it is one of the country's ``excluded_areas``.
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ from shopbot.config.settings import (
     ShippingGroup,
     ShippingSettings,
 )
-from shopbot.core.countries import LISTED_AREAS, area_name
+from shopbot.core.countries import LISTED_AREAS, area_display_name
 from shopbot.features.checkout.content_keys import extra_key, option_key
 from shopbot.features.guides import common
 from shopbot.features.server_keys import channel_placeholders, reference_problems
@@ -310,7 +310,7 @@ def country_label(texts: common.Texts, s: ShippingSettings, code: str) -> str:
     areas = s.excluded_areas.get(code)
     if not areas:
         return name
-    names = [area_name(code, area) for area in areas]
+    names = [area_display_name(code, area) for area in areas]
     return texts.required(FORMAT_EXCLUDED, country=name, areas=_areas(texts, names))
 
 
@@ -390,7 +390,9 @@ def area_columns(texts: common.Texts, s: ShippingSettings, code: str) -> tuple[E
     """Every listed area of the country, alphabetically, each after its dot, in ``AREA_COLUMNS`` columns."""
     excluded = set(s.excluded_areas.get(code, ()))
     dots = {status: texts.required(status_indicator_key(status)) for status in ("full", "none")}
-    lines = [f"{dots['none' if area in excluded else 'full']} {area_name(code, area)}" for area in LISTED_AREAS[code]]
+    lines = [
+        f"{dots['none' if area in excluded else 'full']} {area_display_name(code, area)}" for area in LISTED_AREAS[code]
+    ]
     per_column = -(-len(lines) // AREA_COLUMNS)
     return tuple(
         EmbedField(BLANK_FIELD_NAME, "\n".join(lines[start : start + per_column]), inline=True)

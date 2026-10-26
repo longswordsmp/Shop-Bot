@@ -135,16 +135,17 @@ async def test_the_preview_lists_what_is_deleted_and_what_is_kept(ops: TestEnv) 
     assert ops.app.op("server.reset.data_kept") in (embed.description or "")
     fields = {f.name: f.value or "" for f in embed.fields}
     plan = plan_of(ops, me)
-    channels = fields[ops.app.op("server.reset.field.channels", count=len(plan.channels))]
+    heading = ops.app.ui.with_icons  # the headings show the bot's icons
+    channels = fields[heading(ops.app.op("server.reset.field.channels", count=len(plan.channels)))]
     assert views.display_name(reset.CHANNEL, staff_channel(ops).name) in channels and "#rules" not in channels
     assert all(views.display_name(reset.CHANNEL, channel(ops, key).name) not in channels for key in HISTORY)
-    roles = fields[ops.app.op("server.reset.field.roles", count=len(plan.roles))]
+    roles = fields[heading(ops.app.op("server.reset.field.roles", count=len(plan.roles)))]
     assert "@customer" in roles and "@staff" in roles and "@Bot permissions" not in roles and "@Admins" not in roles
-    kept = fields[ops.app.op("server.reset.field.kept")]
+    kept = fields[heading(ops.app.op("server.reset.field.kept"))]
     for name in ("@Above the bot", "@ShopBot", "@Bot permissions", "@Admins", "#rules", "@everyone"):
         assert name in kept, name
     assert all(views.display_name(reset.CHANNEL, channel(ops, key).name) in kept for key in HISTORY)
-    work = fields[ops.app.op("server.reset.field.work")]
+    work = fields[heading(ops.app.op("server.reset.field.work"))]
     assert work == ops.app.op("server.reset.work_kept", orders=0, unpaid=0, tickets=0)
     assert high in ops.guild.roles
     assert message.custom_ids() == [continue_id(message), "sb:rs:no"]
@@ -311,7 +312,8 @@ async def test_failed_deletions_are_reported_and_the_run_continues(ops: TestEnv)
     assert result.title == ops.app.op("server.reset.result_title_problems")
     failed = {f.name: f.value or "" for f in result.fields}
     not_deleted = len(plan.channels) + len(plan.categories)
-    assert "HTTP 403 (Discord code 50013)" in failed[ops.app.op("server.reset.field.failed", count=not_deleted)]
+    heading = ops.app.ui.with_icons(ops.app.op("server.reset.field.failed", count=not_deleted))
+    assert "HTTP 403 (Discord code 50013)" in failed[heading]
     # The roles were still deleted.
     assert [r.name for r in ops.guild.roles if not r.is_default()] == ["ShopBot"]
     [event] = await audit_events(ops, "server.reset")
@@ -416,7 +418,8 @@ async def test_setup_after_a_reset_rebuilds_the_server_and_restores_open_orders(
     channels_before = list(ops.guild.channels)
 
     message = await preview(ops, owner(ops))
-    work = next(f.value for f in message.embeds[0].fields if f.name == ops.app.op("server.reset.field.work"))
+    heading = ops.app.ui.with_icons(ops.app.op("server.reset.field.work"))
+    work = next(f.value for f in message.embeds[0].fields if f.name == heading)
     assert work == ops.app.op("server.reset.work_kept", orders=1, unpaid=1, tickets=1)  # the other was delivered
     await confirm(ops, owner(ops), message, phrase(ops))
     await emit_deletions(ops, channels_before)

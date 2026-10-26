@@ -10,11 +10,12 @@ import discord
 from shopbot.config.content import ContentStore, validate_value
 from shopbot.config.content_keys import Kind, Registry, ck
 from shopbot.core.clock import FakeClock
-from shopbot.ui.component_emoji import split_button, split_label, split_option
+from shopbot.core.panels import spec_hash
+from shopbot.ui.component_emoji import record_white_variant, shown_button, split_button, split_label, split_option
 from shopbot.ui.discord_render import to_view
 from shopbot.ui.limits import validate_message
 from shopbot.ui.routing import RoutedItem
-from shopbot.ui.spec import ButtonSpec, EmbedSpec, MessageSpec, SelectOptionSpec, SelectSpec
+from shopbot.ui.spec import ButtonSpec, ButtonStyle, EmbedSpec, MessageSpec, SelectOptionSpec, SelectSpec
 from shopbot.ui.style import Ui
 from tests.helpers import make_settings
 from tools.build_preview import render_components
@@ -26,6 +27,7 @@ OPTION = ck("x.option", Kind.OPTION_LABEL, "core", "g", "doc")
 LINK_LABEL = ck("x.link.label", Kind.BUTTON_LABEL, "core", "g", "doc")
 LINK_URL = ck("x.link.url", Kind.URL, "core", "g", "doc")
 BUTTON_EMOJI = ck("x.button_emoji", Kind.EMOJI, "core", "g", "doc", required=False)
+OPTIONAL_BUTTON = ck("x.optional", Kind.BUTTON_LABEL, "core", "g", "doc", required=False)
 
 
 def store(values: dict[str, str], uploaded: dict[str, int] | None = None) -> ContentStore:
@@ -37,7 +39,7 @@ def store(values: dict[str, str], uploaded: dict[str, int] | None = None) -> Con
             return f"<:{name}:{ids[name]}>"
         return "•" if name.startswith("dot_") else ""
 
-    registry = Registry([BUTTON, OPTION, LINK_LABEL, LINK_URL, BUTTON_EMOJI])
+    registry = Registry([BUTTON, OPTION, LINK_LABEL, LINK_URL, BUTTON_EMOJI, OPTIONAL_BUTTON])
     return ContentStore(registry, values, icons=icon_text, icon_names=lambda: ICONS)
 
 
@@ -52,7 +54,12 @@ def message(*rows: tuple[Any, ...]) -> MessageSpec:
 
 def test_a_label_may_start_with_one_icon_only() -> None:
     assert validate_value(BUTTON, "{icon_cart} Start order", ICONS) == []
-    assert validate_value(BUTTON, "{icon_cart}", ICONS) == []  # an icon-only button
+    assert validate_value(OPTIONAL_BUTTON, "{icon_cart}", ICONS) == []  # an optional icon-only button
+    # A required button never shows only its icon: until the icon is uploaded it would show nothing at all.
+    assert validate_value(BUTTON, "{icon_cart}", ICONS) == [
+        "needs a label after its icon: this button is required, and until its icon is uploaded a button with only an "
+        "icon would show nothing"
+    ]
     assert validate_value(OPTION, "{icon_cart} Cart", ICONS) == []
     for wrong in ("Start {icon_cart} order", "Start order {icon_cart}", "{icon_cart}Start", "{icon_cart} {icon_tag} x"):
         problems = validate_value(BUTTON, wrong, ICONS)
@@ -80,17 +87,20 @@ def test_the_length_limit_counts_the_label_without_its_icon() -> None:
     assert validate_value(BUTTON, "x" * 81) == ["is 81 characters; Discord allows at most 80 here"]
 
 
-def test_labels_render_their_icon_and_its_fallback() -> None:
+def test_labels_render_their_icon_and_nothing_while_it_is_not_uploaded() -> None:
     content = store(
         {"x.button": "{icon_cart} Start order", "x.option": "{icon_tag} Deals", "x.link.label": "{icon_dot_blue} Open"}
     )
     assert content.render("x.button") == f"{CART} Start order"
-    assert content.render("x.option") == "Deals"  # not uploaded: a section icon shows nothing (nor its space)
-    assert content.render("x.link.label") == "• Open"  # a status dot keeps its plain dot, as in every text
-    content.replace(file_values={"x.button": "{icon_cart}"})
-    assert content.render("x.button") == CART
-    content.replace(file_values={"x.button": "{icon_tag}"})
-    assert content.render("x.button") is None  # only an icon that is not uploaded: nothing to show
+    assert content.render("x.option") == "Deals"  # not uploaded: the icon shows nothing (nor its space)
+    assert content.render("x.link.label") == "Open"  # not even a status dot's plain dot: no stray "•" on a button
+    assert content.render_icons("{icon_dot_blue} Open") == "• Open"  # (in texts the plain dot stays)
+    content.replace(file_values={"x.optional": "{icon_cart}"})
+    assert content.render("x.optional") == CART
+    content.replace(file_values={"x.optional": "{icon_tag}"})
+    assert content.render("x.optional") is None  # only an icon that is not uploaded: nothing to show, left out
+    content.replace(file_values={"x.optional": "{icon_dot_blue}"})
+    assert content.render("x.optional") is None  # never a lone "•"
 
 
 def test_ui_buttons_keep_the_rendered_label_and_drop_an_icon_only_button_without_its_icon() -> None:
@@ -185,3 +195,57 @@ def test_the_preview_draws_the_icon_on_buttons_and_options() -> None:
     assert f'<span class="emoji">{picture}</span></button>' in page  # icon only
     assert f'<span class=emoji>{picture}</span><div><div class="opt-label">Cart</div>' in page
     assert "&lt;:cart:" not in page
+
+
+CHECK = "<:check:444444444444444444>"
+CHECK_W = "<:check_w:555555555555555555>"
+
+
+def test_coloured_buttons_show_the_white_variant_of_their_icon() -> None:
+    record_white_variant(CHECK, CHECK_W)
+    styles: tuple[ButtonStyle, ...] = ("success", "danger", "primary", "secondary")
+    shown = {
+        style: shown_button(ButtonSpec(label=f"{CHECK} Mark paid", custom_id="sb:x:a", style=style)) for style in styles
+    }
+    assert shown["success"] == ButtonSpec(label="Mark paid", custom_id="sb:x:a", style="success", emoji=CHECK_W)
+    assert shown["danger"].emoji == CHECK_W and shown["primary"].emoji == CHECK_W
+    assert shown["secondary"].emoji == CHECK  # the coloured badge on a grey button
+    assert (
+        shown_button(ButtonSpec(label=f"{CART} Buy", custom_id="sb:x:b", style="success")).emoji == CART
+    )  # no variant
+    # An emoji key's icon too; the checks keep the icon itself (it is the same icon: I2, limits).
+    assert shown_button(ButtonSpec(label="Ok", custom_id="sb:x:c", style="danger", emoji=CHECK)).emoji == CHECK_W
+    assert split_button(ButtonSpec(label=f"{CHECK} Mark paid", custom_id="sb:x:a", style="success")).emoji == CHECK
+
+
+def test_to_view_and_the_preview_show_the_white_variant() -> None:
+    record_white_variant(CHECK, CHECK_W)
+    spec = message(
+        (
+            ButtonSpec(label=f"{CHECK} Mark paid", custom_id="sb:x:paid", style="success"),
+            ButtonSpec(label=f"{CHECK} Keep", custom_id="sb:x:keep"),
+        ),
+    )
+    view = to_view(spec)
+    assert view is not None
+    buttons = [c.item if isinstance(c, RoutedItem) else c for c in view.children]
+    assert [str(b.emoji) for b in buttons if isinstance(b, discord.ui.Button)] == [CHECK_W, CHECK]
+    router: Any = types.SimpleNamespace(routes=lambda: [])
+    page = render_components(spec, router)
+    assert 'src="emojis/check_w.png"' in page and 'src="emojis/check.png"' in page
+
+
+TAG = "<:tag:666666666666666666>"
+
+
+def test_the_digest_of_a_published_message_counts_the_white_variant() -> None:
+    # The variant is chosen only when the message is sent: a panel published before its variant was uploaded (or
+    # whose variant was replaced since) is edited; a message whose buttons show no variant keeps its digest.
+    green = message((ButtonSpec(label=f"{TAG} Verify", custom_id="sb:x:v", style="success"),))
+    grey = message((ButtonSpec(label=f"{TAG} Verify", custom_id="sb:x:v"),))
+    before, grey_before = spec_hash(green), spec_hash(grey)
+    record_white_variant(TAG, "<:tag_w:777777777777777777>")
+    uploaded = spec_hash(green)
+    record_white_variant(TAG, "<:tag_w:888888888888888888>")
+    assert len({before, uploaded, spec_hash(green)}) == 3
+    assert spec_hash(grey) == grey_before

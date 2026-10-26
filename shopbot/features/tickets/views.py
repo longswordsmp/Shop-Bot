@@ -347,6 +347,7 @@ def closed_message(
 
 def _status(
     ui: Ui,
+    title_key: str,
     key: str,
     *,
     tone: str,
@@ -354,33 +355,52 @@ def _status(
     values: Values | None = None,
     mention_user_ids: tuple[int, ...] = (),
 ) -> MessageSpec:
-    embed = _embed(ui, None, key, required=(key,), values=values, tone=tone)
+    """A status card posted in the ticket: its optional title (what happened) over the text (required)."""
+    embed = _embed(ui, title_key, key, required=(key,), values=values, tone=tone)
     return MessageSpec(embeds=(embed,), mention_user_ids=mention_user_ids, banner=ui.banner(banner))
 
 
 def claimed(ui: Ui, staff_id: int) -> MessageSpec:
     return _status(
-        ui, k.CLAIMED, tone="info", banner="submission-and-processing", values={"staff_mention": user_mention(staff_id)}
+        ui,
+        k.CLAIMED_TITLE,
+        k.CLAIMED,
+        tone="info",
+        banner="submission-and-processing",
+        values={"staff_mention": user_mention(staff_id)},
     )
 
 
 def unclaimed(ui: Ui) -> MessageSpec:
-    return _status(ui, k.UNCLAIMED, tone="info", banner="pending-review")
+    return _status(ui, k.UNCLAIMED_TITLE, k.UNCLAIMED, tone="info", banner="pending-review")
 
 
 def reopened(ui: Ui, actor_id: int) -> MessageSpec:
     return _status(
-        ui, k.REOPENED, tone="success", banner="support-request", values={"actor_mention": user_mention(actor_id)}
+        ui,
+        k.REOPENED_TITLE,
+        k.REOPENED,
+        tone="success",
+        banner="support-request",
+        values={"actor_mention": user_mention(actor_id)},
     )
 
 
 def deletion_scheduled(ui: Ui, minutes: int) -> MessageSpec:
-    return _status(ui, k.DELETION_SCHEDULED, tone="warning", banner="reminder", values={"minutes": minutes})
+    return _status(
+        ui,
+        k.DELETION_SCHEDULED_TITLE,
+        k.DELETION_SCHEDULED,
+        tone="warning",
+        banner="reminder",
+        values={"minutes": minutes},
+    )
 
 
 def auto_close_warning(ui: Ui, *, minutes: int, user_id: int) -> MessageSpec:
     return _status(
         ui,
+        k.AUTO_CLOSE_WARNING_TITLE,
         k.AUTO_CLOSE_WARNING,
         tone="warning",
         banner="reminder",
@@ -392,6 +412,7 @@ def auto_close_warning(ui: Ui, *, minutes: int, user_id: int) -> MessageSpec:
 def user_added(ui: Ui, user_id: int) -> MessageSpec:
     return _status(
         ui,
+        k.USER_ADDED_TITLE,
         k.USER_ADDED,
         tone="info",
         banner="general-response",
@@ -402,16 +423,25 @@ def user_added(ui: Ui, user_id: int) -> MessageSpec:
 
 def user_removed(ui: Ui, user_id: int) -> MessageSpec:
     return _status(
-        ui, k.USER_REMOVED, tone="info", banner="general-response", values={"user_mention": user_mention(user_id)}
+        ui,
+        k.USER_REMOVED_TITLE,
+        k.USER_REMOVED,
+        tone="info",
+        banner="general-response",
+        values={"user_mention": user_mention(user_id)},
     )
 
 
 # -- private prompts and replies ------------------------------------------------------------------------------
 
 
-def _confirm(ui: Ui, title_key: str, description_key: str, confirm_id: str, cancel_id: str) -> MessageSpec:
+def _confirm(
+    ui: Ui, title_key: str, description_key: str, confirm_key: str, confirm_id: str, cancel_id: str
+) -> MessageSpec:
+    """A private confirmation prompt. Its confirm button names the action (the ticket's own Close or Delete button, same
+    label and icon), so the prompt reads "Close this ticket?" -> Close ticket / Cancel."""
     embed = _embed(ui, title_key, description_key, required=(description_key,), tone="warning")
-    confirm = _button(ui, core.BUTTON_CONFIRM, confirm_id, style="danger")
+    confirm = _button(ui, confirm_key, confirm_id, style="danger")
     cancel = _button(ui, core.BUTTON_CANCEL, cancel_id, style="secondary")
     return MessageSpec(embeds=(embed,), rows=rows_of(confirm, cancel), banner=ui.banner("general-response"))
 
@@ -421,6 +451,7 @@ def close_confirm(ui: Ui, ticket_id: int) -> MessageSpec:
         ui,
         k.CLOSE_CONFIRM_TITLE,
         k.CLOSE_CONFIRM_DESCRIPTION,
+        k.BUTTON_CLOSE,
         cid(k.ROUTE, "closeok", ticket_id),
         cid(k.ROUTE, "closeno", ticket_id),
     )
@@ -431,6 +462,7 @@ def delete_confirm(ui: Ui, ticket_id: int) -> MessageSpec:
         ui,
         k.DELETE_CONFIRM_TITLE,
         k.DELETE_CONFIRM_DESCRIPTION,
+        k.BUTTON_DELETE,
         cid(k.ROUTE, "delok", ticket_id),
         cid(k.ROUTE, "delno", ticket_id),
     )
@@ -444,6 +476,7 @@ def resolved_prompt(spec: MessageSpec) -> MessageSpec:
 def created_reply(ui: Ui, settings: TicketSettings, *, channel_id: int, number: int) -> MessageSpec:
     return _status(
         ui,
+        k.CREATED_TITLE,
         k.CREATED,
         tone="success",
         banner="ticket-created",

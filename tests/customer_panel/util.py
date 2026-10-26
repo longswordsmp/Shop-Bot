@@ -52,14 +52,6 @@ def stage(tenv: TestEnv, status: str) -> str:
     return tenv.text(k.stage_key(status))
 
 
-def timeline_entry(tenv: TestEnv, status: str, at: int) -> str:
-    text = tenv.app.content.render(
-        k.TICKET_TIMELINE_ENTRY, stage=stage(tenv, status), time=f"<t:{at}:f>", relative=f"<t:{at}:R>"
-    )
-    assert text is not None
-    return text
-
-
 def bot_messages(channel: Any) -> list[FakeMessage]:
     return [msg for msg in channel.messages if msg.author is channel.guild.me]
 

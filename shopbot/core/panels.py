@@ -21,8 +21,9 @@ import discord
 from shopbot.db.repos import state
 from shopbot.logging_setup import log_event
 from shopbot.ui.banners import place_banner
+from shopbot.ui.component_emoji import shown_button, split_button
 from shopbot.ui.discord_render import edit_spec, send_spec
-from shopbot.ui.spec import MessageSpec
+from shopbot.ui.spec import ButtonSpec, MessageSpec
 
 if TYPE_CHECKING:
     from shopbot.context import App
@@ -35,7 +36,9 @@ Prepare = Callable[[MessageSpec], Awaitable[MessageSpec]]
 
 def spec_hash(spec: MessageSpec) -> str:
     """Digest of everything a message shows, as it is sent (the banner placed in the card, ``place_banner``). Files
-    and the banner count by name, type and sha256 (never by their bytes), so a new image re-renders the message."""
+    and the banner count by name, type and sha256 (never by their bytes), so a new image re-renders the message. A
+    button that shows its icon's white-glyph variant (``shown_button``, chosen only when the message is sent) counts
+    with that variant, so a variant uploaded or replaced later re-renders the message too."""
     spec = place_banner(spec)
     data = asdict(replace(spec, files=None, banner=None))
     del data["files"], data["banner"]
@@ -43,8 +46,23 @@ def spec_hash(spec: MessageSpec) -> str:
         data["files"] = [[f.filename, f.content_type, f.sha256] for f in spec.files]
     if spec.banner is not None:
         data["banner"] = [spec.banner.filename, spec.banner.content_type, spec.banner.sha256]
+    variants = _white_variants(spec)
+    if variants:  # only then: the digest of a message without one stays what it was
+        data["white_variants"] = variants
     payload = json.dumps(data, sort_keys=True, ensure_ascii=False, default=str)
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _white_variants(spec: MessageSpec) -> list[str | None]:
+    """The emoji each button shows instead of its own icon (None for a button that shows its icon), or nothing when no
+    button of the message shows a white-glyph variant."""
+    shown: list[str | None] = []
+    for row in spec.rows:
+        for component in row:
+            if isinstance(component, ButtonSpec):
+                emoji = shown_button(component).emoji
+                shown.append(emoji if emoji != split_button(component).emoji else None)
+    return shown if any(shown) else []
 
 
 async def upsert_message(

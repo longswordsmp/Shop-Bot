@@ -18,7 +18,7 @@ import discord
 from shopbot.core.clock import to_datetime
 from shopbot.logging_setup import log_event
 from shopbot.ui.banners import banner_inside, is_banner_filename, place_banner
-from shopbot.ui.component_emoji import split_button, split_option, strip_custom_emoji
+from shopbot.ui.component_emoji import shown_button, split_option, strip_custom_emoji
 from shopbot.ui.limits import Violation, message_files, validate_message, validate_modal
 from shopbot.ui.spec import ButtonSpec, EmbedSpec, FileSpec, MessageSpec, ModalSpec, SelectSpec
 
@@ -87,7 +87,8 @@ def to_embed(spec: EmbedSpec) -> discord.Embed:
 def to_view(spec: MessageSpec) -> discord.ui.View | None:
     """Build a persistent view. Interactive items are wrapped in ``RoutedItem`` so clicks are routed by
     custom_id (restart-safe) and nothing is held in memory per message. A button or option label that starts with a
-    custom emoji (an icon) shows it as the component's emoji (``ui.component_emoji``)."""
+    custom emoji (an icon) shows it as the component's emoji, white on a green, red or blurple button when the icon
+    has a white variant (``ui.component_emoji``)."""
     if not spec.rows:
         return None
     from shopbot.ui.routing import RoutedItem  # local import: routing depends on this module
@@ -96,7 +97,7 @@ def to_view(spec: MessageSpec) -> discord.ui.View | None:
     for row_index, row in enumerate(spec.rows):
         for component in row:
             if isinstance(component, ButtonSpec):
-                component = split_button(component)
+                component = shown_button(component)
                 if component.style == "link":
                     view.add_item(
                         discord.ui.Button(

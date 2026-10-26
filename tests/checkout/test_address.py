@@ -18,6 +18,7 @@ from tests.checkout.util import (
     post_answers_in_channel,
     press,
     reload_session,
+    section_lines,
     set_qty,
     staff_message,
     start,
@@ -123,11 +124,10 @@ async def test_the_order_stores_the_address_and_staff_see_the_country_by_name(tm
         await go(tenv, user, message, session.id, m.FULFILLMENT)
         await press(tenv, user, message, views.fulfillment_id(session.id), values=["standard"])
         await go(tenv, user, message, session.id, m.REVIEW)
-        review = message.embeds[0]
         destination = tenv.app.content.render(
             k.ADDRESS_SHIP_TO, name="Ada Lovelace", city="Austin", region="TX", postal="73301", country="United States"
         )
-        assert any(f.value == destination for f in review.fields)
+        assert section_lines(tenv, message, k.ADDRESS_HEADING) == [destination]  # the review's SHIP TO section
         assert "1 Main St" not in message.text()  # the street is never shown in the channel
         await submit(tenv, user, message, session.id)
         order_id = (await reload_session(tenv, session.id)).order_id

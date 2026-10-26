@@ -32,6 +32,7 @@ from tests.checkout.util import (
     order,
     place_order,
     press,
+    purchase_link,
     reload_session,
     render,
     restarted_app,
@@ -56,6 +57,7 @@ def _notified(tenv: TestEnv, status: str, placed: m.Order, channel_id: int) -> s
         order_number=str(placed.number),
         total=money(tenv, placed.total_minor),
         channel_mention=f"<#{channel_id}>",
+        **purchase_link(tenv),  # used by the texts that point to Report a problem
     )
 
 

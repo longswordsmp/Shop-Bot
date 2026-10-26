@@ -14,7 +14,8 @@ from shopbot.ui.spec import (
     SelectSpec,
     TextInputSpec,
 )
-from tools.check_quality import check_states, is_customer_message
+from tools.check_quality import check_states, collect, is_customer_message
+from tools.offline import ROOT
 
 FOOTER = "AmazonYaarts"
 CART = "<:cart:111111111111111111>"
@@ -117,3 +118,12 @@ def test_synthetic_stress_states_only_get_the_icon_rules() -> None:
     spec = MessageSpec(embeds=(card(description="[how_to_buy.step.1.name]  " + "word " * 100),))
     assert rules(spec, name="example_longest_message") == []
     assert rules(MessageSpec(embeds=(card(title=f"{CART} x"),)), name="example_longest_message") == ["I1"]
+
+
+async def test_the_shipped_texts_follow_the_house_style() -> None:
+    """Every preview state built with the shipped configuration (config/) passes every [checked] rule, as
+    ``python -m tools.check_quality --strict`` does in scripts/quality.sh."""
+    states, footer = await collect(ROOT / "config", None)
+    assert {"checkout", "problems", "tickets"} <= {state.feature for state in states}
+    findings = check_states(states, footer)
+    assert findings == [], "\n".join(f"{f.rule} [{f.feature}] {f.state} · {f.where}: {f.message}" for f in findings)

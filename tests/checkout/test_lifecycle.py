@@ -30,6 +30,7 @@ from tests.checkout.util import (
     place_order,
     press,
     product,
+    purchase_link,
     reject,
     render,
     staff_message,
@@ -49,6 +50,7 @@ def _notification(tenv: TestEnv, status: str, placed: m.Order, channel_id: int) 
         order_number=str(placed.number),
         total=money(tenv, placed.total_minor),
         channel_mention=f"<#{channel_id}>",
+        **purchase_link(tenv),  # used by the texts that point to Report a problem
     )
 
 
@@ -322,6 +324,7 @@ async def test_partial_and_full_refunds(co: TestEnv) -> None:
         order_number="1",
         amount=money(co, 500),
         channel_mention=f"<#{ch.id}>",
+        **purchase_link(co),
     )
     fields = {f.name: f.value for f in staff_message(co, current).embeds[0].fields}
     assert f"{co.text(k.STAFF_REFUNDED_FIELD)} {money(co, 500)}" in fields[co.text(staff_keys.AMOUNT_FIELD)]
@@ -347,6 +350,7 @@ async def test_partial_and_full_refunds(co: TestEnv) -> None:
             order_number="1",
             amount=money(co, 500),
             channel_mention=f"<#{ch.id}>",
+            **purchase_link(co),
         )
     ]
     assert len(partial_notices) == 1

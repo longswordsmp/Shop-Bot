@@ -149,9 +149,9 @@ async def _attempt(step: str, run: Callable[[], Awaitable[object]], **context: o
 def order_info(app: App, order: checkout_models.Order) -> views.OrderInfo:
     """The order as shown in the workflow (raises ``MissingContent`` when its text is not configured)."""
     write = checkout_views.order_money(app.ui, app.settings, order.currency)
-    status = app.ui.text(checkout_keys.status_label_key(order.status))
+    status = app.ui.text(checkout_keys.stage_key(order.status))
     if status is None:
-        raise MissingContent(checkout_keys.status_label_key(order.status))
+        raise MissingContent(checkout_keys.stage_key(order.status))
     return views.OrderInfo(order_id=order.id, number=str(order.number), total=write(order.total_minor), status=status)
 
 

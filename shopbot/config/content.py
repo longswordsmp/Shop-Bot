@@ -29,7 +29,8 @@ ICON_RE = re.compile(r"\{icon_([a-z0-9_]{2,32})\}")
 _ICON_USE_RE = re.compile(r"\{icon_([a-z0-9_]{2,32})\}( ?)")
 ICON_KINDS = frozenset({Kind.TITLE, Kind.DESCRIPTION, Kind.FIELD_NAME, Kind.FIELD_VALUE, Kind.EMOJI})
 # Discord shows no emoji inside a button or option label, but one before it: a label may start with one icon
-# ("{icon_cart} Start order"; a button's label may also be the icon alone), which becomes the component's emoji.
+# ("{icon_cart} Start order"; an optional button's label may also be the icon alone), which becomes the component's
+# emoji.
 LABEL_ICON_KINDS = frozenset({Kind.BUTTON_LABEL, Kind.OPTION_LABEL})
 _LEADING_ICON_RE = re.compile(r"^\{icon_[a-z0-9_]{2,32}\}(?: (?=\S)|\Z)")
 IconText = Callable[[str], str]
@@ -109,7 +110,7 @@ def validate_value(key: ContentKey, value: str, icons: Collection[str] | None = 
     used_icons = ICON_RE.findall(value)
     leading_icon = _LEADING_ICON_RE.match(value) if key.kind in LABEL_ICON_KINDS else None
     if used_icons and key.kind in LABEL_ICON_KINDS:
-        problems += _label_icon_problems(key.kind, value, len(used_icons), leading_icon)
+        problems += _label_icon_problems(key, value, len(used_icons), leading_icon)
     elif used_icons and key.kind not in ICON_KINDS:
         problems.append(
             "uses {icon_...}, but Discord cannot show icons here (only in section headings, texts and fields, and at "
@@ -140,17 +141,24 @@ def validate_value(key: ContentKey, value: str, icons: Collection[str] | None = 
     return problems
 
 
-def _label_icon_problems(kind: Kind, value: str, count: int, leading: re.Match[str] | None) -> list[str]:
-    """Where a button or option label uses icons: one, at the very start, followed by a space and the label (a button
-    may show only the icon)."""
-    component = "button" if kind is Kind.BUTTON_LABEL else "option"
+def _label_icon_problems(key: ContentKey, value: str, count: int, leading: re.Match[str] | None) -> list[str]:
+    """Where a button or option label uses icons: one, at the very start, followed by a space and the label. Only an
+    optional button may show the icon alone: until an icon is uploaded it shows nothing, and a required button must
+    never disappear (nor show a made-up word instead of its icon)."""
+    component = "button" if key.kind is Kind.BUTTON_LABEL else "option"
     if count > 1 or leading is None:
         return [
             f"can use one icon only, at the very start followed by a space and the label ({{icon_<name>}} Label): "
             f"Discord shows it as the {component}'s emoji, never inside the label"
         ]
-    if kind is Kind.OPTION_LABEL and leading.end() == len(value):
-        return ["needs a label after its icon (a select option cannot show only an icon)"]
+    if leading.end() == len(value):
+        if key.kind is Kind.OPTION_LABEL:
+            return ["needs a label after its icon (a select option cannot show only an icon)"]
+        if key.required:
+            return [
+                "needs a label after its icon: this button is required, and until its icon is uploaded a button with "
+                "only an icon would show nothing"
+            ]
     return []
 
 
@@ -223,11 +231,11 @@ class ContentStore:
         if definition.kind is Kind.EMOJI:
             return self._emoji(text)
         if definition.kind in ICON_KINDS or definition.kind in LABEL_ICON_KINDS:
-            text = self.render_icons(text)
+            text = self.render_icons(text, label=definition.kind in LABEL_ICON_KINDS)
         text = self._substitute(definition, text, values)
         if definition.kind in LABEL_ICON_KINDS and not text.strip():
-            # A label that shows nothing (e.g. only an icon that is not uploaded yet): Discord refuses a blank label,
-            # so it counts as not configured and the button or option is left out.
+            # A label that shows nothing (only an icon that is not uploaded yet; validation allows that for optional
+            # buttons only): Discord refuses a blank label, so it counts as not configured and the button is left out.
             return None
         return text
 
@@ -266,16 +274,20 @@ class ContentStore:
             return None
         return self._render_text(key, "\n".join(kept), values)
 
-    def render_icons(self, text: str) -> str:
+    def render_icons(self, text: str, *, label: bool = False) -> str:
         """``text`` with every ``{icon_<name>}`` replaced by the icon (its fallback while it is not uploaded; nothing
         for an unknown icon), so no raw placeholder reaches a customer. An icon that shows nothing also takes the space
-        after it, so "{icon_truck} **Delivery**" never starts with a stray space."""
+        after it, so "{icon_truck} **Delivery**" never starts with a stray space. In a button or option label
+        (``label``) an icon that is not uploaded shows nothing at all, not even a status dot's plain dot: the label
+        then simply shows without its emoji."""
         if "{icon_" not in text:
             return text
         icons = self._icons
 
         def substitute(match: re.Match[str]) -> str:
             shown = icons(match.group(1)) if icons is not None else ""
+            if label and not _CUSTOM_EMOJI_RE.match(shown):
+                shown = ""
             return shown + match.group(2) if shown else ""
 
         return _ICON_USE_RE.sub(substitute, text)

@@ -16,6 +16,8 @@ from shopbot.ui.limits import validate_message
 from shopbot.ui.spec import MessageSpec
 from tests.checkout.util import (
     add_product,
+    amount_line,
+    card_text,
     channel,
     component,
     control_ids,
@@ -25,14 +27,18 @@ from tests.checkout.util import (
     money,
     order,
     orders,
+    paragraphs,
+    payment_section,
     place_order,
     press,
     render,
     run_command,
+    section_lines,
     set_qty,
     staff_message,
     start,
     submit,
+    total_line,
     workflow_message,
 )
 from tests.fakes import FakeInteraction, FakeMessage, FakeUser, modal_of
@@ -53,6 +59,10 @@ LARGE_CONTENT = {
 
 def _texts(message: FakeMessage) -> str:
     return "\n".join(f.value or "" for embed in message.embeds for f in embed.fields)
+
+
+def _card_texts(message: FakeMessage) -> str:
+    return "\n".join(embed.description or "" for embed in message.embeds)
 
 
 def _bot_messages(ch: Any) -> list[FakeMessage]:
@@ -78,19 +88,20 @@ async def test_a_full_cart_with_long_names_never_hides_the_payment_instructions(
         values = {"order_number": "1", "total": money(tenv, 20_000)}
         # The workflow message: status text, totals, the payment instructions and the cancel button.
         assert message.embeds[0].title == render(tenv, k.SUBMITTED_TITLE, **values)
-        # One card: the status text, then the payment instructions as its last section.
-        assert message.embeds[0].description.startswith(DESCRIPTION)  # type: ignore[union-attr]
-        assert message.embeds[0].description.endswith(INSTRUCTIONS)  # type: ignore[union-attr]
+        # One card: the key facts, the status text, the payment instructions, the summary with the total and the
+        # progress; the lines do not fit next to them.
+        found = paragraphs(message)
+        assert found[1:3] == [DESCRIPTION, payment_section(tenv, **values)]
+        assert total_line(tenv, 20_000) in card_text(message)
+        assert section_lines(tenv, message, k.ITEMS_HEADING) is None
         assert message.custom_ids() == [views.order_cancel_id(placed.id)]
-        fields = {f.name: f.value for f in message.embeds[0].fields}
-        assert fields[tenv.text(k.REVIEW_TOTAL_FIELD)] == money(tenv, 20_000)
-        # Every order line follows in the order channel (nothing is cut).
+        # Every order line follows in the order channel under the items heading (nothing is cut).
         # (the first bot message is the ticket introduction)
         extras = [msg for msg in _bot_messages(ch)[1:] if msg is not workflow_message(ch)]
-        assert extras and all(len(msg.embeds) <= 10 for msg in extras)
-        listed = "\n".join(_texts(msg) for msg in extras)
+        assert extras and all(len(msg.embeds) == 1 and len(_card_texts(msg)) <= 4096 for msg in extras)
+        assert _card_texts(extras[0]).startswith(f"**{tenv.text(k.ITEMS_HEADING)}**\n")
+        listed = "\n".join(_card_texts(msg) for msg in extras)
         assert all(views.escape(name) in listed for name in names)
-        assert all(f.name == tenv.text(k.CART_FIELD) for msg in extras for e in msg.embeds for f in e.fields)
         # Staff get their controls (and the lines separately), too.
         assert placed.staff_message_id is not None
         control = staff_message(tenv, placed)
@@ -104,7 +115,7 @@ async def test_a_full_cart_with_long_names_never_hides_the_payment_instructions(
         # Going back from the cancel question and later status changes render without errors and post nothing twice.
         await press(tenv, customer, message, views.order_cancel_id(placed.id))
         back = await press(tenv, customer, message, views.order_cancel_no_id(placed.id))
-        assert error_text(back) is None and message.embeds[0].description.endswith(INSTRUCTIONS)  # type: ignore[union-attr]
+        assert error_text(back) is None and INSTRUCTIONS in card_text(message)
         posted = len(ch.messages)
         await press(tenv, staffer, control, views.staff_action_id(m.PAID, placed.id, m.PENDING))
         paid = await order(tenv, placed.id)
@@ -124,10 +135,12 @@ async def test_order_messages_fall_back_to_a_separate_instructions_message(tmp_p
     try:
         p1 = await add_product(tenv, "[p1]")
         placed, ch, message = await place_order(tenv, tenv.member(), [(p1.id, 1)])
-        assert message.embeds[0].description == long_description
+        assert long_description in paragraphs(message)
+        assert all(len(embed.description or "") <= 4096 for embed in message.embeds)  # a long card continues
         assert message.custom_ids() == [views.order_cancel_id(placed.id)]
         separate = [msg for msg in _bot_messages(ch)[1:] if msg is not message]  # after the ticket introduction
-        assert [msg.embeds[0].description for msg in separate] == [long_instructions]
+        assert len(separate) == 1 and long_instructions in paragraphs(separate[0])
+        assert views.payment_form_id(placed.id) not in separate[0].custom_ids()  # the manual provider has no form
     finally:
         await tenv.close()
 
@@ -219,7 +232,7 @@ async def test_order_list_accepts_a_customer_who_left(co: TestEnv) -> None:
 # -- more than 25 fields (unlimited checkout.fees) ------------------------------------------------------------------
 
 
-async def test_many_fees_spread_over_several_cards(tmp_path: Path) -> None:
+async def test_many_fees_are_all_listed_in_the_summary(tmp_path: Path) -> None:
     fees = [{"id": f"fee{i}", "kind": "flat", "amount_minor": 10} for i in range(30)]
     tenv = await make_env(tmp_path, {"checkout": {"fees": fees}})
     try:
@@ -227,9 +240,9 @@ async def test_many_fees_spread_over_several_cards(tmp_path: Path) -> None:
         p1 = await add_product(tenv, "[p1]", price=1000)
         placed, _, message = await place_order(tenv, customer, [(p1.id, 1)])
         assert placed.total_minor == 1000 + 30 * 10
-        assert all(len(embed.fields) <= 25 for embed in message.embeds)
-        names = [f.name for embed in message.embeds for f in embed.fields]
-        assert all(tenv.text(k.fee_label_key(f"fee{i}")) in names for i in range(30))
+        summary = section_lines(tenv, message, k.SUMMARY_HEADING)
+        assert summary is not None and summary[-1] == total_line(tenv, 1000 + 30 * 10)
+        assert summary[1:-1] == [amount_line(tenv, tenv.text(k.fee_label_key(f"fee{i}")), 10) for i in range(30)]
         control = staff_message(tenv, placed)
         amounts = " · ".join(
             f.value for e in control.embeds for f in e.fields if f.name == tenv.text(staff_keys.AMOUNT_FIELD)

@@ -384,7 +384,9 @@ async def on_message(app: App, message: discord.Message) -> None:
         return
     await app.notifier.notify_user(
         user_id=author.id,
-        spec=MessageSpec(embeds=(app.ui.embed(description=text, tone="warning"),), banner=app.ui.banner("error")),
+        spec=MessageSpec(
+            embeds=(app.ui.embed(description=text, tone="warning"),), banner=app.ui.banner("general-response")
+        ),
         kind="checkout.gift_card_chat_guard",
         dedupe_key=f"checkout.gift_card_chat_guard:{message.id}",
         fallback_channel_id=int(channel_id),

@@ -9,7 +9,7 @@ from discord import app_commands
 
 from shopbot.commands import on_tree_error
 from shopbot.features import core_keys as core
-from shopbot.features.checkout import handling_repo, views
+from shopbot.features.checkout import handling_repo, staff, views
 from shopbot.features.checkout import models as m
 from tests.checkout.util import add_product, error_text, op_text, place_order, restarted_app, run_command
 from tests.fakes import FakeInteraction, FakeMember, click
@@ -57,6 +57,10 @@ async def test_orders_lists_filters_and_pages(ops: TestEnv) -> None:
     assert message is not None and getattr(message, "ephemeral", False)
     assert message.embeds[0].title == ops.app.op("checkout.list.title", total=12)
     assert len(_list_lines(listed)) == 10
+    # Amounts as the order records write them (common.money_format); the page as "Page 1 of 2".
+    total = views.order_money(ops.app.ui, ops.app.settings, placed[0].currency)(placed[0].total_minor)
+    assert all(f" · {total} · " in line for line in _list_lines(listed))
+    assert message.embeds[0].footer.text == ops.app.op("checkout.list.page", page=1, pages=2) == "Page 1 of 2"
     ids = message.custom_ids()
     assert ids == [
         views.list_filter_id(0),
@@ -131,3 +135,10 @@ async def test_order_note_command_validates_and_records(ops: TestEnv) -> None:
     assert op_text(noted) == ops.app.op("checkout.op.note_added", number=placed[0].number)
     notes = await ops.app.db.run(handling_repo.activity, placed[0].id, (handling_repo.NOTE,))
     assert [n.text for n in notes] == ["[note]"]
+
+
+async def test_order_list_amounts_fall_back_to_the_operator_wording(ops: TestEnv) -> None:
+    """Without common.money_format the staff list still works with operator text alone ("12.50 USD")."""
+    values = {key: value for key, value in ops.content.items() if key != core.MONEY_FORMAT}
+    ops.app.content.replace(file_values=values)
+    assert staff.record_amount(ops.app, 1250, "USD") == staff.amount(ops.app, 1250, "USD") == "12.50 USD"

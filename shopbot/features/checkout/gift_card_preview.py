@@ -129,7 +129,7 @@ def add_states(
                     tone="warning",
                 ),
             ),
-            banner=ui.banner("error"),
+            banner=ui.banner("general-response"),
         ),
     )
     # -- staff ---------------------------------------------------------------------------------------------------

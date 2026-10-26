@@ -18,6 +18,7 @@ from tests.checkout.util import (
     make_env,
     money,
     order,
+    paragraphs,
     payment_section,
     place_order,
     press,
@@ -55,7 +56,8 @@ async def test_idle_session_expires_and_activity_pushes_it_back(tmp_path: Path) 
         await tenv.app.scheduler.run_due()
         expired = await reload_session(tenv, session.id)
         assert expired.status == m.SESSION_EXPIRED
-        assert message.embeds[0].description == tenv.text(k.EXPIRED_DESCRIPTION)
+        reference = render(tenv, k.TICKET_REFERENCE_LINE, ticket_number="0001")
+        assert paragraphs(message) == [reference, tenv.text(k.EXPIRED_DESCRIPTION)]  # the ticket stays named
         assert message.embeds[0].title == tenv.text(k.EXPIRED_TITLE)
         assert message.custom_ids() == []
         assert await ticket_status(tenv, session.ticket_id) == "closed"

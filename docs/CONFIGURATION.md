@@ -111,8 +111,10 @@ published reviews), `purchase-panel` (#purchase), `ticket-created` (ticket opene
 status updates), `completed-or-dispatched`, `staff-dashboard` (staff lists, records and /status), `staff-notifications`
 (#staff-chat alerts), `activity-log` (#bot-log), `transcripts`, `direct-message-notification` (the Owner's DM alerts),
 `reminder`, `support-request` (Report a Problem and report tickets), `resolution` (resolved / refunded / closed),
-`cancellation`, `account-and-personal-records` (/myorders), `error` (error replies), `general-response` (other replies
-and confirmation prompts).
+`cancellation`, `account-and-personal-records` (/myorders), `error` (real failures: the generic error and every
+error reply with an error reference, and staff warnings), `general-response` (other replies, confirmation prompts, and
+routine refusals that tell the customer what to do instead, such as a smaller quantity: they keep the error title and
+red colour but not the "something went wrong" picture).
 
 The banner is shown inside the message's card, as its picture at the bottom (the image of the last embed). A card that
 already shows a picture of its own (a product image, an announcement image, the welcome image, the `[branding]`
@@ -140,19 +142,26 @@ out when the message is sent, and `python -m tools.check_quality` reports it, so
 if its upload failed) it shows nothing, or a plain dot for the `dot_*` status dots. Run `/reload` after changing a
 picture, then `/setup` to update posted panels.
 
-A button label or select option label may start with one icon, followed by a space and the label:
-`{icon_cart} Start order`. Discord shows it as the button's or option's emoji, in front of the label (like the
-`*.emoji` texts, which win when both are set); the 80-character limit of a button label and the 100-character limit
-of an option label count the label without its icon. A button may also show only an icon (`{icon_arrow_right}`); an
-option always needs a label. An icon anywhere else in a label, or more than one, is refused. Until the icon is
-uploaded the label shows without it (a `dot_*` status dot shows its plain dot in front of the label), and a button
-that is only an icon is left out.
+A button label or select option label may start with one icon, followed by a space and the label: `{icon_cart} Start
+order`. Discord shows it as the button's or option's emoji, in front of the label (like the `*.emoji` texts, which win
+when both are set); the 80-character limit of a button label and the 100-character limit of an option label count the
+label without its icon. An optional button may also show only an icon (`{icon_arrow_right}`); an option always needs a
+label. An icon anywhere else in a label, or more than one, is refused. Until the icon is uploaded the label shows
+without it (no plain dot either, not even for a `dot_*` status dot), and a button that is only an icon is left out;
+that is why only an optional button may be only an icon: a required one needs words after its icon (`/content set`
+refuses it otherwise), so it never disappears.
 
-The shipped set (`config/emojis`, 86 icons, glyphs from Tabler Icons, MIT licence) is listed in
-`tools/icons/icons.json` and rendered by `tools/icons/render.js` (add an entry there and run it to add an icon): status
-dots `dot_blue` (we ship there), `dot_yellow` (we ship to parts of it) and `dot_grey` (we do not ship there); step
-numbers `step_1` to `step_6`; order statuses `st_submitted`, `st_confirmed`, `st_shipped`, `st_delivered`,
-`st_cancelled`; and section icons, a white symbol on a circle whose colour says what kind of line it marks:
+On a green, red or blurple button (success, danger, primary) a coloured badge would melt into the button or look
+muddy, so there the bot shows the icon's white variant `<name>_w` (its symbol alone, white with a soft dark edge) when
+the set has one; on grey buttons, and everywhere else, the coloured badge. Nothing to configure: the same
+`{icon_<name>}` works on every button.
+
+The shipped set (`config/emojis`, 90 icons and 25 white variants, glyphs from Tabler Icons, MIT licence) is listed in
+`tools/icons/icons.json` and rendered by `tools/icons/render.js` (add an entry there and run it to add an icon; mark
+it `"white": true` to render its white variant too, for an icon used on green, red or blurple buttons): status dots `dot_blue`
+(we ship there), `dot_yellow` (we ship to parts of it) and `dot_grey` (we do not ship there); step numbers `step_1` to
+`step_6`; order statuses `st_submitted`, `st_confirmed`, `st_shipped`, `st_delivered`, `st_cancelled`; and section
+icons, a white symbol on a circle whose colour says what kind of line it marks:
 
 | Colour | Marks | Section icons |
 |---|---|---|
@@ -320,13 +329,14 @@ really offers.**
 | Setting | Meaning |
 |---|---|
 | `id` | Internal key (never shown). Names: `checkout.payment.method.<id>.label` (may start with an icon) and `.description`. |
-| `status` | `"active"`: customers can use it now. `"down"`: its button shows; pressing it opens a private pop-up ("Dear customer, we're sorry to inform you that … is currently down") with the methods that work right now, each with a button to use it. |
+| `status` | `"active"`: customers can use it now. `"down"`: its button shows; pressing it opens a private pop-up ("Dear customer, we're sorry to inform you that … payments are temporarily down") with the methods that work right now, each with a button to use it. |
 | `kind` | What an active method does: `"gift_card"` (the gift card form; needs `provider = "gift_card"`, and must stay active then), `"staff"` (the bot posts in the ticket that the customer wants to pay this way and alerts the staff channel; staff send the payment details in the ticket and press **Mark paid**), `"link"` (a link button to `url`, your hosted payment page; staff press **Mark paid** once paid). |
 | `url` | `kind = "link"` only: the `https://` page where customers pay. |
 
 While an order waits for payment, its card lists every method with its state (`checkout.payment.methods.*`: a blue
-dot for available, a grey dot for temporarily down, and an optional note such as why only gift cards work right now)
-and shows a button per method. To bring a method back, set its `status = "active"` (with `kind`, and `url` for a
+dot for available, a grey dot for temporarily down, and an optional note under them, shown only while a method is
+down) and shows a button per method: what works right now first (Submit gift card and Buy a gift card, then the
+other active methods), the methods that are down on the next row, Cancel order last. To bring a method back, set its `status = "active"` (with `kind`, and `url` for a
 payment page) and `/reload`. The bot never asks for card numbers in Discord: a real card processor (hosted checkout
 page with a verified webhook) is added as a payment provider (`shopbot/features/checkout/payments/__init__.py`).
 
