@@ -74,12 +74,14 @@ Production runs on Railway as a worker with a persistent volume at `/data` — s
 | `docs/DEPLOYMENT.md` | Railway, volume, variables, updates, backups, troubleshooting |
 | `docs/TESTING.md` | Quality gates and what tests do and do not prove |
 | `docs/SECURITY.md` | Secrets, authorization, private data, payments |
+| `docs/QUALITY_STANDARDS.md` | The house style every message follows, and how it is checked |
 | `docs/DECISIONS.md` | Architecture, technical decisions, assumptions, limitations |
 
 ## Tools
 
 ```bash
 python -m tools.check_limits --all-features   # Discord limits, invalid text, buttons without handlers
+python -m tools.check_quality                 # house style of every message (docs/QUALITY_STANDARDS.md)
 python -m tools.build_preview                 # local HTML preview of every screen (preview/out/index.html)
 python -m tools.checklist --write             # docs/CONTENT_CHECKLIST.md
 python -m tools.checklist --template          # refresh config/content.toml keys (keeps your text)

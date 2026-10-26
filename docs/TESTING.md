@@ -27,6 +27,7 @@ deployed.
 | Unit + integration tests | `.venv/bin/pytest -q` |
 | Configuration + Discord limits + handler coverage (your text) | `.venv/bin/python -m tools.check_limits --all-features` |
 | Every state built and checked (synthetic text for anything not configured) | `.venv/bin/python -m tools.check_limits --all-features --fixtures --strict` |
+| House style of every message (docs/QUALITY_STANDARDS.md) | `.venv/bin/python -m tools.check_quality --strict` |
 | Secrets scan | `python -m tools.secret_scan` (scans tracked files for token-shaped strings and `.env` files) |
 | Syntax/import check | `python -m compileall -q shopbot tools tests` |
 | Generated docs current | `python -m tools.reference_docs` then no diff in `docs/` |
