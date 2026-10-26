@@ -2,7 +2,8 @@
 
 Every outgoing message is validated against Discord limits first; a spec that violates a limit raises
 ``RenderError`` and nothing is sent (text is never truncated). Mentions are disabled by default and
-enabled only for the user/role IDs a spec explicitly lists.
+enabled only for the user/role IDs a spec explicitly lists. The banner is placed (``ui.banners.place_banner``)
+before the spec is checked and converted, so what is checked is what is sent.
 """
 
 from __future__ import annotations
@@ -16,7 +17,8 @@ import discord
 
 from shopbot.core.clock import to_datetime
 from shopbot.logging_setup import log_event
-from shopbot.ui.banners import is_banner_filename
+from shopbot.ui.banners import banner_inside, is_banner_filename, place_banner
+from shopbot.ui.component_emoji import split_button, split_option, strip_custom_emoji
 from shopbot.ui.limits import Violation, message_files, validate_message, validate_modal
 from shopbot.ui.spec import ButtonSpec, EmbedSpec, FileSpec, MessageSpec, ModalSpec, SelectSpec
 
@@ -58,19 +60,23 @@ def parse_emoji(value: str | None) -> discord.PartialEmoji | None:
 
 
 def to_embed(spec: EmbedSpec) -> discord.Embed:
+    """The Discord embed of ``spec``. Custom emoji are left out of the title, author line and footer, where Discord
+    would print them as raw text (``ui.component_emoji.strip_custom_emoji``)."""
     embed = discord.Embed(
-        title=spec.title,
+        title=strip_custom_emoji(spec.title),
         description=spec.description,
         url=spec.url,
         color=spec.color,
         timestamp=to_datetime(spec.timestamp) if spec.timestamp is not None else None,
     )
-    if spec.author_name:
-        embed.set_author(name=spec.author_name, icon_url=spec.author_icon_url)
+    author = strip_custom_emoji(spec.author_name)
+    if author:
+        embed.set_author(name=author, icon_url=spec.author_icon_url)
     for item in spec.fields:
         embed.add_field(name=item.name, value=item.value, inline=item.inline)
-    if spec.footer_text:
-        embed.set_footer(text=spec.footer_text, icon_url=spec.footer_icon_url)
+    footer = strip_custom_emoji(spec.footer_text)
+    if footer:
+        embed.set_footer(text=footer, icon_url=spec.footer_icon_url)
     if spec.thumbnail_url:
         embed.set_thumbnail(url=spec.thumbnail_url)
     if spec.image_url:
@@ -80,7 +86,8 @@ def to_embed(spec: EmbedSpec) -> discord.Embed:
 
 def to_view(spec: MessageSpec) -> discord.ui.View | None:
     """Build a persistent view. Interactive items are wrapped in ``RoutedItem`` so clicks are routed by
-    custom_id (restart-safe) and nothing is held in memory per message."""
+    custom_id (restart-safe) and nothing is held in memory per message. A button or option label that starts with a
+    custom emoji (an icon) shows it as the component's emoji (``ui.component_emoji``)."""
     if not spec.rows:
         return None
     from shopbot.ui.routing import RoutedItem  # local import: routing depends on this module
@@ -89,6 +96,7 @@ def to_view(spec: MessageSpec) -> discord.ui.View | None:
     for row_index, row in enumerate(spec.rows):
         for component in row:
             if isinstance(component, ButtonSpec):
+                component = split_button(component)
                 if component.style == "link":
                     view.add_item(
                         discord.ui.Button(
@@ -126,7 +134,7 @@ def to_view(spec: MessageSpec) -> discord.ui.View | None:
                             emoji=parse_emoji(o.emoji),
                             default=o.default,
                         )
-                        for o in component.options
+                        for o in map(split_option, component.options)
                     ],
                 )
                 view.add_item(RoutedItem(select, row=row_index))
@@ -171,7 +179,9 @@ def to_files(files: Sequence[FileSpec]) -> list[discord.File]:
 def send_kwargs(spec: MessageSpec) -> dict[str, Any]:
     """Keyword arguments for ``Messageable.send`` / ``InteractionResponse.send_message``.
 
-    The banner (if any) is uploaded first; Discord shows attachments that no embed uses above the embeds."""
+    The banner (if any) is uploaded first and shown as the last embed's image (``place_banner``); when that embed
+    shows its own picture, no embed uses the banner and Discord shows it above the embeds."""
+    spec = place_banner(spec)
     check_message(spec)
     kwargs: dict[str, Any] = {
         "embeds": [to_embed(e) for e in spec.embeds],
@@ -192,7 +202,8 @@ def edit_kwargs(spec: MessageSpec, current: Sequence[discord.Attachment] | None 
     """Keyword arguments for message edits; components are replaced (or removed) to match the spec.
 
     ``current``: the message's attachments when known (a fetched message, the message of a clicked component), None
-    when unknown. See ``edit_attachments`` for what happens to them."""
+    when unknown. See ``edit_attachments`` for what happens to them. The banner is placed as in ``send_kwargs``."""
+    spec = place_banner(spec)
     check_message(spec)
     kwargs: dict[str, Any] = {
         "embeds": [to_embed(e) for e in spec.embeds],
@@ -212,7 +223,9 @@ def edit_attachments(
     """The attachments an edit sends (Discord keeps exactly those), or None to leave the message's attachments alone.
 
     - The banner: an uploaded banner with the same name (same picture) is kept without uploading it again; a
-      different or no banner replaces or removes earlier banners.
+      different or no banner replaces or removes earlier banners. While an embed shows the banner (``banner_inside``)
+      the attachments are always sent, the kept banner included: Discord resolves an embed's ``attachment://`` image
+      against the attachments an edit sends.
     - ``spec.files`` not None: exactly those files, uploaded again (``attachment://`` images stay attached).
       None: the message's other attachments are left as they are.
     - Unknown ``current``: the banner and files the spec wants are uploaded (when it wants any).
@@ -225,8 +238,8 @@ def edit_attachments(
     banners = [a for a in current if is_banner_filename(a.filename)]
     kept = next((a for a in banners if spec.banner is not None and a.filename == spec.banner.filename), None)
     stale = any(a is not kept for a in banners)
-    if not managed and not stale and (spec.banner is None or kept is not None):
-        return None  # nothing to change: the right banner (or none) is already there
+    if not managed and not stale and not banner_inside(spec) and (spec.banner is None or kept is not None):
+        return None  # nothing to change: the right banner (shown above the embeds) or none is already there
     result: list[discord.Attachment | discord.File] = []
     if spec.banner is not None:
         result.append(kept if kept is not None else to_files([spec.banner])[0])

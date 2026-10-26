@@ -1,13 +1,17 @@
-"""Banner pictures shown at the top of messages.
+"""Banner pictures shown at the bottom of the bot's cards.
 
 Every kind of message names the banner that fits it (``shopbot.config.banner_ids``); the owner supplies one picture
 per banner id as ``<id>.png`` (or ``.jpg``/``.gif``/``.webp``) in the banners folder (``[banners] directory``,
 relative to the config folder). ``load_banners`` reads them once (at startup and on /reload) and keeps them in
 memory as ``FileSpec`` objects, so builders attach them without touching the disk.
 
-A banner is uploaded with its message as the first attachment and never referenced by an embed, so Discord shows it
-above the embeds at full width. Its attachment name ``banner-<id>-<sha12>.<ext>`` changes when the picture changes:
-edits keep the uploaded picture when the name is unchanged and replace it otherwise (``ui.discord_render``).
+A banner is uploaded with its message as the first attachment (``MessageSpec.banner``); builders never refer to it.
+``place_banner`` decides where it shows, at the moment a spec becomes a Discord message (``ui.discord_render``) and in
+the offline preview: as the image of the message's last embed (``attachment://<name>``), so it closes the card at
+its bottom, when that embed shows no picture of its own. When it does (a product picture, an announcement image) or
+the message has no embed, the banner stays an attachment no embed uses, which Discord shows above the embeds. Its
+attachment name ``banner-<id>-<sha12>.<ext>`` changes when the picture changes: edits keep the uploaded picture when
+the name is unchanged (the embed still refers to it) and replace it otherwise (``ui.discord_render``).
 
 A missing, unreadable, oversized or non-image file means that message kind shows no banner; the problem is listed in
 /status and by the offline checker, and it never stops a message from being sent.
@@ -18,14 +22,15 @@ from __future__ import annotations
 import hashlib
 import logging
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from shopbot.config.banner_ids import BANNER_IDS, BannerId
 from shopbot.config.settings import BannerSettings
 from shopbot.logging_setup import log_event
 from shopbot.ui.image_types import CONTENT_TYPES, sniff
-from shopbot.ui.spec import FileSpec
+from shopbot.ui.limits import ATTACHMENT_SCHEME
+from shopbot.ui.spec import FileSpec, MessageSpec
 
 log = logging.getLogger(__name__)
 
@@ -39,6 +44,30 @@ _EXTENSIONS = ("png", "jpg", "jpeg", "gif", "webp")
 def is_banner_filename(filename: str) -> bool:
     """True for an attachment uploaded as a banner (its name starts with ``banner-``)."""
     return filename.startswith(FILENAME_PREFIX)
+
+
+def banner_url(banner: FileSpec) -> str:
+    """The ``attachment://`` address an embed shows the banner with."""
+    return f"{ATTACHMENT_SCHEME}{banner.filename}"
+
+
+def banner_inside(spec: MessageSpec) -> bool:
+    """True when ``spec`` shows its banner as the image of its last embed (before or after ``place_banner``): the
+    message has a banner and embeds, and the last embed shows no other picture."""
+    if spec.banner is None or not spec.embeds or not spec.banner_in_card:
+        return False
+    image = spec.embeds[-1].image_url
+    return not image or image == banner_url(spec.banner)
+
+
+def place_banner(spec: MessageSpec) -> MessageSpec:
+    """``spec`` as it is sent: the banner becomes the image of the last embed when that embed shows no picture of its
+    own and the message allows it (``banner_in_card``); otherwise ``spec`` is returned unchanged (the banner then
+    shows above the embeds). The banner stays the first attachment either way. Placing twice changes nothing."""
+    if spec.banner is None or not spec.embeds or not spec.banner_in_card or spec.embeds[-1].image_url:
+        return spec
+    last = replace(spec.embeds[-1], image_url=banner_url(spec.banner))
+    return replace(spec, embeds=(*spec.embeds[:-1], last))
 
 
 @dataclass(frozen=True)

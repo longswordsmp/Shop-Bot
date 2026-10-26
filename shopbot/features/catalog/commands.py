@@ -111,14 +111,18 @@ def build_product_group() -> app_commands.Group:
     active_products = _autocomplete(include_archived=False)
     all_products = _autocomplete(include_archived=True)
 
-    @group.command(name="add", description="Create a product (opens the product form).")
+    @group.command(name="add", description="Create a product (opens the product form), optionally with its picture.")
+    @app_commands.describe(image="The product's picture: PNG, JPEG, GIF or WebP, at most 8 MB (stored by the bot).")
     @require_staff(service.manager_role_keys)
     @require_manager()
-    async def add(interaction: discord.Interaction[Any]) -> None:
+    async def add(interaction: discord.Interaction[Any], image: discord.Attachment | None = None) -> None:
         if not await _ready(interaction):
             return
         app = app_of(interaction)
-        await _send_modal(interaction, views.add_form(app.op, service.money_format(app), interaction.id))
+        if image is not None:
+            service.hold_add_image(app, str(interaction.id), image)
+        form = views.add_form(app.op, service.money_format(app), interaction.id, with_image=image is not None)
+        await _send_modal(interaction, form)
 
     @group.command(name="edit", description="Edit a product's name, price, stock, limit and description.")
     @app_commands.describe(product_id="Product number (see /product list).")

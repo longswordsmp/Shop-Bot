@@ -23,7 +23,7 @@ import uuid
 import weakref
 from collections import Counter
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from functools import partial
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit
@@ -606,15 +606,80 @@ def _changes(before: Product, after: Product, names: Sequence[str]) -> dict[str,
     }
 
 
-async def create_from_form(app: App, *, actor_id: int, fields: dict[str, str], nonce: str | None) -> OpReply:
+# Pictures given with /product add wait here for the product form, by the command's interaction id (the form's
+# nonce), for up to ADD_IMAGE_SECONDS. Memory only: a form submitted after a restart creates the product without its
+# picture, and the reply says how to add it.
+ADD_IMAGE_SECONDS = 30 * 60
+_ADD_IMAGES: dict[int, tuple[weakref.ref[App], dict[str, tuple[images.Upload, int]]]] = {}
+
+
+def _held_images(app: App) -> dict[str, tuple[images.Upload, int]]:
+    entry = _ADD_IMAGES.get(id(app))
+    if entry is None or entry[0]() is not app:
+        entry = _ADD_IMAGES[id(app)] = (weakref.ref(app), {})
+    return entry[1]
+
+
+def hold_add_image(app: App, nonce: str, upload: images.Upload) -> None:
+    """Keep the picture of a /product add until its form is submitted (older unclaimed pictures are dropped)."""
+    held = _held_images(app)
+    now = app.clock.now()
+    for key in [k for k, (_, at) in held.items() if now - at > ADD_IMAGE_SECONDS]:
+        del held[key]
+    held[nonce] = (upload, now)
+
+
+def _take_add_image(app: App, nonce: str | None) -> images.Upload | None:
+    if nonce is None:
+        return None
+    entry = _held_images(app).pop(nonce, None)
+    if entry is None or app.clock.now() - entry[1] > ADD_IMAGE_SECONDS:
+        return None
+    return entry[0]
+
+
+async def create_from_form(
+    app: App, *, actor_id: int, fields: dict[str, str], nonce: str | None, with_image: bool = False
+) -> OpReply:
+    """The product form of /product add. ``with_image``: the command came with a picture, saved to the new product
+    (a picture that is no longer held, or is refused, leaves the product without one and says how to add it)."""
+    reply = await _create_from_form(app, actor_id=actor_id, fields=fields, nonce=nonce)
+    if not with_image or not reply.created:
+        return reply.reply
+    product_id = reply.created
+    upload = _take_add_image(app, nonce)
+    if upload is None:
+        return _with_line(reply.reply, app.op("catalog.cmd.add_image_lost", product_id=product_id), tone="warning")
+    image = await set_image(app, actor_id=actor_id, product_id=product_id, url="", upload=upload)
+    if image.tone == "success":
+        return _with_line(reply.reply, app.op("catalog.cmd.add_image_saved"))
+    reason = image.description or image.title
+    line = app.op("catalog.cmd.add_image_failed", product_id=product_id, reason=reason)
+    return _with_line(reply.reply, line, tone="warning")
+
+
+def _with_line(reply: OpReply, line: str, *, tone: str | None = None) -> OpReply:
+    description = f"{reply.description}\n\n{line}" if reply.description else line
+    return replace(reply, description=description, tone=tone or reply.tone)
+
+
+@dataclass(frozen=True)
+class _Created:
+    reply: OpReply
+    created: int | None = None  # the new product's id (None: refused, or created by an earlier submission)
+
+
+async def _create_from_form(app: App, *, actor_id: int, fields: dict[str, str], nonce: str | None) -> _Created:
     try:
         values = parse_product_form(app, fields)
         nonce_value = nonce if nonce and _NONCE_RE.match(nonce) else None
         product, created = await app.db.transaction(_tx_create, app.env.guild_id, nonce_value, values, app.clock.now())
     except _EXPECTED as exc:
-        return error_reply(app, exc)
+        return _Created(error_reply(app, exc))
     if not created:
-        return OpReply(app.op("catalog.cmd.already_created", product_id=product.id), tone="info", banner=NOTED)
+        return _Created(
+            OpReply(app.op("catalog.cmd.already_created", product_id=product.id), tone="info", banner=NOTED)
+        )
     details = {
         "name": product.name,
         "price_minor": product.price_minor,
@@ -622,7 +687,8 @@ async def create_from_form(app: App, *, actor_id: int, fields: dict[str, str], n
         "max_per_order": product.max_per_order,
     }
     reply = OpReply(app.op("catalog.cmd.created", product_id=product.id), tone="success", banner=SAVED)
-    return await _finish(app, reply, action="add", actor_id=actor_id, product=product, details=details)
+    finished = await _finish(app, reply, action="add", actor_id=actor_id, product=product, details=details)
+    return _Created(finished, product.id)
 
 
 async def edit_from_form(

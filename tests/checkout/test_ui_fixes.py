@@ -238,3 +238,29 @@ async def test_many_fees_spread_over_several_cards(tmp_path: Path) -> None:
         assert all(len(f.value) <= 1024 for e in control.embeds for f in e.fields)
     finally:
         await tenv.close()
+
+
+# -- the staff order list names statuses; timeline lines without an actor end cleanly -------------------------------
+
+
+async def test_order_list_shows_status_names_not_ids(co: TestEnv) -> None:
+    staffer = co.member(name="staffer", staff=True)
+    buyer = co.member(name="buyer")
+    p1 = await add_product(co, "[p1]")
+    await place_order(co, buyer, [(p1.id, 1)])
+    listed = await run_command(co, "list", user=staffer)
+    message = listed.sent[-1]
+    name = co.text(k.status_label_key(m.PENDING))
+    description = message.embeds[0].description or ""
+    assert name in description and m.PENDING not in description
+    items = [getattr(child, "item", child) for child in message.components()]
+    labels = [o.label for item in items for o in getattr(item, "options", ())]
+    assert name in labels and m.PENDING not in labels
+    assert any(name in label for label in labels if label.startswith("#"))  # the record menu
+
+
+def test_timeline_lines_without_an_actor_have_no_trailing_space(co: TestEnv) -> None:
+    from shopbot.features.checkout.staff_views import TimelineEntry, timeline_lines
+
+    lines = timeline_lines(co.app.ui, [TimelineEntry(1_700_000_000, "Expired", None, 1)])
+    assert lines == [lines[0].rstrip()] and "Expired" in lines[0]

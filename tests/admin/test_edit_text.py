@@ -17,6 +17,8 @@ from shopbot.features.admin import edit_text, service
 from shopbot.features.admin.commands import EDIT_TEXT_COMMAND
 from shopbot.features.core_keys import AUTHOR_NAME
 from shopbot.features.guides import how_to_buy
+from shopbot.ui.discord_render import to_embed, to_view
+from shopbot.ui.spec import ButtonSpec, EmbedSpec, MessageSpec, SelectOptionSpec, SelectSpec
 from tests.admin.util import admin, customer, sent
 from tests.fakes import FakeInteraction, FakeMessage, click, submit_modal
 from tests.guides.util import channel, guide_env, messages
@@ -199,3 +201,32 @@ async def test_text_search_ignores_markdown_and_icons(genv: TestEnv) -> None:
     # Words copied from the message as Discord shows it (no stars, the link's label only).
     assert service.suggest_keys(genv.app, "Press Buy on an item")[0] == how_to_buy.INTRODUCTION
     assert service.suggest_keys(genv.app, "**Buy** on")[0] == how_to_buy.INTRODUCTION
+
+
+def test_a_button_or_option_text_that_starts_with_an_icon_is_found() -> None:
+    definitions = [
+        _key("a.button", Kind.BUTTON_LABEL),
+        _key("a.option", Kind.OPTION_LABEL),
+        _key("a.heading", Kind.FIELD_NAME),
+    ]
+    values = {"a.button": "{icon_cart} Start order", "a.option": "{icon_tag} Deals", "a.heading": "{icon_truck} Ship"}
+    # As sent: the icon is the button's or option's emoji (not part of its label).
+    cart, tag = "<:cart:111111111111111111>", "<:tag:222222222222222222>"
+    spec = MessageSpec(
+        embeds=(EmbedSpec(title="Ship"),),  # an icon that is not uploaded yet shows nothing in a text
+        rows=(
+            (ButtonSpec(label=f"{cart} Start order", custom_id="sb:x:go"),),
+            (SelectSpec(custom_id="sb:x:pick", options=(SelectOptionSpec(label=f"{tag} Deals", value="d"),)),),
+        ),
+    )
+    view = to_view(spec)
+    assert view is not None
+    sent_message: Any = types.SimpleNamespace(
+        embeds=[to_embed(e) for e in spec.embeds], components=[discord.ActionRow(r) for r in view.to_components()]
+    )
+    texts = edit_text.message_texts(sent_message)
+    assert texts == ["Ship", "Start order", "Deals"]
+    assert edit_text.find_keys(texts, values, definitions) == ["a.heading", "a.button", "a.option"]
+    # The icon as text (an emoji written in the label) still matches too; a label without the icon's words does not.
+    assert edit_text.find_keys([f"{cart} Start order"], values, definitions) == ["a.button"]
+    assert edit_text.find_keys(["Start"], values, definitions) == []

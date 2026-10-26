@@ -55,10 +55,11 @@ def _embed_message(
 
 
 def link_button(ui: Ui, label_key: str, url: str | None) -> ButtonSpec | None:
-    """A link button (optional label) to a Discord message or channel; None when either is missing."""
+    """A link button (optional label, which may start with an icon) to a Discord message or channel; None when
+    either is missing."""
     if not url or label_key not in ui.content.registry:
         return None
-    label = ui.content.get(label_key)
+    label = ui.content.render(label_key)
     return ButtonSpec(label=label, style="link", url=url) if label else None
 
 

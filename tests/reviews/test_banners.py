@@ -15,7 +15,7 @@ from shopbot.config.banner_ids import BannerId
 from shopbot.features.reviews import content_keys as k
 from shopbot.features.reviews import views
 from tests.fakes import FakeInteraction, FakeMessage, click, submit_modal
-from tests.helpers import TestEnv, banner_names, make_banner_env, provision_channels
+from tests.helpers import TestEnv, banner_in_card, banner_names, make_banner_env, provision_channels, uploaded
 from tests.reviews.util import invoke, make_order, prompt_now, prompted, review_of, reviews_channel, set_order_status
 
 
@@ -82,9 +82,10 @@ async def test_the_request_swaps_its_banner_to_thanks_and_the_review_is_publishe
 
     await comment(bn, customer, review.id, dm, "[great]")
     assert banner_names(dm) == [name(bn, "successful-confirmation")] and len(dm.attachments) == 1
+    assert banner_in_card(dm) == name(bn, "successful-confirmation")
     assert dm.embeds[0].description == bn.text(k.THANKS).replace("{order_number}", str(review.order_number))
     (post,) = reviews_channel(bn).messages
-    assert banner_names(post) == [name(bn, "reviews")] and post.embeds[0].image.url is None
+    assert banner_names(post) == [name(bn, "reviews")] and banner_in_card(post) == name(bn, "reviews")
 
     again = await rate(bn, customer, review.id, None, "5")  # an old copy of the request
     assert banner_names(reply(again)) == [name(bn, "general-response")]  # already reviewed
@@ -96,7 +97,7 @@ async def test_declining_shows_the_general_response_banner_and_a_second_click_ke
     await click(bn.app, user=customer, custom_id=views.decline_id(review.id), message=dm, dm=True)
     assert banner_names(dm) == [name(bn, "general-response")] and len(dm.attachments) == 1
     await click(bn.app, user=customer, custom_id=views.decline_id(review.id), message=dm, dm=True)
-    assert "attachments" not in dm.edits[-1]  # the same banner: not uploaded again
+    assert uploaded(dm.edits[-1]) == []  # the same banner: not uploaded again
     assert banner_names(dm) == [name(bn, "general-response")]
 
 

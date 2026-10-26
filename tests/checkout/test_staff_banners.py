@@ -29,7 +29,7 @@ from tests.checkout.util import (
     run_command,
 )
 from tests.fakes import FakeInteraction, FakeMessage, submit_modal
-from tests.helpers import TestEnv, banner_names, deep_merge
+from tests.helpers import TestEnv, banner_in_card, banner_names, deep_merge, uploaded
 from tests.operations.util import add_note, click_record, make_banner_ops, mark, record, set_tracking
 
 
@@ -61,8 +61,8 @@ async def _placed(tenv: TestEnv, name: str = "customer") -> m.Order:
 
 
 def uploads_since(message: FakeMessage, edits_before: int) -> int:
-    """How many of the record's edits since ``edits_before`` changed its attachments (uploaded a banner)."""
-    return len([edit for edit in message.edits[edits_before:] if "attachments" in edit])
+    """How many of the record's edits since ``edits_before`` uploaded a picture (a kept banner is not an upload)."""
+    return len([edit for edit in message.edits[edits_before:] if uploaded(edit)])
 
 
 # -- the live order record -------------------------------------------------------------------------------------------
@@ -72,33 +72,35 @@ async def test_the_record_banner_follows_the_status_and_stays_on_handling_change
     staffer = bops.member(name="staffer", staff=True)
     placed = await _placed(bops)
     message = await record(bops, placed.id)
-    assert banner_names(message) == [banner_file(bops, "pending-review")]
+    assert banner_names(message) == [banner_file(bops, "order-status")]
 
     # Claim and note: the record is edited, its banner is kept without uploading it again.
     before = len(message.edits)
     claimed = await click_record(bops, staffer, placed.id, staff_views.claim_id(placed.id))
     await add_note(bops, staffer, placed.id, "[sample note]")
     assert len(message.edits) >= before + 2 and uploads_since(message, before) == 0
-    assert banner_names(message) == [banner_file(bops, "pending-review")]
+    assert banner_names(message) == [banner_file(bops, "order-status")]
+    assert banner_in_card(message) == banner_file(bops, "order-status")  # the kept picture still closes the card
     assert reply_banners(claimed) == [banner_file(bops, "general-response")]
 
     # Every status change swaps the banner once (the old picture is not kept next to the new one).
     for status, banner_id in (
         (m.PAID, "successful-confirmation"),
         (m.PROCESSING, "submission-and-processing"),
-        (m.FULFILLED, "completed-or-dispatched"),
+        (m.FULFILLED, "successful-confirmation"),
     ):
         before = len(message.edits)
         changed = await mark(bops, staffer, placed.id, status)
         assert uploads_since(message, before) == 1, status
         assert banner_names(message) == [banner_file(bops, banner_id)] and len(message.attachments) == 1
+        assert banner_in_card(message) == banner_file(bops, banner_id), status
         assert reply_banners(changed) == [banner_file(bops, "general-response")]
 
     # Tracking details on a completed order: edited, banner kept.
     before = len(message.edits)
     tracked = await set_tracking(bops, staffer, placed.id, "[sample tracking]")
     assert len(message.edits) > before and uploads_since(message, before) == 0
-    assert banner_names(message) == [banner_file(bops, "completed-or-dispatched")]
+    assert banner_names(message) == [banner_file(bops, "successful-confirmation")]
     assert tracked.last_sent is not None and len(banner_names(tracked.last_sent)) == 1
 
     # A full refund closes it out.
@@ -154,7 +156,7 @@ async def test_an_adopted_or_posted_again_record_has_the_banner_of_the_current_s
     assert await service.refresh_staff_message(bops.app, placed.id)
     assert (await order(bops, placed.id)).staff_message_id == message.id
     assert len(message.edits) == before + 1 and uploads_since(message, before) == 0
-    assert banner_names(message) == [banner_file(bops, "pending-review")]
+    assert banner_names(message) == [banner_file(bops, "order-status")]
     # Deleted by someone: the next change posts a new record with the banner of the current status.
     await message.delete()
     await run_command(bops, "status", user=staffer, number=placed.number, new_status=m.PAID)
@@ -202,7 +204,7 @@ async def test_refused_staff_actions_show_the_error_banner(bops: TestEnv) -> Non
     taken = await click_record(bops, second, placed.id, staff_views.claim_id(placed.id))
     assert reply_banners(taken) == [banner_file(bops, "error")]
     # The stale record was brought up to date: same status, so the banner was not uploaded again.
-    assert uploads_since(message, before) == 0 and banner_names(message) == [banner_file(bops, "pending-review")]
+    assert uploads_since(message, before) == 0 and banner_names(message) == [banner_file(bops, "order-status")]
     too_long = await add_note(bops, first, placed.id, "x" * (h.NOTE_MAX + 1))
     assert reply_banners(too_long) == [banner_file(bops, "error")]
     invalid = await run_command(bops, "status", user=first, number=placed.number, new_status=m.FULFILLED)
@@ -265,10 +267,10 @@ async def test_the_order_list_keeps_its_banner_while_paging_and_filtering(bops: 
     assert banner_names(message) == [banner_file(bops, "staff-dashboard")]
     paged = await press(bops, staffer, message, views.list_page_id(1, "", 0))
     assert paged.response_kinds() == ["edit_message"]
-    assert "attachments" not in message.edits[-1] and banner_names(message) == [banner_file(bops, "staff-dashboard")]
+    assert uploaded(message.edits[-1]) == [] and banner_names(message) == [banner_file(bops, "staff-dashboard")]
     filtered = await press(bops, staffer, message, views.list_filter_id(0), values=["paid"])
     assert filtered.response_kinds() == ["edit_message"]
-    assert "attachments" not in message.edits[-1] and banner_names(message) == [banner_file(bops, "staff-dashboard")]
+    assert uploaded(message.edits[-1]) == [] and banner_names(message) == [banner_file(bops, "staff-dashboard")]
     assert message.embeds[0].title == bops.app.op("checkout.list.title", total=0)
 
 

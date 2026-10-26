@@ -6,11 +6,12 @@ current values appear in it, and picking one opens the ``/content set`` form pre
 The message itself does not record which keys built it, so keys are found from what it shows: every text of the
 message (embed author, title, description, field names and values, footer; button labels, select placeholders and
 options) is compared with every key's current value. A value's ``{placeholders}`` (data such as an order number or a
-channel link) and its icons (``{icon_<name>}``) match any text. A key matches when its value is a whole text of the
-message, a whole line of one, or a bold part of a line (a card's section headings, the rule names), or appears
-inside a longer text (descriptions often join several values) and has at least ``MIN_SEARCH_LITERAL`` characters of
-its own, so short words such as "Yes" do not match every description. Keys are listed in the order their text
-appears.
+channel link) match any text, and so do its icons (``{icon_<name>}``) - or nothing, with the space after them: an icon
+that is not uploaded yet shows nothing, and the icon at the start of a button or option label is shown as its emoji,
+outside the label. A key matches when its value is a whole text of the message, a whole line of one, or a bold part
+of a line (a card's section headings, the rule names), or appears inside a longer text (descriptions often join
+several values) and has at least ``MIN_SEARCH_LITERAL`` characters of its own, so short words such as "Yes" do not
+match every description. Keys are listed in the order their text appears.
 """
 
 from __future__ import annotations
@@ -83,12 +84,18 @@ def _pattern(value: str, placeholders: Iterable[str]) -> tuple[re.Pattern[str], 
     literal = 0
     last = 0
     for match in PLACEHOLDER_RE.finditer(value):
-        if match.group(1) not in declared and not match.group(1).startswith("icon_"):
+        icon = match.group(1).startswith("icon_")
+        if match.group(1) not in declared and not icon:
             continue  # not a placeholder of this key (nor an icon): shown exactly as written
         fixed = value[last : match.start()]
-        parts += [re.escape(fixed), r"[\s\S]*?"]
+        parts.append(re.escape(fixed))
         literal += len("".join(fixed.split()))
         last = match.end()
+        if icon and value[last : last + 1] == " ":
+            parts.append(r"(?:[\s\S]*? )?")  # the icon and its space, or nothing (as ``ContentStore.render_icons``)
+            last += 1
+        else:
+            parts.append(r"[\s\S]*?")
     fixed = value[last:]
     parts.append(re.escape(fixed))
     literal += len("".join(fixed.split()))

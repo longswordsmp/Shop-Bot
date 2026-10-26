@@ -27,6 +27,8 @@ from pathlib import Path
 from shopbot.config.content import ContentFileError
 from shopbot.config.settings import SettingsError
 from shopbot.ui import custom_ids
+from shopbot.ui.banners import banner_inside, place_banner
+from shopbot.ui.component_emoji import split_button, split_option, strip_custom_emoji
 from shopbot.ui.limits import validate_message, validate_modal
 from shopbot.ui.routing import Route, Router
 from shopbot.ui.spec import (
@@ -160,9 +162,11 @@ def render_embed(embed: EmbedSpec) -> str:
             if embed.author_icon_url
             else ""
         )
-        parts.append(f'<div class="embed-author">{icon}<span>{plain(embed.author_name)}</span></div>')
+        parts.append(
+            f'<div class="embed-author">{icon}<span>{plain(strip_custom_emoji(embed.author_name))}</span></div>'
+        )
     if embed.title:
-        title = plain(embed.title)
+        title = plain(strip_custom_emoji(embed.title))
         if embed.url:
             title = f'<a href="{html.escape(embed.url)}" target="_blank" rel="noopener">{title}</a>'
         parts.append(f'<div class="embed-title">{title}</div>')
@@ -173,7 +177,7 @@ def render_embed(embed: EmbedSpec) -> str:
         for field in embed.fields:
             cls = "field inline" if field.inline else "field"
             parts.append(
-                f'<div class="{cls}"><div class="field-name">{plain(field.name)}</div>'
+                f'<div class="{cls}"><div class="field-name">{emoji_html(field.name)}</div>'
                 f'<div class="field-value">{markdown(field.value)}</div></div>'
             )
         parts.append("</div>")
@@ -181,7 +185,7 @@ def render_embed(embed: EmbedSpec) -> str:
         parts.append(f'<img class="embed-image" src="{html.escape(embed.image_url)}" alt="image" loading="lazy">')
     footer_bits = []
     if embed.footer_text:
-        footer_bits.append(plain(embed.footer_text).replace("\n", "<br>"))
+        footer_bits.append(plain(strip_custom_emoji(embed.footer_text)).replace("\n", "<br>"))
     if embed.timestamp is not None:
         footer_bits.append(f"{datetime.fromtimestamp(embed.timestamp, tz=UTC):%Y-%m-%d %H:%M} UTC")
     if footer_bits:
@@ -213,11 +217,14 @@ def _route_title(custom_id: str | None, kind: str, router: Router) -> str:
 
 
 def render_components(spec: MessageSpec, router: Router) -> str:
+    """Buttons and select menus as Discord shows them: an icon at the start of a label is drawn as the component's
+    emoji picture, before the label (``ui.component_emoji``)."""
     rows: list[str] = []
     for row in spec.rows:
         items: list[str] = []
         for component in row:
             if isinstance(component, ButtonSpec):
+                component = split_button(component)
                 emoji = f'<span class="emoji">{emoji_html(component.emoji)}</span>' if component.emoji else ""
                 label = plain(component.label)
                 ext = ' <span class="ext">↗</span>' if component.style == "link" else ""
@@ -237,7 +244,7 @@ def render_components(spec: MessageSpec, router: Router) -> str:
                     f"{f'<span class=emoji>{emoji_html(o.emoji)}</span>' if o.emoji else ''}"
                     f'<div><div class="opt-label">{plain(o.label)}</div>'
                     f"{f'<div class=opt-desc>{plain(o.description)}</div>' if o.description else ''}</div></div>"
-                    for o in component.options
+                    for o in map(split_option, component.options)
                 )
                 title = html.escape(_route_title(component.custom_id, "component", router))
                 placeholder = plain(component.placeholder) or "&nbsp;"
@@ -251,13 +258,17 @@ def render_components(spec: MessageSpec, router: Router) -> str:
 
 
 def _inline_attachments(spec: MessageSpec) -> tuple[EmbedSpec, ...]:
-    """Embeds whose ``attachment://`` images point at the message's own files, as data URIs the page can show."""
+    """Embeds whose ``attachment://`` images point at the message's own files, as addresses the page can show: the
+    banner's picture in ``BANNERS_DIR``, other files as data URIs."""
     files = {f.filename: f for f in spec.files or ()}
-    if not files:
+    if not files and spec.banner is None:
         return spec.embeds
 
     def resolve(url: str | None) -> str | None:
-        item = files.get(url[len("attachment://") :]) if url and url.startswith("attachment://") else None
+        name = url[len("attachment://") :] if url and url.startswith("attachment://") else None
+        if spec.banner is not None and name == spec.banner.filename:
+            return f"{BANNERS_DIR}/{name}"
+        item = files.get(name) if name is not None else None
         if item is None or item.data is None:
             return url
         encoded = base64.b64encode(item.data).decode("ascii")
@@ -272,10 +283,13 @@ BANNERS_DIR = "banners"  # next to the page: each banner picture is written once
 
 
 def render_message(spec: MessageSpec, router: Router) -> str:
+    """The message as Discord shows it: the banner at the bottom of the last embed (``place_banner``), or above the
+    embeds when that embed shows a picture of its own."""
+    spec = place_banner(spec)
     mention = f'<div class="msg-content">{_inline(html.escape(spec.mention_text))}</div>' if spec.mention_text else ""
     banner = (
         f'<img class="msg-banner" src="{BANNERS_DIR}/{html.escape(spec.banner.filename)}" alt="banner">'
-        if spec.banner is not None
+        if spec.banner is not None and not banner_inside(spec)
         else ""
     )
     embeds = banner + "".join(render_embed(e) for e in _inline_attachments(spec))
@@ -343,7 +357,7 @@ def render_state(index: int, state: PreviewState, router: Router) -> RenderedSta
         )
     else:
         body = render_message(state.spec, router)
-        violations = [str(v) for v in validate_message(state.spec)]
+        violations = [str(v) for v in validate_message(place_banner(state.spec))]
         kind = "message"
         text_blob = json.dumps(
             [

@@ -15,7 +15,7 @@ from shopbot.config.banner_ids import BannerId
 from shopbot.features.reviews import MODULE
 from shopbot.features.reviews import content_keys as k
 from tests.fakes import FakeInteraction, FakeMessage
-from tests.helpers import TestEnv, banner_names, make_banner_env, provision_channels
+from tests.helpers import TestEnv, banner_names, make_banner_env, provision_channels, uploaded
 from tests.reviews.util import invoke, only_embed, review_of, reviews_channel
 from tests.reviews_approval.util import approval_overrides, approve, pending_review, reject
 
@@ -66,7 +66,7 @@ async def test_approval_swaps_the_banners_and_tells_the_customer(bn: TestEnv) ->
     assert banner_names(customer.dms[-1]) == [name(bn, "successful-confirmation")]  # the approval notice
 
     again = await approve(bn, staff, review, message)  # decided already: shown as it is, refused
-    assert "attachments" not in message.edits[-1] and banner_names(message) == [name(bn, "successful-confirmation")]
+    assert uploaded(message.edits[-1]) == [] and banner_names(message) == [name(bn, "successful-confirmation")]
     assert banner_names(reply(again)) == [name(bn, "error")]
 
     await invoke(bn, staff, "remove", order_number=order.number)  # the published review is closed

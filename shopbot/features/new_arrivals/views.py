@@ -7,8 +7,8 @@ are business copy and are shown exactly as written (like the catalog cards). Pri
 catalog's own ``product_fields``, so a product reads the same in #catalog and in #new-arrivals.
 
 Banners: the panel and every update show ``new-arrivals``; the private confirmations show
-``successful-confirmation`` (notifications on) or ``general-response`` (off). A banner is an attachment shown above
-the embeds, so an update's first embed is still its product card (``service._find_unrecorded_post`` matches it).
+``successful-confirmation`` (notifications on) or ``general-response`` (off). An update is a product card, so its
+banner stays above the card (``banner_in_card=False``: the picture slot belongs to the product).
 """
 
 from __future__ import annotations
@@ -132,4 +132,5 @@ def announcement(
         mention_role_ids=(role_id,) if role_id else (),
         files=tuple(files) or None,
         banner=ui.banner("new-arrivals"),
+        banner_in_card=False,  # a product card: the banner stays above it, never in the product's picture slot
     )

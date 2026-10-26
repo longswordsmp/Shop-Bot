@@ -12,7 +12,7 @@ from shopbot.config.banner_ids import BannerId
 from shopbot.features.credits import views
 from tests.credits.util import grant, invoke
 from tests.fakes import FakeInteraction, FakeMessage, click
-from tests.helpers import TestEnv, banner_names, make_banner_env
+from tests.helpers import TestEnv, banner_names, make_banner_env, uploaded
 
 
 @pytest.fixture
@@ -63,7 +63,7 @@ async def test_staff_lookups_show_the_staff_dashboard_banner_and_paging_keeps_it
     history = reply(await invoke(bn, staff, "history", member=target))
     assert banner_names(history) == [name(bn, "staff-dashboard")]
     await click(bn.app, user=staff, custom_id=views.history_page_id(target.id, 1), message=history)
-    assert history.edits and "attachments" not in history.edits[-1]  # the same banner: not uploaded again
+    assert history.edits and uploaded(history.edits[-1]) == []  # the same banner: not uploaded again
     assert banner_names(history) == [name(bn, "staff-dashboard")]
     assert history.embeds[0].footer.text == bn.app.op("credits.history.page", page=2, pages=2)
 

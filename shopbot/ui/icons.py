@@ -8,8 +8,11 @@ emojis already uploaded (recorded in ``app_emojis`` with the picture's sha256), 
 emoji whose picture changed.
 
 Texts use an icon with the global placeholder ``{icon_<name>}`` (any content key, see ``ContentStore.render``); a
-button emoji can be ``{icon_<name>}`` too. Until an icon is uploaded (or if its upload failed) the placeholder renders
-as ``IconLibrary.fallback`` (nothing for section icons, a plain dot for status dots), never as raw text.
+button emoji can be ``{icon_<name>}`` too, and a button or select option label may start with one (``{icon_cart} Start
+order``, or a button's icon alone), which Discord then shows as the component's emoji (``ui.component_emoji``). Until
+an icon is uploaded (or if its upload failed) the placeholder renders as ``IconLibrary.fallback`` (nothing for section
+icons, a plain dot for status dots), never as raw text: a label then shows without an emoji (a status dot's plain dot
+stays in front of it), and a button that is only an icon is left out.
 """
 
 from __future__ import annotations

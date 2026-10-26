@@ -1,4 +1,5 @@
-"""Banner pictures: loading, upload order, keeping/replacing/removing them on edits, limits, hashing, transcripts."""
+"""Banner pictures: loading, placement at the bottom of the last card, upload order, keeping/replacing/removing them on
+edits, limits, hashing, transcripts."""
 
 from __future__ import annotations
 
@@ -13,16 +14,18 @@ from shopbot.config.banner_ids import BANNER_IDS
 from shopbot.config.settings import BannerSettings, SettingsError
 from shopbot.core.panels import spec_hash, upsert_message
 from shopbot.features.tickets.transcript import collect_messages
-from shopbot.ui.banners import MAX_BANNER_BYTES, load_banners
-from shopbot.ui.discord_render import edit_attachments, send_kwargs
+from shopbot.ui.banners import MAX_BANNER_BYTES, banner_inside, load_banners, place_banner
+from shopbot.ui.discord_render import edit_attachments, edit_kwargs, send_kwargs
 from shopbot.ui.limits import validate_message
 from shopbot.ui.spec import EmbedSpec, FileSpec, MessageSpec
 from tests.fakes import FakeAttachment
 from tests.helpers import (
+    banner_in_card,
     banner_names,
     make_banner_env,
     make_settings,
     tiny_png,
+    uploaded,
     write_test_banners,
 )
 
@@ -34,6 +37,13 @@ def banner(tag: str = "welcome") -> FileSpec:
 
 def spec(title: str = "t", **kwargs: Any) -> MessageSpec:
     return MessageSpec(embeds=(EmbedSpec(title=title),), **kwargs)
+
+
+def at(file: FileSpec) -> str:
+    return f"attachment://{file.filename}"
+
+
+PRODUCT = FileSpec.of("product-1-abc.png", b"\x89PNG\r\n\x1a\nproduct", "image/png")
 
 
 # -- loading ------------------------------------------------------------------------------------------------------
@@ -88,6 +98,49 @@ def test_banner_settings_are_checked() -> None:
     assert make_settings({"banners": {"enabled": True, "off": ["activity-log"]}}).banners.off == ("activity-log",)
 
 
+# -- placement -----------------------------------------------------------------------------------------------------
+
+
+def test_the_banner_becomes_the_image_of_the_last_card() -> None:
+    first, last = EmbedSpec(title="one"), EmbedSpec(title="two")
+    built = MessageSpec(embeds=(first, last), banner=banner())
+    placed = place_banner(built)
+    assert placed.embeds == (first, replace(last, image_url=at(banner())))
+    assert placed.banner == built.banner and placed.files is None  # still uploaded as the first attachment
+    assert banner_inside(built) and banner_inside(placed)
+    assert place_banner(placed) == placed  # placing twice changes nothing
+    assert validate_message(placed) == [] == validate_message(built)
+
+
+def test_a_last_card_with_its_own_picture_keeps_the_banner_above_the_embeds() -> None:
+    product = MessageSpec(embeds=(EmbedSpec(title="p", image_url=at(PRODUCT)),), banner=banner(), files=(PRODUCT,))
+    linked = MessageSpec(embeds=(EmbedSpec(title="p", image_url="https://example.com/p.png"),), banner=banner())
+    for message in (product, linked):
+        assert place_banner(message) == message and not banner_inside(message)
+    # Only the last card counts: a picture on an earlier card does not keep the banner out of the last one.
+    earlier = MessageSpec(embeds=(EmbedSpec(title="a", image_url="https://example.com/a.png"), EmbedSpec(title="b")))
+    assert place_banner(replace(earlier, banner=banner())).embeds[1].image_url == at(banner())
+
+
+def test_nothing_is_placed_without_a_banner_or_without_embeds() -> None:
+    assert place_banner(spec()) == spec() and not banner_inside(spec())
+    bare = MessageSpec(banner=banner())
+    assert place_banner(bare) == bare and not banner_inside(bare)
+
+
+def test_the_banner_may_only_be_the_last_cards_image() -> None:
+    def problems(*embeds: EmbedSpec) -> list[str]:
+        return [str(v) for v in validate_message(MessageSpec(embeds=embeds, banner=banner()))]
+
+    assert problems(EmbedSpec(title="a"), EmbedSpec(title="b", image_url=at(banner()))) == []
+    assert problems(EmbedSpec(title="a", image_url=at(banner())), EmbedSpec(title="b")) == [
+        "embeds[0].image_url: the banner can only be the last embed's image"
+    ]
+    assert problems(EmbedSpec(title="a", thumbnail_url=at(banner()))) == [
+        "embeds[0].thumbnail_url: the banner can only be the last embed's image"
+    ]
+
+
 # -- sending and editing -------------------------------------------------------------------------------------------
 
 
@@ -98,10 +151,17 @@ def test_the_banner_is_uploaded_first_and_counts_toward_the_limits() -> None:
     assert [f.filename for f in files] == [banner().filename, "a.png"]
     too_many = replace(spec(), banner=banner(), files=tuple(FileSpec.of(f"f{i}.png", b"x") for i in range(10)))
     assert any("11 files exceeds 10" in str(v) for v in validate_message(too_many))
-    shown_in_embed = MessageSpec(
-        embeds=(EmbedSpec(title="t", image_url=f"attachment://{banner().filename}"),), banner=banner()
-    )
-    assert any("must not show the banner" in str(v) for v in validate_message(shown_in_embed))
+
+
+def test_a_sent_message_shows_the_banner_at_the_bottom_of_its_last_card() -> None:
+    kwargs = send_kwargs(MessageSpec(embeds=(EmbedSpec(title="one"), EmbedSpec(title="two")), banner=banner()))
+    assert [f.filename for f in kwargs["files"]] == [banner().filename]
+    assert [e.image.url for e in kwargs["embeds"]] == [None, at(banner())]
+    # A product card keeps its picture; the banner is still uploaded first and no embed uses it (shown above).
+    product = MessageSpec(embeds=(EmbedSpec(title="p", image_url=at(PRODUCT)),), banner=banner(), files=(PRODUCT,))
+    kwargs = send_kwargs(product)
+    assert [f.filename for f in kwargs["files"]] == [banner().filename, PRODUCT.filename]
+    assert [e.image.url for e in kwargs["embeds"]] == [at(PRODUCT)]
 
 
 def _attachment(name: str) -> Any:
@@ -114,10 +174,14 @@ def test_edits_keep_an_unchanged_banner_and_replace_or_remove_others() -> None:
     other = _attachment("receipt.txt")
     # Unknown attachments: what the spec wants is uploaded; nothing wanted leaves the message alone.
     assert edit_attachments(spec(), None) is None
-    uploaded = edit_attachments(replace(spec(), banner=banner()), None)
-    assert uploaded is not None and [f.filename for f in uploaded] == [banner().filename]
-    # The same banner is already there: no upload, attachments left alone.
-    assert edit_attachments(replace(spec(), banner=banner()), [same, other]) is None
+    sent = edit_attachments(replace(spec(), banner=banner()), None)
+    assert sent is not None and [f.filename for f in sent] == [banner().filename]
+    # The same banner is already there: kept, not uploaded again. The card shows it, so the edit sends the kept
+    # attachments (Discord resolves the card's attachment:// image against them).
+    assert edit_attachments(replace(spec(), banner=banner()), [same, other]) == [same, other]
+    # A banner shown above the embeds (the last card has its own picture) is left alone.
+    above = MessageSpec(embeds=(EmbedSpec(title="p", image_url="https://example.com/p.png"),), banner=banner())
+    assert edit_attachments(above, [same, other]) is None
     # A different banner replaces the old one; other attachments are kept.
     swapped = edit_attachments(replace(spec(), banner=banner()), [old, other])
     assert swapped is not None and swapped[1] is other
@@ -130,6 +194,20 @@ def test_edits_keep_an_unchanged_banner_and_replace_or_remove_others() -> None:
     assert [getattr(f, "filename", None) for f in managed[1:]] == ["a.png"]
 
 
+def test_an_edit_still_shows_the_kept_banner_in_the_card() -> None:
+    same = _attachment(banner().filename)
+    kwargs = edit_kwargs(replace(spec(), banner=banner()), [same])
+    assert kwargs["embeds"][0].image.url == at(banner()) and kwargs["attachments"] == [same]
+    # Unknown attachments (a message that was not fetched): the banner is uploaded again with the reference.
+    kwargs = edit_kwargs(replace(spec(), banner=banner()), None)
+    assert kwargs["embeds"][0].image.url == at(banner())
+    assert [getattr(f, "filename", None) for f in kwargs["attachments"]] == [banner().filename]
+    # A changed banner: the new picture is uploaded, the old one dropped, and the card shows the new one.
+    kwargs = edit_kwargs(replace(spec(), banner=banner("faq")), [same])
+    assert kwargs["embeds"][0].image.url == at(banner("faq"))
+    assert [(type(a) is discord.File, a.filename) for a in kwargs["attachments"]] == [(True, banner("faq").filename)]
+
+
 async def test_panels_keep_swap_and_drop_their_banner_without_needless_uploads(tmp_path: Path) -> None:
     tenv = await make_banner_env(tmp_path)
     try:
@@ -140,16 +218,19 @@ async def test_panels_keep_swap_and_drop_their_banner_without_needless_uploads(t
         assert welcome is not None and faq is not None
         await upsert_message(app, "panel:x", channel, spec("a", banner=welcome))
         message = channel.messages[0]
-        assert banner_names(message) == [welcome.filename]
+        assert banner_names(message) == [welcome.filename] and banner_in_card(message) == welcome.filename
 
         await upsert_message(app, "panel:x", channel, spec("b", banner=welcome))  # text changed, same banner
-        assert "attachments" not in message.edits[-1] and banner_names(message) == [welcome.filename]
+        assert uploaded(message.edits[-1]) == [] and banner_names(message) == [welcome.filename]
+        assert banner_in_card(message) == welcome.filename  # the kept picture still closes the card
 
         await upsert_message(app, "panel:x", channel, spec("b", banner=faq))  # another banner
         assert banner_names(message) == [faq.filename] and len(message.attachments) == 1
+        assert uploaded(message.edits[-1]) == [faq.filename] and banner_in_card(message) == faq.filename
 
         await upsert_message(app, "panel:x", channel, spec("b"))  # banner switched off
         assert message.edits[-1]["attachments"] == [] and message.files == []
+        assert message.embeds[0].image.url is None
     finally:
         await tenv.close()
 
@@ -223,6 +304,22 @@ async def test_transcripts_leave_out_the_bots_banners_but_keep_customer_files() 
     assert collected[1].attachments == ("https://cdn.example/banner-mine.png",)
 
 
+async def test_transcripts_leave_out_a_banner_shown_inside_the_card(tmp_path: Path) -> None:
+    tenv = await make_banner_env(tmp_path)
+    try:
+        channel = tenv.guild.add_text_channel(name="ticket")
+        welcome = tenv.app.ui.banner("welcome")
+        image = FileSpec.of("receipt.png", b"\x89PNG\r\n\x1a\nreceipt", "image/png")
+        await channel.send(**send_kwargs(spec("hello", banner=welcome, files=(image,))))
+        [message] = channel.messages
+        assert banner_in_card(message) is not None  # the card shows the banner, the message still carries it
+        [collected] = await collect_messages(channel)
+        assert collected.attachments == (message.attachments[1].url,) and len(message.attachments) == 2
+        assert collected.embeds[0].title == "hello"
+    finally:
+        await tenv.close()
+
+
 # -- interaction replies that upload ------------------------------------------------------------------------------
 
 
@@ -254,7 +351,8 @@ async def test_replies_that_upload_a_banner_are_acknowledged_first(tmp_path: Pat
         # The clicked message keeps its banner: edited in the same response, nothing uploaded.
         c, interaction = ctx(message)
         await c.update(spec("b", banner=welcome))
-        assert interaction.response_kinds() == ["edit_message"] and "attachments" not in message.edits[-1]
+        assert interaction.response_kinds() == ["edit_message"] and uploaded(message.edits[-1]) == []
+        assert banner_in_card(message) == welcome.filename
         # A new banner must be uploaded: the click is acknowledged first, then the message is edited.
         c, interaction = ctx(message)
         await c.update(spec("c", banner=faq))

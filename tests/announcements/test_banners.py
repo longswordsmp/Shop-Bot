@@ -67,7 +67,8 @@ async def test_announcement_shows_the_announcements_banner(env: AnnounceEnv) -> 
     interaction = await submit(env, staff, modal, form_fields(when="[when]"))
     (message,) = env.channel.messages
     assert [f.filename for f in message.files] == [banner_file(env, "announcements")]
-    assert message.embeds[0].image.url is None  # the banner is never shown inside the embed
+    # The banner closes the card: the image of its (only) embed, uploaded as the first attachment.
+    assert message.embeds[0].image.url == f"attachment://{banner_file(env, 'announcements')}"
     assert reply_banner(interaction) == [banner_file(env, "successful-confirmation")]
 
 
@@ -78,7 +79,7 @@ async def test_staff_image_is_uploaded_after_the_banner(env: AnnounceEnv) -> Non
     (message,) = env.channel.messages
     assert [f.filename for f in message.files] == [banner_file(env, "announcements"), "announcement.png"]
     assert message.files[1].fp.read() == PNG
-    assert message.embeds[0].image.url == "attachment://announcement.png"
+    assert message.embeds[0].image.url == "attachment://announcement.png"  # the staff image: the banner stays above
 
 
 async def test_image_cap_leaves_room_for_the_banner_before_the_form_opens(

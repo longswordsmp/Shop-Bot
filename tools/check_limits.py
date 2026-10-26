@@ -25,6 +25,7 @@ from pathlib import Path
 from shopbot.config.content import ContentFileError, MissingContent
 from shopbot.config.settings import SettingsError
 from shopbot.ui import custom_ids
+from shopbot.ui.banners import place_banner
 from shopbot.ui.limits import Violation, validate_message, validate_modal
 from shopbot.ui.routing import Router
 from shopbot.ui.spec import ButtonSpec, MessageSpec, ModalSpec, PreviewState, SelectSpec
@@ -49,7 +50,7 @@ def check_state(state: PreviewState) -> list[Violation]:
     if isinstance(state.spec, ModalSpec):
         return validate_modal(state.spec)
     if isinstance(state.spec, MessageSpec):
-        return validate_message(state.spec)
+        return validate_message(place_banner(state.spec))  # as it is sent: the banner closes the last card
     return [Violation(state.name, f"unknown spec type {type(state.spec).__name__}")]
 
 

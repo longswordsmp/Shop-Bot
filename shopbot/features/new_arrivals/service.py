@@ -48,7 +48,7 @@ from shopbot.features.new_arrivals import repo, views
 from shopbot.features.new_arrivals.content_keys import NEW_ARRIVALS
 from shopbot.features.server_keys import channel_mentions, channel_url
 from shopbot.logging_setup import log_event
-from shopbot.ui.discord_render import RenderError, check_message, send_spec
+from shopbot.ui.discord_render import RenderError, check_message, send_spec, to_embed
 from shopbot.ui.spec import FileSpec, MessageSpec
 
 if TYPE_CHECKING:
@@ -300,7 +300,9 @@ async def _find_unrecorded_post(app: App, channel: discord.TextChannel, spec: Me
     bot_user = app.bot.user if app.bot is not None else None
     if bot_user is None or not spec.embeds:
         return None
-    expected = ((spec.embeds[0].title or "").strip(), (spec.embeds[0].description or "").strip())
+    # As Discord stores it: the title without the custom emoji it cannot show there (``discord_render.to_embed``).
+    sent = to_embed(spec.embeds[0])
+    expected = ((sent.title or "").strip(), (sent.description or "").strip())
     recorded = await app.db.run(repo.recorded_message_ids, app.env.guild_id, channel.id)
     async for message in channel.history(limit=HISTORY_LIMIT):
         if message.author.id != bot_user.id or message.id in recorded:

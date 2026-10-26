@@ -4,9 +4,10 @@ Lookup order for a key: database override (entered with ``/content set``) → ``
 Empty strings count as *not configured*. Optional keys may declare a ``fallback`` key.
 
 Rendering substitutes only the placeholders a key declares (``{order_number}``) plus the global icon placeholders
-``{icon_<name>}`` (the bot's custom icons, in the kinds of text where Discord shows custom emojis); every other
-character, including other braces, is preserved exactly as written. The store never appends, trims, or rewrites
-the configured text.
+``{icon_<name>}`` (the bot's custom icons, in the kinds of text where Discord shows custom emojis, and at the start of
+a button or option label, where ``ui.component_emoji`` makes it the component's emoji); every other character,
+including other braces, is preserved exactly as written. The store never appends, trims, or rewrites the configured
+text.
 """
 
 from __future__ import annotations
@@ -27,6 +28,10 @@ _CUSTOM_EMOJI_RE = re.compile(r"^<a?:[A-Za-z0-9_]{2,32}:\d{15,21}>$")
 ICON_RE = re.compile(r"\{icon_([a-z0-9_]{2,32})\}")
 _ICON_USE_RE = re.compile(r"\{icon_([a-z0-9_]{2,32})\}( ?)")
 ICON_KINDS = frozenset({Kind.TITLE, Kind.DESCRIPTION, Kind.FIELD_NAME, Kind.FIELD_VALUE, Kind.EMOJI})
+# Discord shows no emoji inside a button or option label, but one before it: a label may start with one icon
+# ("{icon_cart} Start order"; a button's label may also be the icon alone), which becomes the component's emoji.
+LABEL_ICON_KINDS = frozenset({Kind.BUTTON_LABEL, Kind.OPTION_LABEL})
+_LEADING_ICON_RE = re.compile(r"^\{icon_[a-z0-9_]{2,32}\}(?: (?=\S)|\Z)")
 IconText = Callable[[str], str]
 OPERATOR_PREFIX = "operator."
 
@@ -102,14 +107,23 @@ def validate_value(key: ContentKey, value: str, icons: Collection[str] | None = 
     ``icons``: the names of the bot's icons when known (unknown ``{icon_<name>}`` names are then reported)."""
     problems: list[str] = []
     used_icons = ICON_RE.findall(value)
-    if used_icons and key.kind not in ICON_KINDS:
-        problems.append("uses {icon_...}, but Discord cannot show icons here (only in titles, texts and fields)")
-    elif icons is not None:
+    leading_icon = _LEADING_ICON_RE.match(value) if key.kind in LABEL_ICON_KINDS else None
+    if used_icons and key.kind in LABEL_ICON_KINDS:
+        problems += _label_icon_problems(key.kind, value, len(used_icons), leading_icon)
+    elif used_icons and key.kind not in ICON_KINDS:
+        problems.append(
+            "uses {icon_...}, but Discord cannot show icons here (only in section headings, texts and fields, and at "
+            "the start of button and option labels)"
+        )
+    if used_icons and icons is not None and (key.kind in ICON_KINDS or key.kind in LABEL_ICON_KINDS):
         unknown_icons = sorted(set(used_icons) - set(icons))
         if unknown_icons:
             problems.append(f"uses icons that do not exist: {', '.join(unknown_icons)}")
-    if len(value) > key.max_length:
-        problems.append(f"is {len(value)} characters; Discord allows at most {key.max_length} here")
+    # A label's leading icon is shown as the component's emoji, so it does not count toward the label's length.
+    length = len(value) - (leading_icon.end() if leading_icon is not None and len(used_icons) == 1 else 0)
+    if length > key.max_length:
+        counted = " (not counting its icon)" if length != len(value) else ""
+        problems.append(f"is {length} characters{counted}; Discord allows at most {key.max_length} here")
     if key.kind is Kind.EMOJI and not is_valid_emoji(value):
         problems.append("is not a valid emoji (use a unicode emoji or <:name:id>)")
     if key.kind is Kind.URL and not value.startswith("https://"):
@@ -124,6 +138,20 @@ def validate_value(key: ContentKey, value: str, icons: Collection[str] | None = 
             f"uses placeholders {unknown} that are not available here (available: {list(key.placeholders)})"
         )
     return problems
+
+
+def _label_icon_problems(kind: Kind, value: str, count: int, leading: re.Match[str] | None) -> list[str]:
+    """Where a button or option label uses icons: one, at the very start, followed by a space and the label (a button
+    may show only the icon)."""
+    component = "button" if kind is Kind.BUTTON_LABEL else "option"
+    if count > 1 or leading is None:
+        return [
+            f"can use one icon only, at the very start followed by a space and the label ({{icon_<name>}} Label): "
+            f"Discord shows it as the {component}'s emoji, never inside the label"
+        ]
+    if kind is Kind.OPTION_LABEL and leading.end() == len(value):
+        return ["needs a label after its icon (a select option cannot show only an icon)"]
+    return []
 
 
 class ContentStore:
@@ -194,7 +222,16 @@ class ContentStore:
         definition = self._definition(key)
         if definition.kind is Kind.EMOJI:
             return self._emoji(text)
-        text = self.render_icons(text) if definition.kind in ICON_KINDS else text
+        if definition.kind in ICON_KINDS or definition.kind in LABEL_ICON_KINDS:
+            text = self.render_icons(text)
+        text = self._substitute(definition, text, values)
+        if definition.kind in LABEL_ICON_KINDS and not text.strip():
+            # A label that shows nothing (e.g. only an icon that is not uploaded yet): Discord refuses a blank label,
+            # so it counts as not configured and the button or option is left out.
+            return None
+        return text
+
+    def _substitute(self, definition: ContentKey, text: str, values: Mapping[str, str | int]) -> str:
         allowed = set(definition.placeholders)
         if definition.fallback is not None:
             fallback_def = self.registry.get(definition.fallback)

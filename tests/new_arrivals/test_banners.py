@@ -73,7 +73,7 @@ async def test_the_panel_shows_the_new_arrivals_banner_and_keeps_it_on_edits(env
     await service.publish(env.app)
     [panel] = env.panels()
     assert banner_names(panel) == [name(env, "new-arrivals")]
-    assert panel.embeds[0].image.url is None  # never inside the embed
+    assert panel.embeds[-1].image.url == f"attachment://{name(env, 'new-arrivals')}"  # closes the card
 
     await service.publish(env.app)  # unchanged: not edited
     assert panel.edits == []
@@ -81,6 +81,7 @@ async def test_the_panel_shows_the_new_arrivals_banner_and_keeps_it_on_edits(env
     await service.publish(env.app)
     assert panel.embeds[0].title == "[changed title]"
     assert uploaded_banners(panel.edits[-1]) == [] and banner_names(panel) == [name(env, "new-arrivals")]
+    assert panel.embeds[-1].image.url == f"attachment://{name(env, 'new-arrivals')}"  # the kept picture
 
 
 async def test_confirmations_show_the_banner_of_the_outcome(env: NaEnv) -> None:
@@ -98,7 +99,7 @@ async def test_updates_show_the_banner_next_to_the_uploaded_product_image(env: N
     new = only_update(env)
     assert banner_names(new) == [name(env, "new-arrivals")]
     images = [f.filename for f in new.files if not f.filename.startswith("banner-")]
-    assert len(images) == 1 and new.embeds[0].image.url == f"attachment://{images[0]}"
+    assert len(images) == 1 and new.embeds[0].image.url == f"attachment://{images[0]}"  # the banner stays above
 
     await set_stock(env, product_id, "set", 3)  # sold out -> orderable again
     await run_tasks(env)
@@ -128,3 +129,27 @@ async def test_an_unrecorded_update_with_a_banner_is_still_adopted(env: NaEnv) -
     [record] = await announcements(env, product_id)
     assert record.status == "posted" and record.message_id == posted.id
     assert (await audit(env, "new_arrivals.announced"))[0].details["adopted"] is True
+
+
+async def test_an_unrecorded_update_whose_title_has_an_icon_is_still_adopted(env: NaEnv) -> None:
+    """Discord stores the title without the custom emoji it cannot show there; the earlier post is still found."""
+    env.app.content.set_override("new_arrivals.new_product.title", "<:sparkles:123456789012345678> New: {name}")
+    product_id = await add_product(env)
+    guild: Any = env.tenv.guild
+    spec = service.build_announcement(env.app, guild, "new", await product(env, product_id))
+    assert spec.embeds[0].title is not None and spec.embeds[0].title.startswith("<:sparkles:")
+    await env.app.db.transaction(
+        repo.claim,
+        guild_id=GUILD_ID,
+        product_id=product_id,
+        event="new",
+        version=1,
+        channel_id=env.channel.id,
+        now=env.tenv.clock.now(),
+    )
+    posted = await send_spec(env.channel, spec)
+    assert posted.embeds[0].title is not None and not posted.embeds[0].title.startswith("<:")
+    await run_tasks(env)
+    assert env.updates() == [posted]
+    [record] = await announcements(env, product_id)
+    assert record.status == "posted" and record.message_id == posted.id

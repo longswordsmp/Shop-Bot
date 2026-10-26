@@ -290,7 +290,7 @@ class IconSettings:
 
 @dataclass(frozen=True)
 class BannerSettings:
-    """Banner pictures shown at the top of messages (``shopbot.ui.banners``)."""
+    """Banner pictures that close the bot's cards (``shopbot.ui.banners``)."""
 
     enabled: bool = False
     directory: str = "banners"  # folder (relative to the config folder) with one picture per banner id

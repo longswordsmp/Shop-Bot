@@ -18,7 +18,7 @@ from shopbot.ui.spec import FileSpec
 from tests.catalog.test_images import FakeUpload, png
 from tests.catalog.util import add_product, invoke, listing_channel
 from tests.fakes import FakeInteraction, FakeMessage, click, submit_modal
-from tests.helpers import GUILD_ID, TestEnv, banner_names, make_banner_env
+from tests.helpers import GUILD_ID, TestEnv, banner_names, make_banner_env, uploaded
 
 
 @pytest.fixture
@@ -73,7 +73,7 @@ async def test_only_the_first_listing_message_shows_the_catalog_banner(bn: TestE
     assert len(cards) == 2  # 3 products, 2 per message
     assert banner_names(head) == [name(bn, "catalog")]
     assert all(banner_names(card) == [] for card in cards)
-    assert head.embeds[0].image.url is None  # the banner is never shown inside an embed
+    assert head.embeds[-1].image.url == f"attachment://{name(bn, 'catalog')}"  # the banner closes the header card
     # The product image still shows on its card (attachment:// to the product image, never to the banner).
     [image] = product_files(cards[0])
     assert cards[0].embeds[0].image.url == f"attachment://{image}" and image.startswith(f"product-{first.id}-")
@@ -182,7 +182,7 @@ async def test_product_list_keeps_the_staff_dashboard_banner_while_paging(bn: Te
     listing = reply(await invoke(bn, admin, "list"))
     assert banner_names(listing) == [name(bn, "staff-dashboard")]
     await click(bn.app, user=admin, custom_id=views.admin_page_custom_id(1, False), message=listing)
-    assert listing.edits and "attachments" not in listing.edits[-1]  # same banner: attachments left alone
+    assert listing.edits and uploaded(listing.edits[-1]) == []  # same banner: attachments left alone
     assert banner_names(listing) == [name(bn, "staff-dashboard")]
 
 
@@ -192,7 +192,7 @@ async def test_remove_confirmation_swaps_its_banner_with_the_outcome(bn: TestEnv
     prompt = reply(await invoke(bn, admin, "remove", product_id=kept.id))
     assert banner_names(prompt) == [name(bn, "general-response")]
     await click(bn.app, user=admin, custom_id=views.remove_cancel_custom_id(kept.id), message=prompt)
-    assert "attachments" not in prompt.edits[-1]  # kept: the same banner stays
+    assert uploaded(prompt.edits[-1]) == []  # kept: the same banner stays
     assert banner_names(prompt) == [name(bn, "general-response")]
 
     removed = await add_product(bn, "[removed]")

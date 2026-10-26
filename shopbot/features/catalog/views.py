@@ -48,6 +48,7 @@ from shopbot.features.catalog.repo import (
     Product,
 )
 from shopbot.ui.card import with_paragraph
+from shopbot.ui.component_emoji import split_label
 from shopbot.ui.custom_ids import cid
 from shopbot.ui.limits import (
     BUTTON_LABEL,
@@ -107,8 +108,9 @@ def admin_page_custom_id(page: int, include_archived: bool) -> str:
     return cid(ROUTE, "apage", page, int(include_archived))
 
 
-def add_form_custom_id(nonce: int | str) -> str:
-    return cid(ROUTE, "addform", nonce)
+def add_form_custom_id(nonce: int | str, *, with_image: bool = False) -> str:
+    """``with_image``: /product add came with a picture (saved to the product once the form is submitted)."""
+    return cid(ROUTE, "addform", nonce, 1) if with_image else cid(ROUTE, "addform", nonce)
 
 
 def edit_form_custom_id(product_id: int, version: int) -> str:
@@ -221,7 +223,7 @@ def buy_button(ui: Ui, product: Product) -> ButtonSpec:
     label = ui.text(keys.BUTTON_BUY, name=product.name)
     if label is None:
         raise MissingContent(keys.BUTTON_BUY)
-    if len(label) > BUTTON_LABEL:
+    if len(split_label(label, None)[0] or "") > BUTTON_LABEL:  # as Discord gets it: a leading icon is the emoji
         label = ui.text(keys.BUTTON_BUY_SHORT)
         if label is None:
             raise MissingContent(keys.BUTTON_BUY_SHORT)
@@ -384,7 +386,8 @@ def browse_page(
         nav = [previous, following]
     actions = ([buy_button(ui, product)] if buy else []) + list(extra_buttons)
     rows = rows_of(*nav) + rows_of(*actions)
-    return MessageSpec(embeds=(embed,), rows=rows, files=tuple(files), banner=banner)
+    # A product card: the banner stays above it, so it is never taken for the product's photo.
+    return MessageSpec(embeds=(embed,), rows=rows, files=tuple(files), banner=banner, banner_in_card=False)
 
 
 # ---------------------------------------------------------------------------------------------------
@@ -463,10 +466,11 @@ def _product_inputs(op: OperatorText, money: MoneyFormat, product: Product | Non
     )
 
 
-def add_form(op: OperatorText, money: MoneyFormat, nonce: int | str) -> ModalSpec:
-    """Staff-only form that creates a product. ``nonce`` makes a repeated submission idempotent."""
+def add_form(op: OperatorText, money: MoneyFormat, nonce: int | str, *, with_image: bool = False) -> ModalSpec:
+    """Staff-only form that creates a product. ``nonce`` makes a repeated submission idempotent; ``with_image``: a
+    picture came with the command."""
     return ModalSpec(
-        custom_id=add_form_custom_id(nonce),
+        custom_id=add_form_custom_id(nonce, with_image=with_image),
         title=op("catalog.form.add_title"),
         inputs=_product_inputs(op, money, None),
     )

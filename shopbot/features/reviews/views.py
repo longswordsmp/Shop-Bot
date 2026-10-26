@@ -7,7 +7,7 @@ optional text is omitted). Customer data (the comment, the reviewer's name) is e
 ``mention_user_ids`` of a spec are allowed to ping. The staff approval message is a business message (content keys
 ``reviews.approval.*``); staff command output, the staff reject form and staff replies use operator text (``op``).
 
-Banners (shown above the embeds, never inside one): the request and the published review show ``reviews``. The
+Banners (closing the card at its bottom): the request and the published review show ``reviews``. The
 request message is later replaced by thanks (``successful-confirmation``), thanks while approval is pending
 (``pending-review``), declined (``general-response``) or expired (``cancellation``); every state sets its own banner,
 so an edit swaps it. The approval message follows its state (``APPROVAL_BANNERS``). Customer notices: approved

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from shopbot.config.content import validate_value
@@ -33,6 +34,12 @@ def test_the_shipped_icons_all_load() -> None:
     assert library.problems == ()
     assert {"dot_blue", "dot_yellow", "dot_grey", "step_1", "truck", "gift", "st_shipped"} <= library.names
     assert all(len(icon.data) <= MAX_ICON_BYTES for icon in library.files.values())
+    # The folder holds exactly the rendered set: every icon of tools/icons/icons.json, nothing else.
+    spec = json.loads((ROOT / "tools" / "icons" / "icons.json").read_text(encoding="utf-8"))
+    names = [icon["name"] for icon in spec["icons"]]
+    assert len(names) == len(set(names))
+    assert library.names == set(names)
+    assert all(icon["color"] in spec["colors"] for icon in spec["icons"])
 
 
 def test_bad_icon_files_are_problems_not_failures(tmp_path: Path) -> None:
@@ -63,8 +70,8 @@ async def test_placeholders_render_in_text_kinds_only_and_unknown_icons_are_prob
         key = ck("x.description", Kind.DESCRIPTION, "core", "g", "doc", placeholders=("n",))
         assert validate_value(key, "{icon_truck} Order {n}", app.content.icon_names()) == []
         assert "icons that do not exist: nope" in validate_value(key, "{icon_nope} x", app.content.icon_names())[0]
-        label = ck("x.button", Kind.BUTTON_LABEL, "core", "g", "doc")
-        assert "cannot show icons here" in validate_value(label, "{icon_truck} Buy")[0]
+        footer = ck("x.footer", Kind.FOOTER, "core", "g", "doc")
+        assert "cannot show icons here" in validate_value(footer, "{icon_truck} Buy")[0]
         emoji = ck("x.emoji", Kind.EMOJI, "core", "g", "doc")
         assert validate_value(emoji, "{icon_truck}") == []
         # Rendering: a key with and without declared placeholders.

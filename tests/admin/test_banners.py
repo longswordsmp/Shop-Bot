@@ -22,7 +22,7 @@ from tests.admin.test_edit_text import as_discord_message, run_edit_text
 from tests.admin.util import admin, attachment_text, customer, run_command, sent
 from tests.fakes import FakeMember, FakeMessage, click, submit_modal
 from tests.guides.util import guide_env, messages
-from tests.helpers import BASE_SETTINGS, TestEnv, banner_names, make_banner_env
+from tests.helpers import BASE_SETTINGS, TestEnv, banner_names, make_banner_env, uploaded
 
 
 @pytest.fixture
@@ -73,12 +73,12 @@ async def test_paging_keeps_the_banner_without_uploading_it_again(benv: TestEnv)
     user = admin(benv)
     message = sent(await run_command(benv, "status", user=user, feature="tickets"))
     assert_banner(benv, message, "staff-dashboard")
-    uploaded = message.attachments[0]
+    first = message.attachments[0]
     for page in (2, 3, 1):
         clicked = await click(benv.app, user=user, custom_id=f"sb:ad:status:tickets:{page}", message=message)
         assert clicked.response_kinds() == ["edit_message"]
-        assert "attachments" not in message.edits[-1]  # the banner on the message is kept as it is
-        assert message.attachments == [uploaded]
+        assert uploaded(message.edits[-1]) == []  # the banner on the message is kept as it is
+        assert message.attachments == [first]
     assert len(message.edits) == 3
 
 
@@ -124,7 +124,7 @@ async def test_content_missing_paging_keeps_the_banner(benv: TestEnv) -> None:
     message = sent(await run_command(benv, "missing", group="content", user=user))
     assert "sb:ad:miss:-:2" in message.custom_ids()
     await click(benv.app, user=user, custom_id="sb:ad:miss:-:2", message=message)
-    assert "attachments" not in message.edits[-1]
+    assert uploaded(message.edits[-1]) == []
     assert_banner(benv, message, "staff-dashboard")
 
 

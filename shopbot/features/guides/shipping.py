@@ -413,12 +413,12 @@ def shipping_messages(
     ui: Ui, s: ShippingSettings, checkout: CheckoutSettings, texts: common.Texts
 ) -> list[MessageSpec]:
     """The shipping card's messages, then one message per country in ``shipping.list_areas`` (one card per message;
-    only the first shows the banner). Raises ``MissingContent``/``ChannelNotCreated`` at runtime when text or a
-    channel is missing (nothing incomplete is posted)."""
-    specs = common.guide_messages(ui, [shipping_card(ui, s, checkout, texts).block()], banner="shipping")
+    the last one closes the panel with the banner). Raises ``MissingContent``/``ChannelNotCreated`` at runtime when
+    text or a channel is missing (nothing incomplete is posted)."""
+    specs = block_messages(ui, [shipping_card(ui, s, checkout, texts).block()], banner=None)
     for code in s.list_areas:
         specs += block_messages(ui, [areas_card(texts, s, code).block()], banner=None)
-    return specs
+    return common.with_closing_banner(ui, specs, "shipping")
 
 
 # -- runtime ---------------------------------------------------------------------------------------------------

@@ -3,8 +3,9 @@
 - ``announcement_form``: the staff-only form (operator text labels). Its custom id carries only the form's token.
 - ``announcement_message``: the customer-facing post in the announcements channel. Title, message and field values
   are typed by staff; field headings come from content keys; footer/author/branding imagery from the shared branding
-  configuration. The announcements banner picture is uploaded first (shown above the embed); an uploaded image is
-  uploaded after it and referenced as ``attachment://<filename>`` so it stays attached to the message.
+  configuration. The announcements banner picture is uploaded first (it closes the card, or shows above it when the
+  announcement has an image); an uploaded image is uploaded after it and referenced as ``attachment://<filename>``
+  so it stays attached to the message.
 - ``reply_spec`` and the ``*_reply`` helpers: the private operator replies (confirmation and errors), each with the
   banner of its outcome.
 """
@@ -165,7 +166,7 @@ def announcement_message(
 @dataclass(frozen=True)
 class Reply:
     """A private operator reply. ``retry_token`` adds the "edit and try again" button (reopens the prefilled form);
-    ``banner`` is the picture shown above it."""
+    ``banner`` is the picture closing it."""
 
     title: str
     lines: tuple[str, ...] = ()

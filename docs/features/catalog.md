@@ -47,7 +47,7 @@ continues the customer's private ticket and carries the selected listing into th
 
 | Command | What it does |
 |---|---|
-| `/product add` | Opens the product form (name, price, stock, per-order limit, description). |
+| `/product add [image]` | Opens the product form (name, price, stock, per-order limit, description). With `image:<file>` the picture is saved to the new product once the form is submitted (kept in memory for 30 minutes; after a restart or a later submission the reply says to add it with `/product image`). |
 | `/product edit product_id` | Opens the form prefilled; stale edits are refused. |
 | `/product price` / `stock` / `toggle` / `sort` | Single-field changes. |
 | `/product image product_id [url] [file]` | Image link **or** uploaded file; neither = remove the image. |
@@ -103,7 +103,7 @@ loads file bytes only for messages that are actually sent or edited (hashes use 
 
 1. Configure the catalog and checkout text (`/status` lists what is missing), set the currency and payment provider,
    run `/setup`. `#catalog` shows the header message, then one message per product.
-2. `/product add` a product with stock 2; check its card is green (success) with an enabled buy button.
+2. `/product add image:<a PNG>` a product with stock 2; check its card is green (success) with an enabled buy button and shows the picture under its name.
 3. `/product image product_id:<id> file:<a PNG>`; the card shows the image. `/product stock product_id:<id> mode:add
    amount:1`; the image is still shown after the edit. Restart the bot; the image is still shown.
 4. As a member without an order channel, click Buy: a private order channel opens with the product in the cart and

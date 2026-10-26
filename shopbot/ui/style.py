@@ -152,7 +152,7 @@ class Ui:
         return self.embed(title=self.content.get(ck.ERROR_TITLE), description=description, tone="danger")
 
     def error_message(self, key: str, /, **values: str | int) -> MessageSpec | None:
-        """The private error reply for ``key`` exactly as it is sent (and previewed): the error banner above the error
+        """The private error reply for ``key`` exactly as it is sent (and previewed): the error banner closing the error
         embed. None when the text is not configured (the caller then answers without inventing wording)."""
         embed = self.error_embed(key, **values)
         if embed is None:
@@ -179,6 +179,9 @@ class Ui:
         disabled: bool = False,
         values: dict[str, str | int] | None = None,
     ) -> ButtonSpec | None:
+        """A button from content. Its label may start with an icon ("{icon_cart} Start order", or the icon alone),
+        which Discord shows as the button's emoji (``ui.component_emoji``); an ``emoji_key`` emoji wins over it. None
+        when there is nothing to show."""
         label = self.content.render(label_key, **(values or {})) if label_key else None
         emoji = self.content.render(emoji_key) if emoji_key else None
         if not label and not emoji:
@@ -186,7 +189,8 @@ class Ui:
         return ButtonSpec(label=label, custom_id=custom_id, style=style, emoji=emoji, disabled=disabled)
 
     def link_button(self, label_key: str, url_key: str, *, emoji_key: str | None = None) -> ButtonSpec | None:
-        label = self.content.get(label_key)
+        """A link button from content; its label may start with an icon, as in ``button``."""
+        label = self.content.render(label_key)
         url = self.content.get(url_key)
         if not label or not url:
             return None
@@ -202,6 +206,8 @@ class Ui:
         emoji: str | None = None,
         default: bool = False,
     ) -> SelectOptionSpec | None:
+        """A select option from an already rendered ``label`` (an option label key may start with an icon, shown as
+        the option's emoji, as in ``button``). None without a label."""
         if not label:
             return None
         return SelectOptionSpec(label=label, value=value, description=description, emoji=emoji, default=default)

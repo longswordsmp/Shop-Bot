@@ -17,6 +17,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import discord
+
 from shopbot.config.content_keys import Kind, Registry
 from shopbot.config.settings import Settings, parse_settings
 from shopbot.context import App
@@ -248,3 +250,16 @@ async def make_banner_env(tmp_path: Path, overrides: dict[str, Any] | None = Non
 def banner_names(message: Any) -> list[str]:
     """Names of the banner files a sent fake message carries."""
     return [f.filename for f in message.files if f.filename.startswith("banner-")]
+
+
+def banner_in_card(message: Any) -> str | None:
+    """The banner file a sent fake message shows as the image of its last embed (at the bottom of the card), or None
+    (no banner, or the banner shows above the embeds because the last embed has a picture of its own)."""
+    url = message.embeds[-1].image.url if message.embeds else None
+    name = url[len("attachment://") :] if url and url.startswith("attachment://") else None
+    return name if name is not None and name.startswith("banner-") else None
+
+
+def uploaded(edit: dict[str, Any]) -> list[str]:
+    """Names of the files an edit (one of ``FakeMessage.edits``) uploaded; attachments it kept are not uploads."""
+    return [item.filename for item in edit.get("attachments") or [] if isinstance(item, discord.File)]

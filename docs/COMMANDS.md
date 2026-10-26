@@ -110,7 +110,7 @@ Default visibility: manage_guild
 
 | Command | Access | Description | Options |
 |---|---|---|---|
-| `/product add` | staff | Create a product (opens the product form). | - |
+| `/product add` | staff | Create a product (opens the product form), optionally with its picture. | `image` (optional): The product's picture: PNG, JPEG, GIF or WebP, at most 8 MB (stored by the bot). |
 | `/product edit` | staff | Edit a product's name, price, stock, limit and description. | `product_id`: Product number (see /product list). |
 | `/product price` | staff | Set a product's price. | `product_id`: Product number.; `amount`: New price, e.g. 12.50 (in the shop currency). |
 | `/product stock` | staff | Set or change a product's stock, or make it unlimited. | `product_id`: Product number.; `mode`: set: units on hand; add: add (or remove, if negative) units; unlimited: no stock limit.; `amount` (optional): Number of units (not needed for 'unlimited'). |

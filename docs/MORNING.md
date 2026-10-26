@@ -135,8 +135,9 @@ instead of duplicated.
 
 Then **`/setup`**. It creates or repairs roles, categories, channels and permissions, gives the Owner role to
 `OWNER_ID`, and posts every panel: 📜・welcome (rules + Verify), 🧭・how-to-order, ❔・faq, 🚚・shipping, 📦・catalog,
-✨・new-arrivals and 🛒・place-order (Start + Report a Problem), each with its banner picture at the top. It is safe to
-run again any time; it never duplicates or deletes anything except withdrawing panels of features that are not ready.
+✨・new-arrivals and 🛒・place-order (Start + Report a Problem), each with its banner picture at the bottom of its
+card. It is safe to run again any time; it never duplicates or deletes anything except withdrawing panels of features
+that are not ready.
 `/status` should show every enabled feature as **ready**.
 
 Check: Server Settings → Roles shows the bot's role **above** Owner, Staff, Member, Customer and Restock Alerts
@@ -182,9 +183,9 @@ stars), a 24-hour unpaid-order reminder, cart expiry after 24 hours, the shippin
 reminders. The full list is in `docs/DECISIONS.md` §10a.
 
 **Banners:** `config/banners/` holds one picture per kind of message (`welcome.png`, `faq.png`,
-`selection-and-cart.png`, `error.png`, ...). Replace a file with your own picture of the same name (PNG/JPEG/GIF/WebP,
-at most 2 MB, 1500×500 recommended) to change it, then `/reload` and `/setup`. To hide one kind, add its name to
-`[banners] off` in `settings.toml`; `enabled = false` hides them all.
+`selection-and-cart.png`, `error.png`, ...), shown at the bottom of that message's card. Replace a file with your own
+picture of the same name (PNG/JPEG/GIF/WebP, at most 2 MB, 1500×500 recommended) to change it, then `/reload` and
+`/setup`. To hide one kind, add its name to `[banners] off` in `settings.toml`; `enabled = false` hides them all.
 
 **Icons:** `config/emojis/` holds the small pictures the texts use like emojis (`{icon_truck}`, `{icon_dot_blue}`,
 ...). Replace a file with your own 128×128 PNG of the same name, then `/reload` and `/setup`. `docs/CONFIGURATION.md`
@@ -207,9 +208,14 @@ Use a second (non-staff) Discord account as the "customer".
 - [ ] Customer account before Verify: sees only 📌 INFORMATION (read-only).
 - [ ] #welcome Verify → private confirmation; 🏬 SHOP and 🧾 ORDERS appear; clicking again says already verified.
 - [ ] #how-to-order link buttons open #catalog, #place-order, #faq; #faq shows its topics and #shipping your countries with their dots.
+- [ ] #shipping: Standard says "about 2 weeks" and Expedited "usually 3–4 days"; the US states are listed one by one
+      and the banner closes the panel at the very bottom (under the states).
+- [ ] Icons: buttons show their small icon in front of the label (e.g. Start order, Back, Continue), section headings
+      and field names show theirs, and no card title shows raw text like `<:truck:123…>`.
 
 **Catalog & new arrivals**
-- [ ] `/product add` (staff) → its own message in #catalog with a Buy button; `/product stock 0` → button disabled, red.
+- [ ] `/product add image:<a picture>` (staff) → its own message in #catalog with the picture under its name and a Buy
+      button; `/product stock 0` → button disabled, red.
 - [ ] `/product image file:` (upload) → image shows, still there after `/product edit` and a bot restart.
 - [ ] #new-arrivals button → Restock Alerts on, again → off. Restock a sold-out product → one update pinging the role.
 
@@ -257,8 +263,12 @@ customers see it only if you include `{error_id}` in your `common.error.generic`
   restarts, banners kept/replaced on edits, `/reset` refusals, interruptions and the rebuild with the shipped
   settings), type checks, lint, Discord-limit and handler-coverage checks with the shipped text, offline preview.
 - ❌ Not yet verified by us: running in a real Discord server. In particular, check on desktop and phone that each
-  banner shows **above** its message (Discord places pictures that no embed uses above the embeds; this could not be
-  tested offline), that the icons appear (the upload of application emojis was tested against a stand-in for
-  Discord only), the welcome mention and its removal after 30 seconds, and `/reset` on your real server (Discord's
-  own refusals, e.g. for Onboarding channels, only show up there; they are reported and skipped). Steps 9–12 are
-  that verification.
+  banner shows **inside its card, at the bottom** (the card's image), and above the card only where the card shows a
+  picture of its own (a product or announcement image, the welcome image when one is set); that a banner still
+  shows after its message is edited (a button click, a status change on the order ticket or #orders record: the bot
+  keeps the uploaded picture and refers to it again, which could not be tested offline); that the icons appear (the
+  upload of application emojis was tested against a stand-in for Discord only), in particular in field names and as
+  button emojis (Discord's documentation does not say whether field names show custom emoji; titles do not, so the
+  bot leaves icons out of titles), the welcome mention and its removal
+  after 30 seconds, and `/reset` on your real server (Discord's own refusals, e.g. for Onboarding channels, only show
+  up there; they are reported and skipped). Steps 9–12 are that verification.

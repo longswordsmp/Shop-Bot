@@ -74,12 +74,12 @@ STATUS_TONES = {
 # The live record's banner follows the order's status (the same pictures as the customer's order view): a status
 # change swaps it, a claim, note or tracking change keeps it without uploading it again.
 RECORD_BANNERS: Mapping[str, BannerId] = {
-    m.PENDING: "pending-review",
+    m.PENDING: "order-status",  # waiting for the payment, not under review yet
     m.PAYMENT_SUBMITTED: "pending-review",
     m.PAID: "successful-confirmation",
     m.PROCESSING: "submission-and-processing",
     m.SHIPPED: "completed-or-dispatched",
-    m.FULFILLED: "completed-or-dispatched",
+    m.FULFILLED: "successful-confirmation",  # delivered (the dispatched van is for shipped)
     m.CANCELLED: "cancellation",
     m.EXPIRED: "cancellation",
     m.REJECTED: "rejected-or-unsuccessful-submission",
@@ -216,6 +216,7 @@ def timeline_entries(ui: Ui, data: h.StaffData) -> list[TimelineEntry]:
 
 
 def timeline_lines(ui: Ui, entries: Sequence[TimelineEntry]) -> list[str]:
+    """One line per stage; an automatic stage has no actor (and no trailing space where the actor would be)."""
     return [
         _text(
             ui,
@@ -223,7 +224,7 @@ def timeline_lines(ui: Ui, entries: Sequence[TimelineEntry]) -> list[str]:
             time=_when(e.created_at),
             stage=e.stage,
             actor=views.user_mention(e.actor_id) if e.actor_id else "",
-        )
+        ).rstrip()
         for e in entries
     ]
 

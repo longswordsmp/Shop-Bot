@@ -20,6 +20,7 @@ import discord
 
 from shopbot.db.repos import state
 from shopbot.logging_setup import log_event
+from shopbot.ui.banners import place_banner
 from shopbot.ui.discord_render import edit_spec, send_spec
 from shopbot.ui.spec import MessageSpec
 
@@ -33,9 +34,9 @@ Prepare = Callable[[MessageSpec], Awaitable[MessageSpec]]
 
 
 def spec_hash(spec: MessageSpec) -> str:
-    """Digest of everything a message shows. Files and the banner count by name, type and sha256 (never by their
-    bytes), so a new image re-renders the message; a spec without files and banner hashes exactly as before they
-    existed."""
+    """Digest of everything a message shows, as it is sent (the banner placed in the card, ``place_banner``). Files
+    and the banner count by name, type and sha256 (never by their bytes), so a new image re-renders the message."""
+    spec = place_banner(spec)
     data = asdict(replace(spec, files=None, banner=None))
     del data["files"], data["banner"]
     if spec.files is not None:

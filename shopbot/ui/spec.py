@@ -123,9 +123,13 @@ class MessageSpec:
     # attachments alone). A tuple: exactly these attachments (an edit replaces them; () removes all), so a message
     # that shows ``attachment://`` images keeps them attached through every edit.
     files: tuple[FileSpec, ...] | None = None
-    # Banner picture shown above the embeds (``shopbot.ui.banners``): uploaded as the message's first attachment and
-    # never referenced by an embed. Independent of ``files``; None = no banner (an edit removes an earlier one).
+    # Banner picture (``shopbot.ui.banners``): uploaded as the message's first attachment; when sent it closes the last
+    # card at its bottom (``place_banner``), or shows above the embeds when that card has a picture of its own.
+    # Independent of ``files``; None = no banner (an edit removes an earlier one).
     banner: FileSpec | None = None
+    # False: the banner always shows above the embeds, never in a card's picture slot (product cards, where a picture
+    # at the bottom reads as the product's photo).
+    banner_in_card: bool = True
 
     @property
     def mention_text(self) -> str | None:

@@ -13,7 +13,7 @@ from shopbot.features.my_orders import views
 from tests.credits.util import make_order
 from tests.customer_panel.util import MY_ORDERS, run_my_orders
 from tests.fakes import FakeInteraction, FakeMessage, click
-from tests.helpers import TestEnv, banner_names, deep_merge, make_banner_env
+from tests.helpers import TestEnv, banner_names, deep_merge, make_banner_env, uploaded
 
 
 @pytest.fixture
@@ -53,6 +53,6 @@ async def test_every_page_shows_the_account_banner_and_paging_keeps_it(bn: TestE
 
     for page in (1, 2, 0):
         await click(bn.app, user=customer, custom_id=views.page_id(customer.id, page), message=first)
-        assert "attachments" not in first.edits[-1]  # the same banner: not uploaded again
+        assert uploaded(first.edits[-1]) == []  # the same banner: not uploaded again
         assert banner_names(first) == [name(bn, "account-and-personal-records")]
     assert len(first.edits) == 3

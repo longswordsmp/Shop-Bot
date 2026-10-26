@@ -99,7 +99,7 @@ async def reply_operator(
     files: Sequence[discord.File] = (),
     banner: FileSpec | None = None,
 ) -> None:
-    """Admin-only reply with operator wording (always ephemeral). ``banner``: the picture above it
+    """Admin-only reply with operator wording (always ephemeral). ``banner``: the picture closing it
     (``app.ui.banner(...)``); ``files`` are uploaded after it."""
     app = app_of(interaction)
     spec = MessageSpec(embeds=(app.ui.operator_embed(title, description, tone=tone, fields=fields),), banner=banner)

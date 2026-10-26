@@ -50,7 +50,10 @@ async def on_add_form(ctx: Ctx) -> None:
     _require_manager(ctx)
     await ctx.defer_reply(ephemeral=True)
     nonce = ctx.args[0] if ctx.args else None
-    reply = await service.create_from_form(ctx.app, actor_id=ctx.user_id, fields=ctx.fields, nonce=nonce)
+    with_image = len(ctx.args) > 1 and ctx.args[1] == "1"
+    reply = await service.create_from_form(
+        ctx.app, actor_id=ctx.user_id, fields=ctx.fields, nonce=nonce, with_image=with_image
+    )
     await ctx.respond(service.reply_spec(ctx.app, reply), ephemeral=True)
 
 

@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import itertools
 import types
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Iterable
 from datetime import UTC, datetime
 from typing import Any
 
@@ -199,6 +199,16 @@ def _message_kwargs(kwargs: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
+def check_attachment_images(embeds: Iterable[discord.Embed], names: Iterable[str]) -> None:
+    """Discord resolves an embed's ``attachment://`` picture against the files sent with the message (or the
+    attachments an edit sends): a reference to anything else fails the test instead of showing a broken picture."""
+    available = set(names)
+    for embed in embeds:
+        for url in (embed.image.url, embed.thumbnail.url, embed.author.icon_url, embed.footer.icon_url):
+            if url and url.startswith("attachment://") and url[len("attachment://") :] not in available:
+                raise AssertionError(f"an embed shows {url}, which is not an attachment sent with the message")
+
+
 class FakeAttachment:
     def __init__(
         self,
@@ -243,6 +253,7 @@ class FakeMessage:
         self.attachments = (
             list(attachments) if attachments is not None else [FakeAttachment(f.filename, file=f) for f in self.files]
         )
+        check_attachment_images(self.embeds, (f.filename for f in self.files))
         self.created_at = created_at or datetime.now(tz=UTC)
         self.edits: list[dict[str, Any]] = []
         self.deleted = False
@@ -257,6 +268,8 @@ class FakeMessage:
     async def edit(self, **kwargs: Any) -> FakeMessage:
         if self.deleted:
             raise http_error(discord.NotFound, 404, 10008, "Unknown Message")
+        if kwargs.get("embeds"):
+            check_attachment_images(kwargs["embeds"], (item.filename for item in kwargs.get("attachments") or []))
         self.edits.append(kwargs)
         if "embeds" in kwargs:
             self.embeds = list(kwargs["embeds"] or [])

@@ -240,18 +240,18 @@ async def test_the_order_banner_follows_its_status_on_the_message_and_in_notific
     watch = Watch(bco, message)
     await submit(bco, customer, message, session.id)
     placed = await order(bco, (await reload_session(bco, session.id)).order_id or 0)
-    assert watch.swapped("pending-review")
-    assert shows(bco, customer.dms[-1], "pending-review")  # submission received
+    assert watch.swapped("order-status")  # waiting for the payment
+    assert shows(bco, customer.dms[-1], "order-status")  # submission received
     # The customer's cancel question and going back.
     await press(bco, customer, message, views.order_cancel_id(placed.id))
     assert watch.swapped("general-response")
     await press(bco, customer, message, views.order_cancel_no_id(placed.id))
-    assert watch.swapped("pending-review")
+    assert watch.swapped("order-status")
     # Staff move the order on: the message and the notification follow each status.
     steps: list[tuple[str, BannerId]] = [
         (m.PAID, "successful-confirmation"),
         (m.PROCESSING, "submission-and-processing"),
-        (m.FULFILLED, "completed-or-dispatched"),
+        (m.FULFILLED, "successful-confirmation"),
     ]
     for status, banner_id in steps:
         dms = len(customer.dms)
@@ -261,14 +261,14 @@ async def test_the_order_banner_follows_its_status_on_the_message_and_in_notific
         assert len(customer.dms) == dms + 1 and shows(bco, customer.dms[-1], banner_id), status
     # Showing the unchanged status view again keeps the banner without uploading it again.
     assert await service.refresh_customer_message(bco.app, placed.id)
-    assert watch.kept("completed-or-dispatched")
+    assert watch.kept("successful-confirmation")
     # Tracking details entered after completion: their own notification.
     await staff.set_tracking(bco.app, await order(bco, placed.id), actor_id=staffer.id, text="[sample tracking]")
     assert shows(bco, customer.dms[-1], "order-status")
     # A partial refund, then the rest: the order is settled.
     await service.refund(bco.app, placed.id, amount_minor=400, to_credit=False, reason=None, actor_id=staffer.id)
     assert shows(bco, customer.dms[-1], "order-status")
-    assert shows(bco, message, "completed-or-dispatched")  # still fulfilled
+    assert shows(bco, message, "successful-confirmation")  # still fulfilled
     await service.refund(bco.app, placed.id, amount_minor=600, to_credit=False, reason=None, actor_id=staffer.id)
     assert (await order(bco, placed.id)).status == m.REFUNDED
     assert watch.swapped("resolution")
@@ -316,13 +316,13 @@ async def test_notifications_in_the_ticket_keep_their_banner(tmp_path: Path) -> 
         _, ch, message = await place_order(tenv, customer, [(p1.id, 1)])
         submitted = ch.messages[-1]
         assert submitted is not message and submitted.content == customer.mention
-        assert shows(tenv, submitted, "pending-review")
+        assert shows(tenv, submitted, "order-status")
         tenv.clock.advance(30 * 60)
         await tenv.app.scheduler.run_due()  # the payment reminder
         reminder = ch.messages[-1]
         assert reminder is not submitted and len(reminder.embeds) == 1  # one card, with the payment instructions
         assert shows(tenv, reminder, "reminder")
-        assert shows(tenv, message, "pending-review")  # the live message is unchanged
+        assert shows(tenv, message, "order-status")  # the live message is unchanged
     finally:
         await tenv.close()
 
@@ -351,7 +351,7 @@ async def test_order_continuation_messages_show_no_banner(tmp_path: Path) -> Non
         customer = tenv.member()
         p1 = await add_product(tenv, "[p1]")
         _, ch, message = await place_order(tenv, customer, [(p1.id, 1)])
-        assert shows(tenv, message, "pending-review")
+        assert shows(tenv, message, "order-status")
         separate = [msg for msg in ch.messages[2:] if msg.author is ch.guild.me]
         assert separate and all(shows(tenv, msg, None) for msg in separate)
     finally:
@@ -395,26 +395,26 @@ EXPECTED: dict[str, BannerId] = {
     "workflow_cancelled": "cancellation",
     "workflow_expired": "cancellation",
     "workflow_closed_by_staff": "cancellation",
-    "order_submitted": "pending-review",
-    "order_submitted_largest": "pending-review",
+    "order_submitted": "order-status",
+    "order_submitted_largest": "order-status",
     "order_cancel_confirm": "general-response",
     "order_payment_submitted": "pending-review",
     "order_paid": "successful-confirmation",
     "order_processing": "submission-and-processing",
     "order_shipped": "completed-or-dispatched",
-    "order_fulfilled": "completed-or-dispatched",
+    "order_fulfilled": "successful-confirmation",
     "order_cancelled": "cancellation",
     "order_rejected": "rejected-or-unsuccessful-submission",
     "order_expired": "cancellation",
     "order_refunded": "resolution",
-    "notify_submitted": "pending-review",
+    "notify_submitted": "order-status",
     "notify_payment_submitted": "pending-review",
     "notify_paid": "successful-confirmation",
     "notify_processing": "submission-and-processing",
     "notify_shipped": "completed-or-dispatched",
     "notify_shipped_with_tracking": "completed-or-dispatched",
-    "notify_fulfilled": "completed-or-dispatched",
-    "notify_fulfilled_with_tracking": "completed-or-dispatched",
+    "notify_fulfilled": "successful-confirmation",
+    "notify_fulfilled_with_tracking": "successful-confirmation",
     "notify_cancelled": "cancellation",
     "notify_rejected": "rejected-or-unsuccessful-submission",
     "notify_rejected_with_reason": "rejected-or-unsuccessful-submission",

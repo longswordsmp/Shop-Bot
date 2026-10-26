@@ -16,12 +16,19 @@ if (!tabler) {
 const spec = JSON.parse(fs.readFileSync(path.join(__dirname, 'icons.json'), 'utf8'));
 const SIZE = 128;
 
-function glyph(icon) {
+// An icon's optional "shift": [x, y] moves its glyph by that many units of Tabler's 24-unit grid, to centre a glyph
+// that Tabler draws off-centre (e.g. a person with a small mark on the right).
+function glyph(icon, shift) {
   const file = path.join(tabler, 'icons', `${icon}.svg`);
+  const [dx, dy] = shift || [0, 0];
   let svg = fs.readFileSync(file, 'utf8');
-  svg = svg.replace(/<svg[^>]*>/, (tag) => tag
-    .replace(/width="[^"]*"/, 'width="84"').replace(/height="[^"]*"/, 'height="84"')
-    .replace(/stroke-width="[^"]*"/, 'stroke-width="2.25"'));
+  svg = svg.replace(/<svg[^>]*>/, (tag) => {
+    let out = tag
+      .replace(/width="[^"]*"/, 'width="84"').replace(/height="[^"]*"/, 'height="84"')
+      .replace(/stroke-width="[^"]*"/, 'stroke-width="2.25"');
+    if (dx || dy) out = out.replace(/viewBox="[^"]*"/, `viewBox="${-dx} ${-dy} 24 24"`);
+    return out;
+  });
   return svg.replace(/currentColor/g, '#FFFFFF');
 }
 
@@ -36,7 +43,7 @@ function html(item) {
       ${item.text}</div>`;
   } else {
     body = `<div style="width:120px;height:120px;border-radius:50%;background:${color};display:flex;align-items:center;
-      justify-content:center">${glyph(item.icon)}</div>`;
+      justify-content:center">${glyph(item.icon, item.shift)}</div>`;
   }
   return `<html><body style="margin:0;background:transparent"><div id="c" style="width:${SIZE}px;height:${SIZE}px;
     display:flex;align-items:center;justify-content:center">${body}</div></body></html>`;

@@ -18,7 +18,7 @@ from shopbot.features.tickets import content_keys as k
 from shopbot.ui.custom_ids import cid
 from shopbot.ui.limits import FILES_TOTAL_BYTES
 from tests.fakes import FakeMessage, FakeTextChannel, click, submit_modal
-from tests.helpers import TestEnv, banner_names, deep_merge, make_banner_env, provision_channels
+from tests.helpers import TestEnv, banner_names, deep_merge, make_banner_env, provision_channels, uploaded
 from tests.tickets.util import (
     advance_past_cooldown,
     bot_messages,
@@ -80,7 +80,7 @@ async def test_ticket_lifecycle_messages_carry_their_banners(bt: TestEnv) -> Non
     prompt = (await click(bt.app, user=customer, custom_id=cid("tk", "close", ticket.id))).last_sent
     assert prompt is not None and banner_names(prompt) == [name(bt, "general-response")]
     await click(bt.app, user=customer, custom_id=cid("tk", "closeok", ticket.id), message=prompt)
-    assert prompt.view is None and "attachments" not in prompt.edits[-1]
+    assert prompt.view is None and uploaded(prompt.edits[-1]) == []
     assert banner_names(prompt) == [name(bt, "general-response")]
     closed = _closed_message(ch, ticket.id)
     assert banner_names(closed) == [name(bt, "resolution")]
@@ -162,7 +162,7 @@ async def test_delete_prompt_and_transcript_button_reply(bt: TestEnv) -> None:
     prompt = (await click(bt.app, user=staff, custom_id=cid("tk", "delete", ticket.id), message=closed)).last_sent
     assert prompt is not None and banner_names(prompt) == [name(bt, "general-response")]
     await click(bt.app, user=staff, custom_id=cid("tk", "delno", ticket.id), message=prompt)
-    assert prompt.view is None and "attachments" not in prompt.edits[-1]
+    assert prompt.view is None and uploaded(prompt.edits[-1]) == []
     assert banner_names(prompt) == [name(bt, "general-response")]
 
     reply = (await click(bt.app, user=staff, custom_id=cid("tk", "transcript", ticket.id), message=closed)).last_sent

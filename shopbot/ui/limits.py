@@ -1,7 +1,9 @@
 """Discord message, embed, component, and modal limits.
 
 ``validate_message`` / ``validate_modal`` report every violation. Nothing is truncated: text supplied by
-the business is either sent exactly as written or not sent at all.
+the business is either sent exactly as written or not sent at all. Buttons and select options are checked as they are
+sent: a custom emoji at the start of a label counts as the component's emoji, not as label text
+(``ui.component_emoji``).
 
 Limits reference: https://discord.com/developers/docs/resources/message#embed-object-embed-limits and
 https://discord.com/developers/docs/components/reference
@@ -12,6 +14,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from shopbot.ui.component_emoji import split_button, split_option
 from shopbot.ui.spec import ButtonSpec, EmbedSpec, FileSpec, MessageSpec, ModalSpec, SelectSpec
 
 EMBEDS_PER_MESSAGE = 10
@@ -137,6 +140,7 @@ def validate_message(spec: MessageSpec) -> list[Violation]:
         for c_index, component in enumerate(row):
             cpath = f"{rpath}[{c_index}]"
             if isinstance(component, ButtonSpec):
+                component = split_button(component)
                 if not component.label and not component.emoji:
                     out.append(Violation(cpath, "button has neither label nor emoji"))
                 _blank(f"{cpath}.label", component.label, out)
@@ -160,7 +164,7 @@ def validate_message(spec: MessageSpec) -> list[Violation]:
                 if not (0 <= component.min_values <= component.max_values <= max(1, len(component.options))):
                     out.append(Violation(cpath, "min_values/max_values are inconsistent with the options"))
                 values: set[str] = set()
-                for o_index, option in enumerate(component.options):
+                for o_index, option in enumerate(map(split_option, component.options)):
                     opath = f"{cpath}.options[{o_index}]"
                     _blank(f"{opath}.label", option.label, out)
                     _len(f"{opath}.label", option.label, OPTION_LABEL, out)
@@ -179,7 +183,8 @@ def message_files(spec: MessageSpec) -> tuple[FileSpec, ...]:
 
 def _validate_files(spec: MessageSpec, out: list[Violation]) -> None:
     """Uploaded files (banner included): count, total size, names, and every ``attachment://`` image refers to one
-    of ``spec.files`` (never to the banner, which must stay a separate picture above the embeds)."""
+    of the message's files; the banner only as the image of the last embed, where ``ui.banners.place_banner`` puts it
+    (so a spec is valid both as built and as sent)."""
     files = message_files(spec)
     if len(files) > FILES_PER_MESSAGE:
         out.append(Violation("message.files", f"{len(files)} files exceeds {FILES_PER_MESSAGE}"))
@@ -205,7 +210,8 @@ def _validate_files(spec: MessageSpec, out: list[Violation]) -> None:
                 continue
             name = value[len(ATTACHMENT_SCHEME) :]
             if spec.banner is not None and name == spec.banner.filename:
-                out.append(Violation(f"embeds[{index}].{attr}", "an embed must not show the banner"))
+                if attr != "image_url" or index != len(spec.embeds) - 1:
+                    out.append(Violation(f"embeds[{index}].{attr}", "the banner can only be the last embed's image"))
             elif name not in names:
                 out.append(Violation(f"embeds[{index}].{attr}", f"{value!r} is not a file of this message"))
 

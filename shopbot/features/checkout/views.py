@@ -108,12 +108,12 @@ def status_tone(status: str) -> str:
 
 
 _STATUS_BANNERS: dict[str, BannerId] = {
-    m.PENDING: "pending-review",
+    m.PENDING: "order-status",  # waiting for the payment, not under review yet
     m.PAYMENT_SUBMITTED: "pending-review",
     m.PAID: "successful-confirmation",
     m.PROCESSING: "submission-and-processing",
     m.SHIPPED: "completed-or-dispatched",
-    m.FULFILLED: "completed-or-dispatched",
+    m.FULFILLED: "successful-confirmation",  # delivered (the dispatched van is for shipped)
     m.CANCELLED: "cancellation",
     m.REJECTED: "rejected-or-unsuccessful-submission",
     m.EXPIRED: "cancellation",
@@ -1768,12 +1768,17 @@ def order_list_page(
     user_id: int,
 ) -> MessageSpec:
     """Staff order list (operator text): a status filter, a menu that opens an order's full record, and
-    previous/next buttons when there is more than one page."""
+    previous/next buttons when there is more than one page. Statuses show their names (as on the order record), or
+    their ids while those names are not configured, so the list works with operator text alone."""
+
+    def name(status: str) -> str:
+        return _optional(ui, k.status_label_key(status)) or status
+
     lines = [
         op(
             "checkout.list.line",
             number=o.number,
-            status=o.status,
+            status=name(o.status),
             customer=user_mention(o.user_id),
             total=amount(o.total_minor, o.currency),
             created=f"<t:{o.created_at}:d>",
@@ -1786,7 +1791,7 @@ def order_list_page(
         embed = replace(embed, footer_text=op("checkout.list.page", page=page + 1, pages=pages))
     filter_options = (
         SelectOptionSpec(label=op("checkout.list.filter_all"), value="all", default=not status),
-        *(SelectOptionSpec(label=s, value=s, default=s == status) for s in m.ORDER_STATUSES),
+        *(SelectOptionSpec(label=name(s), value=s, default=s == status) for s in m.ORDER_STATUSES),
     )
     rows: list[tuple[Component, ...]] = [
         (
@@ -1799,7 +1804,9 @@ def order_list_page(
     ]
     if orders:
         view_options = tuple(
-            SelectOptionSpec(label=op("checkout.list.view_option", number=o.number, status=o.status), value=str(o.id))
+            SelectOptionSpec(
+                label=op("checkout.list.view_option", number=o.number, status=name(o.status)), value=str(o.id)
+            )
             for o in orders
         )
         rows.append(

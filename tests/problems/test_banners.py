@@ -18,7 +18,7 @@ from shopbot.features.problems import content_keys as k
 from shopbot.features.problems import views
 from shopbot.features.problems.preview import preview
 from tests.fakes import FakeMessage, click
-from tests.helpers import TestEnv, banner_names, deep_merge, make_banner_env, provision_channels
+from tests.helpers import TestEnv, banner_names, deep_merge, make_banner_env, provision_channels, uploaded
 from tests.problems.util import (
     PROBLEM_SETTINGS,
     add_order,
@@ -74,7 +74,7 @@ async def test_the_private_step_banner_follows_the_step(bp: TestEnv) -> None:
 
     # Picking re-renders the same step: the banner is kept, not uploaded again.
     await pick(bp, user, step, "order", str(order_id))
-    assert step.edits and "attachments" not in step.edits[-1]
+    assert step.edits and uploaded(step.edits[-1]) == []
     assert banner_names(step) == [name(bp, "support-request")]
 
     # A second flow creates a report meanwhile; Continue on the first step now shows the limit (banner swapped).

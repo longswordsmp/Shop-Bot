@@ -98,7 +98,7 @@ not switched on is left out (the bot starts without it instead of being refused 
 
 | Key | Default | Meaning |
 |---|---|---|
-| `enabled` | false (shipped: true) | Show a banner picture at the top of the bot's messages. |
+| `enabled` | false (shipped: true) | Show a banner picture at the bottom of the bot's cards. |
 | `directory` | `banners` | Folder inside the config folder with one picture per banner id: `<id>.png` (or `.jpg`, `.gif`, `.webp`), at most 2 MB; 1500×500 recommended. |
 | `off` | `[]` | Banner ids not to show, e.g. `["activity-log"]` (the #bot-log entries). |
 
@@ -112,9 +112,15 @@ status updates), `completed-or-dispatched`, `staff-dashboard` (staff lists, reco
 (#staff-chat alerts), `activity-log` (#bot-log), `transcripts`, `direct-message-notification` (the Owner's DM alerts),
 `reminder`, `support-request` (Report a Problem and report tickets), `resolution` (resolved / refunded / closed),
 `cancellation`, `account-and-personal-records` (/myorders), `error` (error replies), `general-response` (other replies
-and confirmation prompts). Messages spread over several Discord messages show the banner on the first one only; a
-live message (order ticket panel, #orders record) changes banner with its status. Replace a picture file and run
-`/reload` then `/setup` to update posted panels.
+and confirmation prompts).
+
+The banner is shown inside the message's card, as its picture at the bottom (the image of the last embed). A card that
+already shows a picture of its own (a product image, an announcement image, the welcome image, the `[branding]`
+`panel_banner` image) keeps it, and its banner shows above the card instead. Messages spread over several Discord
+messages show the banner on the first one only (at the bottom of its last card); a live message (order ticket panel,
+#orders record) changes banner with its status. Replace a picture file and run `/reload` then `/setup` to update
+posted panels. A panel posted by an older version (banner above the card) moves its banner into the card the next
+time its text or picture changes.
 
 ## `[icons]`
 
@@ -126,15 +132,36 @@ live message (order ticket panel, #orders record) changes banner with its status
 The bot uploads the icons as *application emojis* when it starts: they belong to the bot, work in every channel and
 direct message, use none of the server's emoji slots and need no permission (Discord allows 2000 per bot). Uploaded
 icons are reused on the next start; a changed picture is uploaded again. A text shows an icon with `{icon_<name>}`,
-for example `{icon_truck} **Delivery**`; a button or option emoji can be `{icon_<name>}` too. Icons work in titles,
-descriptions, field names and values, and emojis; Discord does not show them in footers, author lines, button labels,
-select options or modal texts, so `/content set` refuses them there. Until an icon is uploaded (or if its upload
-failed) it shows nothing, or a plain dot for the `dot_*` status dots. The shipped set (`config/emojis`, from Tabler
-Icons, MIT licence) is rendered by `tools/icons/render.js`: status dots `dot_blue` (we ship there), `dot_yellow` (we
-ship to parts of it) and `dot_grey` (we do not ship there); step numbers `step_1` to `step_6`; order statuses
-`st_submitted`, `st_confirmed`, `st_shipped`, `st_delivered`, `st_cancelled`; and section icons such as `truck`,
-`gift`, `shield`, `box`, `receipt`, `lock`, `ticket`, `star` (see the folder for all of them). Run
-`/reload` after changing a picture, then `/setup` to update posted panels.
+for example `{icon_truck} **Delivery**`; a button or option emoji can be `{icon_<name>}` too. Icons work in section
+headings, descriptions, field names and values, and emojis; Discord does not show them in footers, author lines,
+select placeholders, option descriptions or modal texts, so `/content set` refuses them there. A card's title (the
+bold first line of a message) cannot show them either: an icon at the start of a text used as a card title is left
+out when the message is sent, and `python -m tools.check_quality` reports it, so keep card titles plain. Until an icon is uploaded (or
+if its upload failed) it shows nothing, or a plain dot for the `dot_*` status dots. Run `/reload` after changing a
+picture, then `/setup` to update posted panels.
+
+A button label or select option label may start with one icon, followed by a space and the label:
+`{icon_cart} Start order`. Discord shows it as the button's or option's emoji, in front of the label (like the
+`*.emoji` texts, which win when both are set); the 80-character limit of a button label and the 100-character limit
+of an option label count the label without its icon. A button may also show only an icon (`{icon_arrow_right}`); an
+option always needs a label. An icon anywhere else in a label, or more than one, is refused. Until the icon is
+uploaded the label shows without it (a `dot_*` status dot shows its plain dot in front of the label), and a button
+that is only an icon is left out.
+
+The shipped set (`config/emojis`, 86 icons, glyphs from Tabler Icons, MIT licence) is listed in
+`tools/icons/icons.json` and rendered by `tools/icons/render.js` (add an entry there and run it to add an icon): status
+dots `dot_blue` (we ship there), `dot_yellow` (we ship to parts of it) and `dot_grey` (we do not ship there); step
+numbers `step_1` to `step_6`; order statuses `st_submitted`, `st_confirmed`, `st_shipped`, `st_delivered`,
+`st_cancelled`; and section icons, a white symbol on a circle whose colour says what kind of line it marks:
+
+| Colour | Marks | Section icons |
+|---|---|---|
+| orange | the shop, buying and paying | `cart`, `tag`, `gift`, `bolt`, `star`, `card`, `wallet`, `coins`, `discount`, `sparkles`, `crown`, `rocket`, `megaphone` |
+| blue | information, delivery, account, navigation | `box`, `truck`, `package_out`, `location`, `map`, `home`, `world`, `compass`, `clock`, `calendar`, `refresh`, `info`, `help`, `search`, `bell`, `list`, `receipt`, `ticket`, `file`, `note`, `book`, `rules`, `photo`, `edit`, `eye`, `link`, `mail`, `chat`, `headset`, `dashboard`, `user`, `user_check`, `user_plus`, `id`, `key`, `lock`, `shield`, `shield_lock`, `arrow_right` |
+| green | done, allowed, positive | `check`, `plus`, `lock_open`, `thumb_up`, `verified` |
+| red | problems, removal, negative (and `heart`: favourites, thanks) | `alert`, `cross`, `trash`, `door`, `flag`, `thumb_down`, `package_off`, `heart` |
+| amber | waiting, caution | `hourglass`, `swap`, `mailbox` |
+| grey | neutral, back, settings | `minus`, `arrow_left`, `user_minus`, `settings` |
 
 ## `[[server.roles]]`, `[[server.categories]]`, `[[server.channels]]`
 

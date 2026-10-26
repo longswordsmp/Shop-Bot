@@ -5,7 +5,8 @@
   (nothing incomplete is ever posted); the preview shows ``[content.key]`` markers instead.
 - ``Card`` / ``Block`` (``shopbot.ui.card``) turn the resolved text into one card, as embeds and messages that respect
   Discord's limits without ever cutting text.
-- ``guide_messages`` puts the guide's banner picture on its first message only (later messages continue it).
+- ``guide_messages`` puts the guide's banner picture on its last message only, so it closes the guide at its bottom
+  (the messages before it are the start of the same guide).
 - ``publish_guide`` keeps one guide as an ordered series of messages (``<prefix><index>`` records): edited in
   place, re-posted in order when one was deleted or moved, surplus messages of an earlier, longer configuration
   removed. It is idempotent: running /setup again changes nothing when nothing changed.
@@ -19,7 +20,7 @@ import re
 import weakref
 from collections import Counter
 from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING
 
 import discord
@@ -186,9 +187,16 @@ def preview_channel_url(app: App, channel_key: str) -> str:
 def guide_messages(
     ui: Ui, blocks: Iterable[Block], rows: tuple[tuple[Component, ...], ...] = (), *, banner: BannerId
 ) -> list[MessageSpec]:
-    """The messages of a guide; the ``banner`` picture tops the first message only and ``rows`` (link buttons) are
-    attached to the last message."""
-    return block_messages(ui, blocks, rows, banner=banner)
+    """The messages of a guide; the ``banner`` picture and ``rows`` (link buttons) are on the last message, so the
+    picture closes the guide at its bottom."""
+    return with_closing_banner(ui, block_messages(ui, blocks, rows, banner=None), banner)
+
+
+def with_closing_banner(ui: Ui, specs: list[MessageSpec], banner: BannerId) -> list[MessageSpec]:
+    """``specs`` with the ``banner`` picture on the last message only (a guide's bottom)."""
+    if not specs:
+        return specs
+    return [*specs[:-1], replace(specs[-1], banner=ui.banner(banner))]
 
 
 def preview_states(feature: str, name: str, note: str, specs: Sequence[MessageSpec]) -> list[PreviewState]:

@@ -13,7 +13,9 @@ from shopbot.features.setup import reset
 from tests.helpers import OWNER_ID, ROOT, TestEnv, banner_names, make_test_env
 from tests.setup.util import confirm, phrase, preview, setup
 
-PANEL_CHANNELS = {  # channel name (as /setup creates it) -> banner id its first bot message shows
+# The guides close with their banner (on their last message); the other panels show it on their first message.
+GUIDE_CHANNELS = {"🧭・how-to-order", "❔・faq", "🚚・shipping"}
+PANEL_CHANNELS = {  # channel name (as /setup creates it) -> banner id its panel shows
     "📜・welcome": "welcome",
     "🧭・how-to-order": "how-it-works",
     "❔・faq": "faq",
@@ -55,11 +57,13 @@ async def test_setup_posts_every_panel_with_its_banner(shipped: TestEnv) -> None
         assert messages, f"#{name} has no panel"
         first = messages[0]
         assert first.embeds and first.embeds[0].title, f"#{name} panel has no text"
-        assert len(first.embeds) == 1, f"#{name}: one card per message"
-        names = banner_names(first)
+        assert all(len(m.embeds) == 1 for m in messages), f"#{name}: one card per message"
+        with_banner = messages[-1] if name in GUIDE_CHANNELS else first
+        names = banner_names(with_banner)
         assert len(names) == 1 and names[0].startswith(f"banner-{banner_id}-"), (name, names)
-        for later in messages[1:]:
-            assert banner_names(later) == [], f"#{name}: only the first message shows the banner"
+        for other in messages:
+            if other is not with_banner:
+                assert banner_names(other) == [], f"#{name}: only one message of the panel shows the banner"
     # Running it again changes nothing and posts nothing twice.
     counts = {name: len(bot_messages(shipped, name)) for name in PANEL_CHANNELS}
     await setup(shipped)
@@ -91,4 +95,5 @@ async def test_after_a_reset_setup_builds_the_same_server_again(
     for name, banner_id in PANEL_CHANNELS.items():
         messages = bot_messages(shipped, name)
         assert messages, f"#{name} has no panel"
-        assert banner_names(messages[0])[0].startswith(f"banner-{banner_id}-")
+        with_banner = messages[-1] if name in GUIDE_CHANNELS else messages[0]
+        assert banner_names(with_banner)[0].startswith(f"banner-{banner_id}-")

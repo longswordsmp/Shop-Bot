@@ -11,13 +11,13 @@ from tests.checkout.banner_util import banner_file, make_banner_checkout_env
 from tests.checkout.util import add_product, orders, press, start, to_review
 from tests.customer_panel.util import SUBMISSION_FORM
 from tests.fakes import modal_of, submit_modal
-from tests.helpers import GUILD_ID, banner_names
+from tests.helpers import GUILD_ID, banner_names, uploaded
 
 
 async def test_the_submission_form_keeps_the_review_banner_until_the_order_is_submitted(tmp_path: Path) -> None:
     tenv = await make_banner_checkout_env(tmp_path, SUBMISSION_FORM)
     try:
-        review, pending = banner_file(tenv, "review-and-summary"), banner_file(tenv, "pending-review")
+        review, pending = banner_file(tenv, "review-and-summary"), banner_file(tenv, "order-status")
         customer = tenv.member()
         p1 = await add_product(tenv, "[p1]", price=1000)
         _, session, _, message = await start(tenv, customer)
@@ -39,7 +39,7 @@ async def test_the_submission_form_keeps_the_review_banner_until_the_order_is_su
             message=message,
         )
         assert await orders(tenv) == []
-        assert "attachments" not in message.edits[-1] and banner_names(message) == [review]
+        assert uploaded(message.edits[-1]) == [] and banner_names(message) == [review]
         # Submitted with the shown totals: the same message becomes the pending order, with its banner.
         await submit_modal(
             tenv.app,

@@ -201,7 +201,7 @@ how you want to operate** (each is one line in `config/settings.toml`).
 | `reviews.rating_scale` / `prompt_delay_minutes` | 5 / 10080 | 1-5 stars, asked 7 days after the order is completed |
 | `announcements.mention_roles` | restock_alerts | Staff may choose to ping Restock Alerts with an announcement |
 | `branding.progress_filled` / `progress_empty` | 🟧 / ⬜ | Step indicator in the order ticket |
-| `[banners]` | enabled, all 31 pictures in `config/banners/` | One banner picture at the top of every kind of message (§13) |
+| `[banners]` | enabled, all 31 pictures in `config/banners/` | One banner picture at the bottom of every kind of message's card (§11a, §13) |
 | `announcements.allow_image` | true | |
 | `my_orders.orders_per_page` | 5 | |
 | `features.info_panels` | false | Not part of the specification |
@@ -224,14 +224,26 @@ and deletion timers, and of course the products themselves (`/product add`).
 
 - **Banners.** The owner supplied 31 banner pictures (1500×500), one per kind of message. Each message names its
   banner id in its builder (`ui.banner("faq")`, ids in `shopbot/config/banner_ids.py`); the picture is uploaded with
-  the message as its first attachment and never referenced by an embed, because Discord shows such pictures above the
-  embeds at full width (an embed image would sit at the bottom, smaller; an image-only first embed would use one of
-  the ten embed slots). Edits keep an unchanged banner without uploading it again (the attachment name contains the
-  picture's hash), and replace or remove it when it changed; a `PartialMessage` is fetched once before such an edit so
-  this is decided from its real attachments. Multi-message panels show the banner on their first message only; live
-  messages (the order ticket panel, the #orders record, report and review-approval messages) change banner with their
-  state. The banner counts toward the per-message file limits and the panel hash; transcripts leave the bot's
-  banners out. Pictures live in `config/banners/` (≤ 2 MB each) and are read at startup and on `/reload`; a missing or
+  the message as its first attachment. The owner asked for the picture inside the card, at the bottom, so when a
+  spec becomes a Discord message (`ui.banners.place_banner`, used by sending, editing, the limits check before
+  sending and the offline preview) the banner becomes the image of the message's last embed (`attachment://<name>`).
+  Builders never refer to it themselves, so one rule places it everywhere. The last embed is the only place: an embed
+  shows one image, at its bottom, and the last one closes the message. When that embed already shows a picture (a
+  product image, an announcement image, the welcome image, the `branding.panel_banner` image) the banner stays an
+  attachment no embed uses, which Discord shows above the embeds as before; an image-only extra embed was not used
+  because it would take one of the ten embed slots. Edits keep an unchanged banner without uploading it again (the
+  attachment name contains the picture's hash) and still refer to it: while the card shows the banner, an edit always
+  sends the message's attachments, kept banner included, because Discord resolves an embed's `attachment://` image
+  against the attachments sent with the message or edit (Discord's documented rule; an edit that refers to a kept
+  attachment could not be tried against a live server from here). A banner that changed is replaced, one that is no
+  longer wanted removed; a `PartialMessage` is fetched once before such an edit so this is decided from its real
+  attachments. Multi-message panels show the banner on one message only: the guides (#how-to-order, #faq,
+  #shipping) on their last message, so the picture closes the panel at its bottom; other multi-message replies and
+  records on their first. Product cards (private catalog pages, #new-arrivals updates) keep it above the card, so it
+  is never taken for the product's photo (`MessageSpec.banner_in_card`). The panel hash is taken from the placed
+  spec, so the first /setup after this change re-edits each banner panel once; live messages (the order ticket panel, the #orders record, report and review-approval messages) change
+  banner with their state. The banner counts toward the per-message file limits and the panel hash; transcripts
+  leave the bot's banners out. Pictures live in `config/banners/` (≤ 2 MB each) and are read at startup and on `/reload`; a missing or
   invalid picture only means that kind of message shows none (listed in the logs and by the checker).
 - **Edit text.** A message command (right-click a bot message → Apps → Edit text, administrators only) finds the
   texts the message shows by comparing every text of the message with every content value (placeholders match any
@@ -274,6 +286,19 @@ and deletion timers, and of course the products themselves (`/product add`).
 - **Pace.** One deletion per second (`reset.PACE_SECONDS`): discord.py already waits on rate limits, and Discord's
   anti-abuse systems watch for bots deleting many channels at once.
 
+## 11c. Icons and the house style
+
+- **Icons only where Discord shows them.** Descriptions, section headings, field names and values, and the emoji of
+  buttons and menu options (a label may start with one `{icon_x} `, which becomes the component's emoji). Embed
+  titles, author lines and footers print custom emoji as raw text, so `discord_render.to_embed` leaves them out there
+  (a safety net; the HTML preview shows the same) and the shipped card titles are plain. A custom emoji anywhere else
+  in a label (e.g. from a placeholder value) is left out too.
+- **Checked, not just written down.** `docs/QUALITY_STANDARDS.md` is the house style; `tools/check_quality.py`
+  checks its [checked] rules on every preview state with the shipped texts (icons Discord cannot show, leftover
+  placeholders and internal words, spacing, title and button length, field grids, walls of text, one icon per button
+  label). Customer and operator messages are told apart by the branded footer; stress-test states with synthetic text
+  only get the icon rules. Accepted exceptions are listed in the tool with a reason each.
+
 ## 12. Assumptions
 
 - One Discord server per bot instance (`GUILD_ID`).
@@ -286,8 +311,10 @@ and deletion timers, and of course the products themselves (`/product add`).
 
 ## 13. Known limitations
 
-- Banner placement (above the embeds) follows Discord's documented message layout and community reports; it could not
-  be seen in a real client from here. Each banner upload adds 0.5-1.1 MB to the message (mainly #bot-log entries,
+- Banner placement (inside the last card, or above the embeds when that card has its own picture) follows Discord's
+  documented `attachment://` embed images and message layout; it could not be seen in a real client from here, nor
+  could an edit that keeps the uploaded banner and refers to it again be tried against Discord. Panels posted before
+  this placement keep their banner above until their next change (or `/setup`) edits them. Each banner upload adds 0.5-1.1 MB to the message (mainly #bot-log entries,
   one per audited action: switch them off with `[banners] off = ["activity-log"]` if that matters).
 - Not yet verified against a live Discord server or Railway from here. All behaviour is verified with automated
   tests using faithful fakes and the offline preview — see `docs/MORNING.md` for the live verification checklist.

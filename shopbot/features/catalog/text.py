@@ -42,6 +42,11 @@ OPERATOR_TEXT: dict[str, str] = {
     "limited stock first.",
     "catalog.cmd.stock_too_large": "The stock must be at most {max}.",
     "catalog.cmd.image_set": "Image of product #{product_id} updated",
+    "catalog.cmd.add_image_saved": "Its picture is saved and shows on its card in the catalog.",
+    "catalog.cmd.add_image_failed": "Its picture was not saved: {reason} Add one with /product image "
+    "product_id:{product_id} file:(your picture).",
+    "catalog.cmd.add_image_lost": "The picture you attached was not received (the bot restarted, or the form was "
+    "open longer than 30 minutes). Add it with /product image product_id:{product_id} file:(your picture).",
     "catalog.cmd.image_cleared": "Image of product #{product_id} removed",
     "catalog.cmd.image_invalid": "The image link must be a public https:// link to an image (at most 2048 "
     "characters, no spaces). To use a file from your computer, upload it with the file option instead (links to "
