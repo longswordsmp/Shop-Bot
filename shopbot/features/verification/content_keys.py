@@ -31,6 +31,7 @@ CONFIRMED_TITLE = "verification.confirmed.title"
 CONFIRMED_DESCRIPTION = "verification.confirmed.description"
 ALREADY_TITLE = "verification.already_verified.title"
 ALREADY_DESCRIPTION = "verification.already_verified.description"
+WELCOME_MENTION = "verification.welcome_mention.description"
 DM_TITLE = "verification.dm.title"
 DM_DESCRIPTION = "verification.dm.description"
 
@@ -252,6 +253,17 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             "Private reply to a member who clicks the 'I agree' button although they already have the Member role "
             f"(nothing changes). {_USER_DOC} {_LINKS_DOC}",
             placeholders=(*USER_PLACEHOLDERS, *links),
+        ),
+        ck(
+            WELCOME_MENTION,
+            Kind.DESCRIPTION,
+            VERIFICATION,
+            "Verification: welcome mention",
+            "Short text under the mention of members who just joined (the mention itself comes first and pings "
+            "them), posted in the verification channel (under the welcome panel) and deleted after "
+            f"verification.welcome_mention_seconds (required while that is above 0). {_LINKS_DOC}",
+            required=v.welcome_mention_seconds > 0,
+            placeholders=links,
         ),
         ck(
             DM_TITLE,

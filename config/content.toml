@@ -380,6 +380,12 @@ verification.rules.description = ""
 # title · max 256 characters · optional
 verification.rules.title = "{icon_shield} SERVER RULES"
 
+# --- Verification: welcome mention ---
+
+# Short text under the mention of members who just joined (the mention itself comes first and pings them), posted in the verification channel above the welcome panel and deleted after verification.welcome_mention_seconds (required while that is above 0). You may write {channel_<key>} (for example {channel_catalog}) for a clickable link to a channel from server.channels.
+# description · max 4096 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+verification.welcome_mention.description = "Welcome to AmazonYaarts. Read the rules above and press **Verify** to unlock the shop."
+
 # ==================================================================================================
 # Feature: how_to_buy
 # ==================================================================================================

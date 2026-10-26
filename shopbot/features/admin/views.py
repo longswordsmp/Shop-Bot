@@ -299,6 +299,7 @@ def status_overview(ui: Ui, op: OpFn, snap: StatusSnapshot) -> MessageSpec:
     ]
     if snap.transcripts_need_intent:
         intents.append(op("admin.status.intent_warning"))
+    intents += [op("admin.status.intent_not_enabled", intent=name) for name in snap.intents_not_enabled]
     counts = snap.task_counts
     fields = [
         *feature_fields,

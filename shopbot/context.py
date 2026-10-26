@@ -19,6 +19,7 @@ from shopbot.config.settings import Settings
 from shopbot.core.audit import AuditLog
 from shopbot.core.clock import Clock
 from shopbot.core.events import EventBus
+from shopbot.core.intents import PrivilegedIntents
 from shopbot.core.notifier import Notifier
 from shopbot.core.panels import withdraw_and_audit
 from shopbot.core.permissions import Permissions
@@ -69,6 +70,11 @@ class App:
         self.modules = list(modules)
         self.config_dir = config_dir
         self.bot: ShopBot | None = None
+        # Privileged intents: what the settings ask for, what the Developer Portal allows (None: not read), and what
+        # the bot connects with (``shopbot.core.intents``; fixed until the next restart).
+        requested = PrivilegedIntents(settings.bot.message_content_intent, settings.bot.members_intent)
+        self.portal_intents: PrivilegedIntents | None = None
+        self.gateway_intents: PrivilegedIntents = requested
         registry = build_registry(settings, self.modules)
         # The bot's custom icons ({icon_<name>} in texts): pictures now, uploaded emoji ids at startup (``bot``).
         self.icons: IconLibrary = load_icons(config_dir, settings.icons)

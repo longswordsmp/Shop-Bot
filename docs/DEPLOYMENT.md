@@ -128,7 +128,8 @@ data written since.
 | `env_invalid` | Variable missing or malformed | Set it in Railway Variables (the log names it). |
 | `env_invalid` "DB_PATH is not on persistent storage" / "not inside the Railway volume" | No volume, or `DB_PATH` outside it | Attach a volume at `/data` and set `DB_PATH=/data/bot.db`. |
 | `discord_login_failed` | Token wrong or reset | Reset the token in the Developer Portal and update `DISCORD_TOKEN`. |
-| `privileged_intents_required` | Message Content intent not enabled | Developer Portal → Bot → enable Message Content Intent (or set `bot.message_content_intent = false`, which makes transcripts contain no message text). |
+| `privileged_intent_not_enabled` (warning) | An intent in `[bot]` is not switched on in the Developer Portal; the bot runs without it | Developer Portal → Bot → Privileged Gateway Intents: switch on the named intent, then restart. |
+| `privileged_intents_required` | Discord refused an intent (the portal could not be read before connecting) | Developer Portal → Bot → enable Message Content Intent and Server Members Intent (or switch them off in `[bot]`). |
 | `guild_not_available` | Bot not in the server | Invite it with `python -m tools.invite_url <APPLICATION_ID>`. |
 | `commands_sync_failed` | Bot invited without `applications.commands`, or wrong `GUILD_ID` | Re-invite with the generated URL; check `GUILD_ID`. |
 | `config_invalid` | Typo or wrong type in settings.toml | Fix the path named in the log. |

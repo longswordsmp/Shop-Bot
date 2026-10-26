@@ -152,7 +152,7 @@ because running on the container's temporary disk would lose every order at the 
 | Open orders per customer | 1 | Duplicate-order prevention |
 | Max cart lines | 20 | Keeps every order summary inside Discord embed limits |
 | Scheduler retries | 5, backoff from 30 s | Survives transient Discord/network errors |
-| Message Content intent | on | Transcripts need message text |
+| Message Content / Server Members intents | on / on | Transcripts and the gift card chat guard need message text; the welcome mention needs member joins. A missing portal switch is left out (the bot still starts) |
 | Audit retention | forever | Owner decides when to purge |
 | Finished scheduled tasks kept | 30 days | Housekeeping (technical) |
 | `/backup` copies kept | 10 | Disk usage on the volume |
@@ -172,6 +172,7 @@ how you want to operate** (each is one line in `config/settings.toml`).
 | Staff role `permissions` | `["manage_messages"]` | Staff see the staff slash commands (`/orders`, `/order`, `/ticket`, `/review`, `/announce`) in Discord's picker; it also lets them delete/pin messages. `/setup` adds it and keeps the role's other permissions (`permissions_mode = "add"`). Fine-tune per command under Server Settings → Integrations; the bot's staff checks stay authoritative |
 | `verification.rules` | 6 | Six general community rules on #welcome (text in content.toml) |
 | `verification.dm_confirmation` | false | Confirmation only privately in Discord, no DM |
+| `verification.welcome_mention_seconds` | 30 | A new member is mentioned in #welcome and the mention is deleted 30 s later |
 | `how_to_buy.steps` / `link_channels` | 4 / catalog, purchase, faq | Guide size and its link buttons |
 | `faq.sections` | general, transactions, order_status, cancellations, problems (3/3/3/2/2 questions) | Adjust counts |
 | `shipping.groups` / `excluded_areas` / `not_available` | North America, Central America, the Caribbean, South America and Europe (44 countries); in the US every state except Alaska and North Dakota; Cuba, Russia and Belarus listed as not available (sanctions; most carriers refuse parcels) | The owner's delivery area |

@@ -15,7 +15,7 @@ from shopbot.config.content import MissingContent
 from shopbot.config.content_keys import Kind
 from shopbot.features import core_keys as ck
 from shopbot.features.server_keys import channel_mentions, channel_placeholder
-from shopbot.features.verification import views
+from shopbot.features.verification import views, welcome
 from shopbot.features.verification.content_keys import VERIFICATION
 from shopbot.ui.spec import MessageSpec, PreviewState
 
@@ -96,6 +96,13 @@ def preview(app: App) -> list[PreviewState]:
         "Direct message after a successful verification (only when verification.dm_confirmation and "
         "features.dm_notifications are on).",
         lambda: views.dm_view(ui, values),
+    )
+
+    add(
+        "welcome_mention",
+        "Posted in the entry channel when a member joins (the mention pings them), deleted after "
+        "verification.welcome_mention_seconds. No picture: it is short-lived.",
+        lambda: welcome.welcome_message(ui, links, [SAMPLE_MEMBER_ID]),
     )
 
     def error_state() -> MessageSpec | None:

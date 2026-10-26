@@ -66,8 +66,12 @@ valid, its dependencies are ready, and all of its required content keys are conf
 | `scheduler_max_attempts` | 5 | Retries for a failing task before it is marked failed (audited). |
 | `scheduler_retry_base_seconds` | 30 | Exponential backoff base (capped at 1 hour). |
 | `sync_commands_on_startup` | true | Register slash commands in your server at startup. |
-| `message_content_intent` | true | Privileged intent; needed for ticket transcripts to contain message text. Enable it in the Developer Portal. |
-| `members_intent` | false | Privileged intent; not required by any current feature. |
+| `message_content_intent` | true | Privileged intent; needed for ticket transcripts to contain message text and for the gift card chat guard. Switch it on in the Developer Portal. |
+| `members_intent` | true | Privileged intent; needed for the welcome mention (`verification.welcome_mention_seconds`). Switch on "Server Members Intent" in the Developer Portal. |
+
+Before connecting, the bot reads which privileged intents the Developer Portal switches on. A requested intent that is
+not switched on is left out (the bot starts without it instead of being refused by Discord); the log
+(`privileged_intent_not_enabled`) and `/status` name it. Switch it on and restart the bot.
 
 ## `[permissions]`
 

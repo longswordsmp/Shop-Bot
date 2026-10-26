@@ -64,7 +64,7 @@ def _diagnostics(app: App, guild: discord.Guild) -> list[str]:
                     channel=channel.mention,
                 )
             )
-    if t.transcript_channel and not app.settings.bot.message_content_intent:
+    if t.transcript_channel and not app.gateway_intents.message_content:
         lines.append(app.op("tickets.publish.no_content_intent"))
     lines.extend(_ping_diagnostics(app, guild))
     return lines

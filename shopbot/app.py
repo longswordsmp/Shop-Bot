@@ -25,6 +25,8 @@ from shopbot.config.loader import load_config
 from shopbot.config.settings import SettingsError
 from shopbot.core.clock import SystemClock
 from shopbot.core.instance_lock import InstanceLock, InstanceLockError
+from shopbot.core.intents import effective, read_portal_intents
+from shopbot.core.intents import report as intents_report
 from shopbot.db.database import Database, DatabaseError
 from shopbot.db.migrate import MigrationError, apply_migrations
 from shopbot.db.repos import state
@@ -98,6 +100,19 @@ async def run(env: Env) -> int:
             )
     if app.readiness.unknown_content_keys:
         log_event(log, logging.WARNING, "content_unknown_keys", keys=app.readiness.unknown_content_keys[:20])
+
+    # A privileged intent the Developer Portal does not allow is left out instead of making Discord refuse the login.
+    requested = app.gateway_intents
+    app.portal_intents = await read_portal_intents(env.discord_token)
+    app.gateway_intents = effective(requested, app.portal_intents)
+    for name in intents_report(requested, app.portal_intents):
+        log_event(
+            log,
+            logging.WARNING,
+            "privileged_intent_not_enabled",
+            intent=name,
+            hint="switch it on in the Developer Portal (Bot -> Privileged Gateway Intents), then restart",
+        )
 
     bot = ShopBot(app)
     stop_requested = asyncio.Event()

@@ -7,11 +7,13 @@ history, ``content_keys`` for the text and the settings checks.
 
 from __future__ import annotations
 
+from functools import partial
 from typing import TYPE_CHECKING
 
 from shopbot.features.base import FeatureModule
 from shopbot.features.verification import content_keys as keys
 from shopbot.features.verification import preview as preview_module
+from shopbot.features.verification import welcome
 from shopbot.features.verification.handlers import register_handlers
 from shopbot.features.verification.service import PANEL_PREFIX, publish
 from shopbot.features.verification.text import OPERATOR_TEXT
@@ -22,6 +24,9 @@ if TYPE_CHECKING:
 
 def register(app: App) -> None:
     register_handlers(app)
+    app.scheduler.register(welcome.TASK_CLEANUP, welcome.cleanup_task)
+    if app.bot is not None:
+        app.bot.add_listener("member_join", partial(welcome.on_member_join, app))
 
 
 MODULE = FeatureModule(

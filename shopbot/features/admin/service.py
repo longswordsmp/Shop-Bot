@@ -23,6 +23,8 @@ from shopbot.config.content import validate_value
 from shopbot.config.content_keys import ContentKey
 from shopbot.config.readiness import FeatureStatus, Problem, Readiness
 from shopbot.config.settings import Settings
+from shopbot.core.intents import PrivilegedIntents
+from shopbot.core.intents import report as intents_report
 from shopbot.core.panels import withdraw_and_audit
 from shopbot.core.permissions import BOT_PERMISSIONS, missing_permissions
 from shopbot.db.repos import state as state_repo
@@ -78,6 +80,8 @@ class StatusSnapshot:
     guild_available: bool
     missing_permissions: tuple[tuple[str, tuple[str, ...]], ...]
     message_content_intent: bool
+    # Requested in the settings but not switched on in the Developer Portal (left out when connecting).
+    intents_not_enabled: tuple[str, ...]
     members_intent: bool
     transcripts_need_intent: bool
     task_counts: Mapping[str, int]
@@ -131,9 +135,12 @@ async def status_snapshot(app: App) -> StatusSnapshot:
         unknown_keys=tuple(app.readiness.unknown_content_keys),
         guild_available=guild_available,
         missing_permissions=missing,
-        message_content_intent=bot.message_content_intent,
-        members_intent=bot.members_intent,
-        transcripts_need_intent=transcripts_enabled(app.settings) and not bot.message_content_intent,
+        message_content_intent=app.gateway_intents.message_content,
+        members_intent=app.gateway_intents.members,
+        transcripts_need_intent=transcripts_enabled(app.settings) and not app.gateway_intents.message_content,
+        intents_not_enabled=tuple(
+            intents_report(PrivilegedIntents(bot.message_content_intent, bot.members_intent), app.portal_intents)
+        ),
         task_counts=counts,
         db_path=str(app.env.db_path),
         picture_problems=(*app.banners.problems, *app.icons.problems),

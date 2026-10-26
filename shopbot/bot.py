@@ -31,8 +31,9 @@ def build_intents(app: App) -> discord.Intents:
     intents = discord.Intents.none()
     intents.guilds = True
     intents.guild_messages = True  # ticket activity tracking (auto-close) and message events
-    intents.message_content = app.settings.bot.message_content_intent  # privileged: transcripts need it
-    intents.members = app.settings.bot.members_intent  # privileged: optional member-leave handling
+    # Privileged: as requested in the settings and allowed by the Developer Portal (``shopbot.core.intents``).
+    intents.message_content = app.gateway_intents.message_content  # transcripts, the gift card chat guard
+    intents.members = app.gateway_intents.members  # the welcome mention, member-leave handling
     return intents
 
 
@@ -194,6 +195,10 @@ class ShopBot(discord.Client):
     async def on_raw_bulk_message_delete(self, payload: discord.RawBulkMessageDeleteEvent) -> None:
         if payload.guild_id == self.app.env.guild_id:
             await self._emit("raw_bulk_message_delete", payload)
+
+    async def on_member_join(self, member: discord.Member) -> None:
+        if member.guild.id == self.app.env.guild_id:
+            await self._emit("member_join", member)
 
     async def on_member_remove(self, member: discord.Member) -> None:
         if member.guild.id == self.app.env.guild_id:

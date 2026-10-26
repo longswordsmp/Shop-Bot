@@ -12,8 +12,9 @@ written for you) and every feature is set up, so `/setup` posts everything at on
 2. **General Information**: copy the **Application ID** (you need it in step 5). It is not secret.
 3. **Bot** tab:
    - **Reset Token** → copy the token. This is a secret: never paste it into code, Discord, or chat.
-   - Under **Privileged Gateway Intents**, turn on **Message Content Intent** (needed for ticket transcripts to
-     contain message text). Leave **Server Members Intent** off (not needed).
+   - Under **Privileged Gateway Intents**, turn on **Message Content Intent** (ticket transcripts with message text,
+     the gift card chat guard) and **Server Members Intent** (the welcome mention in #welcome). If one is off, the bot
+     still starts without it and `/status` says which one to switch on.
    - Optional: turn off **Public Bot** so only you can invite it.
 
 Check: the Bot tab shows the intent enabled and you have the token saved somewhere private.

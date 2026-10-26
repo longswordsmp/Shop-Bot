@@ -576,6 +576,9 @@ class VerificationSettings:
     dm_confirmation: bool = False
     # Color of the "I agree, enter the server" button.
     button_style: str = "success"
+    # Mention a new member in the verification channel when they join, deleted after this many seconds (0 = off;
+    # needs bot.members_intent).
+    welcome_mention_seconds: int = 0
 
 
 @dataclass(frozen=True)
@@ -1213,6 +1216,7 @@ def _parse_verification(r: _Reader) -> VerificationSettings:
             rules=r.int_("rules", 0, min_=0, max_=MAX_VERIFICATION_RULES),
             dm_confirmation=r.bool_("dm_confirmation", False),
             button_style=r.str_("button_style", "success", choices=BUTTON_STYLES, allow_empty=False),
+            welcome_mention_seconds=r.int_("welcome_mention_seconds", 0, min_=0, max_=3600),
         ),
     )
 

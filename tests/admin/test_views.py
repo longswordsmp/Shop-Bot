@@ -63,6 +63,7 @@ async def test_status_overview_with_extreme_data(tenv: TestEnv) -> None:
         guild_available=True,
         missing_permissions=tuple((f"cap{i}", ("manage_roles", "manage_channels", "attach_files")) for i in range(80)),
         message_content_intent=False,
+        intents_not_enabled=("message_content", "members"),
         members_intent=False,
         transcripts_need_intent=True,
         task_counts={"pending": 10**9, "failed": 3},

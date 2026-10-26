@@ -9,6 +9,8 @@ from tools.offline import ROOT, build_offline_app
 
 # Later parts of a panel or record spread over several Discord messages: only the first part shows the banner.
 CONTINUATION = re.compile(r"(_part_[2-9]\d*$|_message_([2-9]|\d{2,})$|^problems/details\.)")
+# Short-lived pings deleted seconds later: no picture, so they stay light (REDESIGN_PLAN 4.1).
+NO_BANNER = {"verification/welcome_mention"}
 
 
 async def test_every_message_state_has_a_banner_and_continuations_have_none() -> None:
@@ -26,7 +28,7 @@ async def test_every_message_state_has_a_banner_and_continuations_have_none() ->
                     continue  # forms cannot show pictures
                 checked += 1
                 name = f"{state.feature}/{state.name}"
-                if CONTINUATION.search(name):
+                if CONTINUATION.search(name) or name in NO_BANNER:
                     if state.spec.banner is not None:
                         extra.append(name)
                 elif state.spec.banner is None:

@@ -1191,7 +1191,7 @@ async def render_transcript(app: App, ticket: Ticket) -> tuple[bytes, str] | Non
     if channel is None:
         return None
     rt = runtime(app)
-    if not app.settings.bot.message_content_intent and not rt.warned_no_content_intent:
+    if not app.gateway_intents.message_content and not rt.warned_no_content_intent:
         rt.warned_no_content_intent = True
         log_event(
             log,

@@ -50,6 +50,7 @@ verification" notification) and section 9 ("Unverified users can access only the
 | `channel` | `"welcome"` | Entry channel key from `server.channels`. Must be visible before the rules are accepted: its effective access must be `public_readonly` or `public_interactive` (the shipped `start_here` category is `public_readonly`). |
 | `rules` | `0` | **Owner decision, required.** Number of rules on the panel (1–25). Each rule *n* gets the content keys `verification.rule.<n>.name` and `.value`; they appear in `content.toml` / the checklist once this is set (run `python -m tools.checklist --template` after changing it). |
 | `dm_confirmation` | `false` | Also confirm by direct message (only when `features.dm_notifications = true`; then `verification.dm.description` is required). |
+| `welcome_mention_seconds` | `30` | Mention a member who joins in the entry channel (the message appears under the panel) and delete the mention this many seconds later (0 = off). Joins within 2 seconds share one message; the deletion is a durable task. Needs `bot.members_intent` and **Server Members Intent** in the Developer Portal; without them nothing is posted. Text: `verification.welcome_mention.description`. |
 | `button_style` | `"success"` | Color of the button: `primary`, `secondary`, `success` or `danger`. |
 
 Also used: `features.verification` (on/off), `permissions.member_role` (shipped `member`, defined in

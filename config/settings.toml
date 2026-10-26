@@ -41,7 +41,8 @@ scheduler_max_attempts = 5
 scheduler_retry_base_seconds = 30
 sync_commands_on_startup = true
 message_content_intent = true        # privileged intent; required for ticket transcripts
-members_intent = false               # privileged intent; not required by any current feature
+members_intent = true                # privileged intent: the welcome mention (switch on "Server Members Intent" in
+                                     # the Developer Portal; without it the bot runs without the mention)
 
 [permissions]
 admin_roles = ["owner"]              # role keys from [[server.roles]] (Discord Administrators are always admins)
@@ -236,6 +237,8 @@ rules = 6                            # number of server rules on the panel (1-25
                                      # content keys verification.rule.<n>.name / .value (heading and text).
 dm_confirmation = false              # also confirm by direct message (only when features.dm_notifications = true)
 button_style = "success"             # color of the "I agree" button: primary, secondary, success or danger
+welcome_mention_seconds = 30         # mention a new member here when they join, deleted after this many seconds
+                                     # (0 = off). Needs members_intent and Server Members in the Developer Portal.
 
 [how_to_buy]
 channel = "how_to_buy"

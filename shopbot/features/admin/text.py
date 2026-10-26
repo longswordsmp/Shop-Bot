@@ -47,6 +47,10 @@ OPERATOR_TEXT: dict[str, str] = {
     "admin.status.intents": "Gateway intents (settings)",
     "admin.status.intents_value": "Message content: {message_content} · Server members: {members}",
     "admin.status.intent_warning": "Ticket/order transcripts need the message content intent, which is disabled.",
+    "admin.status.intent_not_enabled": (
+        "The {intent} intent is on in settings.toml but not switched on in the Developer Portal (Bot → Privileged "
+        "Gateway Intents), so the bot runs without it. Switch it on, then restart the bot."
+    ),
     "admin.status.tasks": "Scheduled tasks",
     "admin.status.tasks_value": "Pending: {pending} · Running: {running} · Failed: {failed}",
     "admin.status.database": "Database",

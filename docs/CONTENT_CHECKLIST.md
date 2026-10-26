@@ -161,6 +161,12 @@ Feature `verification` — enabled.
 | ▫️ | `verification.rules.description` | Optional text above the list of rules. You may write {channel_<key>} (for example {channel_catalog}) for a clickable link to a channel from server.channels. | description (4096) | optional | `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
 | ✅ | `verification.rules.title` | Optional heading of the rules on the welcome panel that /setup posts in the 'welcome' channel, shown in bold (it may start with an icon, e.g. {icon_shield}). | title (256) | optional |  |
 
+### Verification: welcome mention
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ✅ | `verification.welcome_mention.description` | Short text under the mention of members who just joined (the mention itself comes first and pings them), posted in the verification channel (under the welcome panel) and deleted after verification.welcome_mention_seconds (required while that is above 0). You may write {channel_<key>} (for example {channel_catalog}) for a clickable link to a channel from server.channels. | description (4096) | required | `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
+
 ## #how-to-buy guide
 
 Feature `how_to_buy` — enabled.
@@ -1191,7 +1197,7 @@ Feature `operations` — enabled.
 
 ## Summary
 
-- Required keys (for the listed features): 432
+- Required keys (for the listed features): 433
 - Required keys still missing: 0
 
 Legend: ✅ configured · ❌ required and missing · ▫️ optional and empty

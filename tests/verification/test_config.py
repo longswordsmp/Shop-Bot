@@ -38,6 +38,7 @@ FIXED_KEYS = {
     k.ALREADY_DESCRIPTION,
     k.DM_TITLE,
     k.DM_DESCRIPTION,
+    k.WELCOME_MENTION,
 }
 
 
@@ -349,6 +350,8 @@ def test_operator_text_keys_are_prefixed_and_used() -> None:
         "verification.confirmed",
         "verification.channel",
         "verification.rules",
+        "verification.welcome",  # log location of the welcome mention
+        "verification.welcome_cleanup",  # the task deleting it
     }
     operator_used = (used - FIXED_KEYS - identifiers) | dynamic
     assert operator_used <= set(OPERATOR_TEXT), operator_used - set(OPERATOR_TEXT)

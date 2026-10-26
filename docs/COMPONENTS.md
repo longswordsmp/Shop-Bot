@@ -137,3 +137,4 @@ perform staff actions check staff status inside the handler, e.g. per-ticket-cat
 - `tickets.delete`
 - `tickets.recover_creating`
 - `tickets.transcript`
+- `verification.welcome_cleanup`

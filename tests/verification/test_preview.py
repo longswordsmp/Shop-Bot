@@ -14,7 +14,14 @@ from tests.helpers import TestEnv
 from tests.verification.util import AGREE_ID, verification_env
 from tools.check_limits import check_state, unrouted_components
 
-ALL_STATES = ["welcome_panel", "confirmation", "already_verified", "dm_confirmation", "error_cannot_grant"]
+ALL_STATES = [
+    "welcome_panel",
+    "confirmation",
+    "already_verified",
+    "dm_confirmation",
+    "welcome_mention",
+    "error_cannot_grant",
+]
 
 
 def _panel(states: list[preview_module.PreviewState]) -> MessageSpec:
