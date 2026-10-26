@@ -639,7 +639,8 @@ async def _start(app: App, member: discord.Member, product_id: int | None) -> Me
                 raise HandlerError(core.ERROR_GENERIC)
             if product is None:
                 return views.session_exists_reply(app.ui, channel.id, ticket_url(app, channel.id))
-            reply = views.buy_added_reply(app.ui, product.name, channel.id)  # built first: text may be missing
+            # Built first: text may be missing.
+            reply = views.buy_added_reply(app.ui, product.name, channel.id, ticket_url(app, channel.id))
             updated = await _add_bought(app, existing, product.id)
 
             async def show_cart() -> None:
@@ -744,9 +745,10 @@ async def _start(app: App, member: discord.Member, product_id: int | None) -> Me
             details={"ticket_id": created.ticket.id, "channel_id": created.channel.id, "product_id": product_id},
         ),
     )
+    url = ticket_url(app, created.channel.id)
     if product is not None:
-        return views.buy_started_reply(app.ui, created.channel.id, notice)
-    return views.started_reply(app.ui, created.channel.id, ticket_url(app, created.channel.id))
+        return views.buy_started_reply(app.ui, created.channel.id, notice, url)
+    return views.started_reply(app.ui, created.channel.id, url)
 
 
 # -- workflow changes (the customer's own session) ------------------------------------------------------------------
@@ -841,27 +843,52 @@ class AddressSaved:
     excluded_area: str | None = None
 
 
-async def save_address(app: App, session: m.Session, fields: Mapping[str, str]) -> AddressSaved:
-    """Validate the address form server-side (lengths, required fields) and store it, even when it is in an area we
-    do not ship to: the form then opens with the answers again so they can be corrected."""
-    shipping = app.settings.shipping
+def address_country(app: App, session: m.Session) -> str:
+    """The country the session ships to; the address forms cannot be used before one is chosen (or for a country we
+    no longer ship to)."""
     country = session.details.get(flow.ADDRESS_COUNTRY)
-    if not app.settings.checkout.ask_address or country is None or not shipping.ships_to(country):
+    if not app.settings.checkout.ask_address or not country or not app.settings.shipping.ships_to(country):
         raise HandlerError(k.ERROR_COUNTRY_FIRST)
+    return country
+
+
+def _address_updates(
+    items: Sequence[flow.AddressField], fields: Mapping[str, str], required: Callable[[flow.AddressField], bool]
+) -> dict[str, str | None]:
+    """The answers of an address form checked server-side (required, length), each on one line; None removes an empty
+    optional answer. Raises ``HandlerError`` (invalid input) for anything the form itself should have refused."""
     updates: dict[str, str | None] = {}
-    for item in flow.ADDRESS_FIELDS:
+    for item in items:
         text = " ".join(fields.get(item.answer_key, "").split())  # one line: no stray line breaks or spaces
         if not text:
-            if flow.address_field_required(item, shipping, country):
+            if required(item):
                 raise HandlerError(core.ERROR_INVALID_INPUT)
             updates[item.answer_key] = None
             continue
         if not item.min_length <= len(text) <= item.max_length:
             raise HandlerError(core.ERROR_INVALID_INPUT)
         updates[item.answer_key] = text
+    return updates
+
+
+async def save_address(app: App, session: m.Session, fields: Mapping[str, str]) -> AddressSaved:
+    """Validate the address form server-side (lengths, required fields) and store it, even when it is in an area we
+    do not ship to: the form then opens with the answers again so they can be corrected."""
+    shipping = app.settings.shipping
+    country = address_country(app, session)
+    updates = _address_updates(
+        flow.ADDRESS_FIELDS, fields, lambda item: flow.address_field_required(item, shipping, country)
+    )
     saved = await _merge_answers(app, session, updates)
     area = flow.excluded_area(shipping, country, updates.get(f"{flow.ADDRESS_PREFIX}region") or "")
     return AddressSaved(saved, area)
+
+
+async def save_apartment(app: App, session: m.Session, fields: Mapping[str, str]) -> m.Session:
+    """Validate the optional apartment details form server-side (lengths) and store it with the address; an emptied
+    field is removed, so emptying them all removes the apartment details."""
+    address_country(app, session)
+    return await _merge_answers(app, session, _address_updates(flow.APARTMENT_FIELDS, fields, lambda _: False))
 
 
 async def toggle_extra(app: App, session: m.Session, extra_id: str) -> m.Session:

@@ -83,7 +83,8 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             Kind.DESCRIPTION,
             FEATURE,
             group,
-            f"Line under each order's heading in /myorders, e.g. '{{total}} · placed {{date}}'. {order_doc}",
+            f"Line under each order's heading in /myorders, e.g. '{{icon_calendar}} Placed {{date}} · **{{total}}**'. "
+            f"{order_doc}",
             placeholders=ORDER_PLACEHOLDERS,
         ),
         ck(

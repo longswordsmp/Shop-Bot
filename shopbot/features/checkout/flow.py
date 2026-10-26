@@ -170,7 +170,9 @@ def extra_id_of_fee(fee_id: str) -> str | None:
 # -- shipping address ----------------------------------------------------------------------------------------
 # With ``checkout.ask_address`` the details step asks for the shipping address. The country is chosen from menus
 # (``a.group`` remembers the region menu's choice; ``a.country`` is the country code) and the rest is typed in a
-# private form; every answer is stored under ``a.<field>``.
+# private form; every answer is stored under ``a.<field>``. Apartment details (unit, building or floor, entry code,
+# delivery instructions) are optional and typed in a second private form; they are part of the address (stored,
+# kept and shown like it, never in a channel).
 
 ADDRESS_PREFIX = "a."
 ADDRESS_GROUP = "a.group"
@@ -198,6 +200,27 @@ ADDRESS_FIELDS: tuple[AddressField, ...] = (
     AddressField("city", "short", 1, 100),
     AddressField("region", "short", 0, 100, required=False),
     AddressField("postal", "short", 2, 20),
+)
+# The apartment details form: every field optional (an emptied field is removed). ``access`` is an entry or buzzer
+# code: as private as the address.
+APARTMENT_FIELDS: tuple[AddressField, ...] = (
+    AddressField("unit", "short", 0, 50, required=False),
+    AddressField("building", "short", 0, 50, required=False),
+    AddressField("access", "short", 0, 50, required=False),
+    AddressField("notes", "paragraph", 0, 200, required=False),
+)
+
+
+def _address_key(field_id: str) -> str:
+    return f"{ADDRESS_PREFIX}{field_id}"
+
+
+# Every stored part of the address in shipping-label order (how staff read it): the label's lines, the country, then
+# what the courier needs at the door on their own lines.
+ADDRESS_LABEL_ORDER: tuple[str, ...] = (
+    *(_address_key(i) for i in ("name", "street", "unit", "building", "city", "region", "postal")),
+    ADDRESS_COUNTRY,
+    *(_address_key(i) for i in ("access", "notes")),
 )
 COUNTRY_MENU_SIZE = 25  # options per Discord menu: a larger region is split into several country menus
 
@@ -230,9 +253,14 @@ def address_problem(shipping: ShippingSettings, details: Mapping[str, str]) -> s
 
 
 def address_answers(details: Mapping[str, str]) -> dict[str, str]:
-    """The address as an order stores it (country code and the typed fields; the region menu's choice is not)."""
-    keys = [ADDRESS_COUNTRY, *(f.answer_key for f in ADDRESS_FIELDS)]
-    return {key: details[key] for key in keys if details.get(key, "").strip()}
+    """The address as an order stores it, in shipping-label order: the typed fields, the apartment details and the
+    country code (the region menu's choice is not stored)."""
+    return {key: details[key] for key in ADDRESS_LABEL_ORDER if details.get(key, "").strip()}
+
+
+def has_apartment(details: Mapping[str, str]) -> bool:
+    """Any apartment detail was entered."""
+    return any(details.get(f.answer_key, "").strip() for f in APARTMENT_FIELDS)
 
 
 def country_menus(shipping: ShippingSettings, group_id: str | None) -> list[tuple[str, ...]]:

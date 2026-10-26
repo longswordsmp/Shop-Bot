@@ -15,7 +15,11 @@ The accepted pictures: PNG, JPEG, GIF and WebP (checked from the declared type o
 and from the downloaded bytes when the review is sent), at most ``image_limit``: the server's upload limit, capped by
 the per-message file limit every bot message is checked against, minus the largest banner a message with the photo
 carries (the reviews banner, or one of the approval message's banners). The original file name is never used (it
-could name the member).
+could name the member), and the stored picture carries none of the file's metadata (GPS position, camera, owner:
+``image_metadata.strip_metadata``), so an anonymous review never tells where or by whom its photo was taken. The
+stored bytes are stripped once more whenever they are attached (``ReviewImage.file_spec``), which also covers a photo
+stored before stripping existed or before it removed as much as it does now. Stripping walks the file in Python, so
+it runs in a worker thread (a crafted file can take a second or two), never in the bot's event loop.
 
 Repository functions (``fn(conn, ...)``, use inside ``app.db.run``/``transaction``): ``store_image``, ``get_image``,
 ``release_image``, ``releasable_ids``.
@@ -34,6 +38,7 @@ import aiohttp
 import discord
 
 from shopbot.logging_setup import log_event
+from shopbot.ui.image_metadata import strip_metadata
 from shopbot.ui.image_types import CONTENT_TYPES, sniff
 from shopbot.ui.limits import ATTACHMENT_SCHEME, FILES_TOTAL_BYTES
 from shopbot.ui.spec import FileSpec
@@ -108,16 +113,11 @@ class ReviewImage:
         return attachment_name(self.review_id, self.content_type)
 
     def file_spec(self) -> FileSpec | None:
-        """The file to attach, or None when its bytes are not loaded (released)."""
+        """The file to attach, without its metadata, or None when its bytes are not loaded (released). Slow for a
+        large file: call it in a worker thread (``asyncio.to_thread``)."""
         if self.data is None:
             return None
-        return FileSpec(
-            filename=self.filename,
-            sha256=self.sha256,
-            size=self.size,
-            content_type=self.content_type,
-            data=self.data,
-        )
+        return FileSpec.of(self.filename, strip_metadata(self.data, self.content_type), self.content_type)
 
 
 class ImageRejected(Exception):
@@ -180,7 +180,8 @@ def check_upload(upload: Upload, limit: int) -> UploadRef:
 
 
 def validate_bytes(data: bytes, limit: int) -> Picture:
-    """Downloaded bytes: the size limit and a real PNG/JPEG/GIF/WebP signature."""
+    """Downloaded bytes: the size limit and a real PNG/JPEG/GIF/WebP signature. The picture kept is the file without
+    its metadata (``strip_metadata``; slow for a large file: ``download`` runs it in a worker thread)."""
     if not data:
         raise ImageRejected("empty")
     if len(data) > limit:
@@ -188,7 +189,8 @@ def validate_bytes(data: bytes, limit: int) -> Picture:
     content_type = sniff(data)
     if content_type is None:
         raise ImageRejected("type")
-    return Picture(content_type=content_type, data=data, sha256=hashlib.sha256(data).hexdigest())
+    kept = strip_metadata(data, content_type)
+    return Picture(content_type=content_type, data=kept, sha256=hashlib.sha256(kept).hexdigest())
 
 
 async def download(app: App, upload: UploadRef, limit: int) -> Picture:
@@ -203,7 +205,7 @@ async def download(app: App, upload: UploadRef, limit: int) -> Picture:
         raise ImageRejected("download") from None
     if not isinstance(data, bytes):
         raise ImageRejected("download")
-    return validate_bytes(data, limit)
+    return await asyncio.to_thread(validate_bytes, data, limit)
 
 
 # -- repository ----------------------------------------------------------------------------------------------------

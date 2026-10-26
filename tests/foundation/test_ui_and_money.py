@@ -181,6 +181,16 @@ def test_a_file_upload_field_is_rendered_in_a_label_and_its_files_are_parsed() -
     # A file the submission does not describe ("12") is left out.
     assert parse_modal_uploads(data) == {"photo": (ModalUpload("a.png", url, 7, "image/png"),), "empty": ()}
     assert parse_modal_uploads({"components": []}) == {} and parse_modal_uploads(None) == {}
+    # Malformed parts (not objects, a label without its component) are skipped, never an error.
+    odd = {
+        "components": [
+            None,
+            "x",
+            {"type": 18, "component": None},
+            {"type": 1, "components": [None, {"type": 4, "custom_id": "a", "value": "v"}]},
+        ]
+    }
+    assert parse_modal_fields(odd) == {"a": "v"} and parse_modal_uploads(odd) == {}
 
 
 def test_file_upload_fields_count_toward_the_form_limits() -> None:

@@ -59,6 +59,7 @@ from shopbot.features.tickets import views as tickets_views
 from shopbot.ui.card import heading, with_paragraph
 from shopbot.ui.custom_ids import cid
 from shopbot.ui.limits import (
+    ACTION_ROWS,
     EMBED_DESCRIPTION,
     EMBED_FIELDS,
     EMBED_TOTAL_CHARS,
@@ -194,6 +195,14 @@ def address_open_id(session_id: int) -> str:
 
 def address_form_id(session_id: int) -> str:
     return cid(ROUTE, "aform", session_id)
+
+
+def apartment_open_id(session_id: int) -> str:
+    return cid(ROUTE, "aptopen", session_id)
+
+
+def apartment_form_id(session_id: int) -> str:
+    return cid(ROUTE, "aptform", session_id)
 
 
 def details_id(session_id: int, part: int) -> str:
@@ -593,18 +602,22 @@ def order_exists_reply(ui: Ui, channel_id: int, order_number: int, limit: int, u
     return replace(spec, rows=_open_ticket_rows(ui, url))
 
 
-def buy_added_reply(ui: Ui, name: str, channel_id: int) -> MessageSpec:
-    """Reply to a catalog buy button that continued the customer's existing order channel."""
-    return _description_message(
+def buy_added_reply(ui: Ui, name: str, channel_id: int, url: str | None = None) -> MessageSpec:
+    """Reply to a catalog buy button that continued the customer's existing order channel, with the optional
+    open-ticket link button (``url``) like ``session_exists_reply``."""
+    spec = _description_message(
         ui, k.BUY_ADDED, "selection-and-cart", name=escape(name), channel_mention=channel_mention(channel_id)
     )
+    return replace(spec, rows=_open_ticket_rows(ui, url))
 
 
-def buy_started_reply(ui: Ui, channel_id: int, notice: EmbedSpec | None = None) -> MessageSpec:
-    """Reply to a catalog buy button that opened a new order channel; ``notice`` explains a product that could not be
-    put in the cart after all (e.g. sold out a moment earlier): its text is the card's last paragraph, in the warning
-    colour, so the reply stays one card."""
-    started = started_reply(ui, channel_id)  # its banner too: the ticket opened even when the product was not added
+def buy_started_reply(ui: Ui, channel_id: int, notice: EmbedSpec | None = None, url: str | None = None) -> MessageSpec:
+    """Reply to a catalog buy button that opened a new order channel, with the optional open-ticket link button
+    (``url``) like ``started_reply``; ``notice`` explains a product that could not be put in the cart after all (e.g.
+    sold out a moment earlier): its text is the card's last paragraph, in the warning colour, so the reply stays one
+    card."""
+    # Its banner and link too: the ticket opened even when the product was not added.
+    started = started_reply(ui, channel_id, url)
     if notice is None:
         return started
     card = replace(started.embeds[0], color=ui.color("warning"))
@@ -1170,8 +1183,9 @@ def extra_buttons(ui: Ui, settings: Settings, session: m.Session) -> list[Button
 
 
 def address_text(ui: Ui, settings: Settings, details: Mapping[str, str]) -> str:
-    """The address section of the details step: the chosen country and whether the address was entered (never the
-    street: the channel only shows the name and city)."""
+    """The address section of the details step: the chosen country, whether the address was entered and whether
+    apartment details were added (never the street or the apartment details: the channel only shows the name and
+    city)."""
     country = details.get(flow.ADDRESS_COUNTRY)
     country_name = settings.shipping.country_name(country) if country else _text(ui, k.ADDRESS_COUNTRY_NONE)
     lines = [heading(_text(ui, k.ADDRESS_HEADING)), _text(ui, k.ADDRESS_COUNTRY_LINE, country=escape(country_name))]
@@ -1179,7 +1193,12 @@ def address_text(ui: Ui, settings: Settings, details: Mapping[str, str]) -> str:
         lines.append(_text(ui, k.ADDRESS_ADDED_LINE, **_address_values(details)))
     else:
         lines.append(_text(ui, k.ADDRESS_MISSING_LINE))
-    return "\n".join(lines)
+    return "\n".join([*lines, *_apartment_line(ui, details)])
+
+
+def _apartment_line(ui: Ui, details: Mapping[str, str]) -> list[str]:
+    """The line saying apartment details were added (never what they are), or nothing."""
+    return [_text(ui, k.APARTMENT_ADDED_LINE)] if flow.has_apartment(details) else []
 
 
 def _address_values(details: Mapping[str, str]) -> dict[str, str | int]:
@@ -1245,6 +1264,24 @@ def address_modal(ui: Ui, settings: Settings, session: m.Session) -> ModalSpec:
     return ModalSpec(custom_id=address_form_id(session.id), title=_text(ui, k.ADDRESS_MODAL_TITLE), inputs=inputs)
 
 
+def apartment_modal(ui: Ui, session: m.Session) -> ModalSpec:
+    """The private apartment details form: every field optional and filled in with what was entered before (emptying
+    them all removes the apartment details)."""
+    inputs = tuple(
+        TextInputSpec(
+            custom_id=field.answer_key,
+            label=_text(ui, k.address_field_key(field.id, "label")),
+            style="paragraph" if field.style == "paragraph" else "short",
+            placeholder=ui.text(k.address_field_key(field.id, "placeholder")),
+            default=session.details.get(field.answer_key) or None,
+            required=False,
+            max_length=field.max_length,
+        )
+        for field in flow.APARTMENT_FIELDS
+    )
+    return ModalSpec(custom_id=apartment_form_id(session.id), title=_text(ui, k.APARTMENT_MODAL_TITLE), inputs=inputs)
+
+
 def _details(ui: Ui, settings: Settings, data: m.WorkflowData) -> MessageSpec:
     session = data.session
     if settings.checkout.ask_address:
@@ -1274,7 +1311,8 @@ def _details(ui: Ui, settings: Settings, data: m.WorkflowData) -> MessageSpec:
 
 def _address_step(ui: Ui, settings: Settings, data: m.WorkflowData) -> MessageSpec:
     """The shipping address step: the address section, the items so far, the region and country menus, the address
-    form button (plus the details form buttons, if any) and the navigation."""
+    and apartment details form buttons (plus the details form buttons, if any) and, on a row of its own when the rows
+    allow it, the navigation."""
     session = data.session
     address = address_text(ui, settings, session.details)
     items, summary = _cart_sections(ui, settings, data)
@@ -1286,15 +1324,21 @@ def _address_step(ui: Ui, settings: Settings, data: m.WorkflowData) -> MessageSp
     embeds = card(True)
     if not _fits(embeds):
         embeds = card(False)
-    entered = bool(session.details.get(flow.ADDRESS_COUNTRY)) and any(
-        session.details.get(f.answer_key) for f in flow.ADDRESS_FIELDS
-    )
+    no_country = not session.details.get(flow.ADDRESS_COUNTRY)
+    entered = not no_country and any(session.details.get(f.answer_key) for f in flow.ADDRESS_FIELDS)
     open_form = _button(
         ui,
         k.ADDRESS_BUTTON_CHANGE if entered else k.ADDRESS_BUTTON,
         address_open_id(session.id),
         style="secondary" if entered else "primary",
-        disabled=not session.details.get(flow.ADDRESS_COUNTRY),
+        disabled=no_country,
+    )
+    # Optional, so always grey; shown from the start so the apartment is not squeezed into the street line.
+    apartment = _button(
+        ui,
+        k.APARTMENT_BUTTON_CHANGE if flow.has_apartment(session.details) else k.APARTMENT_BUTTON,
+        apartment_open_id(session.id),
+        disabled=no_country,
     )
     inputs = flow.form_inputs(settings.checkout, None)
     keys = (k.BUTTON_ENTER_DETAILS, k.BUTTON_ENTER_MORE_DETAILS)
@@ -1303,19 +1347,27 @@ def _address_step(ui: Ui, settings: Settings, data: m.WorkflowData) -> MessageSp
     ]
     complete = flow.details_step_complete(settings.checkout, settings.shipping, None, session.details)
     navigation = _navigation(ui, settings, data, m.DETAILS, can_continue=complete)
-    rows = (*address_rows(ui, settings, session), *rows_of(open_form, *form_buttons, *navigation))
-    return MessageSpec(embeds=tuple(embeds), rows=tuple(rows), banner=ui.banner("details-and-options"))
+    menus = address_rows(ui, settings, session)
+    buttons = rows_of(open_form, apartment, *form_buttons)
+    # The address buttons and the navigation on rows of their own; packed together only when a region's country menus
+    # leave no room for that (``content_keys.settings_problems`` counts with the packed rows).
+    if len(menus) + len(buttons) + 1 <= ACTION_ROWS:
+        rows = (*menus, *buttons, *rows_of(*navigation))
+    else:
+        rows = (*menus, *rows_of(open_form, apartment, *form_buttons, *navigation))
+    return MessageSpec(embeds=tuple(embeds), rows=rows, banner=ui.banner("details-and-options"))
 
 
 def review_sections(ui: Ui, settings: Settings, data: m.WorkflowData, *, with_items: bool = True) -> list[str | None]:
     """The review: the items, the summary with the total to pay (and the store credit that could still be applied),
-    where the order goes (name, city and country; never the street) and, last, just above the menus, the tip note while
-    tips are on."""
-    destination = ship_to(ui, settings, data.session.details) if settings.checkout.ask_address else None
+    where the order goes (name, city and country, and whether apartment details were added; never the street or the
+    apartment details) and, last, just above the menus, the tip note while tips are on."""
+    details = data.session.details
+    destination = ship_to(ui, settings, details) if settings.checkout.ask_address else None
     return [
         items_section(ui, _cart_lines(ui, data)) if with_items else None,
         _workflow_summary(ui, settings, data, final=True, available=True),
-        section(_text(ui, k.ADDRESS_HEADING), [destination]) if destination else None,
+        section(_text(ui, k.ADDRESS_HEADING), [destination, *_apartment_line(ui, details)]) if destination else None,
         tip_note(ui, settings, data),
     ]
 
@@ -1970,10 +2022,11 @@ def _optional_button(ui: Ui, key: str, custom_id: str, style: ButtonStyle) -> Bu
 
 
 def ordered_answers(settings: Settings, order: m.Order) -> list[tuple[str, str]]:
-    """(answer key, answer as shown) in form order: the shipping address first (the country by name), then the
-    forms' answers; fields no longer configured last, by key."""
+    """(answer key, answer as shown) in form order: the shipping address first, in shipping-label order (name, street,
+    apartment and building, city, region, postal code, the country by name, then the entry code and the delivery
+    instructions), then the forms' answers; fields no longer configured last, by key."""
     c = settings.checkout
-    address = [flow.ADDRESS_COUNTRY, *(f.answer_key for f in flow.ADDRESS_FIELDS)]
+    address = list(flow.ADDRESS_LABEL_ORDER)
     known = address + [i.answer_key for i in flow.form_inputs(c, order.fulfillment_option) + flow.submission_inputs(c)]
     keys = [key for key in known if key in order.details]
     keys += sorted(key for key in order.details if key not in known)

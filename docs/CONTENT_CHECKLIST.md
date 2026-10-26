@@ -297,7 +297,7 @@ Feature `shipping` — enabled.
 
 | | Key | Where it appears | Kind (max chars) | Required | Placeholders |
 |---|---|---|---|---|---|
-| ✅ | `shipping.areas.heading` | Heading of the list of every area of a country one by one (shipping.list_areas, e.g. every US state) at the bottom of the shipping card, shown in bold, e.g. '{icon_map} US STATES'. {country} is the country's name. | field_name (256) | required | `{country}` |
+| ✅ | `shipping.areas.heading` | Heading of the list of every area of a country one by one (shipping.list_areas, e.g. every US state) at the bottom of the shipping card, shown in bold, e.g. '{icon_location} US STATES'. {country} is the country's name. | field_name (256) | required | `{country}` |
 | ▫️ | `shipping.areas.introduction` | Optional line under that heading, e.g. 'Find your state before you order.' {country} is the country's name. The areas follow on one line per status, like the countries: the available ones after shipping.status.full.indicator, the excluded ones after shipping.status.none.indicator (the legend at the top of the card explains the dots). | field_value (1024) | optional | `{country}` |
 
 ### Shipping delivery options
@@ -523,7 +523,15 @@ Feature `checkout` — enabled.
 
 | | Key | Where it appears | Kind (max chars) | Required | Placeholders |
 |---|---|---|---|---|---|
+| ✅ | `checkout.address.access.label` | Label of the apartment details form field for the entry or buzzer code (as private as the address); also its name in the address shown to staff. | input_label (45) | required |  |
+| ✅ | `checkout.address.access.placeholder` | Optional greyed-out example in the field for the entry or buzzer code (as private as the address). | input_placeholder (100) | optional |  |
 | ✅ | `checkout.address.added_line` | Line on the shipping address step once the address is entered, e.g. '**Address:** {name}, {city}'. The street is never shown in the channel. | format (100) | required | `{name}`, `{city}`, `{region}`, `{postal}` |
+| ✅ | `checkout.address.apartment_button` | Button on the shipping address step that opens the optional apartment details form (unit, building or floor, entry code, delivery instructions). | button_label (80) | required |  |
+| ✅ | `checkout.address.apartment_button_change` | The same button once apartment details were entered. | button_label (80) | required |  |
+| ✅ | `checkout.address.apartment_line` | Line in the address section of the shipping address step and the review once apartment details were entered, e.g. '{icon_home} Apartment details added'. The details themselves are never shown in the channel. | field_value (1024) | required |  |
+| ✅ | `checkout.address.apartment_modal_title` | Title of the private apartment details form. | modal_title (45) | required |  |
+| ✅ | `checkout.address.building.label` | Label of the apartment details form field for the building or floor; also its name in the address shown to staff. | input_label (45) | required |  |
+| ✅ | `checkout.address.building.placeholder` | Optional greyed-out example in the field for the building or floor. | input_placeholder (100) | optional |  |
 | ✅ | `checkout.address.button` | Button on the shipping address step that opens the address form. | button_label (80) | required |  |
 | ✅ | `checkout.address.button_change` | The same button once an address was entered. | button_label (80) | required |  |
 | ✅ | `checkout.address.city.label` | Label of the address form field for the city or town; also its name in the address shown to staff. | input_label (45) | required |  |
@@ -542,14 +550,18 @@ Feature `checkout` — enabled.
 | ✅ | `checkout.address.modal_title` | Title of the private address form. | modal_title (45) | required |  |
 | ✅ | `checkout.address.name.label` | Label of the address form field for the recipient's full name; also its name in the address shown to staff. | input_label (45) | required |  |
 | ✅ | `checkout.address.name.placeholder` | Optional greyed-out example in the field for the recipient's full name. | input_placeholder (100) | optional |  |
+| ✅ | `checkout.address.notes.label` | Label of the apartment details form field for delivery instructions for the courier; also its name in the address shown to staff. | input_label (45) | required |  |
+| ✅ | `checkout.address.notes.placeholder` | Optional greyed-out example in the field for delivery instructions for the courier. | input_placeholder (100) | optional |  |
 | ✅ | `checkout.address.postal.label` | Label of the address form field for the postal or ZIP code; also its name in the address shown to staff. | input_label (45) | required |  |
 | ▫️ | `checkout.address.postal.placeholder` | Optional greyed-out example in the field for the postal or ZIP code. | input_placeholder (100) | optional |  |
 | ✅ | `checkout.address.region.label` | Label of the address form field for the state, province or region (required for a country with excluded areas, e.g. US states); also its name in the address shown to staff. | input_label (45) | required |  |
 | ✅ | `checkout.address.region.placeholder` | Optional greyed-out example in the field for the state, province or region (required for a country with excluded areas, e.g. US states). | input_placeholder (100) | optional |  |
 | ✅ | `checkout.address.region_placeholder` | Greyed-out text of the region menu on the shipping address step (e.g. 'Choose your region'). | select_placeholder (150) | required |  |
 | ✅ | `checkout.address.ship_to` | How the destination is written on the review, the order and the staff record, e.g. '{name}, {city}, {country}' (the full address is shown to staff only). | format (100) | required | `{name}`, `{city}`, `{region}`, `{postal}`, `{country}` |
-| ✅ | `checkout.address.street.label` | Label of the address form field for the street and house number (and apartment, if any); also its name in the address shown to staff. | input_label (45) | required |  |
-| ✅ | `checkout.address.street.placeholder` | Optional greyed-out example in the field for the street and house number (and apartment, if any). | input_placeholder (100) | optional |  |
+| ✅ | `checkout.address.street.label` | Label of the address form field for the street and house number (the apartment has its own optional form); also its name in the address shown to staff. | input_label (45) | required |  |
+| ✅ | `checkout.address.street.placeholder` | Optional greyed-out example in the field for the street and house number (the apartment has its own optional form). | input_placeholder (100) | optional |  |
+| ✅ | `checkout.address.unit.label` | Label of the apartment details form field for the apartment, suite or unit number; also its name in the address shown to staff. | input_label (45) | required |  |
+| ✅ | `checkout.address.unit.placeholder` | Optional greyed-out example in the field for the apartment, suite or unit number. | input_placeholder (100) | optional |  |
 | ✅ | `checkout.error.area_excluded` | Private reply when the address is in an area we do not ship to (shipping.excluded_areas). {area} is its name (e.g. Alaska), {country} the country. The answers are kept so the customer can correct them. | description (4096) | required | `{area}`, `{country}` |
 | ✅ | `checkout.error.country_first` | Private reply when the address form is opened before a country is chosen. | description (4096) | required |  |
 
@@ -621,7 +633,7 @@ Feature `checkout` — enabled.
 | ✅ | `checkout.order_exists.description` | Private reply when the customer clicks start while they already have the maximum number of open orders (checkout.max_open_orders_per_user) and one of them still has its order ticket open: no new ticket is created, the reply links the existing one. {channel_mention} links that ticket, {order_number} is its order number, {limit} the maximum (checkout.limit_reached.description is used when no open ticket can be linked). | description (4096) | required | `{channel_mention}`, `{order_number}`, `{limit}` |
 | ✅ | `checkout.session_exists.description` | Private reply when the customer clicks start while they already have an unfinished order channel; no second channel is created. {channel_mention} links the existing channel. | description (4096) | required | `{channel_mention}` |
 | ✅ | `checkout.started.description` | Private reply after the start button created the customer's order channel. {channel_mention} links the channel. | description (4096) | required | `{channel_mention}` |
-| ✅ | `checkout.ticket_link.button` | Optional link button under the private replies to the start button (new ticket, unfinished ticket, existing open order) that opens the customer's order ticket. Omitted when empty. | button_label (80) | optional |  |
+| ✅ | `checkout.ticket_link.button` | Optional link button under the private replies to the start button (new ticket, unfinished ticket, existing open order) and to a catalog buy button that opens the customer's order ticket. Omitted when empty. | button_label (80) | optional |  |
 
 ### Checkout: order workflow - cart
 
@@ -809,7 +821,7 @@ Feature `checkout` — enabled.
 | ✅ | `checkout.notify.correction.title` | Optional title of the notification asking the customer to correct information. {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention. | title (256) | optional | `{order_number}`, `{total}`, `{channel_mention}` |
 | ✅ | `checkout.notify.rejected.reason_field` | Name of the field in the customer's rejection notification (checkout.notify.rejected.*) that shows the reason staff entered when rejecting the order. | field_name (256) | required |  |
 | ✅ | `checkout.notify.shipped.carrier_field` | Name of the field showing the carrier in the shipped notification (Mark shipped) and on the customer's order ticket card while the order is shipped, e.g. '{icon_truck} Carrier'. | field_name (256) | required |  |
-| ✅ | `checkout.notify.shipped.number_field` | Name of the field showing the tracking number in the shipped notification and on the customer's order ticket card while the order is shipped, e.g. '{icon_location} Tracking number'. | field_name (256) | required |  |
+| ✅ | `checkout.notify.shipped.number_field` | Name of the field showing the tracking number in the shipped notification and on the customer's order ticket card while the order is shipped, e.g. '{icon_map} Tracking number'. | field_name (256) | required |  |
 | ✅ | `checkout.notify.shipped.track_button` | Label of the link button under the shipped notification and on the customer's order ticket card while the order is shipped, that opens the carrier's tracking page (shown when staff entered a tracking link), e.g. 'Track package'. | button_label (80) | required |  |
 | ✅ | `checkout.notify.tracking.description` | Notification sent to the customer when staff add or change tracking details of an order that is already completed (the details follow in a field). {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention. Needed when checkout.staff.button.tracking is configured. | description (4096) | optional | `{order_number}`, `{total}`, `{channel_mention}` |
 | ✅ | `checkout.notify.tracking.details_field` | Name of the field showing the tracking details in the customer's completion notification and in the tracking notification. Needed when checkout.staff.button.tracking is configured. | field_name (256) | optional |  |
@@ -1012,7 +1024,7 @@ Feature `checkout` — enabled.
 | ✅ | `checkout.tip.input_label` | Label of the form's amount field. | input_label (45) | required |  |
 | ✅ | `checkout.tip.input_placeholder` | Optional greyed-out example inside the empty amount field, e.g. 'For example: 7.50'. {minimum} and {maximum} are the smallest and largest amount a customer may type. | input_placeholder (100) | optional | `{minimum}`, `{maximum}` |
 | ✅ | `checkout.tip.modal_title` | Title of the private form that Other amount opens. | modal_title (45) | required |  |
-| ✅ | `checkout.tip.note` | Last line of the review step while no tip is chosen: that a tip is optional and who it is for, e.g. '{icon_heart} Tips are optional. If you'd like to thank our support team, pick an amount in the menu below. 100% of every tip goes to our team.'. | field_value (1024) | required |  |
+| ✅ | `checkout.tip.note` | Last line of the review step while no tip is chosen: that a tip is optional and who it is for, e.g. '{icon_heart} Tips are optional. To thank our support team, pick an amount in the menu below. 100% of every tip goes to our team.'. | field_value (1024) | required |  |
 | ✅ | `checkout.tip.note_thanks` | Last line of the review step once a tip is chosen, e.g. '{icon_heart} Thank you! 100% of every tip goes to our team.'. | field_value (1024) | required |  |
 | ✅ | `checkout.tip.option_amount` | One option of the tip menu per amount in checkout.tips.amounts (and the customer's own amount while one is chosen), e.g. '{icon_heart} {amount} tip'. {amount} is the amount. | option_label (100) | required | `{amount}` |
 | ✅ | `checkout.tip.option_custom` | Last option of the tip menu: it opens a private form to type an amount (checkout.tips.allow_custom), e.g. '{icon_edit} Other amount'. | option_label (100) | required |  |
@@ -1059,7 +1071,7 @@ Feature `my_orders` — enabled.
 | ✅ | `my_orders.empty.description` | Text of the /myorders reply when the member has no order yet. | description (4096) | required |  |
 | ✅ | `my_orders.list.description` | Optional text under the /myorders title when the member has orders. {count} is their number. The orders follow (newest first), with previous/next buttons when there is more than one page. | description (4096) | optional | `{count}` |
 | ✅ | `my_orders.list.title` | Title of the private /myorders reply (also when the member has no order yet). {count} is the number of the member's orders. | title (256) | required | `{count}` |
-| ✅ | `my_orders.order.summary` | Line under each order's heading in /myorders, e.g. '{total} · placed {date}'. {order_number} is the order number, {status} its current stage name (checkout.ticket.stage.*), {total} the total (common.money_format), {date} the date it was submitted (shown by Discord in the reader's time zone). | description (4096) | required | `{order_number}`, `{status}`, `{total}`, `{date}` |
+| ✅ | `my_orders.order.summary` | Line under each order's heading in /myorders, e.g. '{icon_calendar} Placed {date} · **{total}**'. {order_number} is the order number, {status} its current stage name (checkout.ticket.stage.*), {total} the total (common.money_format), {date} the date it was submitted (shown by Discord in the reader's time zone). | description (4096) | required | `{order_number}`, `{status}`, `{total}`, `{date}` |
 | ✅ | `my_orders.order.ticket_field` | Optional label of the line linking the order's ticket while it is still open, e.g. 'Ticket' (the line is omitted when empty). | field_name (256) | optional |  |
 | ✅ | `my_orders.order.title` | Heading of each order in /myorders, shown in bold. {order_number} is the order number, {status} its current stage name (checkout.ticket.stage.*), {total} the total (common.money_format), {date} the date it was submitted (shown by Discord in the reader's time zone). | title (256) | required | `{order_number}`, `{status}`, `{total}`, `{date}` |
 | ✅ | `my_orders.order.tracking_field` | Optional label of the line showing the tracking details staff recorded for the order, e.g. 'Tracking' (shown only when there are tracking details; omitted when empty). | field_name (256) | optional |  |
@@ -1424,7 +1436,7 @@ Feature `operations` — enabled.
 
 ## Summary
 
-- Required keys (for the listed features): 559
+- Required keys (for the listed features): 567
 - Required keys still missing: 0
 
 Legend: ✅ configured · ❌ required and missing · ▫️ optional and empty

@@ -97,7 +97,6 @@ OPERATOR_TEXT: dict[str, str] = {
     "catalog.view.position": "Position",
     "catalog.view.image": "Image",
     "catalog.view.version": "Version",
-    "catalog.view.description": "Description",
     "catalog.view.unlimited": "unlimited",
     "catalog.view.none": "none",
     "catalog.view.active": "active",

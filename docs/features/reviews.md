@@ -64,8 +64,15 @@ photo, never their name) and an intro at the top of #reviews after the server wa
    decision's follow-up (`reviews.decided`) has run, so the approval message shows the decision with the photo also
    after a restart. A later edit of the approval message then shows the card without the photo (removing a review
    takes its photo off the approval message at once). Released bytes are overwritten in the database file
-   (`PRAGMA secure_delete`); a backup taken before the release still holds them. The bot does not edit the picture
-   itself (metadata in the file stays as Discord delivered it).
+   (`PRAGMA secure_delete`); a backup taken before the release still holds them. The stored picture is the file
+   without its metadata (`shopbot/ui/image_metadata.py`, pure Python): JPEG loses its comments and every application
+   block except the three a decoder needs (JFIF, the colour profile, Adobe's colour transform), so Exif, XMP, IPTC,
+   Content Credentials and a camera's GPS track go (GPS position, camera, owner; only the orientation is kept, so the
+   photo stays upright), and anything after the image; PNG loses its text, Exif and Content Credentials chunks, WebP
+   its EXIF, XMP and Content Credentials chunks; GIF is kept as it is. The image data itself is not changed. The
+   bytes are stripped again whenever they are attached, so a photo stored before stripping existed (or before it
+   removed as much) is posted without its metadata too. Stripping runs in a worker thread, never in the bot's event
+   loop.
 5. **Anonymous publication.** A published review never shows the member's name, mention, avatar or anything that
    identifies them: the title is the rating (`reviews.published.title`, shipped `{stars} {rating}/{scale}`, e.g.
    "★★★★★ 5/5"), then the comment or description exactly as written (escaped, it never pings), the optional rating
@@ -255,7 +262,8 @@ deleted ones.
   rating scale needs a restart (`/reload` does not re-register commands).
 - Editing an approval message keeps the photo it already shows; a photo is uploaded again only when the message
   lost it (e.g. a re-posted approval message).
-- The photo is posted as Discord delivered it; the bot does not strip metadata from the file.
+- Only the metadata blocks named above are removed from the photo; the bot does not look at what the picture shows
+  (a face, a street sign).
 - With `photo_requires_approval = false` (and `require_approval` off) a verified review's photo appears in #reviews
   unchecked, like its text.
 - `/review` always reviews the member's newest delivered order without a finished review; the review request's text

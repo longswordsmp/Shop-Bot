@@ -69,6 +69,14 @@ async def _session_count(tenv: TestEnv) -> int:
     return await tenv.app.db.run(lambda conn: conn.execute("SELECT COUNT(*) FROM checkout_sessions").fetchone()[0])
 
 
+def _ticket_links(tenv: TestEnv, reply: FakeMessage | None, channel: FakeTextChannel) -> bool:
+    """Whether the reply has exactly the open-ticket link button to ``channel``."""
+    assert reply is not None
+    items = [getattr(child, "item", child) for child in reply.components()]
+    found = [(getattr(item, "label", None), getattr(item, "url", None)) for item in items]
+    return found == [(tenv.text(k.BUTTON_OPEN_TICKET), f"https://discord.com/channels/{GUILD_ID}/{channel.id}")]
+
+
 def test_catalog_builds_the_custom_id_checkout_routes() -> None:
     assert catalog_views.BUY_ROUTE == k.ROUTE
     assert catalog_views.buy_custom_id(42) == "sb:co:buy:42"
@@ -86,6 +94,7 @@ async def test_buy_opens_a_new_order_channel_with_the_product_in_the_cart(shop: 
     ticket_channel = await ticket_channel_of(shop, session.ticket_id)
     assert error_text(clicked) == render(shop, k.STARTED, channel_mention=f"<#{ticket_channel.id}>")
     assert clicked.last_sent is not None and clicked.last_sent.flags.ephemeral
+    assert _ticket_links(shop, clicked.last_sent, ticket_channel)
     assert session.status == m.ACTIVE and session.step == m.CART
     assert await _cart(shop, session.id) == {product.id: 1}
     # the first workflow message already shows the cart with the product
@@ -109,6 +118,7 @@ async def test_buy_continues_the_existing_channel_and_updates_its_live_panel(sho
 
     clicked = await _buy(shop, customer, second.id)
     assert error_text(clicked) == render(shop, k.BUY_ADDED, name="[p2]", channel_mention=f"<#{ticket_channel.id}>")
+    assert _ticket_links(shop, clicked.last_sent, ticket_channel)
     assert await _cart(shop, session.id) == {second.id: 1}
     assert (await reload_session(shop, session.id)).step == m.CART
     assert message.embeds[0].title == shop.text(k.CART_TITLE) and "[p2]" in message.text()
@@ -141,6 +151,7 @@ async def test_buy_reply_falls_back_to_the_session_exists_text(tmp_path: Path) -
         _, _, ticket_channel, _ = await start(tenv, customer)
         clicked = await _buy(tenv, customer, product.id)
         assert error_text(clicked) == render(tenv, k.SESSION_EXISTS, channel_mention=f"<#{ticket_channel.id}>")
+        assert _ticket_links(tenv, clicked.last_sent, ticket_channel)
     finally:
         await tenv.close()
 
@@ -264,6 +275,7 @@ async def test_product_that_sold_out_while_opening_leaves_an_empty_cart_and_expl
     assert reply.embeds[0].description == f"{started}\n\n{notice}"
     card = reply.embeds[0]
     assert card.colour is not None and card.colour.value == shop.app.ui.color("warning")
+    assert _ticket_links(shop, reply, ticket_channel)  # the ticket opened: its link like any other start
 
 
 async def test_checkout_not_ready_answers_unavailable(tmp_path: Path) -> None:

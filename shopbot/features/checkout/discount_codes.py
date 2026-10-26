@@ -67,6 +67,12 @@ def _money(app: App) -> discount_views.Money:
     return lambda minor: views.money(app.ui, minor)
 
 
+async def _product_names(app: App, code: d.Code) -> list[str]:
+    """The names of the products the code is limited to, by product number (archived ones too)."""
+    names = await app.db.run(discount_repo.product_names, app.env.guild_id, code.product_ids)
+    return [names[p] for p in sorted(names)]
+
+
 # -- customers: the review step ----------------------------------------------------------------------------------
 
 
@@ -160,9 +166,8 @@ async def claim(app: App, user_id: int, code_id: int) -> MessageSpec:
         return ended
     if code.once_per_customer and usage.customer_uses > 0:
         raise HandlerError(k.discount_error_key(d.ALREADY_USED), code=views.escape(code.code))
-    names = await app.db.run(discount_repo.product_names, guild_id, code.product_ids)
     reply = discount_views.claim_reply(
-        app.ui, app.settings, code, [names[p] for p in sorted(names)], links=channel_mentions(app)
+        app.ui, app.settings, code, await _product_names(app, code), links=channel_mentions(app)
     )
     created = await app.db.transaction(
         discount_repo.claim, guild_id=guild_id, code_id=code.id, user_id=user_id, now=now
@@ -187,8 +192,7 @@ async def find_code(app: App, text: str) -> d.Code | None:
 
 async def terms_text(app: App, code: d.Code) -> str:
     """The code's terms in plain words for staff (operator text; products by name)."""
-    names = await app.db.run(discount_repo.product_names, app.env.guild_id, code.product_ids)
-    return discount_views.terms_text(app.op, _money(app), code, [names[p] for p in sorted(names)], now=app.clock.now())
+    return discount_views.terms_text(app.op, _money(app), code, await _product_names(app, code), now=app.clock.now())
 
 
 # -- staff: /discount ----------------------------------------------------------------------------------------------
@@ -223,9 +227,10 @@ def parse_value(app: App, kind: str, value: str | None) -> int:
         raise Refused(app.op("checkout.discounts.value_missing", example=example))
     if kind == d.PERCENT:
         digits = text.removesuffix("%").strip()
-        if not digits.isdigit() or not 1 <= int(digits) <= 100:
+        basis_points = int(digits) * 100 if digits.isdigit() else 0
+        if not d.PERCENT_MIN_BP <= basis_points <= d.PERCENT_MAX_BP:
             raise Refused(app.op("checkout.discounts.percent_invalid"))
-        return int(digits) * 100
+        return basis_points
     minor = _amount(app, text, "checkout.discounts.amount_invalid")
     if minor <= 0:
         raise Refused(app.op("checkout.discounts.amount_zero"))
@@ -305,9 +310,8 @@ async def create(
             "expires_at": created.expires_at,
         },
     )
-    names = await app.db.run(discount_repo.product_names, app.env.guild_id, created.product_ids)
     return discount_views.created_reply(
-        app.ui, app.op, _money(app), created, [names[p] for p in sorted(names)], now=now
+        app.ui, app.op, _money(app), created, await _product_names(app, created), now=now
     )
 
 

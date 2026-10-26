@@ -236,6 +236,14 @@ Use a second (non-staff) Discord account as the "customer".
 - [ ] #place-order Start → private ticket (only you + staff): intro message, then the live panel (reference, step,
       status); add items, Continue, address (region, country, the private address form), delivery and extras,
       review, Confirm order.
+- [ ] On the address step (Change address and Add apartment (optional) on one row, Back / Continue / Cancel on the
+      next) press **Add apartment (optional)** → a private form with four optional fields (apartment, building or
+      floor, entry or buzzer code, delivery instructions). Fill two → SHIP TO only adds "Apartment details added"
+      (never what you typed), the button reads **Edit apartment details** and opens with your answers; empty every
+      field → the line is gone. The house icon shows on the button and the line. Place the order with them: the
+      record's **Details** button in #orders shows them privately (apartment and building under the street, the entry
+      code and instructions after the country); the ticket and #orders never show them (with
+      `operations.answers_in_orders_channel` off, as shipped). Check on a phone too.
 - [ ] Buy on a #catalog item while the ticket is open → the item is added to that ticket instead of a new one.
 - [ ] Start again with an open order → private link to the existing ticket.
 - [ ] Payment methods: the order card lists the methods (cards etc. "temporarily down", the DoorDash eGift card
@@ -305,6 +313,8 @@ Use a second (non-staff) Discord account as the "customer".
       team checks it ..." (a photo is always checked first) → the approval message shows "#N" under Order → Approve.
 - [ ] `/review photo:` with a photo that is not a picture (e.g. a PDF) or an iPhone HEIC photo → a private "We could
       not use this photo" reply ("up to 9 MB" or the server's limit), no form.
+- [ ] Review with a photo taken in portrait on a phone (a JPEG) → the approval message and #reviews show it upright
+      (the bot removes the photo's metadata but keeps its orientation).
 - [ ] **Where members can type `/review`.** With the Member-only account, open #reviews and type `/review`. Expected:
       the message box is locked ("You do not have permission to send messages"), which is why the panel has the
       button; if Discord does offer the command there, it works too. In an open order or support ticket `/review`

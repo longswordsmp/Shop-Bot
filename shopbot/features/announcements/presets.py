@@ -128,6 +128,13 @@ def uses_areas(app: App, preset: AnnouncementPreset) -> bool:
     return any(placeholder in (app.content.get(key) or "") for key in keys)
 
 
+def preset_areas(app: App, preset: AnnouncementPreset) -> str:
+    """The preset's ``{excluded_areas}``: ``area_text`` when its title or text shows it, else "" (so a preset that
+    does not show the areas never needs the joining text #shipping uses). Raises ``MissingContent`` like
+    ``area_text``."""
+    return area_text(app) if uses_areas(app, preset) else ""
+
+
 def text_problems(app: App, preset: AnnouncementPreset, values: dict[str, str]) -> list[Problem]:
     """The preset's channel links whose channel does not exist (the text would show a blank instead of a link), and
     ``{excluded_areas}`` while nothing is excluded (the announcement would be about nothing)."""
@@ -192,7 +199,9 @@ async def _message_gone(app: App, item: Announcement) -> bool:
         await channel.fetch_message(item.message_id)
     except discord.NotFound:
         return True
-    except discord.HTTPException:
+    except discord.HTTPException as exc:
+        # The post counts as still there: staff hear it was announced already, and the log says why it was not checked.
+        log_event(log, logging.WARNING, "announcement_message_check_failed", announcement_id=item.id, status=exc.status)
         return False
     return False
 
@@ -231,7 +240,7 @@ def _announcement(
             preset,
             links=values,
             code_id=code.id if code is not None else None,
-            excluded_areas=area_text(app),
+            excluded_areas=preset_areas(app, preset),
             preview=preview,
             image=image,
             image_url=image_url,
@@ -429,7 +438,7 @@ async def _post(
             preset,
             links=values,
             code_id=code.id if code is not None else None,
-            excluded_areas=area_text(app),
+            excluded_areas=preset_areas(app, preset),
             image=image,
             mention_role_id=role_id,
         )

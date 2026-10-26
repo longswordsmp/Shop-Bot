@@ -525,7 +525,10 @@ customer_role_remove_on_refund = true  # remove the role when an order is fully 
 discount_codes = true
 # The shipping address is asked on its own step, before the delivery options: the customer picks a country we
 # ship to ([shipping] groups) from menus, then fills in a private form (name, street, city, state/region, postal
-# code). Addresses in [shipping.excluded_areas] (Alaska, North Dakota) are refused; only staff see the full address.
+# code) and, if they like, a second one with apartment details (unit, building or floor, entry code, delivery
+# instructions). Addresses in [shipping.excluded_areas] (Alaska, North Dakota) are refused; only staff see the full
+# address. A region's country menus share the step's 5 rows with its buttons: at most 75 countries per region (50
+# with a [[checkout.details_form]]).
 ask_address = true
 # Optional submission form (max 5 fields), asked when the customer presses Submit (e.g. a reference the business
 # needs). Labels are content keys checkout.submission.form.<id>.label / .description / .placeholder. Example:

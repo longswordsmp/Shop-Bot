@@ -262,9 +262,7 @@ async def on_address_country(ctx: Ctx) -> None:
 
 async def on_address_open(ctx: Ctx) -> None:
     session = await _session(ctx)
-    country = session.details.get(flow.ADDRESS_COUNTRY)
-    if not ctx.app.settings.checkout.ask_address or not country or not ctx.app.settings.shipping.ships_to(country):
-        raise HandlerError(k.ERROR_COUNTRY_FIRST)
+    service.address_country(ctx.app, session)
     await ctx.send_modal(views.address_modal(ctx.app.ui, ctx.app.settings, session))
 
 
@@ -279,6 +277,18 @@ async def on_address_form(ctx: Ctx) -> None:
             area=area_name(country, saved.excluded_area),
             country=ctx.app.settings.shipping.country_name(country),
         )
+
+
+async def on_apartment_open(ctx: Ctx) -> None:
+    session = await _session(ctx)
+    service.address_country(ctx.app, session)
+    await ctx.send_modal(views.apartment_modal(ctx.app.ui, session))
+
+
+async def on_apartment_form(ctx: Ctx) -> None:
+    session = await _session(ctx)
+    await service.save_apartment(ctx.app, session, ctx.fields)
+    await _render(ctx, session.id)
 
 
 async def on_details(ctx: Ctx) -> None:
@@ -978,6 +988,7 @@ def register(app: App) -> None:
         "agroup": on_address_group,
         "acountry": on_address_country,
         "aopen": on_address_open,
+        "aptopen": on_apartment_open,
         "details": on_details,
         "credits": on_credits,
         "dcode": on_discount_open,
@@ -999,6 +1010,7 @@ def register(app: App) -> None:
     router.modal(route, "qty", feature=feature)(on_quantity)
     router.modal(route, "dform", feature=feature)(on_details_form)
     router.modal(route, "aform", feature=feature)(on_address_form)
+    router.modal(route, "aptform", feature=feature)(on_apartment_form)
     router.modal(route, "sform", feature=feature)(on_submission_form)
     router.modal(route, "paysubmit", feature=feature)(on_payment_submit)
     router.modal(route, "dcform", feature=feature)(on_discount_form)

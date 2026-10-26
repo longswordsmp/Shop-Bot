@@ -194,14 +194,15 @@ def rating_display(ui: Ui, rating: int) -> str:
     return text
 
 
-def verified_field(ui: Ui, *, order_number: str) -> EmbedField | None:
+def verified_field(ui: Ui, *, order_number: str, inline: bool = True) -> EmbedField | None:
     """The optional verification marker of a review of a delivered order: shown when both its heading and its text
-    are configured (content_problems reports one without the other)."""
+    are configured (content_problems reports one without the other). ``inline``: next to the rating field; alone it
+    takes the full width, so its heading is not wrapped."""
     name = ui.text(k.PUBLISHED_VERIFIED_FIELD)
     value = ui.text(k.PUBLISHED_VERIFIED_VALUE, order_number=order_number)
     if not name or not value:
         return None
-    return EmbedField(name=name, value=value, inline=True)
+    return EmbedField(name=name, value=value, inline=inline)
 
 
 def quoted(text: str) -> str:
@@ -227,7 +228,7 @@ def published_view(
     heading = ui.text(k.PUBLISHED_RATING_FIELD)
     if heading:
         fields.append(EmbedField(name=heading, value=rating_display(ui, rating), inline=True))
-    verified = verified_field(ui, order_number=order_number) if order_number is not None else None
+    verified = verified_field(ui, order_number=order_number, inline=bool(fields)) if order_number is not None else None
     if verified is not None:
         fields.append(verified)
     description = quoted(comment) if comment else None

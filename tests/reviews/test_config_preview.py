@@ -8,7 +8,7 @@ from typing import Any
 
 from shopbot.config.content_keys import ContentKey, Kind
 from shopbot.features import core_keys as ck
-from shopbot.features.reviews import MODULE, content_keys, repo, schedule_review_prompt, service
+from shopbot.features.reviews import MODULE, content_keys, repo, schedule_review_prompt, service, views
 from shopbot.features.reviews import content_keys as k
 from shopbot.features.reviews.text import OPERATOR_TEXT
 from shopbot.ui.limits import validate_message, validate_modal
@@ -377,6 +377,19 @@ async def test_preview_with_largest_scale_and_longest_comment(tmp_path: Path) ->
             assert (validate_modal(spec) if isinstance(spec, ModalSpec) else validate_message(spec)) == []
     finally:
         await tenv.close()
+
+
+async def test_the_verified_marker_is_inline_only_next_to_the_rating(tenv: TestEnv) -> None:
+    """Next to the rating field both share a row; alone (the rating field's heading is empty, as shipped) the marker
+    takes the full width, so Discord does not wrap its heading ("Verified / purchase")."""
+    number = number_text(tenv, 1)
+    both = views.published_view(tenv.app.ui, rating=5, scale=5, order_number=number, comment=None)
+    assert [field.inline for field in both.embeds[0].fields] == [True, True]
+    tenv.app.content.replace(file_values={**tenv.content, k.PUBLISHED_RATING_FIELD: ""})
+    alone = views.published_view(tenv.app.ui, rating=5, scale=5, order_number=number, comment=None)
+    assert [(field.name, field.inline) for field in alone.embeds[0].fields] == [
+        (tenv.text(k.PUBLISHED_VERIFIED_FIELD), False)
+    ]
 
 
 async def test_preview_uses_exact_configured_text(tenv: TestEnv) -> None:

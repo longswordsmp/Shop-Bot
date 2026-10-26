@@ -16,7 +16,7 @@ from __future__ import annotations
 import re
 import sqlite3
 import unicodedata
-from collections.abc import Collection
+from collections.abc import Collection, Iterable
 from dataclasses import dataclass
 
 from shopbot.core.countries import COUNTRIES
@@ -341,10 +341,15 @@ def categories_of(conn: sqlite3.Connection, guild_id: int, product_id: int) -> l
     return [_row(r) for r in rows]
 
 
+def matching(items: Iterable[Category], query: str) -> list[Category]:
+    """The categories of ``items`` whose name contains ``query`` (ignoring case), in their order; all of them for ''."""
+    wanted = query.strip().casefold()
+    return [c for c in items if wanted in c.name.casefold()]
+
+
 def search(conn: sqlite3.Connection, guild_id: int, query: str) -> list[Category]:
     """Categories whose name contains ``query`` (ignoring case), in menu order; every category for ''."""
-    wanted = query.strip().casefold()
-    return [c for c in list_categories(conn, guild_id) if wanted in c.name.casefold()]
+    return matching(list_categories(conn, guild_id), query)
 
 
 # ---------------------------------------------------------------------------------------------------

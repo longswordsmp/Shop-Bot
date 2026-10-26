@@ -421,6 +421,7 @@ def add_preset(app: App, add: AddState, preset: AnnouncementPreset) -> None:
         coupon = (code.code, discount_views.terms_text(op, money, code, SAMPLE_PRODUCTS, now=SAMPLE_TIME))
     facts = views.preset_facts(op, channel=channel, mention_role_id=SAMPLE_ROLE_ID, has_image=False, coupon=coupon)
     prefix = f"preset_{preset.id}"
+    shows_areas = presets.uses_areas(app, preset)
 
     def announcement(*, preview: bool, ended: bool = False) -> MessageSpec:
         return views.preset_announcement(
@@ -428,7 +429,8 @@ def add_preset(app: App, add: AddState, preset: AnnouncementPreset) -> None:
             preset,
             links=links,
             code_id=code.id if code is not None else None,
-            excluded_areas=presets.area_text(app) or SAMPLE_AREAS,
+            # Only a text showing {excluded_areas} needs the areas (and the joining text #shipping uses).
+            excluded_areas=(presets.area_text(app) or SAMPLE_AREAS) if shows_areas else "",
             preview=preview,
             ended=ended,
             mention_role_id=None if preview else SAMPLE_ROLE_ID,
@@ -472,7 +474,7 @@ def add_preset(app: App, add: AddState, preset: AnnouncementPreset) -> None:
                 )
             ),
         )
-    if presets.uses_areas(app, preset):
+    if shows_areas:
         nothing = op("announcements.preset.nothing_excluded")
         add(
             f"{prefix}_preview_nothing_excluded",

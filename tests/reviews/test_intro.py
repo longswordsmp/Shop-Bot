@@ -7,6 +7,7 @@ from pathlib import Path
 
 import discord
 
+from shopbot.config.loader import load_config
 from shopbot.core.panels import withdraw_unready_panels
 from shopbot.db.repos import state
 from shopbot.features.reviews import MODULE, service, views
@@ -15,6 +16,7 @@ from tests.helpers import GUILD_ID, TestEnv, banner_in_card, banner_names, make_
 from tests.reviews.util import make_env, make_order, reviews_channel
 from tests.reviews.write_util import make_write_env, write, write_overrides
 from tests.setup.util import setup
+from tools.offline import ROOT
 
 
 def _intro_text(tenv: TestEnv, line_key: str | None) -> str:
@@ -151,3 +153,11 @@ async def test_intro_panel_reports_what_keeps_it_from_being_posted(tmp_path: Pat
         ]
     finally:
         await tenv.close()
+
+
+def test_the_shipped_intro_holds_whatever_unverified_reviews_are() -> None:
+    """The intro text is the same whether reviews.allow_unverified is on or off, so its words to past customers never
+    invite a review that needs no order here (with it off, a member without a delivered order cannot write one)."""
+    text = load_config(ROOT / "config").content_values[k.INTRO_DESCRIPTION]
+    assert "Ordered from us before?" in text
+    assert "hear from you again" not in text and "hear about your next order" in text

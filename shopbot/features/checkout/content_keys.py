@@ -18,6 +18,7 @@ from shopbot.features.checkout import discounts, payment_methods, staff_keys
 from shopbot.features.checkout import models as m
 from shopbot.features.checkout.payments import PROVIDERS
 from shopbot.features.server_keys import channel_placeholder, private_channel_problems, reference_problems
+from shopbot.ui.limits import ACTION_ROWS, SELECT_OPTIONS
 
 FEATURE = "checkout"
 ROUTE = "co"
@@ -117,6 +118,10 @@ ADDRESS_ADDED_LINE = "checkout.address.added_line"
 ADDRESS_MISSING_LINE = "checkout.address.missing_line"
 ADDRESS_SHIP_TO = "checkout.address.ship_to"
 ADDRESS_COUNTRY_LABEL = "checkout.address.country_label"
+APARTMENT_BUTTON = "checkout.address.apartment_button"
+APARTMENT_BUTTON_CHANGE = "checkout.address.apartment_button_change"
+APARTMENT_MODAL_TITLE = "checkout.address.apartment_modal_title"
+APARTMENT_ADDED_LINE = "checkout.address.apartment_line"
 ERROR_AREA_EXCLUDED = "checkout.error.area_excluded"
 ERROR_COUNTRY_FIRST = "checkout.error.country_first"
 
@@ -530,7 +535,8 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             FEATURE,
             g_replies,
             "Optional link button under the private replies to the start button (new ticket, unfinished ticket, "
-            "existing open order) that opens the customer's order ticket. Omitted when empty.",
+            "existing open order) and to a catalog buy button that opens the customer's order ticket. Omitted when "
+            "empty.",
             required=False,
         ),
         ck(
@@ -1497,10 +1503,16 @@ def content_keys(settings: Settings) -> list[ContentKey]:
 
 ADDRESS_FIELD_DOCS = {
     "name": "the recipient's full name",
-    "street": "the street and house number (and apartment, if any)",
+    "street": "the street and house number (the apartment has its own optional form)",
     "city": "the city or town",
     "region": "the state, province or region (required for a country with excluded areas, e.g. US states)",
     "postal": "the postal or ZIP code",
+}
+APARTMENT_FIELD_DOCS = {
+    "unit": "the apartment, suite or unit number",
+    "building": "the building or floor",
+    "access": "the entry or buzzer code (as private as the address)",
+    "notes": "delivery instructions for the courier",
 }
 
 
@@ -1632,6 +1644,55 @@ def _address_keys(settings: Settings) -> list[ContentKey]:
                 required=False,
             ),
         ]
+    return keys + _apartment_keys(group, where)
+
+
+def _apartment_keys(group: str, where: str) -> list[ContentKey]:
+    """The optional apartment details form of the address step (part of the address: never shown in a channel)."""
+    keys = [
+        ck(
+            APARTMENT_BUTTON,
+            Kind.BUTTON_LABEL,
+            FEATURE,
+            group,
+            f"Button on {where} that opens the optional apartment details form (unit, building or floor, entry code, "
+            "delivery instructions).",
+        ),
+        ck(
+            APARTMENT_BUTTON_CHANGE,
+            Kind.BUTTON_LABEL,
+            FEATURE,
+            group,
+            "The same button once apartment details were entered.",
+        ),
+        ck(APARTMENT_MODAL_TITLE, Kind.MODAL_TITLE, FEATURE, group, "Title of the private apartment details form."),
+        ck(
+            APARTMENT_ADDED_LINE,
+            Kind.FIELD_VALUE,
+            FEATURE,
+            group,
+            f"Line in the address section of {where} and the review once apartment details were entered, e.g. "
+            "'{icon_home} Apartment details added'. The details themselves are never shown in the channel.",
+        ),
+    ]
+    for field_id, doc in APARTMENT_FIELD_DOCS.items():
+        keys += [
+            ck(
+                address_field_key(field_id, "label"),
+                Kind.INPUT_LABEL,
+                FEATURE,
+                group,
+                f"Label of the apartment details form field for {doc}; also its name in the address shown to staff.",
+            ),
+            ck(
+                address_field_key(field_id, "placeholder"),
+                Kind.INPUT_PLACEHOLDER,
+                FEATURE,
+                group,
+                f"Optional greyed-out example in the field for {doc}.",
+                required=False,
+            ),
+        ]
     return keys
 
 
@@ -1705,8 +1766,8 @@ def _tip_keys(settings: Settings) -> list[ContentKey]:
             FEATURE,
             group,
             "Last line of the review step while no tip is chosen: that a tip is optional and who it is for, e.g. "
-            "'{icon_heart} Tips are optional. If you'd like to thank our support team, pick an amount in the menu "
-            "below. 100% of every tip goes to our team.'.",
+            "'{icon_heart} Tips are optional. To thank our support team, pick an amount in the menu below. 100% of "
+            "every tip goes to our team.'.",
             required=on,
         ),
         ck(
@@ -2157,6 +2218,16 @@ def settings_problems(settings: Settings) -> list[str]:
             problems.append(
                 "checkout.ask_address: delivery options with their own form are not supported with the address step "
                 "(the address is asked before the delivery option)"
+            )
+        # The address step's rows: the region menu, the chosen region's country menus (25 countries each), then the
+        # buttons (address, apartment details, Back, Continue, Cancel; a details form's button needs a second row).
+        # The navigation gets a row of its own only when the menus leave room for it (``views._address_step``).
+        button_rows = 2 if c.details_form else 1
+        most = (ACTION_ROWS - 1 - button_rows) * SELECT_OPTIONS
+        if any(len(g.countries) > most for g in settings.shipping.groups):
+            problems.append(
+                f"checkout.ask_address: a region in [[shipping.groups]] lists more than {most} countries, more than "
+                "the address step's country menus hold; split it into two regions"
             )
     for fee in c.fees:
         if fee.kind == "percent" and fee.basis_points <= 0:

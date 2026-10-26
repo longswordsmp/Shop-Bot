@@ -265,6 +265,5 @@ async def autocomplete(app: App, query: str, product_id: int | None = None) -> l
     """Categories whose name contains ``query``; with ``product_id``, only the ones that product is in."""
     if product_id is not None:
         tagged = await app.db.run(categories.categories_of, app.env.guild_id, product_id)
-        wanted = query.strip().casefold()
-        return [c for c in tagged if wanted in c.name.casefold()]
+        return categories.matching(tagged, query)
     return await app.db.run(categories.search, app.env.guild_id, query)

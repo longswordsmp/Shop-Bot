@@ -225,7 +225,7 @@ def content_keys(settings: Settings) -> list[ContentKey]:
                 SHIPPING,
                 areas_group,
                 "Heading of the list of every area of a country one by one (shipping.list_areas, e.g. every US "
-                "state) at the bottom of the shipping card, shown in bold, e.g. '{icon_map} US STATES'. {country} "
+                "state) at the bottom of the shipping card, shown in bold, e.g. '{icon_location} US STATES'. {country} "
                 "is the country's name.",
                 placeholders=("country",),
             ),

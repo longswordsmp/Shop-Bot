@@ -505,6 +505,26 @@ and deletion timers, and of course the products themselves (`/product add`).
   opens a channel at its newest message, so with many cards members land at the bottom while the menu is on the
   first message: the owner chooses between pinning the header and `product_cards = false` (`docs/NEXT_STEPS.md`).
 
+## 11k. Apartment details on the address step
+
+- **What the owner asked for.** Customers who live in an apartment can add it, with "optional things for the
+  apartment", without more text or more cards.
+- **A second, optional form.** The address form already uses Discord's 5 inputs, so **Add apartment (optional)** opens
+  its own private form: apartment, suite or unit; building or floor; entry or buzzer code; delivery instructions. All
+  optional, filled in again to edit, emptied to remove. The button is shown from the start (usable once a country is
+  chosen, like the address button) so the apartment does not end up squeezed into the street line; it is grey, since it
+  is optional, and says so on the button and the form's title. The button and the line in the card share one icon (a
+  house), so the apartment option is never confused with **Change address** next to it. The address buttons and Back /
+  Continue / Cancel get rows of their own whenever the menus leave room. A region's country menus and these buttons
+  share Discord's 5 rows, so a region with more countries than fit is reported as a settings problem.
+- **Part of the address.** The answers are stored like the address (`a.unit`, `a.building`, `a.access`, `a.notes`), go
+  into the order with it, and are shown wherever the address is, and only there: the customer's card adds one line,
+  "Apartment details added"; staff see them privately, and in #orders only when `operations.answers_in_orders_channel`
+  posts the form answers there (the address goes there too; shipped off). Staff read the address in shipping-label order
+  (name, street, apartment, building, city, region, postal code, country, then the entry code and the delivery
+  instructions), which also moved the country from the top of the answers to after the postal code. Entry codes are
+  sensitive; they are kept and wiped with the address (`docs/SECURITY.md`).
+
 ## 12. Assumptions
 
 - One Discord server per bot instance (`GUILD_ID`).

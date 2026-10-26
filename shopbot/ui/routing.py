@@ -78,23 +78,40 @@ class RoutedItem(discord.ui.DynamicItem[discord.ui.Item[Any]], template=custom_i
         await app.router.dispatch(interaction, self.custom_id, kind="component", values=values)
 
 
-def parse_modal_fields(data: Any) -> dict[str, str]:
-    """Extract ``{custom_id: value}`` from raw modal-submit data (action rows and label components)."""
-    fields: dict[str, str] = {}
+# Component types in a form submission (Discord API): the containers a field sits in, and the fields read here.
+_ACTION_ROW = 1
+_TEXT_INPUT = 4
+_LABEL = 18
+_FILE_UPLOAD = 19
 
-    def walk(components: Any) -> None:
+
+def _modal_fields(data: Any) -> Iterator[dict[str, Any]]:
+    """Every component of raw modal-submit data that is not a container (action rows and labels are opened), in
+    order; anything that is not a component object is skipped."""
+
+    def walk(components: Any) -> Iterator[dict[str, Any]]:
         for component in components or []:
+            if not isinstance(component, dict):
+                continue
             ctype = component.get("type")
-            if ctype == 1:
-                walk(component.get("components"))
-            elif ctype == 18:
-                walk([component.get("component")])
-            elif ctype == 4 and "custom_id" in component:
-                fields[str(component["custom_id"])] = str(component.get("value") or "")
+            if ctype == _ACTION_ROW:
+                yield from walk(component.get("components"))
+            elif ctype == _LABEL:
+                yield from walk([component.get("component")])
+            else:
+                yield component
 
     if isinstance(data, dict):
-        walk(data.get("components"))
-    return fields
+        yield from walk(data.get("components"))
+
+
+def parse_modal_fields(data: Any) -> dict[str, str]:
+    """Extract ``{custom_id: value}`` of the text inputs from raw modal-submit data (in action rows or labels)."""
+    return {
+        str(component["custom_id"]): str(component.get("value") or "")
+        for component in _modal_fields(data)
+        if component.get("type") == _TEXT_INPUT and "custom_id" in component
+    }
 
 
 @dataclass(frozen=True)
@@ -133,21 +150,10 @@ def parse_modal_uploads(data: Any) -> dict[str, tuple[ModalUpload, ...]]:
     resolved = data.get("resolved")
     attachments = resolved.get("attachments") if isinstance(resolved, dict) else None
     described: dict[str, Any] = attachments if isinstance(attachments, dict) else {}
-
-    def walk(components: Any) -> None:
-        for component in components or []:
-            if not isinstance(component, dict):
-                continue
-            ctype = component.get("type")
-            if ctype == 1:
-                walk(component.get("components"))
-            elif ctype == 18:
-                walk([component.get("component")])
-            elif ctype == 19 and "custom_id" in component:
-                files = (_upload(described.get(str(file_id))) for file_id in component.get("values") or [])
-                uploads[str(component["custom_id"])] = tuple(f for f in files if f is not None)
-
-    walk(data.get("components"))
+    for component in _modal_fields(data):
+        if component.get("type") == _FILE_UPLOAD and "custom_id" in component:
+            files = (_upload(described.get(str(file_id))) for file_id in component.get("values") or [])
+            uploads[str(component["custom_id"])] = tuple(f for f in files if f is not None)
     return uploads
 
 

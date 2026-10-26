@@ -4,6 +4,7 @@ switching to "offer ended" when the code ends (/discount end), expires (a press)
 
 from __future__ import annotations
 
+import logging
 from collections.abc import AsyncIterator
 from dataclasses import replace
 from pathlib import Path
@@ -342,6 +343,26 @@ async def test_two_staff_previews_of_the_same_offer_post_once(env: AnnounceEnv) 
     card = card_of(await preview(env, second))
     await post(env, second, card)
     assert len(env.channel.messages) == 1 and env.channel.messages[0] is not message
+
+
+async def test_a_post_discord_cannot_check_still_counts_and_is_logged(
+    env: AnnounceEnv, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Discord unavailable while a second preview checks the posted offer: it still counts as announced (nothing is
+    posted twice), and the log says the check failed."""
+    await make_code(env)
+    staff = env.staff()
+    await post(env, staff, card_of(await preview(env, staff)))
+
+    async def unavailable(message_id: int, /) -> FakeMessage:
+        raise http_error(discord.DiscordServerError, 503, 0, "Service Unavailable")
+
+    monkeypatch.setattr(env.channel, "fetch_message", unavailable)
+    with caplog.at_level(logging.WARNING):
+        card = card_of(await preview(env, staff))
+    assert op(env, "announcements.preset.already_announced", code="BOGO") in card.text()
+    failed = [r for r in caplog.records if getattr(r, "event", "") == "announcement_message_check_failed"]
+    assert [getattr(r, "status", None) for r in failed] == [503]
 
 
 async def test_post_works_after_a_restart(env: AnnounceEnv) -> None:

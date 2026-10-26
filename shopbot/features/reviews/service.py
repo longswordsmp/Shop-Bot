@@ -469,11 +469,12 @@ async def publish_review(app: App, review_id: int) -> Publish:
 
 
 async def stored_image(app: App, review: repo.Review) -> FileSpec | None:
-    """The review's photo to attach, or None (no photo, or its bytes were released: the message is shown without it)."""
+    """The review's photo to attach, without its metadata, or None (no photo, or its bytes were released: the message
+    is shown without it)."""
     image = await app.db.run(images.get_image, review.id)
     if image is None:
         return None
-    file = image.file_spec()
+    file = await asyncio.to_thread(image.file_spec)
     if file is None and review.status not in (repo.PUBLISHED, repo.REJECTED, repo.DECLINED):
         log_event(log, logging.WARNING, "reviews_image_unavailable", review_id=review.id)
     return file

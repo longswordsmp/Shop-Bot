@@ -33,6 +33,26 @@ It always shows:
 | What was entered/selected | the items section (`checkout.cart.heading`, one `checkout.cart.line` per item) on every step (on later steps left out only when the card would not fit one message; a long card continues in a second one of the same colour), the summary section (`checkout.summary.*`: subtotal, the discount when a code is applied (`Discount (CODE) · -$X`, or "not applied" with the reason under the total), the chosen delivery option and its fee, extras and fees, the tip for our team (`Tip for our team · $X`, its own line, never among the extras), store credit, the total in bold), the details-form answers; the review lists everything incl. the answers, and while `[checkout.tips]` is on its last line, after the address, says tips are optional and "100% of every tip goes to our team" (a thank-you once a tip is chosen) |
 | Actions | Back on every step after the first, Continue/Submit, Cancel; on the review step also Use store credit, Add discount code (a private form), Use coupon CODE for coupons the customer claimed from an announcement, and Remove discount once one is applied (one code per order; see `docs/WORKFLOWS.md` and `docs/DECISIONS.md` §11e), and the tip menu (its own row after the store credit and discount buttons, above Back / Confirm order / Cancel: "Add a tip for our team (optional)", No tip, $2.00 tip / $5.00 tip / $10.00 tip from `[checkout.tips] amounts`, Other amount opens a private form; the chosen tip shows as selected, the customer's own amount as its own option; see `docs/DECISIONS.md` §11g); after submission the customer's cancel button while unpaid |
 
+**Shipping address and apartment details** (`checkout.ask_address`). The address step has a region menu, the chosen
+region's country menus and a private address form (name, street, city, state or region, postal code: Discord's 5
+inputs). Next to its button, **Add apartment (optional)** (`checkout.address.apartment_button`, shown from the start and
+usable once a country is chosen) opens a second private form (`checkout.address.apartment_modal_title`, "Apartment
+details (optional)") with four optional fields: apartment, suite or unit; building or floor; entry or buzzer code;
+delivery instructions (labels and placeholders `checkout.address.<unit|building|access|notes>.label/.placeholder`). The
+form opens with what was entered before, the button then reads **Edit apartment details** (`.apartment_button_change`),
+and emptying every field removes them. The answers are checked on the server (at most 50 characters each, 200 for the
+delivery instructions, kept on one line) and stored with the address (`a.unit`, `a.building`, `a.access`, `a.notes`), so
+they become part of the order with it. The card never shows them: SHIP TO on the address step and the review only adds
+the line `checkout.address.apartment_line` ("Apartment details added"; the button and the line share the house icon).
+Staff see them wherever they see the full address (privately: the record's Details button, `/order view` / `/order
+lookup`; only with `operations.answers_in_orders_channel = true` also in the form-answers message in #orders), in
+shipping-label order: name, street, apartment, building, city, region, postal code, country, then the entry code and the
+delivery instructions on their own lines. The region menu, the chosen region's country menus (25 countries each) and
+these buttons share Discord's 5 rows: the address buttons come first and Back / Continue / Cancel get a row of their own
+whenever the menus leave room for it (otherwise they share the address buttons' row, Cancel last). A region of more than
+75 countries (50 with a `checkout.details_form`, whose buttons need a row of their own) is reported as a settings
+problem.
+
 **Closed by staff.** Staff can close the ticket of an order that was never submitted with `/ticket close`: the
 unfinished order is cancelled and the panel shows `checkout.staff_closed.title` / `.description` (optional; empty =
 the cancelled texts) without controls. A submitted open order is refused; staff end it from #orders (see

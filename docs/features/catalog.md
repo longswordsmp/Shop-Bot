@@ -29,6 +29,8 @@ continues the customer's private ticket and carries the selected listing into th
      private order channel with the product already in the cart, and replies with `checkout.started.description`.
      If the product sold out in the moment between the check and the cart, the channel still opens with an empty
      cart and the reply's card ends with the configured out-of-stock error (still one card, in the warning colour).
+  Both replies carry the optional link button that opens the ticket (`checkout.ticket_link.button`), like the Start
+  button's replies.
   Every cart rule applies (`checkout.max_cart_lines`, per-product `max_per_order`, `checkout.max_line_quantity`,
   stock, amount limits); stock is reserved only when the order is submitted, as before. One member's Start and buy
   clicks are serialized, so concurrent clicks open at most one channel and every product lands in it. If checkout is

@@ -77,8 +77,21 @@
   `notifications.dm_failed` when a direct message failed but the notification reached the member another way, and
   `notifications.failed` (plus a #staff-chat alert) when it could not be delivered at all.
 - Staff alerts in #staff-chat and Owner DMs carry identifiers and links, never customers' form answers.
+- Shipping addresses (`checkout.ask_address`) are typed only in private forms and never shown in a channel: the order
+  ticket shows the name, city and country, staff see the full address privately (the record's Details button, `/order
+  view`; in #orders only with `operations.answers_in_orders_channel = true`). The optional apartment details (unit,
+  building or floor, entry or buzzer code, delivery instructions) are part of the address and handled exactly like it
+  (with `answers_in_orders_channel` on they are posted in #orders with it); the ticket only says that they were added.
+  An entry code opens a customer's door, so treat it as sensitive: it is stored with the address in the order's
+  details and in the checkout session it was typed in (also one that was cancelled or expired), copied by `/backup`
+  like the rest of the database, and kept and wiped like the address (until `/reset wipe_shop_data:True` empties the
+  orders and checkout sessions); it is never written to logs, audit entries or staff alerts.
 - Uploaded product images are stored in the database (and copied by `/backup`); announcement images are kept only
-  until the announcement is posted.
+  until the announcement is posted. A review photo is stored without its metadata (Exif, XMP, IPTC, comments,
+  Content Credentials, PNG text chunks: GPS position, camera, owner; a JPEG keeps only its orientation and what a
+  decoder needs, a GIF is kept as it is), stripped again whenever it is attached (so a photo stored before this
+  existed is posted without it too), and released once the review is published, rejected or removed
+  (`docs/features/reviews.md`).
 
 ## Payments
 

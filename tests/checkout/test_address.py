@@ -136,7 +136,9 @@ async def test_the_order_stores_the_address_and_staff_see_the_country_by_name(tm
         assert placed is not None
         assert placed.details == {"a.country": "US", **TEXAS, "a.street": "1 Main St"}  # one clean line
         answers = dict(views.ordered_answers(tenv.app.settings, placed))
-        assert next(iter(answers)) == "a.country" and answers["a.country"] == "United States"
+        # Shipping-label order: the country follows the postal code.
+        assert list(answers) == ["a.name", "a.street", "a.city", "a.region", "a.postal", "a.country"]
+        assert answers["a.country"] == "United States"
         # The staff record shows the country only: nothing the customer typed is posted in the staff channel
         # (the details button shows the full address privately).
         await tenv.app.scheduler.run_due()

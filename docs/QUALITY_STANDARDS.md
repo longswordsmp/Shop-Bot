@@ -43,14 +43,16 @@ texts; the others are reviewed by eye with `python -m tools.build_preview` befor
 
 Icon dictionary: cart = items and cart; receipt = order, order summary, total; wallet = payment, payment methods, store
 credit; card = card payments; gift = gift cards and claimed coupons; discount = discount codes; truck = delivery and
-shipping; package_out = shipped; st_delivered = delivered; location = address, ship to; clock = time, processing,
-progress; calendar = dates; ticket = ticket; shield = protection; lock = privacy; box = packaging; check = done,
-confirmed; cross = cancelled, refused, close; alert = warning, problem; info = information; chat = questions, talk to
-us; headset = support; hourglass = waiting; tag = price, catalog; coins = amounts and store credit balance; help = FAQ;
-star = reviews; verified = verified purchase; photo = photos and screenshots; heart = thanks, and tips for our team;
-list = steps and details; user = customer; flag = report a problem; arrow_right = continue; arrow_left = back; plus =
-add; minus = take off (remove store credit, a discount, no tip); trash = delete; edit = change (and typing your own
-amount); link = open elsewhere.
+shipping; st_submitted, st_confirmed, st_shipped, st_delivered = the order statuses (payment submitted, payment
+confirmed, shipped, delivered; the FAQ's legend); map = tracking; location = address, ship to; home = apartment details;
+clock = time, processing, progress; calendar = dates; ticket = ticket; shield = protection; lock = privacy; box =
+packaging; check = done, confirmed; cross = cancelled, refused, close; door = a ticket closing; alert = warning,
+problem; info = information; chat = questions, talk to us; headset = support; hourglass = waiting (the same picture as
+st_submitted, so never for an order that still waits for its payment); tag = price, catalog; bell = restock alerts;
+coins = amounts and store credit balance; help = FAQ; star = reviews; verified = verified purchase; photo = photos and
+screenshots; heart = thanks, and tips for our team; list = steps and details; compass = how it works; user = customer;
+flag = report a problem; arrow_right = continue; arrow_left = back; plus = add; minus = take off (remove store credit, a
+discount, no tip); trash = delete; edit = change (and typing your own amount); link = open elsewhere.
 
 ## 3. Words
 

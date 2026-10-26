@@ -414,6 +414,26 @@ async def test_a_product_can_be_in_several_categories(tenv: TestEnv) -> None:
     assert archived.title == op("catalog.cmd.archived_product", product_id=product.id)
 
 
+async def test_autocomplete_matches_names_ignoring_case(tenv: TestEnv) -> None:
+    """/category and /product categories suggest the categories whose name contains what was typed (ignoring case), in
+    menu order; for ``remove`` only the product's own categories."""
+    from shopbot.features.catalog import category_admin
+
+    for name in ("[Hats]", "[T-Shirts]", "[Shoes]"):
+        await make_category(tenv, name)
+    shirts = next(c for c in await listed_categories(tenv) if c.name == "[T-Shirts]")
+    product = await add_product(tenv)
+    await tag(tenv, product, shirts)
+
+    async def names(query: str, product_id: int | None = None) -> list[str]:
+        return [c.name for c in await category_admin.autocomplete(tenv.app, query, product_id)]
+
+    assert await names("") == ["[Hats]", "[T-Shirts]", "[Shoes]"]
+    assert await names("  sH ") == ["[T-Shirts]", "[Shoes]"]
+    assert await names("", product.id) == ["[T-Shirts]"]
+    assert await names("hat", product.id) == []
+
+
 async def test_product_view_names_its_categories(tenv: TestEnv) -> None:
     product = await add_product(tenv, "[p]")
     await tag(tenv, product, await make_category(tenv, "[one]"), await make_category(tenv, "[two]"))

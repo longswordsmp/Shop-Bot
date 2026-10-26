@@ -219,7 +219,7 @@ def _order(
     details: dict[str, str] = {flow.extra_key(extra.id): "1" for extra in c.extras}  # every extra chosen
     if c.ask_address and settings.shipping.groups:
         details[flow.ADDRESS_COUNTRY] = settings.shipping.groups[0].countries[0]
-        details.update({f.answer_key: f"[sample {f.id}]" for f in flow.ADDRESS_FIELDS})
+        details.update({f.answer_key: f"[sample {f.id}]" for f in (*flow.ADDRESS_FIELDS, *flow.APARTMENT_FIELDS)})
     discount = discounts.discount_amount(code, discount_repo.cart_lines(lines)) if code is not None else 0
     totals = compute_totals(
         [(line.product.price_minor, line.quantity) for line in lines],
@@ -345,24 +345,26 @@ def preview(app: App) -> list[PreviewState]:
         "Private reply when the customer has the maximum number of open orders and none of their tickets is open.",
         lambda: views.limit_reply(ui, c.max_open_orders_per_user),
     )
+    sample_url = f"https://discord.com/channels/0/{SAMPLE_CHANNEL_ID}"
     add(
         "reply_buy_added",
         "Private reply to a catalog buy button when the customer already has an unfinished order channel: the "
-        "product is now in its cart (falls back to the 'session exists' text when not configured).",
-        lambda: views.buy_added_reply(ui, products[0].name, SAMPLE_CHANNEL_ID),
+        "product is now in its cart (falls back to the 'session exists' text when not configured), with the optional "
+        "open-ticket link button.",
+        lambda: views.buy_added_reply(ui, products[0].name, SAMPLE_CHANNEL_ID, sample_url),
     )
     add(
         "reply_buy_started_sold_out",
         "Private reply to a catalog buy button that opened a new order channel, when the product sold out a moment "
         "earlier and could not be put in the cart (the configured out-of-stock error is added as the card's last "
-        "paragraph, in the warning colour).",
+        "paragraph, in the warning colour), with the optional open-ticket link button.",
         lambda: views.buy_started_reply(
             ui,
             SAMPLE_CHANNEL_ID,
             ui.error_embed(k.ERROR_OUT_OF_STOCK, name=views.escape(products[0].name), available=0),
+            sample_url,
         ),
     )
-    sample_url = f"https://discord.com/channels/0/{SAMPLE_CHANNEL_ID}"
     add(
         "reply_order_exists",
         "Private reply when the customer has the maximum number of open orders: a link to the open order's ticket "
@@ -476,6 +478,18 @@ def preview(app: App) -> list[PreviewState]:
             "address_form",
             "The private shipping address form (answers of an earlier attempt are filled in again).",
             partial(views.address_modal, ui, settings, _session(m.DETAILS, option=option_id, details=address)),
+        )
+        address = {**address, **{f.answer_key: f"[sample {f.id}]" for f in flow.APARTMENT_FIELDS}}
+        add(
+            "workflow_address_apartment",
+            "Workflow message: the shipping address step with apartment details added (the card only says they were "
+            "added; staff see them privately).",
+            workflow(_session(m.DETAILS, option=option_id, details=address), lines),
+        )
+        add(
+            "apartment_form",
+            "The private apartment details form: every field optional, filled in with what was entered before.",
+            partial(views.apartment_modal, ui, _session(m.DETAILS, option=option_id, details=address)),
         )
         answers = {**answers, **address}
     review = _session(m.REVIEW, option=option_id, details=answers)

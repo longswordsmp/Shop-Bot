@@ -46,29 +46,29 @@ common.button.previous_page = "Previous page"
 
 # Shown when someone clicks again while their previous click is still being processed. Optional: if empty, the duplicate click is silently ignored.
 # description · max 4096 characters · optional
-common.error.busy = "We're still working on your previous click. Please wait a moment."
+common.error.busy = "{icon_clock} We're still working on your previous click. Please wait a moment."
 
 # Shown when someone acts too quickly in a row.
 # description · max 4096 characters · required · placeholders: {retry_after}
-common.error.cooldown = "You're doing that a little too quickly. Please try again in {retry_after}s."
+common.error.cooldown = "{icon_hourglass} You're doing that a little too quickly. Please try again in {retry_after}s."
 
 # Shown when an action fails unexpectedly. Internal details are never shown. You may include {error_id}: a short reference that also appears in the bot's logs (empty when there is none).
 # description · max 4096 characters · required · placeholders: {error_id}
 common.error.generic = '''
-Something went wrong on our side. Please try again in a moment.
-If it keeps happening, contact our team and mention reference **{error_id}**.'''
+{icon_alert} Something went wrong on our side. Please try again in a moment.
+{icon_chat} If it keeps happening, contact our team and mention reference **{error_id}**.'''
 
 # Shown when a form entry is invalid (e.g. a quantity that is not a whole number).
 # description · max 4096 characters · required
-common.error.invalid_input = "Something you entered isn't valid. Please check it and try again (for example, a quantity must be a whole number)."
+common.error.invalid_input = "{icon_edit} Something you entered isn't valid. Please check it and try again (for example, a quantity must be a whole number)."
 
 # Shown when the ticket/order/item behind a control no longer exists.
 # description · max 4096 characters · required
-common.error.not_found = "We couldn't find what this refers to. It may have been closed, removed or replaced by a newer message."
+common.error.not_found = "{icon_info} We couldn't find what this refers to. It may have been closed, removed or replaced by a newer message."
 
 # Shown when someone uses a control they are not allowed to use (e.g. a staff-only button).
 # description · max 4096 characters · required
-common.error.permission_denied = "You can't use this. It is reserved for staff or for the member it belongs to."
+common.error.permission_denied = "{icon_lock} You can't use this. It is reserved for staff or for the member it belongs to."
 
 # Optional title above every error message.
 # title · max 256 characters · optional
@@ -76,7 +76,7 @@ common.error.title = "Couldn't complete that"
 
 # Shown when a feature is switched off or not fully configured.
 # description · max 4096 characters · required
-common.error.unavailable = "This isn't available right now. Please try again later."
+common.error.unavailable = "{icon_info} This isn't available right now. Please try again later."
 
 # --- Formats ---
 
@@ -275,7 +275,7 @@ verification.button.label = "Verify"
 verification.welcome.description = '''
 We sell and ship right here on Discord. Every order is placed in your own private ticket, and you can follow it from payment to delivery.
 
-Read the rules below. Pressing **Verify** means you agree to them and unlocks the shop.'''
+Read the rules below, then press **Verify** to agree to them and unlock the shop.'''
 
 # Optional large image (https:// URL) at the bottom of the first card of the welcome panel that /setup posts in the 'welcome' channel. If empty, the branding banner is used when branding.panel_banner is on.
 # url · max 2048 characters · optional
@@ -293,7 +293,9 @@ verification.welcome.title = "Welcome to AmazonYaarts"
 
 # Private reply to a member who clicks the 'I agree' button although they already have the Member role (nothing changes). {user_name} is the member's display name, {user_mention} mentions them (mentions do not ping in embeds). You may write {channel_<key>} (for example {channel_catalog}) for a clickable link to a channel from server.channels.
 # description · max 4096 characters · required · placeholders: {user_name}, {user_mention}, {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-verification.already_verified.description = "You have full access. Start an order any time in {channel_purchase}."
+verification.already_verified.description = '''
+You have full access.
+{icon_cart} Start an order any time in {channel_purchase}.'''
 
 # Optional title of the private reply to a member who clicks the 'I agree' button although they already have the Member role. {user_name} is the member's display name.
 # title · max 256 characters · optional · placeholders: {user_name}
@@ -302,7 +304,7 @@ verification.already_verified.title = "You're already verified"
 # Private confirmation (only the member sees it) after they accepted the rules and received the Member role; the member-only channels are visible from now on. {user_name} is the member's display name, {user_mention} mentions them (mentions do not ping in embeds). You may write {channel_<key>} (for example {channel_catalog}) for a clickable link to a channel from server.channels.
 # description · max 4096 characters · required · placeholders: {user_name}, {user_mention}, {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
 verification.confirmed.description = '''
-Thanks, {user_name}. The shop channels are now open to you.
+Thanks, {user_name}. The shop channels are now open to you. 🎉
 
 {icon_compass} {channel_how_to_buy}: how ordering works
 {icon_tag} {channel_catalog}: browse items and prices
@@ -317,7 +319,9 @@ verification.confirmed.title = "You're verified"
 
 # Direct message confirming a successful verification, sent in addition to the private confirmation when verification.dm_confirmation and features.dm_notifications are on (required then). {user_name} is the member's display name, {user_mention} mentions them (mentions do not ping in embeds). You may write {channel_<key>} (for example {channel_catalog}) for a clickable link to a channel from server.channels.
 # description · max 4096 characters · optional · placeholders: {user_name}, {user_mention}, {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-verification.dm.description = "Thanks, {user_name}. The AmazonYaarts shop channels are now open to you. Start an order any time in {channel_purchase}."
+verification.dm.description = '''
+Thanks, {user_name}. The AmazonYaarts shop channels are now open to you.
+{icon_cart} Start an order any time in {channel_purchase}.'''
 
 # Optional title of the direct message confirming a successful verification. {user_name} is the member's display name.
 # title · max 256 characters · optional · placeholders: {user_name}
@@ -385,7 +389,7 @@ verification.rules.title = "{icon_rules} SERVER RULES"
 
 # Short text under the mention of members who just joined (the mention itself comes first and pings them), posted in the verification channel (under the welcome panel) and deleted after verification.welcome_mention_seconds (required while that is above 0). You may write {channel_<key>} (for example {channel_catalog}) for a clickable link to a channel from server.channels.
 # description · max 4096 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-verification.welcome_mention.description = "Welcome to AmazonYaarts. Read the rules above and press **Verify** to unlock the shop."
+verification.welcome_mention.description = "👋 Welcome to AmazonYaarts! Read the rules above and press **Verify** to unlock the shop."
 
 # ==================================================================================================
 # Feature: how_to_buy
@@ -395,11 +399,11 @@ verification.welcome_mention.description = "Welcome to AmazonYaarts. Read the ru
 
 # Optional closing line at the bottom of the step-by-step guide posted in the how_to_buy channel, below the steps (e.g. where to find answers). You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # description · max 4096 characters · optional · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-how_to_buy.closing = "Questions? See {channel_faq}."
+how_to_buy.closing = "{icon_help} Questions? See {channel_faq}."
 
 # Introduction at the top of the step-by-step guide posted in the how_to_buy channel, above the steps. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # description · max 4096 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-how_to_buy.introduction = "Ordering takes a few minutes and happens in a private ticket that only you and our team can see."
+how_to_buy.introduction = "Ordering takes a few minutes in your own private ticket that only you and our team can see."
 
 # Title of the step-by-step guide posted in the how_to_buy channel.
 # title · max 256 characters · required
@@ -447,7 +451,9 @@ how_to_buy.step.2.name = "{icon_step_2} Add your shipping address"
 
 # Explanation of step 2 of 6 in the step-by-step guide posted in the how_to_buy channel. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-how_to_buy.step.2.value = "Pick your country and fill in the address form. Only our team can see it."
+how_to_buy.step.2.value = '''
+Pick your country and fill in the address form.
+{icon_lock} Only our team can see it.'''
 
 # Heading of step 3 of 6 in the step-by-step guide posted in the how_to_buy channel, shown in bold. Start it with a step-number icon if you want one shown, e.g. {icon_step_3} (channel links do not work in headings).
 # field_name · max 256 characters · required
@@ -471,7 +477,9 @@ how_to_buy.step.5.name = "{icon_step_5} Pay in your ticket"
 
 # Explanation of step 5 of 6 in the step-by-step guide posted in the how_to_buy channel. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-how_to_buy.step.5.value = "Choose a payment method in your order ticket. Card payments are temporarily down, so for now pay with a DoorDash eGift card for the exact total: press **Submit gift card**. Only our payment team sees the code."
+how_to_buy.step.5.value = '''
+Choose a payment method in your order ticket. Card payments are temporarily down, so for now pay with a DoorDash eGift card for the exact total: press **Submit gift card**.
+{icon_lock} Only our payment team sees the code.'''
 
 # Heading of step 6 of 6 in the step-by-step guide posted in the how_to_buy channel, shown in bold. Start it with a step-number icon if you want one shown, e.g. {icon_step_6} (channel links do not work in headings).
 # field_name · max 256 characters · required
@@ -489,7 +497,7 @@ how_to_buy.step.6.value = "Your tracking number is posted in your ticket as soon
 
 # Optional introduction at the top of the FAQ posted in the faq channel, above the first section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # description · max 4096 characters · optional · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-faq.introduction = "Can't find your answer? Ask in your order ticket, or press **Report a problem** in {channel_purchase}."
+faq.introduction = "{icon_chat} Can't find your answer? Ask in your order ticket, or press **Report a problem** in {channel_purchase}."
 
 # Optional title at the top of the FAQ posted in the faq channel.
 # title · max 256 characters · optional
@@ -569,7 +577,9 @@ faq.section.payment.q.3.question = "How do I pay with a gift card?"
 
 # Answer to question 4 of 6 in the 'payment' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-faq.section.payment.q.4.answer = "Codes go only into a private form, are stored encrypted, seen only by our payment team and deleted once redeemed. Never post a code, card number or password in a channel or send one by DM: we will never ask you to."
+faq.section.payment.q.4.answer = '''
+Codes go only into a private form, are stored encrypted, seen only by our payment team and deleted once redeemed.
+{icon_alert} Never post a code, card number or password in a channel or send one by DM: we will never ask you to.'''
 
 # Question 4 of 6 in the 'payment' section (channel links do not work in questions).
 # field_name · max 256 characters · required
@@ -706,9 +716,9 @@ faq.section.tracking.title = "{icon_receipt} ORDERS AND TRACKING"
 
 # --- Shipping areas one by one ---
 
-# Heading of the list of every area of a country one by one (shipping.list_areas, e.g. every US state) at the bottom of the shipping card, shown in bold, e.g. '{icon_map} US STATES'. {country} is the country's name.
+# Heading of the list of every area of a country one by one (shipping.list_areas, e.g. every US state) at the bottom of the shipping card, shown in bold, e.g. '{icon_location} US STATES'. {country} is the country's name.
 # field_name · max 256 characters · required · placeholders: {country}
-shipping.areas.heading = "{icon_map} US STATES"
+shipping.areas.heading = "{icon_location} US STATES"
 
 # Optional line under that heading, e.g. 'Find your state before you order.' {country} is the country's name. The areas follow on one line per status, like the countries: the available ones after shipping.status.full.indicator, the excluded ones after shipping.status.none.indicator (the legend at the top of the card explains the dots).
 # field_value · max 1024 characters · optional · placeholders: {country}
@@ -780,11 +790,13 @@ shipping.info.1.value = "Orders ship once your payment is confirmed."
 
 # Heading of information section 2 of 2 (e.g. processing times or tracking), shown in bold below the delivery options. It may start with one of the bot's icons, e.g. {icon_truck}.
 # field_name · max 256 characters · required
-shipping.info.2.name = "{icon_location} TRACKING"
+shipping.info.2.name = "{icon_map} TRACKING"
 
 # Text of information section 2 of 2. You can link channels with {channel_<key>} (e.g. {channel_faq}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-shipping.info.2.value = "Your tracking number is posted in your order ticket and sent to you by DM as soon as your order ships. Questions? See {channel_faq}."
+shipping.info.2.value = '''
+Your tracking number is posted in your order ticket and sent to you by DM as soon as your order ships.
+{icon_help} Questions? See {channel_faq}.'''
 
 # --- Shipping header ---
 
@@ -836,7 +848,7 @@ tickets.auto_close_warning.title = "Ticket closing soon"
 # Text of the ticket-closed message when the ticket was closed automatically for inactivity (used instead of tickets.closed.description). {number} is the ticket number, zero-padded to tickets.number_padding digits. Needed when tickets.auto_close_inactive_minutes is above 0.
 # description · max 4096 characters · optional · placeholders: {number}
 tickets.auto_closed.description = '''
-This ticket was closed automatically because there were no new messages for a while. You can still read it, but only our team can post here now.
+{icon_door} This ticket closed automatically after a while without new messages. You can still read it, but only our team can post here now.
 
 {icon_lock} The buttons below are for our team only, for example to reopen the ticket if you need more help.'''
 
@@ -851,7 +863,7 @@ tickets.claimed.title = "Ticket assigned"
 # Text of the ticket-closed message when someone closed it. {closer_mention} mentions who closed it. {number} is the ticket number, zero-padded to tickets.number_padding digits.
 # description · max 4096 characters · required · placeholders: {closer_mention}, {number}
 tickets.closed.description = '''
-{closer_mention} closed this ticket. You can still read it, but only our team can post here now.
+{icon_door} {closer_mention} closed this ticket. You can still read it, but only our team can post here now.
 
 {icon_lock} The buttons below are for our team only, for example to reopen the ticket if you need more help.'''
 
@@ -1028,7 +1040,7 @@ tickets.transcript.title = "Ticket #{number} transcript"
 
 # Text of the direct message that sends the customer their transcript file. {number} is the ticket number, zero-padded to tickets.number_padding digits. Needed when tickets.transcript_dm_user = true and a transcript channel is set.
 # description · max 4096 characters · optional · placeholders: {number}
-tickets.transcript_dm.description = "Here is a copy of the conversation in your ticket **#{number}**, attached as a file for your records."
+tickets.transcript_dm.description = "{icon_file} Here is a copy of the conversation in your ticket **#{number}**, attached as a file for your records."
 
 # Title of the direct message that sends the customer their transcript file. {number} is the ticket number, zero-padded to tickets.number_padding digits. Needed when tickets.transcript_dm_user = true and a transcript channel is set.
 # title · max 256 characters · optional · placeholders: {number}
@@ -1113,13 +1125,15 @@ catalog.category.title = "{category}"
 catalog.listing.description = '''
 Every item we sell, with its price and availability. Press **Buy** to add an item to your order.
 
-{icon_dot_blue} In stock {icon_dot_yellow} Only a few left {icon_dot_grey} Sold out
+{icon_dot_blue} In stock
+{icon_dot_yellow} Only a few left
+{icon_dot_grey} Sold out
 
-Prices are in US dollars. Shipping is added when you order.'''
+{icon_info} Prices are in US dollars. Shipping is added when you order.'''
 
 # Shown below the listing header, and in private browsing, when no product is currently offered.
 # description · max 4096 characters · required
-catalog.listing.empty = "No items are available right now. Turn on **Restock Alerts** in the new-arrivals channel to hear when new items arrive."
+catalog.listing.empty = "{icon_bell} No items are available right now. Turn on **Restock Alerts** in the new-arrivals channel to hear when new items arrive."
 
 # Title of the header card: the first message of the product listing channel (each product follows in its own message).
 # title · max 256 characters · required
@@ -1195,7 +1209,9 @@ new_arrivals.restock.title = "Back in stock: {name}"
 
 # Private confirmation shown after a member turned notifications on (they now have the notification role and are mentioned in product updates). {role} shows the notification role as a mention (it displays the role's name and pings nobody). Channel links such as {channel_catalog} become clickable #channel links once /setup created the channel.
 # description · max 4096 characters · required · placeholders: {role}, {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-new_arrivals.subscribed.description = "We'll mention you in {channel_new_arrivals} when new items arrive or sold-out items are back. Press the button again to turn it off."
+new_arrivals.subscribed.description = '''
+We'll mention you in {channel_new_arrivals} when new items arrive or sold-out items are back.
+{icon_bell} Press the button again to turn it off.'''
 
 # Optional title of the private confirmation shown after a member turned notifications on.
 # title · max 256 characters · optional
@@ -1203,7 +1219,9 @@ new_arrivals.subscribed.title = "Restock alerts are on"
 
 # Private confirmation shown after a member turned notifications off (the notification role was removed; clicking the button again turns them back on). {role} shows the notification role as a mention (it displays the role's name and pings nobody). Channel links such as {channel_catalog} become clickable #channel links once /setup created the channel.
 # description · max 4096 characters · required · placeholders: {role}, {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-new_arrivals.unsubscribed.description = "We won't mention you anymore. Updates are still posted in {channel_new_arrivals}."
+new_arrivals.unsubscribed.description = '''
+We won't mention you anymore.
+{icon_info} Updates are still posted in {channel_new_arrivals}.'''
 
 # Optional title of the private confirmation shown after a member turned notifications off.
 # title · max 256 characters · optional
@@ -1215,9 +1233,41 @@ new_arrivals.unsubscribed.title = "Restock alerts are off"
 
 # --- Checkout: shipping address (checkout.ask_address) ---
 
+# Label of the apartment details form field for the entry or buzzer code (as private as the address); also its name in the address shown to staff.
+# input_label · max 45 characters · required
+checkout.address.access.label = "Entry or buzzer code"
+
+# Optional greyed-out example in the field for the entry or buzzer code (as private as the address).
+# input_placeholder · max 100 characters · optional
+checkout.address.access.placeholder = "Only if the courier needs one to get in"
+
 # Line on the shipping address step once the address is entered, e.g. '**Address:** {name}, {city}'. The street is never shown in the channel.
 # format · max 100 characters · required · placeholders: {name}, {city}, {region}, {postal}
 checkout.address.added_line = "**Address:** {name}, {city}"
+
+# Button on the shipping address step that opens the optional apartment details form (unit, building or floor, entry code, delivery instructions).
+# button_label · max 80 characters · required
+checkout.address.apartment_button = "{icon_home} Add apartment (optional)"
+
+# The same button once apartment details were entered.
+# button_label · max 80 characters · required
+checkout.address.apartment_button_change = "{icon_home} Edit apartment details"
+
+# Line in the address section of the shipping address step and the review once apartment details were entered, e.g. '{icon_home} Apartment details added'. The details themselves are never shown in the channel.
+# field_value · max 1024 characters · required
+checkout.address.apartment_line = "{icon_home} Apartment details added"
+
+# Title of the private apartment details form.
+# modal_title · max 45 characters · required
+checkout.address.apartment_modal_title = "Apartment details (optional)"
+
+# Label of the apartment details form field for the building or floor; also its name in the address shown to staff.
+# input_label · max 45 characters · required
+checkout.address.building.label = "Building or floor"
+
+# Optional greyed-out example in the field for the building or floor.
+# input_placeholder · max 100 characters · optional
+checkout.address.building.placeholder = "For example: Building C, 3rd floor"
 
 # Button on the shipping address step that opens the address form.
 # button_label · max 80 characters · required
@@ -1291,6 +1341,14 @@ checkout.address.name.label = "Full name"
 # input_placeholder · max 100 characters · optional
 checkout.address.name.placeholder = "First and last name"
 
+# Label of the apartment details form field for delivery instructions for the courier; also its name in the address shown to staff.
+# input_label · max 45 characters · required
+checkout.address.notes.label = "Delivery instructions"
+
+# Optional greyed-out example in the field for delivery instructions for the courier.
+# input_placeholder · max 100 characters · optional
+checkout.address.notes.placeholder = "For example: leave it with the front desk"
+
 # Label of the address form field for the postal or ZIP code; also its name in the address shown to staff.
 # input_label · max 45 characters · required
 checkout.address.postal.label = "Postal code"
@@ -1315,13 +1373,21 @@ checkout.address.region_placeholder = "Choose your region"
 # format · max 100 characters · required · placeholders: {name}, {city}, {region}, {postal}, {country}
 checkout.address.ship_to = "{name}, {city}, {country}"
 
-# Label of the address form field for the street and house number (and apartment, if any); also its name in the address shown to staff.
+# Label of the address form field for the street and house number (the apartment has its own optional form); also its name in the address shown to staff.
 # input_label · max 45 characters · required
 checkout.address.street.label = "Street and number"
 
-# Optional greyed-out example in the field for the street and house number (and apartment, if any).
+# Optional greyed-out example in the field for the street and house number (the apartment has its own optional form).
 # input_placeholder · max 100 characters · optional
-checkout.address.street.placeholder = "Street, house number, apartment"
+checkout.address.street.placeholder = "House number and street name"
+
+# Label of the apartment details form field for the apartment, suite or unit number; also its name in the address shown to staff.
+# input_label · max 45 characters · required
+checkout.address.unit.label = "Apartment, suite or unit"
+
+# Optional greyed-out example in the field for the apartment, suite or unit number.
+# input_placeholder · max 100 characters · optional
+checkout.address.unit.placeholder = "For example: Apt 4B"
 
 # Private reply when the address is in an area we do not ship to (shipping.excluded_areas). {area} is its name (e.g. Alaska), {country} the country. The answers are kept so the customer can correct them.
 # description · max 4096 characters · required · placeholders: {area}, {country}
@@ -1338,7 +1404,7 @@ checkout.error.country_first = "Choose your region and country first, then press
 checkout.browse.description = '''
 Choose an item from the menu below, then enter the quantity. Repeat for every item.
 
-When your cart looks right, press **Continue**.'''
+{icon_arrow_right} When your cart looks right, press **Continue**.'''
 
 # Shown in the product-choosing step when no product is offered right now.
 # description · max 4096 characters · required
@@ -1368,7 +1434,7 @@ checkout.button.submit = "{icon_check} Confirm order"
 
 # Optional name of the line under the review step's total showing how much store credit the customer could apply (shown while it is not applied).
 # field_name · max 256 characters · optional
-checkout.review.credits_available_field = "Store credit available"
+checkout.review.credits_available_field = "{icon_wallet} Store credit available"
 
 # Name of the store credit applied to the order, in the summary (checkout.summary.credit_line) and on the staff order record. Needed when credits are enabled and credits.allow_at_checkout = true.
 # field_name · max 256 characters · required
@@ -1379,7 +1445,7 @@ checkout.review.credits_field = "Store credit applied"
 checkout.review.description = '''
 Check everything below. You can still go back and change it.
 
-Press **Confirm order** to reserve your items, then pay with a DoorDash eGift card for exactly the total, right here in this ticket.'''
+{icon_check} Press **Confirm order** to reserve your items, then pay the exact total with a DoorDash eGift card, right here in this ticket.'''
 
 # Shown in the review step when the total changed since the customer looked at it (prices, fees or their credit balance changed); nothing was submitted yet. {total} is the new total.
 # description · max 4096 characters · required · placeholders: {total}
@@ -1410,7 +1476,7 @@ checkout.button.keep_order = "{icon_arrow_left} Keep order"
 # Question asking the customer to confirm cancelling an unfinished order (shared confirm/cancel buttons).
 # description · max 4096 characters · required
 checkout.cancel_confirm.description = '''
-Your cart will be cleared and this ticket will close. Nothing was placed, so nothing is charged.
+{icon_alert} Your cart will be cleared and this ticket will close. Nothing was placed, so nothing is charged.
 
 Press **Yes, cancel** to cancel, or **Keep order** to go back to it.'''
 
@@ -1421,7 +1487,7 @@ checkout.cancel_confirm.title = "Cancel this order?"
 # Text of the workflow message after the customer cancelled an unfinished order. Also used after staff closed the ticket of an unfinished order (/ticket close) when checkout.staff_closed.description is empty.
 # description · max 4096 characters · required
 checkout.cancelled.description = '''
-This order was cancelled before it was placed, so nothing is charged. This ticket is now closed, but you can still read it.
+{icon_cross} This order was cancelled before it was placed, so nothing is charged. This ticket is now closed, but you can still read it.
 
 {icon_cart} To order again, press **Start order** in the place-order channel.'''
 
@@ -1432,7 +1498,7 @@ checkout.cancelled.title = "Order cancelled"
 # Text of the workflow message when an unfinished order expired. Needed when checkout.session_expiry_minutes is above 0.
 # description · max 4096 characters · required
 checkout.expired.description = '''
-This order was closed because it was not placed and had no activity for 24 hours. Nothing is charged.
+{icon_cross} This order was closed because it was not placed and had no activity for 24 hours. Nothing is charged.
 
 {icon_cart} To order again, press **Start order** in the place-order channel.'''
 
@@ -1443,7 +1509,7 @@ checkout.expired.title = "Order expired"
 # Question asking the customer to confirm cancelling a submitted, unpaid order (shared confirm/back buttons). {order_number} is the order number.
 # description · max 4096 characters · required · placeholders: {order_number}
 checkout.order_cancel_confirm.description = '''
-Your order **#{order_number}** will be cancelled and this ticket will close. This cannot be undone.
+{icon_alert} Your order **#{order_number}** will be cancelled and this ticket will close. This cannot be undone.
 
 {icon_info} A gift card our team has not redeemed is not used and stays yours. If our team already redeemed one, its value becomes your store credit.
 
@@ -1456,7 +1522,7 @@ checkout.order_cancel_confirm.title = "Cancel order #{order_number}?"
 # Optional text of the workflow message after staff closed the ticket of an unfinished (never submitted) order with /ticket close (the order is cancelled, the channel closed). Empty = checkout.cancelled.description.
 # description · max 4096 characters · optional; falls back to checkout.cancelled.description
 checkout.staff_closed.description = '''
-Our team closed this ticket before the order was submitted, so the order was cancelled and no payment is due. You can still read this ticket.
+{icon_cross} Our team closed this ticket before the order was submitted, so the order was cancelled and no payment is due. You can still read this ticket.
 
 {icon_cart} To order again, press **Start order** in the place-order channel.'''
 
@@ -1476,7 +1542,9 @@ checkout.button.enter_more_details = "{icon_edit} More details"
 
 # Optional text of the details step.
 # description · max 4096 characters · optional
-checkout.details.description = "Choose your region and country, then press **Enter address**. Only our team can see your full address."
+checkout.details.description = '''
+Choose your region and country, then add your address below.
+{icon_lock} Only our team can see your full address.'''
 
 # Title of the order details form. Needed when a form is defined.
 # modal_title · max 45 characters · optional
@@ -1495,7 +1563,8 @@ checkout.button.start = "{icon_cart} Start order"
 # Text of the shop panel.
 # description · max 4096 characters · required
 checkout.panel.description = '''
-Press **Start order** to open your private order ticket. Only you and our team can see it.
+Press **Start order** to open your private order ticket.
+{icon_lock} Only you and our team can see it.
 
 **{icon_compass} WHAT TO EXPECT**
 {icon_step_1} Choose your items and quantities
@@ -1504,11 +1573,13 @@ Press **Start order** to open your private order ticket. Only you and our team c
 {icon_step_4} Pay with a DoorDash eGift card for the exact total
 {icon_step_5} Get your tracking number in the ticket once it ships
 
-**{icon_gift} PAYMENT**
-DoorDash eGift card only. Never post a code in a channel.
+**{icon_wallet} PAYMENT**
+{icon_gift} DoorDash eGift card only.
+{icon_lock} Never post a code in a channel.
 
 **{icon_headset} SUPPORT**
-Problem with an order? Press **Report a problem**. Check your orders any time with **/myorders**.'''
+{icon_flag} Problem with an order? Press **Report a problem**.
+{icon_receipt} Check your orders any time with **/myorders**.'''
 
 # Title of the shop panel (the message with the start button).
 # title · max 256 characters · required
@@ -1524,7 +1595,9 @@ Go there to change the quantity, add more items or finish your order.'''
 
 # Private reply when the customer already has the maximum number of open orders (waiting for payment, paid, or in progress). {limit} is checkout.max_open_orders_per_user.
 # description · max 4096 characters · required · placeholders: {limit}
-checkout.limit_reached.description = "{icon_alert} You already have the maximum number of open orders ({limit}). You can start a new order once an open order is finished. Use /myorders to check your orders."
+checkout.limit_reached.description = '''
+{icon_alert} You already have the maximum number of open orders ({limit}). You can start a new order once an open order is finished.
+{icon_receipt} Check your orders with **/myorders**.'''
 
 # Private reply when the customer clicks start while they already have the maximum number of open orders (checkout.max_open_orders_per_user) and one of them still has its order ticket open: no new ticket is created, the reply links the existing one. {channel_mention} links that ticket, {order_number} is its order number, {limit} the maximum (checkout.limit_reached.description is used when no open ticket can be linked).
 # description · max 4096 characters · required · placeholders: {channel_mention}, {order_number}, {limit}
@@ -1542,9 +1615,10 @@ Continue there. You can work on one order at a time.'''
 # description · max 4096 characters · required · placeholders: {channel_mention}
 checkout.started.description = '''
 {icon_check} Your private order ticket is ready: {channel_mention}
-Go there to choose your items and place your order. Only you and our team can see it.'''
+Go there to choose your items and place your order.
+{icon_lock} Only you and our team can see it.'''
 
-# Optional link button under the private replies to the start button (new ticket, unfinished ticket, existing open order) that opens the customer's order ticket. Omitted when empty.
+# Optional link button under the private replies to the start button (new ticket, unfinished ticket, existing open order) and to a catalog buy button that opens the customer's order ticket. Omitted when empty.
 # button_label · max 80 characters · optional
 checkout.ticket_link.button = "{icon_link} Open my order ticket"
 
@@ -1555,7 +1629,7 @@ checkout.ticket_link.button = "{icon_link} Open my order ticket"
 checkout.cart.description = '''
 Check your items and quantities. To change one, pick the item in the menu below (0 removes it).
 
-Press **Back** to add more items, or **Continue** to add your shipping address.'''
+{icon_arrow_right} Press **Continue** to add your shipping address, or **Back** to add more items.'''
 
 # Optional small text under each product in the change-quantity menu. {quantity} is the quantity in the cart, {line_total} the line price.
 # option_description · max 100 characters · optional · placeholders: {quantity}, {line_total}
@@ -1731,7 +1805,7 @@ checkout.summary.discount_off_line = "Discount ({code}) · not applied"
 
 # First text of the private reply after a coupon was claimed (claiming it again shows the same reply). {code} is the code.
 # description · max 4096 characters · required · placeholders: {code}
-checkout.discount.claim.description = "Your coupon **{code}** is saved. It's ready for your next order."
+checkout.discount.claim.description = "Your coupon **{code}** is saved. It's ready for your next order 🛍️"
 
 # Text of that reply.
 # description · max 4096 characters · required
@@ -1747,7 +1821,9 @@ checkout.discount.claim.heading = "{icon_gift} YOUR COUPON"
 
 # How to use the coupon (under checkout.discount.claim.howto_heading). {code} is the code; {channel_catalog} links the catalog channel.
 # description · max 4096 characters · required · placeholders: {code}, {channel_catalog}
-checkout.discount.claim.howto = "Add your items in {channel_catalog}. On the review step of your order, press **Use coupon {code}**."
+checkout.discount.claim.howto = '''
+{icon_step_1} Add your items in {channel_catalog}.
+{icon_step_2} On the review step of your order, press **Use coupon {code}**.'''
 
 # Heading of how to use the coupon in the claim reply, shown in bold, e.g. '{icon_info} HOW TO USE IT'.
 # title · max 256 characters · required
@@ -1759,31 +1835,31 @@ checkout.discount.claim.title = "Coupon claimed"
 
 # The terms of an amount coupon, e.g. '**{amount} off** your items'. {amount} is the amount.
 # field_value · max 1024 characters · required · placeholders: {amount}
-checkout.discount.terms.amount = "**{amount} off** your items"
+checkout.discount.terms.amount = "{icon_discount} **{amount} off** your items"
 
 # The terms of a buy one, get one free coupon, e.g. '**Buy one, get one free:** the cheaper item of every pair is free'.
 # field_value · max 1024 characters · required
-checkout.discount.terms.bogo = "**Buy one, get one free:** the cheaper item of every pair is free"
+checkout.discount.terms.bogo = "{icon_discount} **Buy one, get one free:** the cheaper item of every pair is free"
 
 # Shown when the coupon has an end date: {date} is that date (each reader sees it in their own time zone).
 # field_value · max 1024 characters · required · placeholders: {date}
-checkout.discount.terms.expires = "Valid until {date}"
+checkout.discount.terms.expires = "{icon_calendar} Valid until {date}"
 
 # Shown when the coupon needs a minimum: {minimum} is the items subtotal the cart needs.
 # field_value · max 1024 characters · required · placeholders: {minimum}
-checkout.discount.terms.minimum = "For orders with at least {minimum} in items"
+checkout.discount.terms.minimum = "{icon_coins} For orders with at least {minimum} in items"
 
 # Shown when each customer can use the coupon once.
 # field_value · max 1024 characters · required
-checkout.discount.terms.once = "One use per customer"
+checkout.discount.terms.once = "{icon_user} One use per customer"
 
 # The terms of a percent coupon, e.g. '**{percent}% off** your items'. {percent} is the percentage.
 # field_value · max 1024 characters · required · placeholders: {percent}
-checkout.discount.terms.percent = "**{percent}% off** your items"
+checkout.discount.terms.percent = "{icon_discount} **{percent}% off** your items"
 
 # Shown when the coupon counts only some items: {products} lists their names.
 # field_value · max 1024 characters · required · placeholders: {products}
-checkout.discount.terms.products = "Items in the offer: {products}"
+checkout.discount.terms.products = "{icon_cart} Items in the offer: {products}"
 
 # --- Checkout: error messages (private) ---
 
@@ -1793,7 +1869,9 @@ checkout.error.cart_full = "Your cart is full: it can hold up to {max} different
 
 # Shown when the customer tries to cancel an order that can no longer be cancelled by them (it was already paid, cancelled or handled).
 # description · max 4096 characters · required
-checkout.error.order_not_cancellable = "This order can no longer be cancelled here: your payment was already submitted or confirmed, or the order is closed. For help, write to our team in your order ticket."
+checkout.error.order_not_cancellable = '''
+This order can no longer be cancelled here: your payment was already submitted or confirmed, or the order is closed.
+{icon_chat} For help, write to our team in your order ticket.'''
 
 # Shown when the customer asks for more units than are available (when adding to the cart, or when submitting if someone else bought them first). {name} is the product name, {available} the units still available.
 # description · max 4096 characters · required · placeholders: {name}, {available}
@@ -1881,7 +1959,9 @@ checkout.fulfillment.standard.label = "Standard shipping"
 
 # Optional text of the fulfillment step.
 # description · max 4096 characters · optional
-checkout.fulfillment_step.description = "Choose how fast you want your order in the menu below and add extras if you like, then press **Continue**."
+checkout.fulfillment_step.description = '''
+Choose how fast you want your order in the menu below and add extras if you like.
+{icon_arrow_right} Then press **Continue**.'''
 
 # Name of the delivery fee in the summary and on the staff order record when the chosen option's name is not configured any more (an order placed before the option was removed); otherwise the option's name is shown with its fee. Needed when an option has a fee.
 # field_name · max 256 characters · required
@@ -1900,7 +1980,7 @@ checkout.fulfillment_step.title = "Delivery and extras"
 # Notification sent to the customer when their order becomes 'cancelled' (the order was cancelled (by the customer before paying, or by staff)). {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention. {channel_purchase} links the place-order channel (where Report a problem is).
 # description · max 4096 characters · required · placeholders: {order_number}, {total}, {channel_mention}, {channel_purchase}
 checkout.notify.cancelled.description = '''
-Your order **#{order_number}** ({total}) has been cancelled, and its ticket {channel_mention} is now closed.
+{icon_cross} Your order **#{order_number}** ({total}) has been cancelled, and its ticket {channel_mention} is now closed.
 
 {icon_flag} If you did not expect this or have questions, press **Report a problem** in {channel_purchase}.'''
 
@@ -1911,7 +1991,7 @@ checkout.notify.cancelled.title = "Order #{order_number} cancelled"
 # Notification sent to the customer when their order becomes 'expired' (the order was not paid within checkout.payment_expiry_minutes). {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention. Needed when checkout.payment_expiry_minutes is above 0.
 # description · max 4096 characters · optional · placeholders: {order_number}, {total}, {channel_mention}
 checkout.notify.expired.description = '''
-Your order **#{order_number}** ({total}) was not paid in time and has expired. Its ticket {channel_mention} is now closed.
+{icon_cross} Your order **#{order_number}** ({total}) was not paid in time and has expired. Its ticket {channel_mention} is now closed.
 
 {icon_cart} You can place a new order at any time from the place-order channel.'''
 
@@ -1922,7 +2002,7 @@ checkout.notify.expired.title = "Order #{order_number} expired"
 # Notification sent to the customer when their order becomes 'fulfilled' (the order was delivered). {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention. {channel_purchase} links the place-order channel (where Report a problem is).
 # description · max 4096 characters · required · placeholders: {order_number}, {total}, {channel_mention}, {channel_purchase}
 checkout.notify.fulfilled.description = '''
-Your package for order **#{order_number}** was delivered. Thank you for shopping with AmazonYaarts, we hope you enjoy it.
+{icon_st_delivered} Your package for order **#{order_number}** was delivered. Thank you for shopping with AmazonYaarts, we hope you enjoy it 🎉
 
 {icon_star} In 7 days we will ask you to rate your order.
 {icon_flag} Problem with it? Press **Report a problem** in {channel_purchase} within 14 days.'''
@@ -1934,9 +2014,9 @@ checkout.notify.fulfilled.title = "Order #{order_number} delivered"
 # Notification sent to the customer when their order becomes 'paid' (staff confirmed the payment). {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention.
 # description · max 4096 characters · required · placeholders: {order_number}, {total}, {channel_mention}
 checkout.notify.paid.description = '''
-Your payment for order **#{order_number}** is confirmed. We're preparing your order now.
+{icon_st_confirmed} Your payment for order **#{order_number}** is confirmed. We're preparing your order now.
 
-Your tracking number will be posted in {channel_mention} as soon as it ships.'''
+{icon_map} Your tracking number will be posted in {channel_mention} as soon as it ships.'''
 
 # Optional title of the notification sent when an order becomes 'paid'. {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention.
 # title · max 256 characters · optional · placeholders: {order_number}, {total}, {channel_mention}
@@ -1945,9 +2025,9 @@ checkout.notify.paid.title = "Payment confirmed for order #{order_number}"
 # Reminder sent once when an order is still unpaid checkout.payment_reminder_minutes after it was submitted (the payment instructions are attached below it). {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention. Needed when checkout.payment_reminder_minutes is above 0.
 # description · max 4096 characters · required · placeholders: {order_number}, {total}, {channel_mention}
 checkout.notify.payment_reminder.description = '''
-We're still waiting for the gift card for order **#{order_number}** ({total}). Press **Submit gift card** in {channel_mention} when you're ready.
+{icon_gift} We're still waiting for the gift card for order **#{order_number}** ({total}). Press **Submit gift card** in {channel_mention} when you're ready.
 
-No longer want this order? Press **Cancel order** in the ticket.'''
+{icon_cross} No longer want this order? Press **Cancel order** in the ticket.'''
 
 # Optional title of the payment reminder. {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention.
 # title · max 256 characters · optional · placeholders: {order_number}, {total}, {channel_mention}
@@ -1956,10 +2036,10 @@ checkout.notify.payment_reminder.title = "Reminder: order #{order_number} waits 
 # Notification sent to the customer when their order becomes 'payment_submitted' (the customer submitted their payment; staff are verifying it). {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention.
 # description · max 4096 characters · required · placeholders: {order_number}, {total}, {channel_mention}
 checkout.notify.payment_submitted.description = '''
-Thank you. We've received your order **#{order_number}** ({total}) and your payment.
+{icon_check} Thank you. We've received your order **#{order_number}** ({total}) and your payment.
 
 **{icon_hourglass} WHAT HAPPENS NOW**
-Our team is verifying your payment. As soon as your order has been confirmed and shipped, your **tracking number will be sent in** {channel_mention}. You'll also get a DM.'''
+Our team is verifying your payment. Once your order is confirmed and shipped, your **tracking number will be sent in** {channel_mention}. You'll also get a DM.'''
 
 # Optional title of the notification sent when an order becomes 'payment_submitted'. {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention.
 # title · max 256 characters · optional · placeholders: {order_number}, {total}, {channel_mention}
@@ -1968,9 +2048,9 @@ checkout.notify.payment_submitted.title = "Order #{order_number} placed"
 # 'Submission received' notification, sent once when the customer submitted the order (it now waits for payment). {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention.
 # description · max 4096 characters · required · placeholders: {order_number}, {total}, {channel_mention}
 checkout.notify.pending_payment.description = '''
-Your order **#{order_number}** ({total}) is reserved and waits for your payment.
+{icon_check} Your order **#{order_number}** ({total}) is reserved and waits for your payment.
 
-Pay with a DoorDash eGift card for exactly **{total}**: press **Submit gift card** in {channel_mention}.
+{icon_gift} Pay with a DoorDash eGift card for exactly **{total}**: press **Submit gift card** in {channel_mention}.
 {icon_lock} Never post a gift card code in a chat.'''
 
 # Optional title of the 'submission received' notification. {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention.
@@ -1979,7 +2059,10 @@ checkout.notify.pending_payment.title = "Order #{order_number}: payment needed"
 
 # Notification sent to the customer when their order becomes 'processing' (staff are preparing the order). {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention.
 # description · max 4096 characters · required · placeholders: {order_number}, {total}, {channel_mention}
-checkout.notify.processing.description = "Our team has started preparing your order **#{order_number}**. Your tracking number will be posted in {channel_mention} as soon as it ships."
+checkout.notify.processing.description = '''
+{icon_clock} Our team has started preparing your order **#{order_number}**.
+
+{icon_map} Your tracking number will be posted in {channel_mention} as soon as it ships.'''
 
 # Optional title of the notification sent when an order becomes 'processing'. {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention.
 # title · max 256 characters · optional · placeholders: {order_number}, {total}, {channel_mention}
@@ -1988,7 +2071,7 @@ checkout.notify.processing.title = "Order #{order_number} is being prepared"
 # Notification sent to the customer when staff record a partial refund (a refund that completes the full refund sends the 'refunded' notification instead). {order_number} is the order number, {amount} the refunded amount (common.money_format), {channel_mention} links the order channel. {channel_purchase} links the place-order channel (where Report a problem is).
 # description · max 4096 characters · required · placeholders: {order_number}, {amount}, {channel_mention}, {channel_purchase}
 checkout.notify.refund.description = '''
-Our team recorded a partial refund of **{amount}** for your order **#{order_number}**.
+{icon_coins} Our team recorded a partial refund of **{amount}** for your order **#{order_number}**.
 
 {icon_flag} If you have questions, press **Report a problem** in {channel_purchase}.
 {icon_ticket} Your order ticket: {channel_mention}'''
@@ -2000,7 +2083,7 @@ checkout.notify.refund.title = "Refund for order #{order_number}"
 # Notification sent to the customer when their order becomes 'refunded' (the order was fully refunded). {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention. {channel_purchase} links the place-order channel (where Report a problem is).
 # description · max 4096 characters · required · placeholders: {order_number}, {total}, {channel_mention}, {channel_purchase}
 checkout.notify.refunded.description = '''
-Your order **#{order_number}** ({total}) has been fully refunded.
+{icon_coins} Your order **#{order_number}** ({total}) has been fully refunded.
 
 {icon_flag} If you have questions about your refund, press **Report a problem** in {channel_purchase}.
 {icon_ticket} Your order ticket: {channel_mention}'''
@@ -2012,7 +2095,7 @@ checkout.notify.refunded.title = "Order #{order_number} refunded"
 # Notification sent to the customer when their order becomes 'rejected' (staff rejected the order before payment). {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention.
 # description · max 4096 characters · required · placeholders: {order_number}, {total}, {channel_mention}
 checkout.notify.rejected.description = '''
-Sorry, our team could not accept your order **#{order_number}** ({total}). If our team gave a reason, it is shown below.
+{icon_cross} Sorry, our team could not accept your order **#{order_number}** ({total}). If our team gave a reason, it is shown below.
 
 The order ticket {channel_mention} is now closed.
 {icon_cart} You can place a new order at any time from the place-order channel.'''
@@ -2024,7 +2107,7 @@ checkout.notify.rejected.title = "Order #{order_number} could not be accepted"
 # Warning posted in the order ticket (mentioning the customer) checkout.session_expiry_warning_minutes before an unfinished order expires for inactivity (any change to the order resets the timer; after a later idle period the warning is sent again). {minutes} is that number of minutes, {expires} when the order expires (relative time shown by Discord, e.g. 'in 10 minutes'). Needed when checkout.session_expiry_warning_minutes is above 0.
 # description · max 4096 characters · required · placeholders: {minutes}, {expires}
 checkout.notify.session_expiry_warning.description = '''
-Your order has not been placed yet and will be closed {expires} because there has been no activity.
+{icon_alert} Your order has not been placed yet and will be closed {expires} because there has been no activity.
 
 To keep it, carry on in the order panel above: any change you make resets the timer.'''
 
@@ -2035,7 +2118,7 @@ checkout.notify.session_expiry_warning.title = "Your order will expire soon"
 # Notification sent to the customer when their order becomes 'shipped' (the order was shipped (carrier and tracking number entered with Mark shipped)). {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention.
 # description · max 4096 characters · required · placeholders: {order_number}, {total}, {channel_mention}
 checkout.notify.shipped.description = '''
-Your order **#{order_number}** is on its way. Track it on the carrier's website, and **/myorders** shows your tracking number any time.
+{icon_st_shipped} Your order **#{order_number}** is on its way. Track it on the carrier's website, and **/myorders** shows your tracking number any time.
 
 {icon_clock} Delivery times depend on your country and the carrier.'''
 
@@ -2048,7 +2131,7 @@ checkout.notify.shipped.title = "Order #{order_number} shipped"
 # Text of that notification; the cards with the reasons follow. {remaining} is still to pay, {channel_mention} the order ticket.
 # description · max 4096 characters · required · placeholders: {order_number}, {total}, {remaining}, {channel_mention}
 checkout.notify.card_problem.description = '''
-Our team couldn't accept a gift card for order **#{order_number}**, so your order is on hold.
+{icon_alert} Our team couldn't accept a gift card for order **#{order_number}**, so your order is on hold.
 
 Submit a valid DoorDash eGift card for the remaining **{remaining}** with **Submit gift card** in {channel_mention}, or cancel the order there.'''
 
@@ -2089,23 +2172,23 @@ checkout.payment.gift_card.error.unavailable = "We can't accept gift cards right
 checkout.payment.gift_card.reply.complete = '''
 {icon_check} Thank you, we received your gift card for **{amount}**. Your order **#{order_number}** is placed.
 
-Our team is verifying your payment now. Every update is posted in this ticket.'''
+{icon_hourglass} Our team is verifying your payment now. Every update is posted in this ticket.'''
 
 # Private reply after a card that does not cover the total yet: {amount} (this card), {received} (all cards), {remaining} (still to pay), {total}.
 # description · max 4096 characters · required · placeholders: {amount}, {received}, {remaining}, {total}
 checkout.payment.gift_card.reply.partial = '''
 {icon_check} Thank you, we received your gift card for **{amount}**.
 
-You have submitted **{received}** of **{total}**. Submit another card for the remaining **{remaining}** to place your order.'''
+{icon_gift} You have submitted **{received}** of **{total}**. Submit another card for the remaining **{remaining}** to place your order.'''
 
 # --- Checkout: customer notifications sent by staff actions ---
 
 # Notification sent to the customer when staff ask them to correct information on an order waiting for payment (the staff message follows in a field). {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention.
 # description · max 4096 characters · required · placeholders: {order_number}, {total}, {channel_mention}
 checkout.notify.correction.description = '''
-Our team needs you to correct some information on your order **#{order_number}** ({total}). Please read the message below and reply in your order ticket: {channel_mention}
+{icon_edit} Our team needs you to correct some information on your order **#{order_number}** ({total}). Please read the message below and reply in your order ticket: {channel_mention}
 
-Your order stays open and keeps waiting for payment in the meantime.'''
+{icon_info} Your order stays open and keeps waiting for payment in the meantime.'''
 
 # Name of the field in the correction notification that shows the staff member's message.
 # field_name · max 256 characters · required
@@ -2123,7 +2206,7 @@ checkout.notify.rejected.reason_field = "{icon_info} Reason"
 # field_name · max 256 characters · required
 checkout.notify.shipped.carrier_field = "{icon_truck} Carrier"
 
-# Name of the field showing the tracking number in the shipped notification and on the customer's order ticket card while the order is shipped, e.g. '{icon_location} Tracking number'.
+# Name of the field showing the tracking number in the shipped notification and on the customer's order ticket card while the order is shipped, e.g. '{icon_map} Tracking number'.
 # field_name · max 256 characters · required
 checkout.notify.shipped.number_field = "{icon_map} Tracking number"
 
@@ -2133,7 +2216,7 @@ checkout.notify.shipped.track_button = "{icon_truck} Track package"
 
 # Notification sent to the customer when staff add or change tracking details of an order that is already completed (the details follow in a field). {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention. Needed when checkout.staff.button.tracking is configured.
 # description · max 4096 characters · optional · placeholders: {order_number}, {total}, {channel_mention}
-checkout.notify.tracking.description = "Our team added or updated the tracking details for your order **#{order_number}**. They are shown below, and you can see them any time with /myorders."
+checkout.notify.tracking.description = "Our team added or updated the tracking details for your order **#{order_number}**. They are shown below, and you can see them any time with **/myorders**."
 
 # Name of the field showing the tracking details in the customer's completion notification and in the tracking notification. Needed when checkout.staff.button.tracking is configured.
 # field_name · max 256 characters · optional
@@ -2157,7 +2240,7 @@ checkout.payment.down.active_line = '''
 
 # Text of that pop-up: the method is temporarily down (and when it comes back, if known). {method} is the method's name. The methods that work right now and their buttons follow.
 # description · max 4096 characters · required · placeholders: {method}
-checkout.payment.down.description = "Dear customer, we're sorry to inform you that **{method}** payments are temporarily down. They will be back as soon as possible; until then, you can pay with a method that is available now."
+checkout.payment.down.description = "{icon_alert} Dear customer, we're sorry to inform you that **{method}** payments are temporarily down. They will be back as soon as possible; until then, you can pay with a method that is available now."
 
 # Button in the pop-up that opens the private gift card form (as Submit gift card does).
 # button_label · max 80 characters · required
@@ -2179,7 +2262,7 @@ checkout.payment.gift_card.buy_button = "{icon_link} Buy a gift card"
 
 # One submitted card: {number} (1, 2...), {amount}, {last4} (the code's last characters) and {status} (one of the card_status texts).
 # format · max 100 characters · required · placeholders: {number}, {amount}, {last4}, {status}
-checkout.payment.gift_card.card_line = "Card {number} · {amount} · ending {last4} · {status}"
+checkout.payment.gift_card.card_line = "**Card {number}** · {amount} · ending {last4} · {status}"
 
 # Status of a card our team redeemed.
 # format · max 100 characters · required
@@ -2319,21 +2402,21 @@ checkout.payment.methods.line_down = "{icon_dot_grey} {method} · temporarily do
 
 # Optional text under the list of payment methods, e.g. why only some work right now.
 # description · max 4096 characters · optional
-checkout.payment.methods.note = "They will be back as soon as possible. Until then, please pay with a method marked available now."
+checkout.payment.methods.note = "{icon_info} They will be back as soon as possible. Until then, please pay with a method marked available now."
 
 # --- Checkout: payment by a method our team handles ---
 
 # Private reply when the customer chooses the same method again. {method} is the method's name.
 # description · max 4096 characters · required · placeholders: {method}
-checkout.payment.staff_method.already = "You already asked to pay with {method}. Our team will reply in your order ticket."
+checkout.payment.staff_method.already = "{icon_info} You already asked to pay with {method}. Our team will reply in your order ticket."
 
 # Text of that message: our team will send the payment details in this ticket. {method} is the method's name, {user_mention} mentions the customer.
 # description · max 4096 characters · required · placeholders: {method}, {user_mention}
-checkout.payment.staff_method.posted = "{user_mention} would like to pay with **{method}**. Our team will send you the payment details right here in this ticket."
+checkout.payment.staff_method.posted = "{icon_wallet} {user_mention} would like to pay with **{method}**. Our team will send you the payment details right here in this ticket."
 
 # Private reply to the customer after choosing such a method. {method} is the method's name.
 # description · max 4096 characters · required · placeholders: {method}
-checkout.payment.staff_method.reply = "Thanks! Our team will send you the {method} payment details in your order ticket."
+checkout.payment.staff_method.reply = "{icon_check} Thanks! Our team will send you the {method} payment details in your order ticket."
 
 # Title of the message posted in the order ticket when the customer chooses a method our team handles (kind = "staff"). {method} is the method's name.
 # title · max 256 characters · required · placeholders: {method}
@@ -2562,7 +2645,7 @@ checkout.staff.timeline_line = "{time} · **{stage}** {actor}"
 # Optional text of the order workflow message once the order is 'cancelled' (under the ticket, order number and status line; the items, summary and progress follow). {order_number} is the order number, {total} the order total written with common.money_format. {channel_purchase} links the place-order channel (where Report a problem is).
 # description · max 4096 characters · optional · placeholders: {order_number}, {total}, {channel_purchase}
 checkout.status.cancelled.description = '''
-This order was cancelled. This ticket is now closed, but you can still read it.
+{icon_cross} This order was cancelled. This ticket is now closed, but you can still read it.
 
 {icon_flag} If you have questions, press **Report a problem** in {channel_purchase}.'''
 
@@ -2573,7 +2656,7 @@ checkout.status.cancelled.title = "Order #{order_number} cancelled"
 # Optional text of the order workflow message once the order is 'expired' (under the ticket, order number and status line; the items, summary and progress follow). {order_number} is the order number, {total} the order total written with common.money_format.
 # description · max 4096 characters · optional · placeholders: {order_number}, {total}
 checkout.status.expired.description = '''
-This order was not paid in time, so it expired. This ticket is now closed, but you can still read it.
+{icon_cross} This order was not paid in time, so it expired. This ticket is now closed, but you can still read it.
 
 {icon_cart} You can place a new order at any time from the place-order channel.'''
 
@@ -2584,7 +2667,7 @@ checkout.status.expired.title = "Order #{order_number} expired"
 # Optional text of the order workflow message once the order is 'fulfilled' (under the ticket, order number and status line; the items, summary and progress follow). {order_number} is the order number, {total} the order total written with common.money_format. {channel_purchase} links the place-order channel (where Report a problem is).
 # description · max 4096 characters · optional · placeholders: {order_number}, {total}, {channel_purchase}
 checkout.status.fulfilled.description = '''
-Your package was delivered. We hope you enjoy it. This ticket is now closed, but you can still read it.
+{icon_st_delivered} Your package was delivered. We hope you enjoy it. This ticket is now closed, but you can still read it.
 
 {icon_flag} Problem with your order? Press **Report a problem** in {channel_purchase} within 14 days.'''
 
@@ -2595,9 +2678,9 @@ checkout.status.fulfilled.title = "Order #{order_number} delivered"
 # Optional text of the order workflow message once the order is 'paid' (under the ticket, order number and status line; the items, summary and progress follow). {order_number} is the order number, {total} the order total written with common.money_format.
 # description · max 4096 characters · optional · placeholders: {order_number}, {total}
 checkout.status.paid.description = '''
-Thank you, your payment is confirmed. We're preparing your order now.
+{icon_st_confirmed} Thank you, your payment is confirmed. We're preparing your order now.
 
-Your tracking number will be posted here as soon as it ships.'''
+{icon_map} Your tracking number will be posted here as soon as it ships.'''
 
 # Title of the order workflow message once the order is 'paid' (staff confirmed the payment). {order_number} is the order number, {total} the order total written with common.money_format.
 # title · max 256 characters · required · placeholders: {order_number}, {total}
@@ -2606,10 +2689,10 @@ checkout.status.paid.title = "Payment confirmed for order #{order_number}"
 # Optional text of the order workflow message once the order is 'payment_submitted' (under the ticket, order number and status line; the items, summary and progress follow). {order_number} is the order number, {total} the order total written with common.money_format.
 # description · max 4096 characters · optional · placeholders: {order_number}, {total}
 checkout.status.payment_submitted.description = '''
-Thank you. We've received your order and your payment.
+{icon_check} Thank you. We've received your order and your payment.
 
 **{icon_hourglass} WHAT HAPPENS NOW**
-Our team is verifying your payment. As soon as your order has been confirmed and shipped, your **tracking number will be sent in this ticket**. You'll also get a DM.'''
+Our team is verifying your payment. Once your order is confirmed and shipped, your **tracking number will be sent in this ticket**. You'll also get a DM.'''
 
 # Title of the order workflow message once the order is 'payment_submitted' (the customer submitted their payment; staff are verifying it). {order_number} is the order number, {total} the order total written with common.money_format.
 # title · max 256 characters · required · placeholders: {order_number}, {total}
@@ -2617,7 +2700,10 @@ checkout.status.payment_submitted.title = "Order #{order_number} placed"
 
 # Optional text of the order workflow message once the order is 'processing' (under the ticket, order number and status line; the items, summary and progress follow). {order_number} is the order number, {total} the order total written with common.money_format.
 # description · max 4096 characters · optional · placeholders: {order_number}, {total}
-checkout.status.processing.description = "Our team is preparing your order. Your tracking number will be posted here as soon as it ships."
+checkout.status.processing.description = '''
+{icon_clock} Our team is preparing your order.
+
+{icon_map} Your tracking number will be posted here as soon as it ships.'''
 
 # Title of the order workflow message once the order is 'processing' (staff are preparing the order). {order_number} is the order number, {total} the order total written with common.money_format.
 # title · max 256 characters · required · placeholders: {order_number}, {total}
@@ -2626,7 +2712,7 @@ checkout.status.processing.title = "Order #{order_number} is being prepared"
 # Optional text of the order workflow message once the order is 'refunded' (under the ticket, order number and status line; the items, summary and progress follow). {order_number} is the order number, {total} the order total written with common.money_format. {channel_purchase} links the place-order channel (where Report a problem is).
 # description · max 4096 characters · optional · placeholders: {order_number}, {total}, {channel_purchase}
 checkout.status.refunded.description = '''
-This order has been fully refunded. This ticket is closed, but you can still read it.
+{icon_coins} This order has been fully refunded. This ticket is closed, but you can still read it.
 
 {icon_flag} If you have questions about your refund, press **Report a problem** in {channel_purchase}.'''
 
@@ -2637,7 +2723,7 @@ checkout.status.refunded.title = "Order #{order_number} refunded"
 # Optional text of the order workflow message once the order is 'rejected' (under the ticket, order number and status line; the items, summary and progress follow). {order_number} is the order number, {total} the order total written with common.money_format.
 # description · max 4096 characters · optional · placeholders: {order_number}, {total}
 checkout.status.rejected.description = '''
-Our team could not accept this order. We sent you a message about it, with the reason if our team gave one.
+{icon_cross} Our team could not accept this order. We sent you a message about it, with the reason if our team gave one.
 
 This ticket is now closed, but you can still read it.
 {icon_cart} You can place a new order at any time from the place-order channel.'''
@@ -2649,7 +2735,7 @@ checkout.status.rejected.title = "Order #{order_number} rejected"
 # Optional text of the order workflow message once the order is 'shipped' (under the ticket, order number and status line; the items, summary and progress follow). {order_number} is the order number, {total} the order total written with common.money_format.
 # description · max 4096 characters · optional · placeholders: {order_number}, {total}
 checkout.status.shipped.description = '''
-Your order is on its way. **/myorders** shows the carrier and tracking number any time.
+{icon_st_shipped} Your order is on its way. **/myorders** shows the carrier and tracking number any time.
 
 {icon_clock} Delivery times depend on your country and the carrier.'''
 
@@ -2703,7 +2789,9 @@ checkout.status_label.shipped = "Shipped"
 
 # Optional text of the submitted order. The payment instructions follow below it. {order_number} is the order number, {total} the order total written with common.money_format.
 # description · max 4096 characters · optional · placeholders: {order_number}, {total}
-checkout.submitted.description = "Your items are reserved for you. Choose how to pay below. Changed your mind? Press **Cancel order** until you submit your payment."
+checkout.submitted.description = '''
+{icon_check} Your items are reserved for you. Choose how to pay below.
+{icon_cross} Changed your mind? Press **Cancel order** until you submit your payment.'''
 
 # Title of the workflow message after the order was submitted (waiting for payment). {order_number} is the order number, {total} the order total written with common.money_format.
 # title · max 256 characters · required · placeholders: {order_number}, {total}
@@ -2735,9 +2823,9 @@ checkout.tip.input_placeholder = "For example: 7.50"
 # modal_title · max 45 characters · required
 checkout.tip.modal_title = "Tip our team"
 
-# Last line of the review step while no tip is chosen: that a tip is optional and who it is for, e.g. '{icon_heart} Tips are optional. If you'd like to thank our support team, pick an amount in the menu below. 100% of every tip goes to our team.'.
+# Last line of the review step while no tip is chosen: that a tip is optional and who it is for, e.g. '{icon_heart} Tips are optional. To thank our support team, pick an amount in the menu below. 100% of every tip goes to our team.'.
 # field_value · max 1024 characters · required
-checkout.tip.note = "{icon_heart} Tips are optional. If you'd like to thank our support team, pick an amount in the menu below. 100% of every tip goes to our team."
+checkout.tip.note = "{icon_heart} Tips are optional. To thank our support team, pick an amount in the menu below. 100% of every tip goes to our team."
 
 # Last line of the review step once a tip is chosen, e.g. '{icon_heart} Thank you! 100% of every tip goes to our team.'.
 # field_value · max 1024 characters · required
@@ -2776,7 +2864,8 @@ checkout.ticket.draft_line = "{icon_ticket} Ticket **#{ticket_number}** · {stat
 # First message in every order ticket, posted before the live panel: identifies the ticket and explains that only the customer and authorized staff can see it. {ticket_number} is the ticket number (it is also shown in checkout.ticket.reference_line above the text), {user_mention} mentions the customer (no ping).
 # description · max 4096 characters · required · placeholders: {ticket_number}, {user_mention}
 checkout.ticket.intro_description = '''
-Hi {user_mention}, this is your private order ticket. Only you and our team can see it.
+Hi {user_mention}, this is your private order ticket.
+{icon_lock} Only you and our team can see it.
 
 **{icon_compass} HOW IT WORKS**
 {icon_step_1} Choose your items and quantities
@@ -2860,19 +2949,21 @@ my_orders.command.description = "See your orders with their status, timeline and
 
 # Text of the /myorders reply when the member has no order yet.
 # description · max 4096 characters · required
-my_orders.empty.description = "You haven't placed an order yet. Browse the catalog and press **Buy** on an item to start one."
+my_orders.empty.description = '''
+You haven't placed an order yet.
+{icon_tag} Browse the catalog and press **Buy** on an item to start one.'''
 
 # Optional text under the /myorders title when the member has orders. {count} is their number. The orders follow (newest first), with previous/next buttons when there is more than one page.
 # description · max 4096 characters · optional · placeholders: {count}
-my_orders.list.description = "Newest first. Only you can see this message."
+my_orders.list.description = "{icon_lock} Only you can see this message. Newest first."
 
 # Title of the private /myorders reply (also when the member has no order yet). {count} is the number of the member's orders.
 # title · max 256 characters · required · placeholders: {count}
 my_orders.list.title = "Your orders"
 
-# Line under each order's heading in /myorders, e.g. '{total} · placed {date}'. {order_number} is the order number, {status} its current stage name (checkout.ticket.stage.*), {total} the total (common.money_format), {date} the date it was submitted (shown by Discord in the reader's time zone).
+# Line under each order's heading in /myorders, e.g. '{icon_calendar} Placed {date} · **{total}**'. {order_number} is the order number, {status} its current stage name (checkout.ticket.stage.*), {total} the total (common.money_format), {date} the date it was submitted (shown by Discord in the reader's time zone).
 # description · max 4096 characters · required · placeholders: {order_number}, {status}, {total}, {date}
-my_orders.order.summary = "{total} · placed {date}"
+my_orders.order.summary = "{icon_calendar} Placed {date} · **{total}**"
 
 # Optional label of the line linking the order's ticket while it is still open, e.g. 'Ticket' (the line is omitted when empty).
 # field_name · max 256 characters · optional
@@ -2880,7 +2971,7 @@ my_orders.order.ticket_field = "{icon_ticket} Ticket"
 
 # Heading of each order in /myorders, shown in bold. {order_number} is the order number, {status} its current stage name (checkout.ticket.stage.*), {total} the total (common.money_format), {date} the date it was submitted (shown by Discord in the reader's time zone).
 # title · max 256 characters · required · placeholders: {order_number}, {status}, {total}, {date}
-my_orders.order.title = "#{order_number} · {status}"
+my_orders.order.title = "{icon_receipt} #{order_number} · {status}"
 
 # Optional label of the line showing the tracking details staff recorded for the order, e.g. 'Tracking' (shown only when there are tracking details; omitted when empty).
 # field_name · max 256 characters · optional
@@ -2896,8 +2987,8 @@ my_orders.order.tracking_field = "{icon_map} Tracking"
 # description · max 4096 characters · optional · placeholders: {amount}, {balance}
 credits.adjusted_notice.description = '''
 Our team updated your store credit.
-• Change: **{amount}**
-• New balance: **{balance}**'''
+{icon_edit} Change: **{amount}**
+{icon_coins} New balance: **{balance}**'''
 
 # Optional title of the direct message sent to a member after an admin added or removed credits (/credits adjust). {amount} is the change written with common.money_format (negative for a removal, e.g. -5.00), {balance} the new balance. If both notice keys are empty, members are not notified.
 # title · max 256 characters · optional · placeholders: {amount}, {balance}
@@ -2907,7 +2998,9 @@ credits.adjusted_notice.title = "Your store credit was updated"
 
 # Text of the private reply to the 'my balance' button. {amount} is the member's current credit balance written with common.money_format.
 # description · max 4096 characters · required · placeholders: {amount}
-credits.balance.description = "Your store credit balance is **{amount}**. You can apply it in the review step of your next order."
+credits.balance.description = '''
+{icon_coins} Your balance: **{amount}**
+You can apply it on the review step of your next order.'''
 
 # Optional title of the private reply to the 'my balance' button. If empty, the reply has no title.
 # title · max 256 characters · optional
@@ -2915,7 +3008,7 @@ credits.balance.title = "Your store credit"
 
 # Label of the 'my balance' button that other panels (for example the shop panel) can show. Clicking it shows the member their own credit balance privately.
 # button_label · max 80 characters · required
-credits.button.balance = "{icon_wallet} My store credit"
+credits.button.balance = "{icon_coins} My store credit"
 
 # ==================================================================================================
 # Feature: reviews
@@ -3012,7 +3105,7 @@ reviews.button.decline = "{icon_cross} No thanks"
 # Text of the review request asking the customer to rate their order. {order_number} is the number of the reviewed order.
 # description · max 4096 characters · required · placeholders: {order_number}
 reviews.prompt.description = '''
-Thank you for shopping with AmazonYaarts. We would like to hear how your order went.
+Thank you for shopping with AmazonYaarts! 😊 We'd love to hear how your order went.
 
 **{icon_compass} HOW IT WORKS**
 {icon_step_1} Choose a rating from 1 to 5 stars in the menu below
@@ -3020,9 +3113,9 @@ Thank you for shopping with AmazonYaarts. We would like to hear how your order w
 {icon_step_3} Press **Submit** in the form to post your review
 
 {icon_verified} Your review appears in our reviews channel with a verified-purchase marker. Your name is never shown.
-{icon_photo} Want to add a photo? Press **Write a review** in our reviews channel instead and add it in the form (it reviews your most recent delivered order).
+{icon_photo} Want to add a photo? Press **Write a review** in our reviews channel instead (it reviews your most recent delivered order).
 
-Prefer not to review this order? Press **No thanks**.'''
+{icon_cross} Prefer not to review this order? Press **No thanks**.'''
 
 # Placeholder of the rating selection menu on the review request (shown before a rating is picked).
 # select_placeholder · max 150 characters · required
@@ -3049,7 +3142,7 @@ reviews.command.stars = "How many stars you give us"
 # Private reply when a member without a delivered order to review already wrote an unverified review in the last reviews.unverified_cooldown_days days. {date} is the day they can write another one (shown in the member's own time zone). Required when reviews.allow_unverified is on and the cooldown is not 0.
 # description · max 4096 characters · required · placeholders: {date}
 reviews.cooldown.description = '''
-{icon_clock} You shared a review with us recently. You can share another one from {date}.
+{icon_calendar} You shared a review with us recently. You can share another one from {date}.
 {icon_info} Once your next order is delivered, you can review it right away.'''
 
 # Private reply when a review form is sent after it expired (6 hours after it opened) or was already sent.
@@ -3171,16 +3264,16 @@ reviews.intro.description = '''
 This is where our customers share how their orders went.
 
 **{icon_info} A FRESH START**
-We recently rebuilt our server, and our older reviews didn't make the move. They'll be back in time as customers share their experiences again. Ordered from us before? We'd love to hear from you again.
+We recently rebuilt our server, and our older reviews didn't make the move. They'll be back in time as customers share their experiences again. Ordered from us before? We'd love to hear about your next order.
 
 **{icon_sparkles} NEW HERE?**
-A warm welcome! We're glad you found us. Take your time to look around, and our team is happy to answer any questions.
+A warm welcome! 👋 We're glad you found us. Take your time to look around, and our team is happy to answer any questions.
 
 **{icon_star} LEAVE A REVIEW**
 {icon_step_1} Press **Write a review** below and choose your stars
 {icon_step_2} Write a few words about your experience and add a photo, if you like
 {icon_step_3} Press **Submit** to send your review
-{icon_info} In an open ticket, you can also type **/review**.
+{icon_ticket} In an open ticket, you can also type **/review**.
 
 {icon_lock} Your name is never shown on a review.'''
 
@@ -3193,9 +3286,9 @@ reviews.intro.title = "Customer reviews"
 # Optional text of the private message telling the customer their review was approved; it is sent once the review is published in the reviews channel. Sent by direct message when features.dm_notifications is on, otherwise (or when direct messages are closed) in the order channel with a mention (notifications.fallback_to_channel; a review without an order has no order channel). If empty, no message is sent. {review_link} is a link to the published review.
 # description · max 4096 characters · optional · placeholders: {review_link}
 reviews.notice.approved.description = '''
-Thank you. Our team approved your review, and it is now published in our reviews channel.
+Thank you! 🎉 Our team approved your review, and it is now published in our reviews channel.
 
-{icon_eye} [View your review]({review_link})'''
+{icon_link} [View your review]({review_link})'''
 
 # Optional title of the private message telling the customer their review was approved and published. Needs reviews.notice.approved.description.
 # title · max 256 characters · optional
@@ -3361,11 +3454,11 @@ Dear customers,
 
 {icon_box} In your package you'll also find a **20% off** coupon for your next order. It works on our old stock only, and you can even give it to a friend.
 
-Thank you again, customers, for all your support!'''
+Thank you again, customers, for all your support! 🎉'''
 
 # Label the button under the 'warehouse_sale' preset announcement (/announce preset:warehouse_sale, staff name 'Warehouse sale: buy one, get one free') shows (disabled) once the coupon BOGO has ended or expired, e.g. 'Offer ended'.
 # button_label · max 80 characters · required
-announcements.preset.warehouse_sale.ended_button = "Offer ended"
+announcements.preset.warehouse_sale.ended_button = "{icon_clock} Offer ended"
 
 # Title of the 'warehouse_sale' preset announcement (/announce preset:warehouse_sale, staff name 'Warehouse sale: buy one, get one free'), posted in the 'announcements' channel. Plain text (no icons). {excluded_areas} is the list of areas we do not ship to right now, from [shipping.excluded_areas] and written as #shipping writes them (e.g. 'Alaska and North Dakota').
 # title · max 256 characters · required · placeholders: {excluded_areas}
@@ -3386,7 +3479,7 @@ problems.attachments_note = "{icon_photo} Photos or screenshots help our team re
 problems.choose.description = '''
 Tell us what went wrong and our team will help you in a private ticket.
 
-**{icon_list} HOW IT WORKS**
+**{icon_compass} HOW IT WORKS**
 {icon_step_1} Choose the order it is about, if your orders are listed below
 {icon_step_2} Choose the type of problem
 {icon_step_3} Press **Continue** and describe what happened
@@ -3476,7 +3569,7 @@ problems.ticket.title = "Report #{number}"
 
 # Field name of the issue type on the report panel.
 # field_name · max 256 characters · required
-problems.ticket.type_field = "{icon_flag} Problem type"
+problems.ticket.type_field = "{icon_flag} Type"
 
 # --- Report a Problem: button on the #purchase panel ---
 
@@ -3506,9 +3599,9 @@ problems.created.title = "Report #{number} received"
 # description · max 4096 characters · required · placeholders: {limit}, {channel_mention}
 problems.limit_reached.description = '''
 Please continue in your report ticket. Our team is still reviewing it.
-{icon_ticket} **Report ticket:** {channel_mention}
 
-{icon_info} You can start a new report once our team has decided on it or its ticket is closed (open reports at a time: {limit}).'''
+{icon_ticket} **Report ticket:** {channel_mention}
+{icon_info} You can start a new report once our team has decided on it or its ticket is closed (limit: {limit} open at a time).'''
 
 # Optional title of the private reply when the customer already has the maximum number of open reports.
 # title · max 256 characters · optional

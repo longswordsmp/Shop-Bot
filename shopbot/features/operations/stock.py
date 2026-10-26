@@ -63,6 +63,25 @@ def _recently_alerted(conn: sqlite3.Connection, product_id: int, current: str, n
     return alerted == current and when.isdigit() and now - int(when) < REPEAT_SECONDS
 
 
+def _schedule_alert(conn: sqlite3.Connection, product: Product, current: str, now: int, attempts: int) -> None:
+    """Schedule the alert of a drop to ``current``, unless this level was alerted for the item within
+    ``REPEAT_SECONDS``."""
+    if _recently_alerted(conn, product.id, current, now):
+        return
+    # The version changes with every reservation and stock change: one task per drop.
+    task_repo.schedule(
+        conn,
+        kind=TASK_ALERT,
+        run_at=now,
+        payload={"alert": current, "product_id": product.id},
+        max_attempts=max(1, attempts),
+        dedupe_key=f"{TASK_ALERT}:{current}:{product.id}:v{product.version}",
+        replace=False,
+        now=now,
+    )
+    state.kv_set(conn, f"{ALERTED}{product.id}", f"{current}:{now}", now)
+
+
 def _record(
     conn: sqlite3.Connection,
     guild_id: int,
@@ -89,19 +108,7 @@ def _record(
             if not alert or product is None:
                 continue  # left for the alerting check of the order that caused the drop
             worse.append((product_id, current))
-            if not _recently_alerted(conn, product_id, current, now):
-                # The version changes with every reservation and stock change: one task per drop.
-                task_repo.schedule(
-                    conn,
-                    kind=TASK_ALERT,
-                    run_at=now,
-                    payload={"alert": current, "product_id": product_id},
-                    max_attempts=max(1, attempts),
-                    dedupe_key=f"{TASK_ALERT}:{current}:{product_id}:v{product.version}",
-                    replace=False,
-                    now=now,
-                )
-                state.kv_set(conn, f"{ALERTED}{product_id}", f"{current}:{now}", now)
+            _schedule_alert(conn, product, current, now, attempts)
         if current != before:
             state.kv_set(conn, key, current, now)
     return worse

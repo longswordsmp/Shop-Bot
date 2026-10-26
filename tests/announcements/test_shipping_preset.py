@@ -156,6 +156,32 @@ async def test_a_missing_joining_text_is_named(env: AnnounceEnv) -> None:
     assert buttons(card) == []
 
 
+async def test_a_preset_without_the_areas_does_not_need_the_joining_text(tmp_path: Path) -> None:
+    """Only a preset whose texts show {excluded_areas} writes the areas: another preset (e.g. warehouse_sale) is
+    previewed, posted and shown in the preview while two areas are excluded and #shipping's joining text is not set."""
+    other = "closed"
+    presets_table = [*SETTINGS["announcements"]["presets"], {"id": other, "name": "[Closed]"}]
+    texts = {preset_key(other, PRESET_TITLE): "[Closed title]", preset_key(other, PRESET_DESCRIPTION): "[Closed]"}
+    announce = await announce_env(
+        tmp_path, deep_merge(SETTINGS, {"announcements": {"presets": presets_table}}), content={**CONTENT, **texts}
+    )
+    try:
+        app = announce.app
+        app.content.replace(file_values={**announce.tenv.content, FORMAT_LAST_AREA: ""})
+        assert dict(app.settings.shipping.excluded_areas) == {"US": ("AK", "ND")}  # two areas: the text is needed
+        staff = announce.staff()
+        copy, card = (await invoke(announce, staff, preset=other)).sent
+        assert copy.embeds[0].title == "[Closed title]"
+        await post(announce, staff, card)
+        assert [message.embeds[0].title for message in announce.channel.messages] == ["[Closed title]"]
+        assert MODULE.preview is not None
+        names = {state.name for state in MODULE.preview(app)}
+        assert {f"preset_{other}_preview_announcement", f"preset_{other}_announcement"} <= names
+        assert f"preset_{PRESET_ID}_announcement" not in names  # the preset showing the areas needs the text
+    finally:
+        await announce.close()
+
+
 # -- the shipped preset -----------------------------------------------------------------------------------------------
 
 

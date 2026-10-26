@@ -323,7 +323,7 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             FEATURE,
             _G_NOTIFY,
             "Name of the field showing the tracking number in the shipped notification and on the customer's order "
-            "ticket card while the order is shipped, e.g. '{icon_location} Tracking number'.",
+            "ticket card while the order is shipped, e.g. '{icon_map} Tracking number'.",
         ),
         ck(
             SHIPMENT_TRACK_BUTTON,
