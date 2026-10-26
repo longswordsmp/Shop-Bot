@@ -293,7 +293,9 @@ def _ticket_channel(conn: Any, ticket_id: int) -> int:
         ("ABCD-EFGH-1234-5678", True),
         ("abcd-efgh-1234-5678", True),
         ("ABCD EFGH 1234 5678", True),
-        ("abcd efgh 1234 5678", True),
+        # Lower-case words in groups cannot be told apart from a sentence ("I paid with card 1234 then card 5678"):
+        # deleting customers' ordinary messages would be worse than missing this rare form.
+        ("abcd efgh 1234 5678", False),
         ("abcd1234efgh5678", True),
         ("AbCd1234EfGh5678", True),
         ("4111 1111 1111 1111", True),
@@ -309,6 +311,14 @@ def _ticket_channel(conn: Any, ticket_id: int) -> int:
         ("order 2026-10-26-1530", False),
         ("see https://discord.com/channels/123456789012345678/123456789012345679/123456789012345680", False),
         ("ping <@123456789012345678> about <#123456789012345679>", False),
+        ("my order 1042 from last week never came", False),
+        ("I paid with card 1234 then card 5678", False),
+        ("card 5678 also didnt work", False),
+        ("MY ORDER 1042 FROM LAST WEEK", False),
+        ("fedex 123456789012345 and my id 123456789012345678", False),
+        ("ABCD1234 EFGH5678", True),
+        ("ABCD-1234-EF-5678GH", True),
+        ("378282246310005", True),
     ],
 )
 def test_looks_like_code(text: str, expected: bool) -> None:
@@ -419,3 +429,52 @@ async def test_an_edited_message_with_a_code_is_removed_too(gc: TestEnv) -> None
     message.content = f"oops {CODE}"
     await gift_cards.on_message_edit(gc.app, message, message)
     assert message.deleted
+
+
+async def test_a_stale_mark_paid_never_errors_when_the_last_card_placed_the_order(gc: TestEnv) -> None:
+    from shopbot.features.checkout import staff
+
+    customer, placed, _ = await _placed(gc)
+    owner = gc.member(name="owner", admin=True)
+    stale = await order(gc, placed.id)  # read before the customer's card placed the order
+    await _submit(gc, customer, placed)
+    reply = await staff.change_status(gc.app, stale, m.PAID, actor_id=owner.id)
+    assert reply.tone == "warning"  # nothing changed, no error
+    assert (await order(gc, placed.id)).status == m.PAYMENT_SUBMITTED
+
+
+async def test_a_markdown_heavy_refusal_reason_keeps_every_message_within_limits(gc: TestEnv) -> None:
+    from shopbot.ui.limits import validate_message
+
+    customer, placed, _ = await _placed(gc)
+    await _submit(gc, customer, placed)
+    owner = await _owner_reveal(gc, placed)
+    await submit_modal(
+        gc.app,
+        user=owner,
+        custom_id=views.gift_card_problem_form_id(placed.id),
+        fields={staff_views.REASON_INPUT: "_" * store.REASON_MAX},
+    )
+    assert (await order(gc, placed.id)).status == m.PENDING
+    view = await checkout_service.order_view(gc.app, placed.id)
+    assert view is not None
+    data = await gc.app.db.run(handling_repo.staff_data, placed.id)
+    for spec in checkout_service.staff_specs(gc.app, view, data):
+        assert validate_message(spec) == []
+    assert validate_message((await checkout_service.customer_order_messages(gc.app, placed.id)).main) == []
+    assert "_" * 10 not in customer.dms[-1].text()  # the reason is escaped
+    assert validate_message(_spec_of(customer.dms[-1])) == []
+
+
+def _spec_of(message: Any) -> Any:
+    from shopbot.ui.spec import EmbedField, EmbedSpec, MessageSpec
+
+    embeds = tuple(
+        EmbedSpec(
+            title=e.title,
+            description=e.description,
+            fields=tuple(EmbedField(f.name or "", f.value or "") for f in e.fields),
+        )
+        for e in message.embeds
+    )
+    return MessageSpec(embeds=embeds)

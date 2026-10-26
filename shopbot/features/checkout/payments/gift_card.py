@@ -444,17 +444,32 @@ def cards_fields(
 
 
 def _chunks(lines: list[str], limit: int = 1024) -> list[str]:
+    """``lines`` joined into texts of at most ``limit`` characters (a field value); a single longer line is split
+    too, never inside a markdown escape, so nothing is cut."""
     chunks: list[str] = []
     current = ""
-    for line in lines:
-        candidate = f"{current}\n{line}" if current else line
+    pieces = [piece for line in lines for piece in _split_line(line, limit)]
+    for piece in pieces:
+        candidate = f"{current}\n{piece}" if current else piece
         if len(candidate) > limit and current:
             chunks.append(current)
-            candidate = line
+            candidate = piece
         current = candidate
     if current:
         chunks.append(current)
     return chunks
+
+
+def _split_line(line: str, limit: int) -> list[str]:
+    pieces: list[str] = []
+    while len(line) > limit:
+        cut = limit
+        backslashes = len(line[:cut]) - len(line[:cut].rstrip("\\"))
+        if backslashes % 2:  # the cut would separate an escape from the character it escapes
+            cut -= 1
+        pieces.append(line[:cut])
+        line = line[cut:]
+    return [*pieces, line]
 
 
 # -- rendering (staff side: the order record; never a code) -------------------------------------------------------

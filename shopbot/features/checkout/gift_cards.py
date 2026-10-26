@@ -297,29 +297,31 @@ _TOKEN = re.compile(r"[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*")
 _UPS_TRACKING = re.compile(r"1Z[0-9A-Z]{16}")
 _PUNCTUATION = ".,!?;:()[]{}\"'"
 _MIN_CHARS, _MAX_CHARS, _MIN_DIGITS, _MIN_LETTERS = 12, 32, 4, 4
-# Card and gift card numbers have 13-19 digits; longer digit runs are tracking numbers.
+# Card numbers have 13-19 digits (and a Luhn check digit); other digit runs are tracking or ID numbers.
 _CARD_NUMBER_DIGITS = range(13, 20)
 
 
 def looks_like_code(text: str) -> bool:
-    """Whether a chat message seems to contain a gift card code or a card number: 12-32 letters and digits, typed as
-    one run, in dash-separated blocks of 3 or more, or in space-separated blocks of one length (``ABCD EFGH 1234``);
-    with at least 4 letters and 4 digits, or 13-19 digits only. Links, mentions, dates, phone and tracking numbers and
-    ordinary sentences with an order number do not match."""
+    """Whether a chat message seems to contain a gift card code or a card number: 12-32 letters and digits with at
+    least 4 of each, or a card number (13-19 digits that pass the Luhn check), typed as one run, in dash-separated
+    blocks, or in space-separated blocks as printed on a card (capitals and digits of one length, two or more of
+    them with digits). Links, mentions, dates, phone, tracking and ID numbers and ordinary sentences with an order or
+    card number do not match."""
     text = _IGNORED.sub(" ", text)
     for token in _TOKEN.findall(text):
         blocks = token.split("-")
-        if len(blocks) > 1 and any(len(block) < 3 for block in blocks):
+        if len(blocks) > 1 and token.replace("-", "").isdigit() and any(len(block) < 3 for block in blocks):
             continue  # a date or a phone number
         if _code_like(normalize_code(token)):
             return True
     run: list[str] = []
     for word in [w.strip(_PUNCTUATION) for w in text.split()] + [""]:
-        grouped = 3 <= len(word) <= 6 and word.isalnum()
+        grouped = 3 <= len(word) <= 8 and word.isalnum() and (word.isupper() or word.isdigit())
         if grouped and (not run or len(word) == len(run[0])):
             run.append(word)
             continue
-        if len(run) >= 3 and _code_like(normalize_code("".join(run))):
+        with_digits = sum(any(ch.isdigit() for ch in block) for block in run)
+        if len(run) >= 2 and with_digits >= 2 and _code_like(normalize_code("".join(run))):
             return True
         run = [word] if grouped else []
     return False
@@ -331,8 +333,17 @@ def _code_like(chars: str) -> bool:
         return False
     digits = sum(ch.isdigit() for ch in chars)
     if digits == len(chars):
-        return len(chars) in _CARD_NUMBER_DIGITS
+        return len(chars) in _CARD_NUMBER_DIGITS and _luhn(chars)
     return digits >= _MIN_DIGITS and len(chars) - digits >= _MIN_LETTERS
+
+
+def _luhn(digits: str) -> bool:
+    """The check digit card numbers carry (most IDs and tracking numbers fail it)."""
+    total = 0
+    for position, char in enumerate(reversed(digits)):
+        value = int(char) * (2 if position % 2 else 1)
+        total += value - 9 if value > 9 else value
+    return total % 10 == 0
 
 
 async def on_message_edit(app: App, before: discord.Message, after: discord.Message) -> None:

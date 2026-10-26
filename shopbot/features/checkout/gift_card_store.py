@@ -27,7 +27,8 @@ ACTIVE: Final = (SUBMITTED, REDEEMED)
 CODE_MIN: Final = 10
 CODE_MAX: Final = 64
 PIN_MAX: Final = 16
-REASON_MAX: Final = 500
+# Refusal reasons are shown escaped (at most twice as long) in one line of a field (1024 characters).
+REASON_MAX: Final = 400
 LAST_CHARS: Final = 4
 
 _COLUMNS = (

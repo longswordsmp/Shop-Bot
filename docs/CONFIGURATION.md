@@ -271,6 +271,10 @@ details.
 | `keep_days` | 7 | A code nobody decided on is deleted after this many days (the card stays listed; staff use Card problem). |
 | `chat_guard` | true | Delete a customer's message in their order ticket when it looks like a gift card code, and tell them privately to use the form (needs `bot.message_content_intent`). |
 
+Before you switch `provider` away from `"gift_card"`, finish the orders whose gift cards wait for a decision
+(`/orders status:payment_submitted`): the gift card buttons are only shown while gift cards are the configured
+payment.
+
 Codes are stored only encrypted, with the key from the `GIFT_CARD_KEY` environment variable or, when it is unset,
 a `gift_card.key` file the bot creates next to the database (see `docs/SECURITY.md`). A code is deleted as soon as
 staff decide on its card, when the order ends unpaid, or after `keep_days`.
