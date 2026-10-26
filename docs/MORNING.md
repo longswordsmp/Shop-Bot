@@ -37,8 +37,9 @@ Set `DISCORD_TOKEN`, `GUILD_ID`, `OWNER_ID`, `DB_PATH=./data/bot.db`, `LOG_FORMA
 | `OWNER_ID` | your user ID (step 3) |
 | `DB_PATH` | `/data/bot.db` |
 | `RAILWAY_DEPLOYMENT_DRAINING_SECONDS` | `15` (lets in-progress clicks finish when Railway restarts the bot) |
+| `GIFT_CARD_KEY` | recommended: encrypts the gift card codes customers submit. Generate it once on your computer with `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` and paste it. Keep it secret and never change it while cards wait (they would become unreadable). Without it the bot creates `gift_card.key` on the volume. |
 
-Check: Railway shows the five variables (token value hidden).
+Check: Railway shows the six variables (secret values hidden).
 
 ## 3. Get the Discord IDs
 
@@ -154,10 +155,11 @@ you saw: the suggestions show which text contains them.
 what it is for, its Discord length limit and its placeholders (`{channel_catalog}`, `{order_number}`, ... are filled
 in by the bot).
 
-**Decisions in `config/settings.toml`** (chosen for you; change any): currency `USD`, manual payment (staff post
-payment instructions in the order ticket and confirm the payment), shipping to every country in the Americas (in the US:
+**Decisions in `config/settings.toml`** (chosen for you; change any): currency `USD`, payment with DoorDash eGift
+cards for the exact total (customers submit them in a private form; only the Owner can reveal codes, redeem them and
+confirm the payment: `[payments.gift_card] staff_roles`), store credit for overpayments and refunds, shipping to every country in the Americas (in the US:
 all states except Alaska and North Dakota) and to Europe, 6 rules on #welcome, FAQ topics, four problem types, reviews 7 days after completion (1-5
-stars), a 24-hour unpaid-order reminder, cart expiry after 24 hours, the shipping-address form at Submit, staff
+stars), a 24-hour unpaid-order reminder, cart expiry after 24 hours, the shipping-address step, staff
 reminders. The full list is in `docs/DECISIONS.md` §10a.
 
 **Banners:** `config/banners/` holds one picture per kind of message (`welcome.png`, `faq.png`,
@@ -188,13 +190,21 @@ Use a second (non-staff) Discord account as the "customer".
 - [ ] #new-arrivals button → Restock Alerts on, again → off. Restock a sold-out product → one update pinging the role.
 
 **Purchase (order ticket)**
-- [ ] #purchase Start → private ticket (only you + staff): intro message, then the live panel (reference, step,
-      status); add items, Back, review, Submit (and the submission form if configured).
+- [ ] #place-order Start → private ticket (only you + staff): intro message, then the live panel (reference, step,
+      status); add items, Continue, address (region, country, the private address form), delivery and extras,
+      review, Confirm order.
 - [ ] Buy on a #catalog item while the ticket is open → the item is added to that ticket instead of a new one.
 - [ ] Start again with an open order → private link to the existing ticket.
-- [ ] Customer cannot press staff buttons; in #orders: Claim, Mark paid, in progress, tracking, note, completed →
-      the customer's panel timeline and DMs follow; the Customer role is given (on completion by default).
-- [ ] Reject with a reason and Request correction → the customer sees the reason/request.
+- [ ] Payment: the order card shows Submit gift card and Buy a gift card. Submit a card worth less than the total →
+      "received … still to pay"; a second card → "Order placed" in the ticket and by DM, a payment alert in
+      #staff-chat. Type a code in the ticket chat → the message disappears and you get a private note.
+- [ ] In #orders as the Owner: Reveal gift card (private, spoiler-hidden codes), Payment confirmed → paid; on another
+      order Card problem with a reason → the customer is told why and can submit another card. A plain Staff account
+      gets "only the payment staff" for Reveal and Payment confirmed.
+- [ ] Customer cannot press staff buttons; in #orders: Claim, Processing, Mark shipped (carrier, tracking number,
+      optional link) → the customer gets the tracking number with Track package; Mark delivered → the ticket closes
+      and the Customer role is given (on delivery by default).
+- [ ] Reject with a reason and Request correction (while waiting for payment) → the customer sees the reason/request.
 - [ ] Ticket closes → transcript in #transcripts with the final status; `/myorders` shows the order and timeline.
 - [ ] Start a ticket, add an item, do not submit; as staff run `/ticket close` in it → the unfinished order is
       cancelled and the ticket closes (one transcript). In the ticket of a submitted open order → refused, with a link

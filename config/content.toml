@@ -456,7 +456,7 @@ how_to_buy.step.4.name = "{icon_step_4} Review and place your order"
 
 # Explanation of step 4 of 6 in the step-by-step guide posted in the how_to_buy channel. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-how_to_buy.step.4.value = "Check every line and the total, then press **Submit order**."
+how_to_buy.step.4.value = "Check every line and the total, then press **Confirm order**."
 
 # Heading of step 5 of 6 in the step-by-step guide posted in the how_to_buy channel, shown in bold. Start it with a step-number icon if you want one shown, e.g. {icon_step_5} (channel links do not work in headings).
 # field_name · max 256 characters · required
@@ -464,7 +464,7 @@ how_to_buy.step.5.name = "{icon_step_5} Pay with a DoorDash eGift card"
 
 # Explanation of step 5 of 6 in the step-by-step guide posted in the how_to_buy channel. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-how_to_buy.step.5.value = "Our team posts the payment steps in your ticket: a DoorDash eGift card for the exact order total."
+how_to_buy.step.5.value = "Buy a DoorDash eGift card for the exact total and press **Submit gift card** in your ticket. Only our payment team sees the code."
 
 # Heading of step 6 of 6 in the step-by-step guide posted in the how_to_buy channel, shown in bold. Start it with a step-number icon if you want one shown, e.g. {icon_step_6} (channel links do not work in headings).
 # field_name · max 256 characters · required
@@ -522,7 +522,7 @@ faq.section.ordering.title = "{icon_cart} ORDERING"
 
 # Answer to question 1 of 3 in the 'payment' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-faq.section.payment.q.1.answer = "With a DoorDash eGift card for the exact order total, in US dollars. After you place your order, our team posts the payment steps in your order ticket. Please wait for them before you buy a card."
+faq.section.payment.q.1.answer = "With a DoorDash eGift card for the exact order total, in US dollars. After you confirm your order, press **Submit gift card** in your order ticket and enter the code in the private form. Several cards that add up to the total are fine."
 
 # Question 1 of 3 in the 'payment' section (channel links do not work in questions).
 # field_name · max 256 characters · required
@@ -530,7 +530,7 @@ faq.section.payment.q.1.question = "How do I pay?"
 
 # Answer to question 2 of 3 in the 'payment' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-faq.section.payment.q.2.answer = "Only you and our team can see your order ticket. Never post a gift card code, card number or password in a public channel, and never send one by DM: our team will never ask you to."
+faq.section.payment.q.2.answer = "Codes are entered only in a private form, stored encrypted, seen only by our payment team and deleted once your card is redeemed. Never post a gift card code, card number or password in a channel, and never send one by DM: our team will never ask you to."
 
 # Question 2 of 3 in the 'payment' section (channel links do not work in questions).
 # field_name · max 256 characters · required
@@ -2930,7 +2930,7 @@ operations.alert.new_order.description = '''
 {customer_mention} placed order **#{order_number}** for **{total}**.
 • Status: {status}
 • Order ticket: {order_channel}
-Claim it on the order record, then post the payment instructions, including any shipping costs, in the order ticket.'''
+The customer pays with gift cards in the ticket. You get a payment alert once they cover the total.'''
 
 # Optional title of the Staff alert when a customer submitted a new order (operations.ping_roles are mentioned). {order_number} is the order number, {customer_mention} mentions the customer (no ping), {total} is the order total, {status} the status name (checkout.status_label.*), {order_channel} links the customer's order channel.
 # title · max 256 characters · optional · placeholders: {order_number}, {customer_mention}, {total}, {status}, {order_channel}
@@ -3008,9 +3008,10 @@ operations.reminder.unfulfilled.title = "Paid order #{order_number} has not ship
 # Staff reminder about an order still waiting for payment, posted once it waited operations.unpaid_order_minutes minutes (again every operations.reminder_repeat_minutes while it still waits, when set). {order_number} is the order number, {customer_mention} mentions the customer (no ping), {total} is the order total, {status} the status name (checkout.status_label.*), {order_channel} links the customer's order channel; {waiting_since} is when it started waiting (shown in each reader's time zone), {minutes} the threshold in minutes. Needed when operations.unpaid_order_minutes is above 0.
 # description · max 4096 characters · required · placeholders: {order_number}, {customer_mention}, {total}, {status}, {order_channel}, {waiting_since}, {minutes}
 operations.reminder.unpaid.description = '''
-Order **#{order_number}** from {customer_mention} ({total}) is still waiting for payment. It was submitted {waiting_since}.
+Order **#{order_number}** from {customer_mention} ({total}) is not paid yet. It was placed {waiting_since}.
+• Status: {status}
 • Order ticket: {order_channel}
-Make sure the payment instructions are posted in the order ticket and check in with the customer there. If the order will not be paid, reject or cancel it.'''
+Payment submitted: the gift cards wait for you, press **Reveal gift card** on the order record. Pending payment: check in with the customer in the ticket, or reject or cancel the order.'''
 
 # Optional title of the Staff reminder about an order still waiting for payment, posted once it waited operations.unpaid_order_minutes minutes (again every operations.reminder_repeat_minutes while it still waits, when set). {order_number} is the order number, {customer_mention} mentions the customer (no ping), {total} is the order total, {status} the status name (checkout.status_label.*), {order_channel} links the customer's order channel; {waiting_since} is when it started waiting (shown in each reader's time zone), {minutes} the threshold in minutes.
 # title · max 256 characters · optional · placeholders: {order_number}, {customer_mention}, {total}, {status}, {order_channel}, {waiting_since}, {minutes}
