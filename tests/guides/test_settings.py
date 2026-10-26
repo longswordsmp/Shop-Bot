@@ -115,6 +115,12 @@ def test_faq_errors(table: dict[str, Any], expected: str) -> None:
         ({"info_sections": -1}, "shipping.info_sections: must be >= 0"),
         ({"regions": []}, "shipping.regions: unknown setting"),
         ({"groups": [{"id": "a", "countries": ["US"], "name": "A"}]}, "shipping.groups[0].name: unknown setting"),
+        (
+            {"groups": [{"id": "a", "countries": ["PT"]}], "list_areas": ["PT"]},
+            "shipping.list_areas: 'PT' has no areas to list",
+        ),
+        ({"groups": [{"id": "a", "countries": ["CA"]}], "list_areas": ["US"]}, "shipping.list_areas: US is not in any"),
+        ({"groups": [{"id": "a", "countries": ["US"]}], "list_areas": ["US", "US"]}, "shipping.list_areas: contains"),
     ],
 )
 def test_shipping_errors(table: dict[str, Any], expected: str) -> None:

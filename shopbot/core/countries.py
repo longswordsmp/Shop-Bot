@@ -321,6 +321,12 @@ US_STATES: dict[str, str] = {
 
 # Countries whose excluded areas are written as state codes (``[shipping.excluded_areas]``).
 AREA_CODES: dict[str, dict[str, str]] = {"US": US_STATES}
+US_TERRITORIES = frozenset({"AS", "GU", "MP", "PR", "VI"})
+# The areas #shipping can list one by one (``shipping.list_areas``): the 50 US states and the District of Columbia,
+# alphabetically by name.
+LISTED_AREAS: dict[str, tuple[str, ...]] = {
+    "US": tuple(sorted((code for code in US_STATES if code not in US_TERRITORIES), key=lambda c: US_STATES[c])),
+}
 
 
 def area_name(country: str, area: str) -> str:

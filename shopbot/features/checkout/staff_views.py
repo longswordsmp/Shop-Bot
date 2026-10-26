@@ -1,13 +1,13 @@
 """Pure builders for the staff side of orders: the live order record in the staff channel (#orders), its action
 buttons, the staff-only forms (operator text), and the customer notifications staff actions send.
 
-The live record always shows the order's unique reference, the customer, the current status, who claimed it, the
-order summary (lines and totals), a TIMELINE of its stages (status changes from ``order_events`` plus claims,
-correction requests and tracking details from ``order_activity``) and the latest internal notes. Field names and
-stage names are content keys; values are data (numbers, mentions, Discord timestamps, staff-entered text escaped
-with ``escape_markdown``). Discord's limits are budgeted: configured text is never cut; when the record does not fit,
-the oldest notes and timeline entries are left out first (the details button shows everything), then the order lines
-move to separate messages.
+The live record always shows the order's number, total and status (its title), the customer, its ticket and who
+claimed it, the order summary (lines, delivery and extras, destination, amounts), the payment, a TIMELINE of its
+stages (status changes from ``order_events`` plus claims, correction requests and tracking details from
+``order_activity``) and the latest internal notes. Field names and stage names are content keys; values are data
+(numbers, mentions, Discord timestamps, staff-entered text escaped with ``escape_markdown``). Discord's limits are
+budgeted: configured text is never cut; when the record does not fit, the oldest notes and timeline entries are left
+out first (the details button shows everything), then the order lines move to separate messages.
 
 Like ``views``, nothing here calls Discord or the database. Missing required content raises ``MissingContent``.
 """
@@ -266,7 +266,8 @@ def _summary_fields(ui: Ui, settings: Settings, view: m.OrderView) -> tuple[list
     ]
     delivery = [label for label in (option_label, *extras) if label]
     if delivery:
-        after.append(EmbedField(_text(ui, sk.DELIVERY_FIELD), " · ".join(delivery)))
+        delivery_name = _text(ui, sk.DELIVERY_FIELD)
+        after += [EmbedField(delivery_name, value) for value in _joined(delivery)]
     destination = _destination(ui, settings, order)
     if destination is not None:
         after.append(EmbedField(_text(ui, sk.SHIP_TO_FIELD), destination))
@@ -307,7 +308,8 @@ def _amounts(ui: Ui, view: m.OrderView, fmt: views.Money, option_label: str | No
     parts += [(_optional(ui, k.fee_label_key(fee.fee_id)) or "", fee.amount_minor) for fee in view.fees]
     if order.credits_applied_minor > 0:
         parts.append((_optional(ui, k.REVIEW_CREDITS_FIELD) or "", order.credits_applied_minor))
-    text = [f"{label} {fmt(amount)}".strip() for label, amount in parts]
+    # A fee whose label is no longer configured is left out, as it is everywhere else (the total includes it).
+    text = [f"{label} {fmt(amount)}" for label, amount in parts if label]
     text.append(f"{_text(ui, k.REVIEW_TOTAL_FIELD)} **{fmt(order.total_minor)}**")
     if order.refunded_minor > 0:
         text.append(f"{_text(ui, k.STAFF_REFUNDED_FIELD)} {fmt(order.refunded_minor)}")

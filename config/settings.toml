@@ -280,6 +280,10 @@ info_sections = 2                    # information sections after the delivery o
 # Cuba, Russia and Belarus: shipping there is restricted by sanctions and most carriers refuse parcels.
 not_available = ["CU", "RU", "BY"]
 
+# Countries whose areas #shipping lists one by one, each with its dot, in a card of their own (US: the 50 states
+# and DC; the excluded ones below show the grey dot). Text: shipping.areas.title / .introduction.
+list_areas = ["US"]
+
 # Parts of a country we do not ship to (US states by their two-letter code). The country shows a yellow dot and
 # "(except ...)" on #shipping, and the address step refuses addresses there.
 [shipping.excluded_areas]

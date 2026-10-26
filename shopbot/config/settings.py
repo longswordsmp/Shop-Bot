@@ -22,7 +22,7 @@ from dataclasses import dataclass, field
 from typing import Any, TypeVar
 
 from shopbot.config.banner_ids import BANNER_IDS
-from shopbot.core.countries import AREA_CODES, COUNTRIES
+from shopbot.core.countries import AREA_CODES, COUNTRIES, LISTED_AREAS
 
 T = TypeVar("T")
 
@@ -651,6 +651,8 @@ class ShippingSettings:
     country_names: Mapping[str, str] = field(default_factory=dict)
     # Extra information sections (content keys shipping.info.<n>.name/.value), shown after the countries.
     info_sections: int = 0
+    # Countries whose areas #shipping lists one by one with their dots (US: every state), in a card of their own.
+    list_areas: tuple[str, ...] = ()
 
     def country_name(self, code: str) -> str:
         return self.country_names.get(code) or COUNTRIES.get(code, code)
@@ -1318,6 +1320,14 @@ def _parse_shipping(r: _Reader) -> ShippingSettings:
         elif name:
             names[code] = name
     names_table.finish()
+    list_areas = r.strs_("list_areas")
+    for code in list_areas:
+        if code not in LISTED_AREAS:
+            r.error("list_areas", f"'{code}' has no areas to list (supported: {', '.join(sorted(LISTED_AREAS))})")
+        elif code not in shipped:
+            r.error("list_areas", f"{code} is not in any [[shipping.groups]] (we do not ship there at all)")
+    if len(set(list_areas)) != len(list_areas):
+        r.error("list_areas", "contains duplicates")
     value = ShippingSettings(
         channel=r.str_("channel", "", pattern=KEY_PATTERN),
         groups=tuple(groups),
@@ -1325,6 +1335,7 @@ def _parse_shipping(r: _Reader) -> ShippingSettings:
         not_available=not_available,
         country_names=names,
         info_sections=r.int_("info_sections", 0, min_=0, max_=MAX_SHIPPING_INFO_SECTIONS),
+        list_areas=list_areas,
     )
     return _finish(r, value)
 

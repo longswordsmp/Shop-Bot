@@ -55,7 +55,7 @@ async def test_overview_reports_readiness_and_diagnostics(tenv: TestEnv) -> None
     assert "✅ `admin` — ready" in fields["Features"]
     assert "`tickets.panel.titel`" in fields["Unknown content keys (likely typos)"]
     assert fields["Bot permissions (server-wide)"] == "All permissions needed by the enabled features are granted."
-    assert fields["Gateway intents (settings)"] == "Message content: yes · Server members: no"
+    assert fields["Gateway intents (connected with)"] == "Message content: yes · Server members: no"
     assert fields["Scheduled tasks"] == "Pending: 1 · Running: 0 · Failed: 1"
     assert str(app.env.db_path) in fields["Database"]
 
@@ -87,7 +87,7 @@ async def test_overview_warns_when_transcripts_lack_intent(tmp_path: Path) -> No
     try:
         assert service.transcripts_enabled(tenv.app.settings)
         interaction = await run_command(tenv, "status", user=admin(tenv))
-        intents = fields_of(sent(interaction))["Gateway intents (settings)"]
+        intents = fields_of(sent(interaction))["Gateway intents (connected with)"]
         assert "Message content: no" in intents
         assert "need the message content intent" in intents
     finally:

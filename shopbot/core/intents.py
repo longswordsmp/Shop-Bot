@@ -9,16 +9,20 @@ the gift card chat guard; the welcome mention) instead of stopping the bot. The 
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 from dataclasses import dataclass
+from typing import Final
 
-import aiohttp
 import discord
 from discord.http import HTTPClient
 
 from shopbot.logging_setup import log_event
 
 log = logging.getLogger(__name__)
+
+# The check before connecting gives up after this long (discord.py would otherwise wait on retries for minutes).
+PREFLIGHT_TIMEOUT_SECONDS: Final = 15.0
 
 
 @dataclass(frozen=True)
@@ -46,18 +50,26 @@ def effective(requested: PrivilegedIntents, allowed: PrivilegedIntents | None) -
 
 
 async def read_portal_intents(token: str) -> PrivilegedIntents | None:
-    """The intents the portal allows for this bot, or None when they cannot be read (the bot then connects as
-    configured and Discord's own check applies). The token is never logged."""
+    """The intents the portal allows for this bot, or None when they cannot be read within
+    ``PREFLIGHT_TIMEOUT_SECONDS`` or
+    the answer is not what Discord documents (the bot then connects as configured and Discord's own check applies).
+    Never raises: a failure here must not stop the bot from starting. The token is never logged."""
     http = HTTPClient(asyncio.get_running_loop())
     try:
-        await http.static_login(token)
-        data = await http.application_info()
-    except (discord.LoginFailure, discord.HTTPException, aiohttp.ClientError, OSError) as exc:
+        async with asyncio.timeout(PREFLIGHT_TIMEOUT_SECONDS):
+            await http.static_login(token)
+            data = await http.application_info()
+        flags = data.get("flags") if isinstance(data, dict) else None
+        if not isinstance(flags, int) or isinstance(flags, bool):
+            log_event(log, logging.WARNING, "portal_intents_unknown", error="unexpected_response")
+            return None
+        return portal_allows(discord.ApplicationFlags._from_value(flags))
+    except Exception as exc:  # timeouts, HTTP and connection errors, malformed answers: connect as configured
         log_event(log, logging.WARNING, "portal_intents_unknown", error=type(exc).__name__)
         return None
     finally:
-        await http.close()
-    return portal_allows(discord.ApplicationFlags._from_value(int(data.get("flags") or 0)))
+        with contextlib.suppress(Exception):
+            await http.close()
 
 
 def report(requested: PrivilegedIntents, allowed: PrivilegedIntents | None) -> list[str]:

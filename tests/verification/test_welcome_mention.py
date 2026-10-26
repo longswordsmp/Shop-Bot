@@ -103,3 +103,59 @@ async def test_the_group_timer_posts_on_its_own(tmp_path: Path, monkeypatch: pyt
         assert entry.messages[-1].content == f"{first.mention} {second.mention}"
     finally:
         await tenv.close()
+
+
+async def test_a_join_during_the_send_gets_its_own_message(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(welcome, "GROUP_SECONDS", 0.01)
+    tenv = await verification_env(tmp_path, ON)
+    try:
+        entry = channel(tenv, "welcome")
+        before = len(entry.messages)
+        first, second = tenv.guild.add_member(name="a"), tenv.guild.add_member(name="b")
+        real_send = entry.send
+
+        async def slow_send(*args: object, **kwargs: object) -> object:
+            message = await real_send(*args, **kwargs)  # type: ignore[arg-type]
+            if second.id not in welcome._state(tenv.app).members and len(entry.messages) == before + 1:
+                await welcome.on_member_join(tenv.app, second)  # joins while the first message is being sent
+            await asyncio.sleep(0.02)
+            return message
+
+        entry.send = slow_send  # type: ignore[method-assign]
+        await welcome.on_member_join(tenv.app, first)
+        await asyncio.sleep(0.2)
+        assert [m.content for m in entry.messages[before:]] == [first.mention, second.mention]
+        assert welcome._state(tenv.app).members == []
+    finally:
+        await tenv.close()
+
+
+async def test_the_cleanup_waits_while_the_server_is_unavailable(tmp_path: Path) -> None:
+    tenv = await verification_env(tmp_path, ON)
+    try:
+        entry = channel(tenv, "welcome")
+        await welcome.on_member_join(tenv.app, tenv.guild.add_member(name="newcomer"))
+        await welcome.flush(tenv.app)
+        posted = entry.messages[-1]
+        tenv.guild.unavailable = True  # type: ignore[attr-defined]  # a reconnect: channels not loaded yet
+        tenv.clock.advance(31)
+        await tenv.app.scheduler.run_due()
+        assert posted in entry.messages  # not given up
+        tenv.guild.unavailable = False  # type: ignore[attr-defined]
+        tenv.clock.advance(3600)
+        await tenv.app.scheduler.run_due()
+        assert posted.deleted
+    finally:
+        await tenv.close()
+
+
+async def test_startup_says_when_the_mention_cannot_work(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    from dataclasses import replace
+
+    tenv = await verification_env(tmp_path, ON)
+    try:
+        tenv.app.gateway_intents = replace(tenv.app.gateway_intents, members=False)
+        await welcome.on_ready(tenv.app)
+        assert "welcome_mention_off" in caplog.text
+    finally:
+        await tenv.close()

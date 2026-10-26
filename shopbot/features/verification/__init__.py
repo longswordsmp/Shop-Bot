@@ -36,6 +36,7 @@ MODULE = FeatureModule(
     settings_problems=keys.settings_problems,
     operator_text=OPERATOR_TEXT,
     register=register,
+    on_ready=welcome.on_ready,
     publish=publish,
     panel_prefixes=(PANEL_PREFIX,),
     preview=preview_module.preview,

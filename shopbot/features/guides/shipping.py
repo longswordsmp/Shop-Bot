@@ -6,6 +6,10 @@ available everywhere, available with exceptions (``[shipping.excluded_areas]``, 
 and North Dakota)"), then the countries listed as not available. Below come the delivery options with their prices
 (``[[checkout.fulfillment_options]]``) and the information sections (processing, tracking). A list longer than one
 embed continues in the next embed and message; nothing is cut.
+
+For each country in ``shipping.list_areas`` (the US) a second card lists every area one by one (``LISTED_AREAS``:
+the 50 states and DC) in three columns, each with its dot: available, or not available when it is one of the
+country's ``excluded_areas``.
 """
 
 from __future__ import annotations
@@ -22,12 +26,12 @@ from shopbot.config.settings import (
     ShippingGroup,
     ShippingSettings,
 )
-from shopbot.core.countries import area_name
+from shopbot.core.countries import LISTED_AREAS, area_name
 from shopbot.features.checkout.content_keys import extra_key, option_key
 from shopbot.features.guides import common
 from shopbot.features.server_keys import channel_placeholders, reference_problems
-from shopbot.ui.card import Card, Section
-from shopbot.ui.spec import MessageSpec, PreviewState
+from shopbot.ui.card import Card, Section, block_messages
+from shopbot.ui.spec import EmbedField, MessageSpec, PreviewState
 from shopbot.ui.style import Ui
 
 if TYPE_CHECKING:
@@ -48,6 +52,12 @@ FORMAT_LAST_AREA = "shipping.format.last_area"
 DELIVERY_HEADING = "shipping.delivery.heading"
 EXTRAS_HEADING = "shipping.extras.heading"
 FORMAT_DELIVERY = "shipping.format.delivery"
+AREAS_TITLE = "shipping.areas.title"
+AREAS_INTRODUCTION = "shipping.areas.introduction"
+# The listed areas are shown in this many columns (inline fields).
+AREA_COLUMNS = 3
+# Inline fields need a name; the columns of one list share the card's title instead.
+BLANK_FIELD_NAME = "\u200b"
 
 # A country's availability: everywhere, with excluded areas, not at all.
 STATUSES = ("full", "partial", "none")
@@ -206,6 +216,30 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             placeholders=("label", "price", "description"),
         ),
     ]
+    if s.list_areas:
+        areas_group = "Shipping areas one by one"
+        keys += [
+            ck(
+                AREAS_TITLE,
+                Kind.TITLE,
+                SHIPPING,
+                areas_group,
+                "Title of the card that lists every area of a country one by one (shipping.list_areas, e.g. every "
+                "US state), e.g. 'Shipping in the {country}'. {country} is the country's name.",
+                placeholders=("country",),
+            ),
+            ck(
+                AREAS_INTRODUCTION,
+                Kind.DESCRIPTION,
+                SHIPPING,
+                areas_group,
+                "Optional text under that title, e.g. 'Find your state: {icon_dot_blue} we ship there · "
+                "{icon_dot_grey} not available.' {country} is the country's name. The areas follow in three "
+                "columns, each with shipping.status.full.indicator or shipping.status.none.indicator.",
+                required=False,
+                placeholders=("country",),
+            ),
+        ]
     info_group = "Shipping information"
     for number in range(1, s.info_sections + 1):
         keys += [
@@ -231,7 +265,7 @@ def content_keys(settings: Settings) -> list[ContentKey]:
 
 def _status_used(s: ShippingSettings, status: str) -> bool:
     if status == "none":
-        return bool(s.not_available)
+        return bool(s.not_available) or any(s.excluded_areas.get(code) for code in s.list_areas)
     partial = [code for code in s.countries if code in s.excluded_areas]
     return bool(partial) if status == "partial" else len(partial) < len(s.countries)
 
@@ -352,12 +386,39 @@ def shipping_card(ui: Ui, s: ShippingSettings, checkout: CheckoutSettings, texts
     )
 
 
+def area_columns(texts: common.Texts, s: ShippingSettings, code: str) -> tuple[EmbedField, ...]:
+    """Every listed area of the country, alphabetically, each after its dot, in ``AREA_COLUMNS`` columns."""
+    excluded = set(s.excluded_areas.get(code, ()))
+    dots = {status: texts.required(status_indicator_key(status)) for status in ("full", "none")}
+    lines = [f"{dots['none' if area in excluded else 'full']} {area_name(code, area)}" for area in LISTED_AREAS[code]]
+    per_column = -(-len(lines) // AREA_COLUMNS)
+    return tuple(
+        EmbedField(BLANK_FIELD_NAME, "\n".join(lines[start : start + per_column]), inline=True)
+        for start in range(0, len(lines), per_column)
+    )
+
+
+def areas_card(texts: common.Texts, s: ShippingSettings, code: str) -> Card:
+    """The card listing one country's areas one by one (e.g. every US state)."""
+    country = s.country_name(code)
+    return Card(
+        tone="info",
+        title=texts.required(AREAS_TITLE, country=country),
+        intro=texts.optional(AREAS_INTRODUCTION, country=country),
+        fields=area_columns(texts, s, code),
+    )
+
+
 def shipping_messages(
     ui: Ui, s: ShippingSettings, checkout: CheckoutSettings, texts: common.Texts
 ) -> list[MessageSpec]:
-    """The shipping card's messages. Raises ``MissingContent``/``ChannelNotCreated`` at runtime when text or a
+    """The shipping card's messages, then one message per country in ``shipping.list_areas`` (one card per message;
+    only the first shows the banner). Raises ``MissingContent``/``ChannelNotCreated`` at runtime when text or a
     channel is missing (nothing incomplete is posted)."""
-    return common.guide_messages(ui, [shipping_card(ui, s, checkout, texts).block()], banner="shipping")
+    specs = common.guide_messages(ui, [shipping_card(ui, s, checkout, texts).block()], banner="shipping")
+    for code in s.list_areas:
+        specs += block_messages(ui, [areas_card(texts, s, code).block()], banner=None)
+    return specs
 
 
 # -- runtime ---------------------------------------------------------------------------------------------------
@@ -385,6 +446,7 @@ EXAMPLE_COUNTRIES = ShippingSettings(
     excluded_areas={"US": ("AK", "ND", "HI")},
     not_available=("CU", "RU", "BY"),
     info_sections=10,
+    list_areas=("US",),
 )
 
 
@@ -395,6 +457,8 @@ def _sample(key: str) -> str | None:
         return "{areas} [sample and] {last}"
     if key == FORMAT_DELIVERY:
         return "[sample option] {label} {price}"
+    if key == AREAS_TITLE:
+        return "[sample areas of] {country}"
     if key.startswith("shipping.info.") and key.endswith(".value"):
         return common.long_sample(f"sample information {key.split('.')[2]}", 600)
     return f"[{key}]"

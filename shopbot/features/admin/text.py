@@ -44,7 +44,7 @@ OPERATOR_TEXT: dict[str, str] = {
     "admin.status.permissions": "Bot permissions (server-wide)",
     "admin.status.permissions_ok": "All permissions needed by the enabled features are granted.",
     "admin.status.permissions_missing": "Missing for {capability}: {permissions}",
-    "admin.status.intents": "Gateway intents (settings)",
+    "admin.status.intents": "Gateway intents (connected with)",
     "admin.status.intents_value": "Message content: {message_content} · Server members: {members}",
     "admin.status.intent_warning": "Ticket/order transcripts need the message content intent, which is disabled.",
     "admin.status.intent_not_enabled": (

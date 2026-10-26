@@ -1197,7 +1197,7 @@ async def render_transcript(app: App, ticket: Ticket) -> tuple[bytes, str] | Non
             log,
             logging.WARNING,
             "tickets_transcript_without_content_intent",
-            hint="bot.message_content_intent is false: transcripts contain no message text",
+            hint="Message Content intent off (settings or Developer Portal): transcripts contain no message text",
         )
     try:
         messages = await transcript.collect_messages(channel)

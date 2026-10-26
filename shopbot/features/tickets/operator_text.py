@@ -64,7 +64,8 @@ OPERATOR_TEXT: dict[str, str] = {
     "tickets.publish.channel_missing": "{setting}: channel '{name}' does not exist yet.",
     "tickets.publish.channel_permissions": "{setting}: the bot lacks {permissions} in {channel}.",
     "tickets.publish.no_content_intent": (
-        "Transcripts are enabled but bot.message_content_intent is false: transcripts will not contain message text."
+        "Transcripts are enabled but the Message Content intent is off (bot.message_content_intent, or not switched "
+        "on in the Developer Portal): transcripts will not contain message text."
     ),
     "tickets.publish.ping_not_mentionable": (
         "Ticket category '{category}': ping_staff is on, but {roles} cannot be mentioned by the bot (the role is "

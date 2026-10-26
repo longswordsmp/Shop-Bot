@@ -656,6 +656,16 @@ faq.section.tracking.title = "{icon_box} ORDERS AND TRACKING"
 # Feature: shipping
 # ==================================================================================================
 
+# --- Shipping areas one by one ---
+
+# Optional text under that title, e.g. 'Find your state: {icon_dot_blue} we ship there · {icon_dot_grey} not available.' {country} is the country's name. The areas follow in three columns, each with shipping.status.full.indicator or shipping.status.none.indicator.
+# description · max 4096 characters · optional · placeholders: {country}
+shipping.areas.introduction = "Every state, one by one. {icon_dot_blue} We ship there · {icon_dot_grey} Not available"
+
+# Title of the card that lists every area of a country one by one (shipping.list_areas, e.g. every US state), e.g. 'Shipping in the {country}'. {country} is the country's name.
+# title · max 256 characters · required · placeholders: {country}
+shipping.areas.title = "Shipping in the {country}"
+
 # --- Shipping delivery options ---
 
 # Heading of the delivery options and their prices (checkout.fulfillment_options). It may start with one of the bot's icons, e.g. {icon_truck}.
@@ -1996,7 +2006,7 @@ checkout.staff.not_claimed = "Not claimed yet"
 # field_name · max 256 characters · required
 checkout.staff.refunded_field = "Refunded"
 
-# Name of the field on the staff order record showing where the order goes (checkout.address.ship_to: never the street; the record's details button shows the full address privately).
+# Name of the field on the staff order record showing where the order goes: the country (with operations.answers_in_orders_channel: checkout.address.ship_to, never the street). The record's details button shows the full address privately.
 # field_name · max 256 characters · required
 checkout.staff.ship_to_field = "Ship to"
 
@@ -2980,7 +2990,7 @@ operations.button.open_record = "Open order record"
 
 # --- Operations: staff reminders (staff channel) ---
 
-# Optional link button under unanswered-ticket reminders that jumps to the ticket.
+# Optional link button that jumps to the ticket: under unanswered-ticket reminders and under the order alerts (next to operations.button.open_record).
 # button_label · max 80 characters · optional
 operations.button.open_ticket = "Open ticket"
 

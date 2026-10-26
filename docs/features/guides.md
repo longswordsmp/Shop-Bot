@@ -25,7 +25,10 @@ a bold heading (usually starting with one of the bot's icons, e.g. `{icon_truck}
   `{icon_dot_yellow}` we ship except some areas (e.g. "United States (except Alaska and North Dakota)"), then the
   countries listed as not available (`{icon_dot_grey}`). Below: the delivery options with their prices (from
   `[[checkout.fulfillment_options]]`) and the information sections (processing, tracking). Country names are
-  standard English names; the address step uses the same countries.
+  standard English names; the address step uses the same countries. For each country in `list_areas` (shipped:
+  the US) a second card follows: "Shipping in the United States" lists all 50 states and DC one by one,
+  alphabetically, in three columns, each after its dot (`{icon_dot_grey}` for the `excluded_areas`, e.g. Alaska and
+  North Dakota). Text: `shipping.areas.title` (`{country}`) and the optional `shipping.areas.introduction`.
 
 **Clickable channel links:** introductions, step texts, answers, the closing line and information texts may
 contain `{channel_<key>}` (for example `{channel_catalog}`), which becomes a clickable `#channel` link to the
@@ -57,6 +60,7 @@ questions = 3                             # 1-25
 channel = "shipping"
 info_sections = 2                         # 0-10 information sections after the delivery options
 not_available = ["CU", "RU", "BY"]        # countries listed as not available (any country in no group is too)
+list_areas = ["US"]                       # countries whose areas get their own card, one by one (US: states + DC)
 [shipping.excluded_areas]                 # parts of a country we do not ship to (US: state codes; others: names)
 US = ["AK", "ND"]
 [shipping.country_names]                  # optional renames, e.g. CZ = "Czech Republic"

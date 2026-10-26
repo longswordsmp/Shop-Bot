@@ -47,7 +47,8 @@ def cleanup_key(message_id: int) -> str:
 @dataclass
 class _Pending:
     members: list[int] = field(default_factory=list)
-    flush: asyncio.Task[None] | None = None
+    # The group's timer while it waits; None once it sends (a join during the send starts the next group).
+    timer: asyncio.Task[None] | None = None
 
 
 _PENDING: WeakKeyDictionary[App, _Pending] = WeakKeyDictionary()
@@ -64,6 +65,17 @@ def enabled(app: App) -> bool:
     return app.settings.verification.welcome_mention_seconds > 0 and app.ready(k.VERIFICATION)
 
 
+async def on_ready(app: App) -> None:
+    """Say at startup when the welcome mention is switched on but cannot work (no Server Members intent)."""
+    if app.settings.verification.welcome_mention_seconds > 0 and not app.gateway_intents.members:
+        log_event(
+            log,
+            logging.WARNING,
+            "welcome_mention_off",
+            hint="needs the Server Members intent: bot.members_intent = true and switched on in the Developer Portal",
+        )
+
+
 def welcome_message(ui: Ui, links: dict[str, str], member_ids: list[int]) -> MessageSpec:
     """The mention(s) and the short text under them; no picture, so it stays light (it is gone 30 s later)."""
     text = ui.text(k.WELCOME_MENTION, **links)
@@ -78,20 +90,25 @@ async def on_member_join(app: App, member: discord.Member) -> None:
         return
     state = _state(app)
     state.members.append(member.id)
-    if state.flush is None or state.flush.done():
-        state.flush = asyncio.get_running_loop().create_task(_flush_later(app))
+    if state.timer is None or state.timer.done():
+        state.timer = asyncio.get_running_loop().create_task(_flush_later(app))
 
 
 async def _flush_later(app: App) -> None:
     await asyncio.sleep(GROUP_SECONDS)
-    await flush(app)
+    _state(app).timer = None  # from here on a new join starts its own group
+    try:
+        await flush(app)
+    except Exception as exc:  # a background task: log instead of "Task exception was never retrieved"
+        log_event(log, logging.ERROR, "welcome_mention_failed", error=type(exc).__name__)
 
 
 async def flush(app: App) -> None:
     """Post the queued mentions (in messages of at most ``MAX_MENTIONS``) and schedule their deletion."""
     state = _state(app)
-    if state.flush is not None and state.flush is not asyncio.current_task() and not state.flush.done():
-        state.flush.cancel()  # flushed now: the timed flush has nothing left to do
+    if state.timer is not None and state.timer is not asyncio.current_task():
+        state.timer.cancel()  # still waiting: flushed now, so the timer has nothing left to do
+        state.timer = None
     queued, state.members = state.members, []
     if not queued or not enabled(app) or app.guild is None:
         return
@@ -119,13 +136,16 @@ async def flush(app: App) -> None:
 
 
 async def cleanup_task(app: App, task: Task) -> None:
-    """``verification.welcome_cleanup``: delete the welcome mention (already gone counts as done)."""
+    """``verification.welcome_cleanup``: delete the welcome mention (already gone counts as done). While the server
+    is not available (e.g. right after a reconnect its channels are not loaded yet) the task is retried later."""
     channel_id = task.payload.get("channel_id")
     message_id = task.payload.get("message_id")
     if not isinstance(channel_id, int) or not isinstance(message_id, int):
         raise PermanentTaskError("payload has no channel_id/message_id")
     guild = app.guild
-    channel = guild.get_channel(channel_id) if guild is not None else None
+    if guild is None or getattr(guild, "unavailable", False):
+        raise RuntimeError("guild unavailable")  # retried with backoff
+    channel = guild.get_channel(channel_id)
     if not isinstance(channel, discord.TextChannel):
         return  # the channel is gone, and the message with it
     try:

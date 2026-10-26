@@ -284,6 +284,13 @@ Feature `faq` — enabled.
 
 Feature `shipping` — enabled.
 
+### Shipping areas one by one
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ✅ | `shipping.areas.introduction` | Optional text under that title, e.g. 'Find your state: {icon_dot_blue} we ship there · {icon_dot_grey} not available.' {country} is the country's name. The areas follow in three columns, each with shipping.status.full.indicator or shipping.status.none.indicator. | description (4096) | optional | `{country}` |
+| ✅ | `shipping.areas.title` | Title of the card that lists every area of a country one by one (shipping.list_areas, e.g. every US state), e.g. 'Shipping in the {country}'. {country} is the country's name. | title (256) | required | `{country}` |
+
 ### Shipping delivery options
 
 | | Key | Where it appears | Kind (max chars) | Required | Placeholders |
@@ -1199,7 +1206,7 @@ Feature `operations` — enabled.
 
 ## Summary
 
-- Required keys (for the listed features): 435
+- Required keys (for the listed features): 436
 - Required keys still missing: 0
 
 Legend: ✅ configured · ❌ required and missing · ▫️ optional and empty

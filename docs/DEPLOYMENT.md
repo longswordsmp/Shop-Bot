@@ -130,6 +130,8 @@ data written since.
 | `env_invalid` | Variable missing or malformed | Set it in Railway Variables (the log names it). |
 | `env_invalid` "DB_PATH is not on persistent storage" / "not inside the Railway volume" | No volume, or `DB_PATH` outside it | Attach a volume at `/data` and set `DB_PATH=/data/bot.db`. |
 | `discord_login_failed` | Token wrong or reset | Reset the token in the Developer Portal and update `DISCORD_TOKEN`. |
+| `portal_intents_unknown` (warning) | The Developer Portal switches could not be read before connecting (timeout after 15 s, Discord error); the bot connects as configured | Nothing, unless `privileged_intents_required` follows: then switch the intents on in the Developer Portal. |
+| `welcome_mention_off` (warning) | `verification.welcome_mention_seconds` is set but the Server Members intent is off | Set `bot.members_intent = true` and switch on Server Members Intent in the Developer Portal, then restart. |
 | `privileged_intent_not_enabled` (warning) | An intent in `[bot]` is not switched on in the Developer Portal; the bot runs without it | Developer Portal → Bot → Privileged Gateway Intents: switch on the named intent, then restart. |
 | `privileged_intents_required` | Discord refused an intent (the portal could not be read before connecting) | Developer Portal → Bot → enable Message Content Intent and Server Members Intent (or switch them off in `[bot]`). |
 | `guild_not_available` | Bot not in the server | Invite it with `python -m tools.invite_url <APPLICATION_ID>`. |
