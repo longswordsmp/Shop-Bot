@@ -13,11 +13,15 @@ only a real server can confirm:
    press or a status change on the order ticket and the #orders record.
 2. **Icons.** Small icons show in front of button labels, in section headings and in field names; no card title shows
    raw text such as `<:truck:123…>`.
-3. **Payment methods.** In an order ticket, press *Credit or debit card*: the private "Dear customer, we're sorry …"
-   message appears with *Submit gift card* (opens the gift card form) and *Buy a gift card*.
+3. **Payment methods.** #place-order, #how-to-order and #faq list the methods with their brand icons (after the
+   restart the bot uploads the changed and new brand pictures, DoorDash's red mark among them). In an order ticket
+   the card says *Choose how to pay* with a button per method; press *Credit or debit card*: a private "We're sorry!
+   **Credit or debit card** isn't available at the moment. For now we only accept payment by DoorDash eGift card."
+   with *Pay with gift card* (the steps, then *Submit gift card*) and *Buy a gift card*.
 4. **#shipping.** One message, one card: Standard "about 2 weeks", Expedited "usually 3–4 days", the US states by
    name at the bottom of the same card (one line per dot), the picture at the very bottom.
-5. **Products with pictures.** `/product add image:<picture>`: the picture shows under the item's name in #catalog.
+5. **Products with pictures.** `/product add image:<picture>`: pick All items in the #catalog menu; the picture shows
+   under the item's name in the private message.
 6. **Staff tools.** `/stats` answers privately with the week's sales, the open orders by next step and the best
    sellers. Order an item down to 3 units: one "Low stock" alert in #staff-chat; order the rest: one "Sold out" alert.
 7. **Discount codes.** `/discount create` a code, then in an order ticket press **Add discount code** on the review
@@ -32,16 +36,21 @@ only a real server can confirm:
    `/status` names it, and reviews stay hidden until it is changed. A review with a photo now always waits for
    *Approve* (`reviews.photo_requires_approval`, shipped on). The photo upload inside the form is Discord's newer
    file upload field: try it once from a phone and a computer (step 12 of `docs/MORNING.md`).
-9. **Categories.** `/category create name:Old stock`, `/product categories product_id:<id> add:Old stock`; pick Old
-   stock in the #catalog menu: a private message with its items and their Buy buttons; the same pick works twice in a
-   row. Then set up the shop's real categories (at most 24, besides the built-in All items).
+9. **Categories.** After deploying, check that `/status` shows the commit you pushed ("Running version",
+   `docs/DEPLOYMENT.md` → Which version runs), then run `/setup`: #catalog is one card with the menu (All items from
+   the start) and the item cards posted before are gone. `/category create name:Old stock`, `/product categories
+   product_id:<id> add:Old stock`; pick Old stock in the #catalog menu: a private message with its items and their
+   Buy buttons; the same pick works twice in a row. Then set up the shop's real categories (at most 24, besides the
+   built-in All items).
 
 ## 2. Decisions only the owner can make
 
 - **Which payment methods to list.** `config/settings.toml` → `[[payments.methods]]` lists credit/debit card, Apple
-  Pay, Google Pay, PayPal and Cash App as *temporarily down*. Keep only the ones the shop really offers, and say
-  "temporarily down" only while that is true. When one works again, set its `status = "active"` (see
-  `docs/CONFIGURATION.md`, `[[payments.methods]]`).
+  Pay, Google Pay, PayPal and Cash App (`status = "down"`) and the DoorDash eGift card (`"active"`). The shop panel,
+  #how-to-order and #faq present all of them as the ways to pay, with "we'll show you what's available then"; only
+  pressing one that is down says we accept gift cards at the moment. So list only methods the shop really offers or
+  will offer soon, and remove one that is not coming back. When one works again, set its `status = "active"`: no
+  text changes (see `docs/CONFIGURATION.md`, `[[payments.methods]]`).
 - **Gift cards as the only way to pay.** Many buyers see gift-card-only payment as a warning sign (the US FTC tells
   consumers that real businesses do not ask to be paid with gift cards), and DoorDash's terms restrict reselling and
   redeeming cards for others. Bringing a card option back (section 3) removes that risk.
@@ -49,11 +58,10 @@ only a real server can confirm:
   customers thinking the shop is Amazon or partnered with Amazon, and the server being reported.
 - **Delivery times.** "About 2 weeks" and "usually 3–4 days" are promises to customers; change the texts if they
   differ by region.
-- **#catalog with many items.** Discord opens a channel at its newest message, so with one public card per item
-  members land at the bottom of #catalog while the category menu is on the first message at the top. Either pin
-  that header message (the menu is then one click away in Pins) or set `product_cards = false` under `[catalog]` so
-  #catalog is one card with the menu and the items are browsed privately (then consider emptying
-  `catalog.picker.description`, which repeats the header's own text).
+- **Public item cards in #catalog.** Shipped off (`product_cards = false` under `[catalog]`): #catalog is one card
+  with the menu and members see the items privately. Set it to `true` and run `/setup` for one public card per item
+  under the header as well; Discord then opens #catalog at its newest card, far below the menu, so pin the header
+  message if you do.
 - **Bulk orders and the package coupon.** The FAQ says bulk orders cost nothing extra and get a percentage off
   (staff send a discount code in the ticket): decide the percentage and from what quantity. The warehouse post
   promises a 20% off coupon in every package (old stock only, can be given to a friend): create it before posting
@@ -67,7 +75,8 @@ only a real server can confirm:
 ## 3. Bringing card payments back
 
 - **Quick: a payment page.** A Stripe Payment Link, PayPal.me or Square page can be offered as an active method today
-  (`kind = "link"`, `url = "https://…"`). Customers pay there and staff press **Mark paid** after checking the
+  (`kind = "link"`, `url = "https://…"`; for Stripe add `id = "stripe"` with `icon = "brand_stripe"`, the Stripe
+  mark is ready, see `docs/CONFIGURATION.md`). Customers pay there and staff press **Mark paid** after checking the
   payment. Limits: the customer types the amount, and staff match payments to orders by hand.
 - **Proper: card checkout per order.** A payment provider that creates a checkout page for the exact total of each
   order and is told by a signed webhook when it is paid, so the order is marked paid automatically (refunds through

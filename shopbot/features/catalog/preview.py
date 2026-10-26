@@ -137,10 +137,14 @@ def preview(app: App) -> list[PreviewState]:
         for index, spec in enumerate(messages):
             if index == 0:
                 browse = " and the private-browsing button" if catalog.browse_enabled else ""
-                cards = "" if catalog.product_cards else " (catalog.product_cards = false: the only message)"
+                cards = (
+                    " The product cards follow (catalog.product_cards = true)."
+                    if catalog.product_cards
+                    else " The only message: the items are seen privately (catalog.product_cards = false)."
+                )
                 note = (
                     "Live listing, first message in the listing channel: the header card with the category menu "
-                    f"(All, then every category; a pick opens that category's private view){browse}{cards}."
+                    f"(All items, then every category; a pick opens that category's private view){browse}.{cards}"
                 )
             else:
                 shown = [by_title[e.title] for e in spec.embeds if e.title in by_title]
@@ -152,16 +156,16 @@ def preview(app: App) -> list[PreviewState]:
             states.append(PreviewState(feature=CATALOG, name=f"listing_message_{index + 1}", note=note, spec=spec))
         add(
             "listing_empty",
-            "Live listing when no product is active: header card + the 'empty' card.",
-            lambda: views.listing_messages(ui, settings, ())[0],
+            "Live listing when no product is active: the header card ends with the 'empty' text; the menu stays "
+            "(All items answers privately that nothing is listed, see category_all_empty).",
+            lambda: views.listing_messages(ui, settings, (), categories=SAMPLE_CATEGORIES)[0],
         )
-        if catalog.product_cards:
-            add(
-                "listing_header_no_categories",
-                "Live listing header before the first /category create: no menu yet (its only choice would be All, "
-                "the same items as the public cards); the first category adds it.",
-                lambda: views.listing_messages(ui, settings, SAMPLE_PRODUCTS, uploaded)[0],
-            )
+        add(
+            "listing_header_no_categories",
+            "Live listing header before the first /category create: the menu offers All items only (every item, "
+            "privately); each category made with /category joins it at once.",
+            lambda: views.listing_messages(ui, settings, SAMPLE_PRODUCTS, uploaded)[0],
+        )
     if catalog.browse_enabled:
         total = len(SAMPLE_PRODUCTS)
         for page, label in ((0, "first"), (1, "middle"), (2, "sold_out"), (total - 1, "last")):
@@ -215,6 +219,11 @@ def preview(app: App) -> list[PreviewState]:
             "category_empty",
             "Private view of a category with no item right now.",
             partial(views.category_page, ui, settings, (), choice=2, name=SAMPLE_CATEGORIES[1].name),
+        )
+        add(
+            "category_all_empty",
+            "Private view of All items while the shop lists nothing: the shop's 'empty' text.",
+            partial(views.category_page, ui, settings, (), choice=categories.ALL),
         )
     add(
         "category_list",

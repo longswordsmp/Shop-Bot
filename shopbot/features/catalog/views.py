@@ -13,13 +13,14 @@ intentional).
 Live listing layout
 -------------------
 The first listing message is the header card with the category menu (``category_picker``: "All", then every category;
-once a category exists, or always with ``catalog.product_cards = false``: ``shows_menu``) and the private-browsing
-button (``catalog.browse_enabled``). Every following message holds up to
+always shown, also before the first category and while nothing is listed) and the private-browsing button
+(``catalog.browse_enabled``). With ``catalog.product_cards = false`` (shipped) the header is the only message: members
+see the items privately through the menu. With ``true`` every following message holds up to
 ``catalog.products_per_listing_message`` product cards (1 = one message per product) and, while the checkout feature
-is on, one buy button per card (5 per row, in card order); with ``catalog.product_cards = false`` the header is the
-only message. A message is split earlier when it would exceed 10 cards, 6000 embed characters, or Discord's upload
-limits for the files it attaches (product images and the message's banner). Each card's color shows its availability
-(success: available, warning: low stock, danger: out of stock); the buy button of an out-of-stock product is disabled.
+is on, one buy button per card (5 per row, in card order). A message is split earlier when it would exceed 10 cards,
+6000 embed characters, or Discord's upload limits for the files it attaches (product images and the message's
+banner). Each card's color shows its availability (success: available, warning: low stock, danger: out of stock); the
+buy button of an out-of-stock product is disabled.
 
 Banners
 -------
@@ -338,19 +339,12 @@ def category_picker(ui: Ui, categories: Sequence[Category]) -> SelectSpec:
     return SelectSpec(custom_id=picker_custom_id(), options=tuple(options), placeholder=placeholder)
 
 
-def shows_menu(catalog: CatalogSettings, categories: Sequence[Category]) -> bool:
-    """Whether the header card shows the category menu while products are listed: once a category exists (before, its
-    only choice would be "All", the same items as the public cards), and always with ``catalog.product_cards = false``
-    ("All" is then how members see the items)."""
-    return bool(categories) or not catalog.product_cards
-
-
 def header_rows(ui: Ui, catalog: CatalogSettings, categories: Sequence[Category]) -> tuple[tuple[Component, ...], ...]:
-    """The components of the listing's header card while products are listed: the category menu (``shows_menu``),
-    then the private-browsing button (``catalog.browse_enabled``)."""
-    picker = category_picker(ui, categories) if shows_menu(catalog, categories) else None
+    """The components of the listing's header card: the category menu, always (before the first category its only
+    choice is "All"; while nothing is listed a pick answers that there is nothing yet), then the private-browsing
+    button (``catalog.browse_enabled``)."""
     browse = browse_button(ui) if catalog.browse_enabled else None
-    return rows_of(picker, browse)
+    return rows_of(category_picker(ui, categories), browse)
 
 
 @dataclass(frozen=True)
@@ -396,20 +390,20 @@ def listing_messages(
 
     ``images`` are the products' uploaded images by product id; they may be references without bytes (the listing
     refresh loads the bytes only for messages it actually sends or edits). Every message manages its attachments
-    (``files`` is a tuple), so an edit keeps, replaces or removes a product image. Without products: the header and
-    the "empty" card, no menu. ``buy``: show the buy buttons (the caller passes whether checkout is ready; None =
-    whenever the checkout feature is switched on, as in previews). ``categories``: the menu's categories, in order.
-    Only the first message (the header) carries the ``catalog`` banner; the card messages carry none.
+    (``files`` is a tuple), so an edit keeps, replaces or removes a product image. The header card ends with
+    ``catalog.picker.description`` (optional) and, without products, the "empty" text; its menu is always there.
+    ``buy``: show the buy buttons (the caller passes whether checkout is ready; None = whenever the checkout feature
+    is switched on, as in previews). ``categories``: the menu's categories, in order. Only the first message (the
+    header) carries the ``catalog`` banner; the card messages carry none.
     """
     catalog = settings.catalog
     header = listing_header_embed(ui)
     banner = ui.banner("catalog")
     products = [p for p in products if p.listed]
-    if not products:
-        return [MessageSpec(embeds=with_paragraph(header, empty_embed(ui).description), files=(), banner=banner)]
-    head = with_paragraph(header, ui.text(keys.PICKER_DESCRIPTION) if shows_menu(catalog, categories) else None)
+    notes = (ui.text(keys.PICKER_DESCRIPTION), None if products else empty_embed(ui).description)
+    head = with_paragraph(header, "\n\n".join(n for n in notes if n) or None)
     specs = [MessageSpec(embeds=head, rows=header_rows(ui, catalog, categories), files=(), banner=banner)]
-    if not catalog.product_cards:
+    if not products or not catalog.product_cards:
         return specs
     if buy is None:
         buy = settings.features.checkout
@@ -538,17 +532,21 @@ def category_page(
     Discord's limits (10 embeds, 6000 embed characters, 10 files or 10 MiB with the banner). ``choice``: the category id
     (``categories.ALL``: every listed product; ``name`` None then shows the "All" option's name). ``images``: uploaded
     images by product id, as references without bytes (the caller loads the files of the page). Without products the
-    card says so (``catalog.category.empty``). The ``catalog`` banner shows above the cards, never in a card's picture
-    slot, where it would read as a product photo.
+    card says so: ``catalog.category.empty`` for a category, the shop's own "empty" text (``catalog.listing.empty``)
+    for "All", since then nothing at all is listed. The ``catalog`` banner shows above the cards, never in a card's
+    picture slot, where it would read as a product photo.
     """
     catalog = settings.catalog
     shown = all_name(ui) if name is None else name
     banner = ui.banner("catalog")
     products = [p for p in products if p.listed]
     if not products:
-        text = ui.text(keys.CATEGORY_EMPTY, category=escape(shown))
-        if text is None:
-            raise MissingContent(keys.CATEGORY_EMPTY)
+        if choice == ALL:
+            text = empty_embed(ui).description
+        else:
+            text = ui.text(keys.CATEGORY_EMPTY, category=escape(shown))
+            if text is None:
+                raise MissingContent(keys.CATEGORY_EMPTY)
         embed = ui.embed(title=category_title(ui, shown), description=text, tone="neutral")
         return MessageSpec(embeds=(embed,), files=(), banner=banner)
     if buy is None:

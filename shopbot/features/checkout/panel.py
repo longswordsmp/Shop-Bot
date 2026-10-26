@@ -12,7 +12,7 @@ from shopbot.core.channels import CREATE_PRIVATE_REQUIRED
 from shopbot.core.panels import upsert_message
 from shopbot.core.permissions import channel_send_permissions, missing_permissions
 from shopbot.features.checkout import content_keys as k
-from shopbot.features.checkout import service, views
+from shopbot.features.checkout import payment_methods, service, views
 from shopbot.features.credits import service as credits_service
 from shopbot.logging_setup import log_event
 from shopbot.ui.discord_render import RenderError
@@ -39,6 +39,7 @@ def panel_spec(app: App) -> MessageSpec:
 
     return views.panel(
         app.ui,
+        methods_list=payment_methods.methods_list(app.ui, app.settings),
         browse_button=browse_button(app),
         balance_button=credits_service.balance_button(app),
         report_button=problems_button.report_button(app),
@@ -68,6 +69,8 @@ def _diagnostics(app: App, guild: discord.Guild) -> list[str]:
         lines.append(app.op("checkout.publish.category_permissions", permissions=", ".join(missing)))
     if c.transcript_on_close and (not app.settings.tickets.transcript_channel or not app.ready("tickets")):
         lines.append(app.op("checkout.publish.transcripts_unavailable"))
+    for method in payment_methods.missing_icons(app.settings, app.content.icon_names()):
+        lines.append(app.op("checkout.publish.method_icon_missing", method=method.id, icon=method.icon))
     return lines
 
 

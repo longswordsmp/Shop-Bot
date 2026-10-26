@@ -258,7 +258,7 @@ questions = 5
 
 [[faq.sections]]
 id = "payment"
-questions = 6
+questions = 5
 
 [[faq.sections]]
 id = "shipping"
@@ -490,10 +490,12 @@ low_stock_threshold = 3              # 1..N units left shows catalog.availabilit
                                      # color; 0 = no low-stock state
 # Each product card's color shows its availability: success = available, warning = low stock,
 # danger = out of stock (its buy button is then disabled). Buy buttons appear while checkout is on.
-product_cards = true                 # false: the listing shows only its header card with the category menu
+product_cards = false                # false: #catalog shows only its header card with the category menu (the
+                                     # items are seen privately); true: one public card per item follows it.
+                                     # /setup removes the cards it posted earlier when this is false.
 products_per_category_page = 5       # 1-9 product cards per page of the private view a category pick opens
-# Categories (/category, /product categories): the header card's menu lists "All" and every category; picking one
-# shows its items in a private message only that member sees, with their Buy buttons.
+# Categories (/category, /product categories): the header card's menu always lists "All items" first, then every
+# category; picking one shows its items in a private message only that member sees, with their Buy buttons.
 
 [checkout]
 panel_channel = "purchase"
@@ -584,42 +586,55 @@ max_cards = 5                        # cards one order may be paid with
 keep_days = 7                        # a code nobody decided on is deleted after this many days
 chat_guard = true                    # delete a customer's ticket message that looks like a gift card code
 
-# Payment methods customers see in their order ticket, in this order (at most 10). Keep only methods you really
-# offer. status = "active": customers can use it now; "down": its button shows, and pressing it opens a private
-# message saying it is temporarily down, with buttons for the active methods. kind = what an ACTIVE method does:
-# "gift_card" = the gift card form above (must stay active while provider = "gift_card"); "staff" = our team sends
-# the payment details in the ticket and confirms with Mark paid; "link" = a button to url (your payment page; staff
-# confirm with Mark paid). To bring a method back: status = "active" (and kind/url). Names: content.toml
-# checkout.payment.method.<id>.label / .description. The bot never asks for card numbers in Discord.
+# Payment methods customers see, in this order (at most 10): the shop panel, #how-to-order and #faq list them with
+# their icons ({payment_methods}), and the order ticket shows a button for each. Keep only methods you really offer.
+# status = "active": customers can use it now; "down": its button shows, and pressing it opens a private pop-up
+# saying which methods we accept at the moment, with buttons for them (no text says a method is down before that).
+# kind = what an ACTIVE method does: "gift_card" = the gift card how-to and form above (must stay active while
+# provider = "gift_card"); "staff" = our team sends the payment details in the ticket and confirms with Mark paid;
+# "link" = a button to url (your payment page; staff confirm with Mark paid). To bring a method back: status =
+# "active" (and kind/url); no text needs changing. icon = the picture in config/emojis shown before its name
+# (brand_apple, brand_google, brand_paypal, brand_cashapp, brand_doordash, brand_stripe, brand_visa, brand_mastercard,
+# card, gift; left out = the usual icon for the id). Names: content.toml checkout.payment.method.<id>.label and
+# .description.
+# Stripe later (a Stripe Payment Link or checkout page): add a method with id = "stripe", icon = "brand_stripe",
+# kind = "link", url = "https://..." and status = "active", plus its name in checkout.payment.method.stripe.label.
+# The bot never asks for card numbers in Discord.
 [[payments.methods]]
 id = "card"                          # credit or debit card (Visa, Mastercard, American Express, Discover)
 status = "down"
 kind = "staff"
+icon = "card"
 
 [[payments.methods]]
 id = "apple_pay"
 status = "down"
 kind = "staff"
+icon = "brand_apple"
 
 [[payments.methods]]
 id = "google_pay"
 status = "down"
 kind = "staff"
+icon = "brand_google"
 
 [[payments.methods]]
 id = "paypal"
 status = "down"
 kind = "staff"
+icon = "brand_paypal"
 
 [[payments.methods]]
 id = "cash_app"
 status = "down"
 kind = "staff"
+icon = "brand_cashapp"
 
 [[payments.methods]]
-id = "gift_card"                     # DoorDash eGift cards (the only method that works right now)
+id = "gift_card"                     # DoorDash eGift cards
 status = "active"
 kind = "gift_card"
+icon = "brand_doordash"
 
 [credits]
 allow_at_checkout = true

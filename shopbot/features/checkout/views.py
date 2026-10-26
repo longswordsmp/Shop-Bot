@@ -553,12 +553,19 @@ def catalog_browse_button(ui: Ui) -> ButtonSpec | None:
 def panel(
     ui: Ui,
     *,
+    methods_list: str = "",
     browse_button: ButtonSpec | None = None,
     balance_button: ButtonSpec | None = None,
     report_button: ButtonSpec | None = None,
 ) -> MessageSpec:
+    """The shop panel. ``methods_list``: the ``{payment_methods}`` list (``payment_methods.methods_list``)."""
     embed = _content_embed(
-        ui, k.PANEL_TITLE, k.PANEL_DESCRIPTION, required=(k.PANEL_TITLE, k.PANEL_DESCRIPTION), panel=True
+        ui,
+        k.PANEL_TITLE,
+        k.PANEL_DESCRIPTION,
+        required=(k.PANEL_TITLE, k.PANEL_DESCRIPTION),
+        values={payment_methods.PLACEHOLDER: methods_list},
+        panel=True,
     )
     start = _button(ui, k.BUTTON_START, start_id(), style="primary")
     return MessageSpec(
@@ -1766,22 +1773,61 @@ def field_sections(fields: Sequence[EmbedField]) -> list[str]:
     return [text for name, values in sections if (text := section(name, values))]
 
 
-def payment_parts(
-    ui: Ui, settings: Settings, instructions: PaymentInstructions, values: Mapping[str, str | int], *, methods: bool
-) -> list[str]:
-    """The payment sections of an order that waits for payment: the payment methods (``methods``), how to pay (the
-    provider's instructions under their title) and what was paid so far (the provider's progress, e.g. the gift
-    cards received and what is still to pay)."""
+def choosing_method(settings: Settings, instructions: PaymentInstructions | None) -> bool:
+    """The order waits for the customer to choose how to pay: the shop lists payment methods and nothing was paid with
+    the provider yet (no progress, e.g. no gift card submitted; or no instructions at all, e.g. an order placed before
+    the provider changed, whose methods stay the way to pay)."""
+    return bool(settings.payments.methods) and (instructions is None or not instructions.fields)
+
+
+def how_to_pay_parts(ui: Ui, instructions: PaymentInstructions, values: Mapping[str, str | int]) -> list[str]:
+    """How to pay (the provider's instructions under their title, for what is still to pay) and what was paid so far
+    (the provider's progress, e.g. the gift cards received and what is still to pay)."""
     values = _instruction_values(instructions, values)
     title = _optional(ui, instructions.title_key, **values)
     text = _text(ui, instructions.description_key, **values)
-    how_to_pay = f"{heading(title)}\n{text}" if title else text
-    listed = payment_methods.section_text(ui, settings) if methods else None
-    return [*([listed] if listed else []), how_to_pay, *field_sections(instructions.fields)]
+    return [f"{heading(title)}\n{text}" if title else text, *field_sections(instructions.fields)]
+
+
+def payment_parts(
+    ui: Ui,
+    settings: Settings,
+    instructions: PaymentInstructions | None,
+    values: Mapping[str, str | int],
+    *,
+    methods: bool,
+) -> list[str]:
+    """The payment sections of an order that waits for payment. While the customer chooses how to pay: the payment
+    methods section (``methods``: the order card, whose buttons follow). Then how to pay and what was paid so far
+    (``how_to_pay_parts``), unless they belong to a method the customer has not chosen yet: the gift card's steps are
+    shown privately when the customer presses it, and here once a card counts toward the order."""
+    choosing = choosing_method(settings, instructions)
+    picker = payment_methods.section_text(ui, settings) if methods and choosing else None
+    parts = [picker] if picker else []
+    if instructions is not None and not (choosing and payment_methods.gift_card_method(settings) is not None):
+        parts += how_to_pay_parts(ui, instructions, values)
+    return parts
+
+
+def payment_howto(ui: Ui, settings: Settings, order: m.Order, instructions: PaymentInstructions) -> MessageSpec:
+    """The private how-to of the gift card method: the provider's steps for the amount still to pay, what was paid so
+    far, and its buttons (Submit gift card, Buy a gift card)."""
+    head = ui.embed(tone="info")
+    embeds = _card_embeds(head, how_to_pay_parts(ui, instructions, order_values(ui, settings, order)))
+    return MessageSpec(
+        embeds=tuple(embeds),
+        rows=rows_of(*_payment_buttons(ui, instructions, order.id)),
+        banner=ui.banner("general-response"),
+    )
 
 
 def instructions_embeds(
-    ui: Ui, settings: Settings, instructions: PaymentInstructions, values: Mapping[str, str | int], *, methods: bool
+    ui: Ui,
+    settings: Settings,
+    instructions: PaymentInstructions | None,
+    values: Mapping[str, str | int],
+    *,
+    methods: bool,
 ) -> list[EmbedSpec]:
     """The payment sections as a card of their own (only when they do not fit into the order card or the reminder;
     very long instructions continue in a second card)."""
@@ -1850,8 +1896,9 @@ def order_messages(
     links: Mapping[str, str] | None = None,
 ) -> OrderMessages:
     """The workflow message of a submitted order, laid out as a receipt: the key facts line (ticket, order number,
-    status), the text of its current status, then - while it waits for payment - the payment methods and
-    instructions (with the customer's cancel button), the items, the summary and the progress tracker. A shipped
+    status), the text of its current status, then - while it waits for payment - how to pay (the payment methods to
+    choose from, or the provider's instructions and progress; ``payment_parts``) with the customer's cancel button,
+    the items, the summary and the progress tracker. A shipped
     order shows its ``shipment`` (carrier and tracking number, and Track package with a tracking link). ``links``:
     the channel links for ``{channel_purchase}`` (``purchase_values``).
 
@@ -1893,7 +1940,7 @@ def order_messages(
     summary = _order_summary(ui, view, fmt)
     progress = progress_section(ui, order, view.timeline)
     paying = instructions if pending else None
-    payment = payment_parts(ui, settings, paying, values, methods=True) if paying is not None else []
+    payment = payment_parts(ui, settings, paying, values, methods=True) if pending else []
     pay = _payment_buttons(ui, instructions, order.id) if pending else ()
     cancel = _button(ui, k.BUTTON_CANCEL_ORDER, order_cancel_id(order.id), style="danger") if pending else None
 
@@ -1904,19 +1951,20 @@ def order_messages(
     # Most complete first: everything; the lines separately; the instructions separately; both separately.
     layouts = ((True, True), (False, True), (True, False), (False, False))
     with_lines, with_instructions = next((lo for lo in layouts if _fits(embeds_for(*lo))), layouts[-1])
+    choosing = pending and choosing_method(settings, paying)
     if not pending:
         rows = track_rows(ui, shown)
     elif with_instructions:
-        rows = payment_methods.payment_rows(ui, settings, order.id, pay, cancel)
+        rows = payment_methods.payment_rows(ui, settings, order.id, pay, cancel, choosing=choosing)
     else:
         rows = rows_of(cancel)
     tail = (
         ()
-        if paying is None or with_instructions
+        if not payment or with_instructions
         else (
             MessageSpec(
                 embeds=tuple(instructions_embeds(ui, settings, paying, values, methods=True)),
-                rows=payment_methods.payment_rows(ui, settings, order.id, pay, None),
+                rows=payment_methods.payment_rows(ui, settings, order.id, pay, None, choosing=choosing),
             ),
         )
     )
@@ -2171,7 +2219,9 @@ def reminder_notification(
     ui: Ui, settings: Settings, view: m.OrderView, instructions: PaymentInstructions | None
 ) -> MessageSpec:
     """The payment reminder, with how to pay (and what was paid so far) as its last sections; they follow in a card
-    of their own when they do not fit next to the reminder text."""
+    of their own when they do not fit next to the reminder text. While the customer has not chosen how to pay with
+    the shop's payment methods, the gift card's steps are left out (``payment_parts``): the text sends the customer to
+    the ticket."""
     kind = k.NOTIFY_PAYMENT_REMINDER
     embed = _content_embed(
         ui,
@@ -2183,16 +2233,16 @@ def reminder_notification(
         timestamp=True,
     )
     embeds = [embed]
-    if instructions is not None:
-        order_text = order_values(ui, settings, view.order)
-        parts = payment_parts(ui, settings, instructions, order_text, methods=False)
+    order_text = order_values(ui, settings, view.order)
+    parts = payment_parts(ui, settings, instructions, order_text, methods=False) if instructions is not None else []
+    if instructions is not None and parts:
         merged = _card_embeds(embed, [embed.description, *parts])
         embeds = (
             merged
             if _fits_one(merged)
             else [embed, *instructions_embeds(ui, settings, instructions, order_text, methods=False)]
         )
-    link = _instruction_link(ui, instructions)
+    link = _instruction_link(ui, instructions) if parts else None
     return MessageSpec(embeds=tuple(embeds), rows=rows_of(link), banner=ui.banner("reminder"))
 
 

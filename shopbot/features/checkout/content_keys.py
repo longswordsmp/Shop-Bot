@@ -450,7 +450,14 @@ def content_keys(settings: Settings) -> list[ContentKey]:
     g_stages = "Checkout: order stage names (live panel, progress tracker, /myorders)"
     keys: list[ContentKey] = [
         ck(PANEL_TITLE, Kind.TITLE, FEATURE, g_panel, "Title of the shop panel (the message with the start button)."),
-        ck(PANEL_DESCRIPTION, Kind.DESCRIPTION, FEATURE, g_panel, "Text of the shop panel."),
+        ck(
+            PANEL_DESCRIPTION,
+            Kind.DESCRIPTION,
+            FEATURE,
+            g_panel,
+            f"Text of the shop panel.{payment_methods.placeholder_doc(settings)}",
+            placeholders=payment_methods.placeholders(settings),
+        ),
         ck(
             BUTTON_START,
             Kind.BUTTON_LABEL,

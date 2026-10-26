@@ -32,6 +32,7 @@ from shopbot.db.migrate import MigrationError, apply_migrations
 from shopbot.db.repos import state
 from shopbot.env import Env, EnvError, load_env
 from shopbot.logging_setup import configure_logging, log_event
+from shopbot.version import short_commit
 
 log = logging.getLogger("shopbot")
 
@@ -182,6 +183,7 @@ def main() -> int:
         logging.INFO,
         "starting",
         version=__version__,
+        commit=short_commit(),
         python=sys.version.split()[0],
         discord_py=discord.__version__,
         app_env=env.app_env,

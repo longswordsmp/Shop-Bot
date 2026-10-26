@@ -411,17 +411,11 @@ def plain_menu(menu: Sequence[categories.Category]) -> list[categories.Category]
     return [replace(c, emoji="") if c.emoji and not c.emoji.startswith("{icon_") else c for c in menu]
 
 
-def _menu_data(conn: sqlite3.Connection, guild_id: int) -> tuple[list[categories.Category], bool]:
-    return categories.list_categories(conn, guild_id), repo.count_products(conn, guild_id) > 0
-
-
 async def header_rows(app: App) -> tuple[tuple[Component, ...], ...] | None:
-    """The components the listing's header card shows now (the category menu while products are listed), or None when
-    they cannot be built (catalog text missing). A pick re-renders them, because Discord keeps showing the picked
-    option, so the same category could not be picked again."""
-    menu, listed = await app.db.run(_menu_data, app.env.guild_id)
-    if not listed:
-        return ()
+    """The components the listing's header card shows now (the category menu, always), or None when they cannot be
+    built (catalog text missing). A pick re-renders them, because Discord keeps showing the picked option, so the
+    same category could not be picked again."""
+    menu = await app.db.run(categories.list_categories, app.env.guild_id)
     if _state(app).menu_emoji_refused:  # as the last listing refresh sent the header
         menu = plain_menu(menu)
     try:

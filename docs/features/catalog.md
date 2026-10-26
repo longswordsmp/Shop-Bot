@@ -5,13 +5,15 @@ continues the customer's private ticket and carries the selected listing into th
 
 ## What it does
 
-- **One embed per item.** The listing channel (`catalog.listing_channel`, shipped: `catalog`) shows the header card in
-  its own first message (with the category menu, and the private-browsing button when `catalog.browse_enabled =
-  true`), then one message per product (`catalog.products_per_listing_message = 1`, shipped). With a value above 1 a
-  message holds that many product cards and one buy button per card (5 per row, in card order). A message is split
-  earlier when it would exceed 10 cards, 6000 embed characters, 10 attached files or 10 MiB of attached images.
-  `catalog.product_cards = false` leaves only the header card (with its menu): the items are then seen only through
-  the menu.
+- **#catalog is one card.** The listing channel (`catalog.listing_channel`, shipped: `catalog`) shows the header card
+  (with the category menu, always, and the private-browsing button when `catalog.browse_enabled = true`). With
+  `catalog.product_cards = false` (shipped) that is the only message: members see the items privately after picking
+  All items or a category (see Categories). `/setup` and every listing refresh delete the product card messages an
+  earlier version posted and forget them; the header stays the first message.
+- **Public item cards (optional).** With `catalog.product_cards = true` the header is followed by one message per
+  product (`catalog.products_per_listing_message = 1`, shipped). With a value above 1 a message holds that many
+  product cards and one buy button per card (5 per row, in card order). A message is split earlier when it would
+  exceed 10 cards, 6000 embed characters, 10 attached files or 10 MiB of attached images.
 - **Card content.** Name (markdown-escaped), description (as written), image, price (`common.money_format`),
   availability and the optional per-order limit. Inactive and archived products are not listed.
 - **Availability states are visually distinct.** The card color follows the state, in addition to the configured
@@ -36,21 +38,22 @@ continues the customer's private ticket and carries the selected listing into th
   clicks are serialized, so concurrent clicks open at most one channel and every product lands in it. If checkout is
   not ready, the button stays visible and answers with the configured "unavailable" text.
 - **Updates and removals.** Every product change (form edit, price, stock, image, toggle, archive/remove, sort, and
-  stock movements from orders) refreshes the listing: changed messages are edited in place, removed products' messages
-  are deleted (with one product per message, removing product 2 of 3 edits message 2 to show product 3 and deletes
-  the surplus last message, so order is kept and nothing stale remains). Deleted listing messages are re-posted.
+  stock movements from orders) refreshes the listing. With public cards, changed messages are edited in place and
+  removed products' messages are deleted (with one product per message, removing product 2 of 3 edits message 2 to
+  show product 3 and deletes the surplus last message, so order is kept and nothing stale remains). Deleted listing
+  messages are re-posted. The private views are read when they are shown, so they need no refresh.
 - **Uploaded images.** `/product image file:<upload>` downloads the file (PNG, JPEG, GIF or WebP, at most 8 MB; the
   type is detected from the bytes, not trusted from Discord), stores it in the database (`product_images`, one row
-  per product), and clears the product's image link. Listing messages, private browsing and `/product view` attach
-  the file and show it with `attachment://product-<id>-<hash>.<ext>`. Every edit attaches it again, a new image
-  gets a new name (the content hash), and after a restart the bytes come from the database, so images keep
-  displaying. A message that is unchanged is never re-sent and never loads image bytes. Setting a link removes the
-  upload; giving neither removes the image; archiving deletes the stored bytes.
+  per product), and clears the product's image link. A category's private view, listing messages, private browsing
+  and `/product view` attach the file and show it with `attachment://product-<id>-<hash>.<ext>`. Every edit attaches
+  it again, a new image gets a new name (the content hash), and after a restart the bytes come from the database, so
+  images keep displaying. A message that is unchanged is never re-sent and never loads image bytes. Setting a link
+  removes the upload; giving neither removes the image; archiving deletes the stored bytes.
 
 ## Categories (the menu on the #catalog header)
 
 - **What a member sees.** The header card (the first #catalog message, one card with the catalog banner) carries a
-  menu: **All items** first (built in, always there: every item that can be ordered, sold out ones included), then the
+  menu: **All items** first (built in, always there: every listed item, sold out ones included), then the
   categories in their order, each with its name, emoji and description (a category without an emoji shows the icon
   All items starts with, so the options line up). Picking one answers with a private message
   only that member sees: a title card with the category's name, then its items as cards (name, picture, price,
@@ -60,17 +63,17 @@ continues the customer's private ticket and carries the selected listing into th
   edits that private message. An empty category says so (`catalog.category.empty`). The menu is reset after every
   pick, so the same category can be picked again, and the public channel never changes. Picking another category
   right after the last one (or while it still loads) is answered too: the anti-double-click guard counts each
-  category as a click of its own.
+  category as a click of its own. All items while nothing is listed answers with the shop's own "no items right now"
+  text (`catalog.listing.empty`).
 - **Read when picked.** The private message reads the category and its items at that moment, so product changes
   (stock, price, pictures, an item switched off or archived) show at once without anything being re-posted. Inactive
   and archived items never show. A category deleted meanwhile answers with the "not found" text.
 - **Where the menu lives.** It is part of the header card, which is always the first listing message, so it stays at
-  the top of #catalog (also when product cards already exist; there is no separate panel). `/setup` posts and
-  updates it with the listing; every `/category create|edit|delete` refreshes it at once. It shows while at least
-  one item is listed (with none, the header shows the "empty" text and no menu) and a category exists: before the
-  first `/category create` its only choice would be All items, the same items as the public cards, so the header has
-  no menu yet. With `catalog.product_cards = false` it always shows (All items is then how members see the items).
-  `catalog.picker.description` (optional) adds one line to the header card while the menu shows.
+  the top of #catalog (there is no separate panel). `/setup` posts and updates it with the listing; every
+  `/category create|edit|delete` refreshes it at once. It always shows: before the first `/category create` it
+  offers All items only, and while nothing is listed the header ends with the "empty" text and the menu stays.
+  `catalog.picker.description` (optional, empty in the shipped text, since the header's own text explains the menu)
+  adds a last paragraph to the header card.
 - **Buy buttons** on the private pages are the same `sb:co:buy:<id>` buttons as on the public cards (handled by
   checkout, disabled while sold out); their label names the item (`catalog.category.button_buy`), since several
   cards share the message. A name too long for Discord's 80 characters is cut and ends with "…".
@@ -122,7 +125,7 @@ continues the customer's private ticket and carries the selected listing into th
 | `browse_enabled` | `false` | Private page-by-page browsing button on the header (and the shop panel). |
 | `image_hosts` | `[]` | Allowed hosts for image **links** (`[]` = any https host). Uploads are not affected. |
 | `low_stock_threshold` | `0` | 1..N units left shows the low-stock text in the warning color; 0 = off (business decision). |
-| `product_cards` | `true` | Public product cards under the header; `false` = #catalog shows only the header with its menu. |
+| `product_cards` | `false` | `false` = #catalog shows only the header with its menu (items are seen privately; earlier card messages are removed); `true` = public product cards under the header as well. |
 | `products_per_category_page` | `5` | Product cards per page of a category's private view (1-9, under its title card). |
 
 ## Content keys (all wording is configured; see `docs/CONTENT_CHECKLIST.md`)
@@ -171,18 +174,22 @@ loads file bytes only for messages that are actually sent or edited (hashes use 
 ## Testing it in Discord (manual)
 
 1. Configure the catalog and checkout text (`/status` lists what is missing), set the currency and payment provider,
-   run `/setup`. `#catalog` shows the header message, then one message per product.
-2. `/product add image:<a PNG>` a product with stock 2; check its card is green (success) with an enabled buy button and shows the picture under its name.
-3. `/product image product_id:<id> file:<a PNG>`; the card shows the image. `/product stock product_id:<id> mode:add
-   amount:1`; the image is still shown after the edit. Restart the bot; the image is still shown.
+   run `/setup`. `#catalog` shows one message: the header card with the menu (All items). Item cards posted by an
+   earlier version are deleted (the report says "… N removed").
+2. `/product add image:<a PNG>` a product with stock 2; pick All items: its card in the private message is green
+   (success) with an enabled buy button and shows the picture under its name.
+3. `/product image product_id:<id> file:<a PNG>`; pick All items again: the card shows the image. `/product stock
+   product_id:<id> mode:add amount:1`; the image is still shown. Restart the bot; the image is still shown.
 4. As a member without an order channel, click Buy: a private order channel opens with the product in the cart and
    you get a private link. Click Buy on another product: the same channel's cart gains it; the reply links it.
-5. Submit an order for the remaining stock; the card turns red (danger) and its buy button is disabled.
-6. `/product remove product_id:<id>` → Remove; the product's message disappears and the others keep their order.
+5. Submit an order for the remaining stock; pick All items: the card is red (danger) and its buy button is disabled.
+6. `/product remove product_id:<id>` → Remove; All items no longer shows it.
 7. `/category create name:Old stock emoji:tag`; the #catalog header's menu lists All items, then Old stock.
    `/product categories product_id:<id> add:Old stock` for two items. As a member, pick Old stock: a private message
    (only you see it) with those two items and their Buy buttons; pick it again: it answers again. Pick All items: every
    item, with Next when there are more than 5.
+8. Optional: `product_cards = true`, `/reload`, `/setup` → one public card per item under the header (the menu
+   stays). Back to `false`, `/reload`, `/setup` → the card messages are deleted and the header is the only message.
 
 ## Limitations
 

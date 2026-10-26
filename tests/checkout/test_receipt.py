@@ -171,16 +171,15 @@ METHODS = {
 }
 
 
-async def test_methods_that_are_down_share_one_line_and_only_an_unpaid_order_shows_buttons(tmp_path: Path) -> None:
+async def test_the_payment_section_never_says_which_methods_work_and_only_an_unpaid_order_shows_buttons(
+    tmp_path: Path,
+) -> None:
     tenv = await make_env(tmp_path, METHODS)
     try:
         ui, settings = tenv.app.ui, tenv.app.settings
-        names = [pm.method_name(ui, method_id) for method_id in ("card", "paypal", "gift_card")]
+        # The heading and its lead: whether a method works is said only when the customer presses it.
         text = pm.section_text(ui, settings)
-        assert text is not None and text.split("\n")[1:3] == [
-            render(tenv, pm.LINE_ACTIVE, method=names[2]),
-            render(tenv, pm.LINE_DOWN, method=f"{names[0]}, {names[1]}"),
-        ]
+        assert text == f"**{render(tenv, pm.SECTION_HEADING)}**\n{render(tenv, pm.LEAD)}"
         for status in (m.PAYMENT_SUBMITTED, m.PAID, m.SHIPPED, m.FULFILLED, m.CANCELLED):
             spec = views.order_message(ui, settings, _view(tenv, status), instructions=None)
             assert spec.rows == (), status  # a paid or closed order has nothing to pay

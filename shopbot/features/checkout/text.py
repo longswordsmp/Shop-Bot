@@ -328,4 +328,8 @@ OPERATOR_TEXT: dict[str, str] = {
     "checkout.publish.category_permissions": (
         "checkout.order_category: the bot lacks {permissions} where order channels are created."
     ),
+    "checkout.publish.method_icon_missing": (
+        "payments.methods '{method}': icon '{icon}' is not a picture in the icons folder ({icon}.png), so the method "
+        "shows without its mark. Add the picture or choose another icon (e.g. brand_paypal), then /reload."
+    ),
 }

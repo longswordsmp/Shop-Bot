@@ -122,8 +122,8 @@ class GiftCardProvider:
                 Kind.TITLE,
                 FEATURE,
                 pay,
-                "Optional title of the payment instructions shown in the order "
-                "ticket while the order waits for payment.",
+                "Optional title of the gift card payment instructions (it may start with an icon), e.g. "
+                "'{icon_list} HOW TO PAY'.",
                 required=False,
                 placeholders=_ORDER,
             ),
@@ -132,8 +132,9 @@ class GiftCardProvider:
                 Kind.DESCRIPTION,
                 FEATURE,
                 pay,
-                "How to pay with gift cards, shown in the order "
-                "ticket and in the payment reminder. {total} is the amount to pay.",
+                "How to pay with gift cards. With payments.methods: shown privately when the customer chooses the "
+                "gift card, and on the order card and in the payment reminder once a card was submitted; without: "
+                "on the order card and in the reminder. {total} is the amount still to pay.",
                 placeholders=_ORDER,
             ),
             ck(

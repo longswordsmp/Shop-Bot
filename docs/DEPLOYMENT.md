@@ -8,7 +8,7 @@ The bot is a single long-running Python worker. It needs no web server and liste
 |---|---|---|
 | Source | GitHub repository | `git log origin/<branch>` shows the commit |
 | Build | Railway (Railpack builder) | Railway build log shows `pip install -r requirements.txt` succeeded |
-| Runtime | Railway service, one replica | Deploy log shows `starting` then `db_ready` then `bot_ready` |
+| Runtime | Railway service, one replica | Deploy log shows `starting` then `db_ready` then `bot_ready`; `/status` shows the running commit (see "Which version runs") |
 | Discord connection | Discord gateway | `bot_ready` log line; the bot shows online in the server |
 | Features | Your server | `/status` in Discord, then the manual tests in `docs/MORNING.md` |
 
@@ -80,7 +80,8 @@ exits. Keep replicas at 1.
 
 1. Environment validation – a missing/invalid variable logs `env_invalid` with the variable name only (and the
    process exits with code 78 after a short delay).
-2. `starting` – version, Python and discord.py versions (never the token).
+2. `starting` – version, the running commit (`commit`, see "Which version runs"), Python and discord.py versions
+   (never the token).
 3. `instance_lock_acquired`.
 4. Configuration load – invalid settings log `config_invalid` with the exact setting path.
 5. `db_opened`, `db_migration_applied` (when needed), `db_ready`.
@@ -104,8 +105,23 @@ can click again.
 
 1. Run the quality gates locally (see `docs/TESTING.md`).
 2. Push to the branch Railway deploys.
-3. Watch the deploy log for `bot_ready`. Run `/status`.
+3. Watch the deploy log for `bot_ready`. Run `/status` and check that its running version is the commit you pushed
+   (see "Which version runs").
 4. If the update changed panels or text, run `/setup` (idempotent) to republish panels.
+
+## Which version runs
+
+A push does not prove that the server runs the new code (the build can still be running or have failed). The bot
+shows the commit it was built from:
+
+- `/status` (admins): "Running version: `9f3c2b1`" under the summary;
+- the `/setup` report, under its summary line;
+- the `starting` line of the deploy log: `commit=9f3c2b1`.
+
+Compare those 7 characters with the newest commit of the deployed branch on GitHub (shown next to the commit
+message). The bot reads `RAILWAY_GIT_COMMIT_SHA`, which Railway sets on every deployment from GitHub (do not set it
+yourself); on another host it also reads `SOURCE_COMMIT` or `GIT_COMMIT`. "unknown" means none is set, e.g. a deploy
+with `railway up` from a local folder or a local run.
 
 ## Rollback
 

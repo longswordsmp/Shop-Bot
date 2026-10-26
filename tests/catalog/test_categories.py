@@ -1,7 +1,8 @@
 """Categories: /category and /product categories (permissions, validation, names unique ignoring case, at most 24
 plus "All", audit), the menu on the #catalog header (re-rendered on every change and after every pick), the private
 view a pick opens (All, only the category's listed items, private, paging within Discord's limits, buy buttons),
-``catalog.product_cards = false``, the migration and the /reset wipe."""
+``catalog.product_cards`` (off: only the header; switching it off removes the cards posted before), the migration
+and the /reset wipe."""
 
 from __future__ import annotations
 
@@ -12,14 +13,24 @@ from typing import Any
 import discord
 import pytest
 
+from shopbot.db.repos import state
 from shopbot.features import core_keys as ck
-from shopbot.features.catalog import categories, images, repo, service, views
+from shopbot.features.catalog import MODULE, categories, images, repo, service, views
 from shopbot.features.catalog import content_keys as keys
 from shopbot.features.catalog.preview import sample_png
 from shopbot.features.setup import reset_store
 from shopbot.ui.limits import BUTTON_LABEL, EMBED_TOTAL_CHARS, EMBEDS_PER_MESSAGE, validate_message
 from shopbot.ui.spec import ButtonSpec
-from tests.catalog.util import add_product, audit_actions, buttons, invoke, listing_channel, manager_env, menu
+from tests.catalog.util import (
+    add_product,
+    audit_actions,
+    buttons,
+    invoke,
+    listing_channel,
+    manager_env,
+    menu,
+    restarted_app,
+)
 from tests.fakes import FakeInteraction, FakeMember, FakeMessage, click
 from tests.helpers import GUILD_ID, TestEnv, make_settings, make_test_env
 
@@ -120,9 +131,9 @@ async def test_a_catalog_manager_may_manage_categories(tmp_path: Path) -> None:
 async def test_create_puts_the_category_in_the_menu_at_once_and_audits(tenv: TestEnv) -> None:
     await add_product(tenv, "[p]")
     head = await header(tenv)
-    # No category yet: no menu (its only choice, All, would repeat the public cards) and no line about it.
-    assert menu(head) == []
-    assert tenv.text(keys.PICKER_DESCRIPTION) not in (head.embeds[0].description or "")
+    # No category yet: the menu is there already, with All only.
+    assert menu(head) == [("0", tenv.text(keys.PICKER_ALL))]
+    assert tenv.text(keys.PICKER_DESCRIPTION) in (head.embeds[0].description or "")
     admin = tenv.member(admin=True)
     created = await category(tenv, admin, "create", name="Old  stock ", emoji="🔥", description="Last pieces")
     reply = answer(created)
@@ -138,7 +149,6 @@ async def test_create_puts_the_category_in_the_menu_at_once_and_audits(tenv: Tes
     )
     option = picker.options[1]
     assert str(option.emoji) == "🔥" and option.description == "Last pieces"
-    assert tenv.text(keys.PICKER_DESCRIPTION) in (head.embeds[0].description or "")
 
     first = await category(tenv, admin, "create", name="New in", position=0)
     assert "New in" in (answer(first).title or "")
@@ -328,7 +338,7 @@ async def test_delete_asks_first_and_keeps_the_products(tenv: TestEnv) -> None:
     assert [p.name for p in await tenv.app.db.run(repo.list_products, GUILD_ID)] == ["[a]", "[b]"]
     links = await tenv.app.db.run(lambda conn: conn.execute("SELECT COUNT(*) FROM product_categories").fetchone()[0])
     assert links == 0
-    assert menu(head) == []  # the last category went: the header has no menu again
+    assert menu(head) == [("0", tenv.text(keys.PICKER_ALL))]  # the last category went: All stays
     (event,) = await audit_actions(tenv, "catalog.category_delete")
     assert event.details == {"name": "[gone]", "products_untagged": 3}
     again = await category(tenv, admin, "delete", category=gone.id, confirm=True)
@@ -682,14 +692,27 @@ async def test_the_buy_button_of_a_page_opens_the_order(tenv: TestEnv) -> None:
 # --------------------------------------------------------------------------------------------------
 
 
-async def test_the_menu_shows_only_while_products_are_listed(tenv: TestEnv) -> None:
+async def test_the_menu_always_shows_and_all_answers_when_nothing_is_listed(tenv: TestEnv) -> None:
+    head = await header(tenv)  # no product, no category
+    assert menu(head) == [("0", tenv.text(keys.PICKER_ALL))]
+    assert (head.embeds[0].description or "").endswith(tenv.text(keys.LISTING_EMPTY))
+    picked = await click(tenv.app, user=tenv.member(), custom_id="sb:ct:cat", values=["0"], message=head)
+    assert picked.response_kinds() == ["edit_message"]  # the menu is reset
+    assert menu(head) == [("0", tenv.text(keys.PICKER_ALL))]
+    private = picked.last_sent
+    assert private is not None and private.flags.ephemeral
+    (card,) = private.embeds
+    assert card.title == views.category_title(tenv.app.ui, all_name(tenv))
+    assert card.description == tenv.text(keys.LISTING_EMPTY)  # the shop's own "nothing yet" text
+    assert buttons(private) == []
+
     await make_category(tenv, "[c]")
-    head = await header(tenv)
-    assert menu(head) == []  # nothing to browse: the header with the 'empty' text, no menu
-    assert tenv.text(keys.PICKER_DESCRIPTION) not in (head.embeds[0].description or "")
+    await service.request_listing_refresh(tenv.app)
+    assert [value for value, _ in menu(head)] == ["0", "1"]  # still nothing listed: the menu shows the category
     await add_product(tenv)
     await service.request_listing_refresh(tenv.app)
     assert [value for value, _ in menu(head)] == ["0", "1"]
+    assert tenv.text(keys.LISTING_EMPTY) not in (head.embeds[0].description or "")
 
 
 async def test_product_cards_off_leaves_only_the_header_with_the_menu(tmp_path: Path) -> None:
@@ -703,8 +726,61 @@ async def test_product_cards_off_leaves_only_the_header_with_the_menu(tmp_path: 
         (head,) = channel.messages
         assert [value for value, _ in menu(head)] == ["0"]
         assert "[a]" not in head.text()
+        picked = await click(tenv.app, user=tenv.member(), custom_id="sb:ct:cat", values=["0"], message=head)
+        assert picked.last_sent is not None and card_titles(picked.last_sent) == ["[a]", "[b]"]  # seen privately
     finally:
         await tenv.close()
+
+
+async def test_switching_product_cards_off_removes_the_cards_posted_before(tmp_path: Path) -> None:
+    settings = make_settings({"catalog": {"products_per_listing_message": 1}})
+    tenv = await make_test_env(tmp_path, settings=settings)
+    try:
+        products = [await add_product(tenv, f"[p{i}]") for i in range(3)]
+        channel = await listing_channel(tenv)
+        report = await service.request_listing_refresh(tenv.app)  # product_cards = true: header + one card each
+        assert report.ok and len(channel.messages) == 4
+        head = channel.messages[0]
+        records = await tenv.app.db.run(state.published_with_prefix, GUILD_ID, service.LISTING_PREFIX)
+        assert [r.message_id for r in records] == [m.id for m in channel.messages]
+
+        tenv.app.settings = make_settings({"catalog": {"products_per_listing_message": 1, "product_cards": False}})
+        tenv.app.recompute_readiness()
+        lines = await MODULE.publish(tenv.app)  # type: ignore[misc]
+        assert len(lines) == 1 and "3 removed" in lines[0]  # /setup runs this and lists the line in its report
+        assert channel.messages == [head]  # the card messages are deleted; the header stays at the top
+        assert head.edits == [] and [value for value, _ in menu(head)] == ["0"]  # it already showed the menu
+        records = await tenv.app.db.run(state.published_with_prefix, GUILD_ID, service.LISTING_PREFIX)
+        assert [(r.key, r.message_id) for r in records] == [(service.listing_key(0), head.id)]
+
+        # Back on: the cards come back under the same header.
+        tenv.app.settings = settings
+        tenv.app.recompute_readiness()
+        await service.request_listing_refresh(tenv.app)
+        assert channel.messages[0] is head and len(channel.messages) == 4
+        assert [m.embeds[0].title for m in channel.messages[1:]] == [p.name for p in products]
+    finally:
+        await tenv.close()
+
+
+async def test_a_restart_with_product_cards_off_removes_the_cards_without_setup(tenv: TestEnv) -> None:
+    # A redeploy with the new setting: the startup check of the listing (no /setup yet) removes the old cards.
+    for name in ("[a]", "[b]"):
+        await add_product(tenv, name)
+    channel = await listing_channel(tenv)
+    await service.request_listing_refresh(tenv.app)  # product_cards = true (the code default)
+    assert len(channel.messages) == 2  # the header, then both cards (5 per message in the test settings)
+    head = channel.messages[0]
+
+    app = restarted_app(tenv)
+    app.settings = make_settings({"catalog": {"product_cards": False}})
+    app.recompute_readiness()
+    await app.resources.refresh()
+    await MODULE.on_ready(app)  # type: ignore[misc]
+    assert await app.scheduler.run_due() == 1
+    assert channel.messages == [head]
+    records = await app.db.run(state.published_with_prefix, GUILD_ID, service.LISTING_PREFIX)
+    assert [r.message_id for r in records] == [head.id]
 
 
 # --------------------------------------------------------------------------------------------------

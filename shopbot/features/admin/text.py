@@ -35,6 +35,9 @@ OPERATOR_TEXT: dict[str, str] = {
     # -- /status -------------------------------------------------------------------------------------
     "admin.status.title": "Bot status",
     "admin.status.summary": "{ready} of {enabled} enabled features are ready.",
+    "admin.status.version": "Running version: `{version}` (the commit this deployment was built from).",
+    "admin.status.version_unknown": "Running version: unknown (the host did not name the commit; see "
+    "docs/DEPLOYMENT.md).",
     "admin.status.features": "Features",
     "admin.status.feature_ready": "✅ `{feature}` — ready",
     "admin.status.feature_not_ready": "⚠️ `{feature}` — enabled, not ready ({problems} problems)",

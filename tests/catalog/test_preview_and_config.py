@@ -41,6 +41,7 @@ EXPECTED_STATES = {
     "category_page_2",
     "category_all",
     "category_empty",
+    "category_all_empty",
     "browse_first",
     "browse_middle",
     "browse_sold_out",
@@ -95,11 +96,15 @@ async def test_every_preview_state_is_valid_routed_and_synthetic(tenv: TestEnv) 
     browse = by_name["browse_first"]
     assert isinstance(browse, MessageSpec) and browse.files and browse.embeds[0].image_url.startswith("attachment://")  # type: ignore[union-attr]
     bare = by_name["listing_header_no_categories"]
-    assert isinstance(bare, MessageSpec) and bare.embeds[0].description == tenv.text(keys.LISTING_DESCRIPTION)
-    assert not any(isinstance(c, SelectSpec) for row in bare.rows for c in row)  # no menu before the first category
+    assert isinstance(bare, MessageSpec) and bare.embeds[0].description == header.description
+    (bare_menu,) = [c for row in bare.rows for c in row if isinstance(c, SelectSpec)]
+    assert [o.value for o in bare_menu.options] == ["0"]  # before the first category: All only
     empty = by_name["listing_empty"]
     assert isinstance(empty, MessageSpec) and len(empty.embeds) == 1
     assert (empty.embeds[0].description or "").endswith(tenv.text(keys.LISTING_EMPTY))
+    assert isinstance(empty.rows[0][0], SelectSpec)  # the menu stays while nothing is listed
+    all_empty = by_name["category_all_empty"]
+    assert isinstance(all_empty, MessageSpec) and all_empty.embeds[0].description == tenv.text(keys.LISTING_EMPTY)
 
 
 async def test_preview_skips_listing_states_without_listing_channel(tmp_path: Path) -> None:

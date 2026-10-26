@@ -31,6 +31,7 @@ from shopbot.db.repos import state as state_repo
 from shopbot.db.repos import tasks as task_repo
 from shopbot.features.admin import repo as admin_repo
 from shopbot.logging_setup import log_event
+from shopbot.version import UNKNOWN, short_commit
 
 if TYPE_CHECKING:
     from shopbot.context import App
@@ -91,6 +92,8 @@ class StatusSnapshot:
     # Banner and icon pictures that could not be used (missing, unreadable, too large): that kind of message shows no
     # banner, that icon shows nothing.
     picture_problems: tuple[str, ...] = ()
+    # The running code version: the short commit of the deployment (``shopbot.version``), or "unknown".
+    version: str = UNKNOWN
 
 
 def transcripts_enabled(settings: Settings) -> bool:
@@ -146,6 +149,7 @@ async def status_snapshot(app: App) -> StatusSnapshot:
         task_counts=counts,
         db_path=str(app.env.db_path),
         picture_problems=(*app.banners.problems, *app.icons.problems),
+        version=short_commit(),
     )
 
 

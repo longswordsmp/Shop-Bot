@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 from shopbot.config.content import ContentStore
 from shopbot.config.content_keys import ContentKey, Kind, ck
 from shopbot.config.settings import FaqSection, FaqSettings, Settings
+from shopbot.features.checkout import payment_methods
 from shopbot.features.guides import common
 from shopbot.features.server_keys import channel_placeholders, reference_problems
 from shopbot.ui.card import PARAGRAPH, Card, Section, heading
@@ -47,12 +48,12 @@ def answer_key(section: str, number: int) -> str:
 
 
 def content_keys(settings: Settings) -> list[ContentKey]:
-    links = channel_placeholders(settings)
+    links = (*channel_placeholders(settings), *payment_methods.placeholders(settings))
     link_doc = (
         " You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links."
-        if links
+        if channel_placeholders(settings)
         else ""
-    )
+    ) + payment_methods.placeholder_doc(settings)
     where = "the FAQ posted in the faq channel"
     group = "FAQ header"
     keys = [

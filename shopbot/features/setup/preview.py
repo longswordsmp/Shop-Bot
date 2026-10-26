@@ -23,8 +23,11 @@ if TYPE_CHECKING:
     from shopbot.context import App
 
 
+SAMPLE_VERSION = "0123abc"  # a synthetic short commit (the running version line under the summary)
+
+
 def _sample_report(app: App, *, dry_run: bool, size: int) -> SetupReport:
-    report = SetupReport(dry_run=dry_run, publish=not dry_run)
+    report = SetupReport(dry_run=dry_run, publish=not dry_run, version=SAMPLE_VERSION)
     sections = (
         ("roles", "role", "<@&100000000000000001>"),
         ("categories", "category", "<#100000000000000002>"),

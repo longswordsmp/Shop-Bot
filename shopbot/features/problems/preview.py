@@ -14,6 +14,7 @@ from shopbot.config.content import MissingContent
 from shopbot.config.settings import ProblemType
 from shopbot.features import core_keys as core
 from shopbot.features.checkout import content_keys as checkout_keys
+from shopbot.features.checkout import payment_methods as checkout_payment_methods
 from shopbot.features.checkout import views as checkout_views
 from shopbot.features.problems import content_keys as k
 from shopbot.features.problems import views
@@ -94,7 +95,11 @@ def preview(app: App) -> list[PreviewState]:
         "purchase_panel",
         "The #purchase panel with the Report a Problem button next to the Start button (shown once this feature is "
         "ready; /setup updates the panel).",
-        lambda: checkout_views.panel(ui, report_button=views.report_button(ui)),
+        lambda: checkout_views.panel(
+            ui,
+            methods_list=checkout_payment_methods.methods_list(ui, settings),
+            report_button=views.report_button(ui),
+        ),
     )
 
     # -- the private choice step --------------------------------------------------------------------------------

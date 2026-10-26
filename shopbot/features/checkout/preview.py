@@ -327,7 +327,8 @@ def preview(app: App) -> list[PreviewState]:
     # -- shop panel and private replies --------------------------------------------------------------------------
     add(
         "shop_panel",
-        "Shop panel in checkout.panel_channel (start, browse and balance buttons).",
+        "Shop panel in checkout.panel_channel (Start order, plus Browse, Report a problem and My store credit when "
+        "those are on).",
         lambda: panel.panel_spec(app),
     )
     add(
@@ -592,7 +593,8 @@ def preview(app: App) -> list[PreviewState]:
     instructions = provider.instructions(settings, pending.order, None) if provider is not None else None
     add(
         "order_submitted",
-        "Workflow message after submission: waiting for payment, with the payment instructions.",
+        "Workflow message after submission: waiting for payment. With payment methods: choose how to pay, a "
+        "button per method; without: the payment instructions.",
         lambda: views.order_message(ui, settings, pending, instructions=instructions),
     )
     try:
@@ -682,7 +684,8 @@ def preview(app: App) -> list[PreviewState]:
     )
     add(
         "notify_payment_reminder",
-        "Customer notification: payment reminder (with the payment instructions).",
+        "Customer notification: payment reminder (with the payment instructions; with payment methods, only once "
+        "the customer pays with the provider, e.g. a gift card was submitted).",
         lambda: views.reminder_notification(ui, settings, pending, instructions),
     )
     add(

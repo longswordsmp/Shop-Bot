@@ -52,7 +52,10 @@ st_submitted, so never for an order that still waits for its payment); tag = pri
 coins = amounts and store credit balance; help = FAQ; star = reviews; verified = verified purchase; photo = photos and
 screenshots; heart = thanks, and tips for our team; list = steps and details; compass = how it works; user = customer;
 flag = report a problem; arrow_right = continue; arrow_left = back; plus = add; minus = take off (remove store credit, a
-discount, no tip); trash = delete; edit = change (and typing your own amount); link = open elsewhere.
+discount, no tip); trash = delete; edit = change (and typing your own amount); link = open elsewhere; brand_apple,
+brand_google, brand_paypal, brand_cashapp, brand_doordash, brand_stripe, brand_visa, brand_mastercard = that brand's
+payment method, each in the brand's own colour (payment methods only, set by `icon` in `[[payments.methods]]`; the
+card method uses card, the DoorDash gift card method brand_doordash; gift stays for gift cards elsewhere).
 
 ## 3. Words
 
@@ -68,8 +71,11 @@ discount, no tip); trash = delete; edit = change (and typing your own amount); l
   space before punctuation, no empty lines at the start or end. [checked]
 - **W5 Money and dates.** Amounts always through the shop's currency format; dates as Discord timestamps, one
   format per date.
-- **W6 Honest.** Texts promise only what the shop does. A payment method that does not work today is never
-  described as working: it is shown as temporarily down.
+- **W6 Honest.** Texts promise only what the shop does. Before a customer presses a payment method, texts present
+  the shop's methods as the ways to pay and say the customer chooses when they pay ("we'll show you what's available
+  then"); they never say which work right now ("gift cards only", "temporarily down") and never claim that every
+  method works ("any payment method"). Pressing a method that does not work today says so privately and offers the
+  ones that do (`docs/DECISIONS.md` §11d).
 
 ## 4. Buttons and menus
 

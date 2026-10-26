@@ -18,6 +18,7 @@ from shopbot.config.banner_ids import BannerId
 from shopbot.ui import limits
 from shopbot.ui.spec import EmbedField, EmbedSpec, MessageSpec
 from shopbot.ui.style import Ui, chunk_lines
+from shopbot.version import UNKNOWN
 
 SECTIONS = ("roles", "categories", "channels", "panels", "problems")
 COUNTERS = ("created", "adopted", "updated", "unchanged", "skipped", "failed")
@@ -42,6 +43,7 @@ class SetupReport:
     )
     owner_role: dict[str, str | int] | None = None  # the Owner-role assignment, when one was made or failed
     public_unmanaged: int = 0  # unmanaged channels/categories @everyone can see
+    version: str = UNKNOWN  # the running code version (``shopbot.version.short_commit``), shown under the summary
 
     def add(self, section: str, line: str, status: str | None = None) -> None:
         self.lines[section].append(line)
@@ -156,6 +158,10 @@ def report_messages(ui: Ui, op: Op, report: SetupReport) -> list[MessageSpec]:
     else:
         title = op("server.setup.title")
         summary = op("server.setup.summary", **counts)
+    if report.version == UNKNOWN:
+        summary += "\n" + op("server.setup.version_unknown")
+    else:
+        summary += "\n" + op("server.setup.version", version=report.version)
     tone = "danger" if counts["failed"] else ("warning" if report.lines["problems"] else "success")
     messages = pack_fields(
         ui,

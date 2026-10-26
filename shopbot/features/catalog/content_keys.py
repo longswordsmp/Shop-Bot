@@ -54,8 +54,8 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             Kind.TITLE,
             CATALOG,
             g_listing,
-            "Title of the header card: the first message of the product listing channel (each product follows "
-            "in its own message).",
+            "Title of the header card: the first message of the product listing channel, with the category menu "
+            "(with catalog.product_cards = true the product cards follow it).",
             required=listing,
         ),
         ck(
@@ -71,7 +71,8 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             Kind.DESCRIPTION,
             CATALOG,
             g_listing,
-            "Shown below the listing header, and in private browsing, when no product is currently offered.",
+            "Shown at the end of the listing's header card, in private browsing, and when All is picked in the "
+            "category menu, while no product is currently offered.",
             required=listing or catalog.browse_enabled,
         ),
         ck(
@@ -169,9 +170,8 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             Kind.DESCRIPTION,
             CATALOG,
             g_picker,
-            "Optional: last paragraph of the listing's header card while it shows the category menu (there is at "
-            "least one product, and a category or catalog.product_cards = false), e.g. how the menu works. If empty, "
-            "the header shows only its own text.",
+            "Optional: last paragraph of the listing's header card, just above the category menu (always shown), "
+            "e.g. how the menu works. If empty, the header shows only its own text.",
             required=False,
         ),
         ck(
@@ -225,7 +225,8 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             Kind.DESCRIPTION,
             CATALOG,
             g_category,
-            "Text of that card when the category has no item right now. {category} is the category's name.",
+            "Text of that card when the category has no item right now. {category} is the category's name. (All "
+            "shows catalog.listing.empty instead, since then nothing is offered at all.)",
             required=listing,
             placeholders=("category",),
         ),

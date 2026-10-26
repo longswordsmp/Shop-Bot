@@ -66,19 +66,27 @@ def add_states(
     half = order.total_minor // 2 or 1
     partial_cards = [_card(1, order, half, store.SUBMITTED), _card(2, order, half, store.REFUSED)]
     fields = gift_card.cards_fields(ui, settings, order, partial_cards)
+    fmt = views.order_money(ui, settings, order.currency)
     if instructions is not None:
-        with_cards = replace(instructions, fields=fields)
+        # As ``service.payment_instructions`` builds them: the steps ask for what is still to pay.
+        due = fmt(order.total_minor - gift_card.counted_minor(partial_cards))
+        with_cards = replace(instructions, fields=fields, amount_due=due)
         add(
             "order_gift_cards_received",
             "Workflow message of an order paid in part: the cards received so far and what is still to pay.",
             lambda: views.order_message(ui, settings, pending, instructions=with_cards),
+        )
+        add(
+            "notify_payment_reminder_gift_cards",
+            "Customer notification: payment reminder of an order paid in part with gift cards (the steps for what is "
+            "still to pay and the cards received follow the reminder text).",
+            lambda: views.reminder_notification(ui, settings, pending, with_cards),
         )
     add(
         "payment_gift_card_form",
         "Private gift card form (Submit gift card): code, optional PIN, the card's amount (prefilled).",
         lambda: views.gift_card_modal(ui, settings, order, remaining_minor=order.total_minor - half),
     )
-    fmt = views.order_money(ui, settings, order.currency)
 
     def reply(key: str, banner: BannerId, **values: str | int) -> MessageSpec:
         text = ui.text(key, **values)

@@ -100,6 +100,12 @@ bot uploads its icons (`config/emojis/`) as its own application emojis; `icon_up
 refused (it then shows nothing, and the next start tries again).
 See `docs/DEPLOYMENT.md` → Troubleshooting if anything else appears.
 
+**Did the deploy reach the server?** The `starting` line names the code that runs (`commit=` and 7 characters, e.g.
+`commit=9f3c2b1`), and so do `/status` ("Running version") and the `/setup` report, under the summary. Compare it
+with the newest commit of the branch on GitHub (the 7 characters next to the commit message). Different: Railway is
+still building or the deploy failed (see its deploy log), so the server runs the old code. `unknown`: the service was
+not deployed from GitHub (for example with `railway up`), so Railway did not say which commit it runs.
+
 ## 10. Run `/setup`
 
 **Already ran the old layout in this server?** Run **`/reset`** first (owner only: `OWNER_ID` or the server owner).
@@ -118,6 +124,17 @@ discount codes, reviews and store credit are **kept** unless you run `/reset wip
 every order, product, discount code, review, ticket and customer record (they stay in the backup). Run `/setup` in 🛠・setup, then delete that
 channel. `/setup` posts the staff cards of open orders again in the new #orders channel and gives customers the new
 Customer role; everyone else presses **Verify** again on the new welcome panel (Restock Alerts sign-ups start over).
+
+**After deploying an update**, check the running version first (section 9), then run **`/setup`**: it updates every
+panel to the new code and text. #catalog then shows only its header card with the category menu (All items, then your
+categories); item cards posted by an earlier version are removed (the report's Panels section says how many, "… N
+removed"), and members see the items privately when they pick All items or a category.
+
+**A text still shows the old wording after `/setup`?** A text you changed in Discord (**Edit text** or `/content set`)
+keeps your wording: it wins over `content.toml`, so a new version of that text does not reach the server. `/content
+show` names where a text comes from ("override (/content set)"); `/content clear` takes the file's wording again. This
+update also renumbered the #faq payment questions (the "Why only gift cards" question is gone, the next ones moved up
+by one), so a payment question you edited in Discord may now show on another question: check #faq and clear it.
 
 In your server, as the owner/admin: **`/setup dry_run:True`** first. It lists what it would create.
 
@@ -219,12 +236,13 @@ Use a second (non-staff) Discord account as the "customer".
       and field names show theirs, and no card title shows raw text like `<:truck:123…>`.
 
 **Catalog & new arrivals**
-- [ ] `/product add image:<a picture>` (staff) → its own message in #catalog with the picture under its name and a Buy
-      button; `/product stock 0` → button disabled, red.
+- [ ] #catalog is one message: the header card with the banner and a menu (All items first, also before any category
+      exists). No item cards are posted in the channel (`catalog.product_cards = false`, as shipped).
+- [ ] `/product add image:<a picture>` (staff); as the customer pick All items → a private message with its card, the
+      picture under its name and a Buy button; `/product stock 0`, pick All items again → button disabled, red.
 - [ ] `/product image file:` (upload) → image shows, still there after `/product edit` and a bot restart.
-- [ ] Before any category the #catalog header has no menu. `/category create name:Old stock emoji:tag` (staff) →
-      private reply; the header card (first message, one card with the banner) now has a menu: All items, then Old
-      stock with its icon.
+- [ ] Before any category the #catalog menu offers All items only. `/category create name:Old stock emoji:tag`
+      (staff) → private reply; the menu on the header card now lists All items, then Old stock with its icon.
       `/product categories product_id:<id> add:Old stock` for two items (`/category list` shows "2 item(s)").
 - [ ] As the customer, pick Old stock in the #catalog menu → a private message only you see ("Only you can see
       this"): its two items as cards with their pictures and a **Buy <item>** button each; nothing new in #catalog.
@@ -244,15 +262,24 @@ Use a second (non-staff) Discord account as the "customer".
       record's **Details** button in #orders shows them privately (apartment and building under the street, the entry
       code and instructions after the country); the ticket and #orders never show them (with
       `operations.answers_in_orders_channel` off, as shipped). Check on a phone too.
-- [ ] Buy on a #catalog item while the ticket is open → the item is added to that ticket instead of a new one.
+- [ ] Buy on an item (All items in #catalog) while the ticket is open → the item is added to that ticket instead of a
+      new one.
 - [ ] Start again with an open order → private link to the existing ticket.
-- [ ] Payment methods: the order card lists the methods (cards etc. "temporarily down", the DoorDash eGift card
-      "available now") with a button each: Submit gift card and Buy a gift card first, the methods that are down on
-      the next row, Cancel order last. Press Credit or debit card → a private "Dear customer, we're sorry …" message
-      with Submit gift card and Buy a gift card; Submit gift card opens the gift card form.
-- [ ] Payment: the order card shows Submit gift card and Buy a gift card. Submit a card worth less than the total →
-      "received … still to pay"; a second card → "Order placed" in the ticket and by DM, a payment alert in
-      #staff-chat. Type a code in the ticket chat → the message disappears and you get a private note.
+- [ ] Payment methods: #place-order, #how-to-order and #faq list every method one per line with its brand icon
+      (card, black Apple, blue Google, navy PayPal, green Cash App, red DoorDash) and "You choose when you pay, and
+      we'll show you what's available then"; nothing there says gift cards only or temporarily down. Check the icons
+      after the restart (the changed and new brand pictures are uploaded) and on a phone.
+- [ ] The order card says **Choose how to pay** with a button per method (its brand icon as the button's emoji, three
+      per row) and Cancel order alone last; no gift card steps yet. Press Credit or debit card (or PayPal, Cash App,
+      Apple Pay, Google Pay) → a private "We're sorry! **Credit or debit card** isn't available at the moment. For now
+      we only accept payment by DoorDash eGift card." with **Pay with gift card** and **Buy a gift card**; Pay with
+      gift card → the private HOW TO PAY steps
+      with the exact total, **Submit gift card** and **Buy a gift card**; Submit gift card opens the gift card form.
+      Pressing DoorDash eGift card on the order card shows the same steps.
+- [ ] Payment: submit a card worth less than the total → "received … still to pay", and the order card now shows the
+      steps for the rest and the GIFT CARDS received with Submit gift card and Buy a gift card (no method buttons);
+      a second card → "Order placed" in the ticket and by DM, a payment alert in #staff-chat. Type a code in the ticket
+      chat → the message disappears and you get a private note.
 - [ ] In #orders as the Owner: Reveal gift card (private, spoiler-hidden codes), Payment confirmed → paid; on another
       order Card problem with a reason → the customer is told why and can submit another card. A plain Staff account
       gets "only the payment staff" for Reveal and Payment confirmed.

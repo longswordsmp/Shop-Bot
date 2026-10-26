@@ -48,6 +48,11 @@ channel /setup created for that key. Discord does not render links in titles, he
 button labels, so those keys do not accept them: a `{channel_<key>}` written there is reported by `/status` (it
 would otherwise reach customers as raw text) and the guide stays hidden until it is removed.
 
+**The shop's payment methods:** the how-to-buy introduction, steps and closing line and the FAQ introduction and
+answers may contain `{payment_methods}` on lines of their own. It lists every method of `[[payments.methods]]`, one
+per line with its icon, in the settings' order (see `docs/CONFIGURATION.md`), so a method added or brought back needs
+no text change.
+
 **Long content is never cut.** A card that does not fit one embed (4096-character descriptions, 6000 characters
 per embed) continues in the next embed of the same colour without repeating its title, and a message holds at most
 10 embeds and 6000 characters, then further messages follow. The branding (author line, footer) appears once, on

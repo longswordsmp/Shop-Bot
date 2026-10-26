@@ -14,6 +14,7 @@ from shopbot.db.repos.tasks import Task
 from shopbot.features.admin import MODULE, service, views
 from shopbot.features.admin.text import OPERATOR_TEXT
 from shopbot.ui.limits import validate_message, validate_modal
+from shopbot.ui.spec import MessageSpec
 from tests.helpers import TestEnv
 
 PACKAGE = Path(__file__).resolve().parents[2] / "shopbot" / "features" / "admin"
@@ -29,8 +30,12 @@ def all_valid(specs: list[object]) -> None:
         assert validate_message(spec) == [], spec  # type: ignore[arg-type]
 
 
-async def test_preview_is_empty_for_operator_only_feature(tenv: TestEnv) -> None:
-    assert MODULE.preview is not None and MODULE.preview(tenv.app) == []
+async def test_preview_shows_only_the_status_overview_with_its_version(tenv: TestEnv) -> None:
+    assert MODULE.preview is not None
+    (state,) = MODULE.preview(tenv.app)
+    assert state.feature == "admin" and state.name == "status" and state.note
+    assert isinstance(state.spec, MessageSpec) and validate_message(state.spec) == []
+    assert tenv.app.op("admin.status.version", version="0123abc") in (state.spec.embeds[0].description or "")
     assert MODULE.customer_facing is False
     assert MODULE.content_keys(tenv.app.settings) == []
     assert MODULE.is_enabled(tenv.app.settings)

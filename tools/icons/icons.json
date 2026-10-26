@@ -1,12 +1,20 @@
 {
-  "_comment": "The bot's custom emoji set: rendered by tools/icons/render.js into config/emojis/<name>.png (128x128). Badge glyphs are Tabler Icons (MIT, see config/emojis/LICENSE-tabler-icons.txt); an optional \"shift\": [x, y] moves a glyph Tabler draws off-centre by that many units of its 24-unit grid; \"white\": true also renders <name>_w.png, the glyph alone in white (shown instead of the badge on green, red and blurple buttons, where a coloured badge would melt into the button or look muddy).",
+  "_comment": "The bot's custom emoji set: rendered by tools/icons/render.js into config/emojis/<name>.png (128x128). Badge glyphs are Tabler Icons (MIT, see config/emojis/LICENSE-tabler-icons.txt); an optional \"shift\": [x, y] moves a glyph Tabler draws off-centre by that many units of its 24-unit grid; \"white\": true also renders <name>_w.png, the glyph alone in white (shown instead of the badge on green, red and blurple buttons, where a coloured badge would melt into the button or look muddy). The brand_* icons are the payment methods' marks ([[payments.methods]] icon), each badge in the brand's own colour so it is recognized at a glance; they are used for payment methods only. A brand mark Tabler does not draw is a filled \"glyph\" from tools/icons/glyphs (Simple Icons, CC0) instead of a Tabler \"icon\".",
   "colors": {
     "blue": "#146EB4",
     "orange": "#FF9900",
     "green": "#1E8E3E",
     "red": "#C5221F",
     "amber": "#F2B705",
-    "grey": "#8B9098"
+    "grey": "#8B9098",
+    "apple": "#000000",
+    "google": "#4285F4",
+    "paypal": "#003087",
+    "cashapp": "#00D632",
+    "stripe": "#635BFF",
+    "visa": "#1A1F71",
+    "mastercard": "#EB001B",
+    "doordash": "#FF3008"
   },
   "icons": [
     {"name": "dot_blue", "kind": "dot", "color": "blue"},
@@ -95,9 +103,13 @@
     {"name": "swap", "kind": "badge", "icon": "outline/arrows-exchange", "color": "amber"},
     {"name": "hourglass", "kind": "badge", "icon": "outline/hourglass", "color": "amber"},
     {"name": "mailbox", "kind": "badge", "icon": "outline/mailbox", "color": "amber"},
-    {"name": "brand_apple", "kind": "badge", "icon": "outline/brand-apple", "color": "orange", "white": true},
-    {"name": "brand_google", "kind": "badge", "icon": "outline/brand-google", "color": "orange", "white": true},
-    {"name": "brand_paypal", "kind": "badge", "icon": "outline/brand-paypal", "color": "orange", "white": true},
-    {"name": "brand_cashapp", "kind": "badge", "icon": "outline/brand-cashapp", "color": "orange", "white": true}
+    {"name": "brand_apple", "kind": "badge", "icon": "outline/brand-apple", "color": "apple", "white": true},
+    {"name": "brand_google", "kind": "badge", "icon": "outline/brand-google", "color": "google", "white": true},
+    {"name": "brand_paypal", "kind": "badge", "icon": "outline/brand-paypal", "color": "paypal", "white": true},
+    {"name": "brand_cashapp", "kind": "badge", "icon": "outline/brand-cashapp", "color": "cashapp", "white": true},
+    {"name": "brand_stripe", "kind": "badge", "icon": "outline/brand-stripe", "color": "stripe", "white": true},
+    {"name": "brand_visa", "kind": "badge", "icon": "outline/brand-visa", "color": "visa", "white": true},
+    {"name": "brand_mastercard", "kind": "badge", "glyph": "mastercard", "color": "mastercard", "white": true},
+    {"name": "brand_doordash", "kind": "badge", "glyph": "doordash", "color": "doordash", "white": true}
   ]
 }

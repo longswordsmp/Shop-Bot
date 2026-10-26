@@ -156,8 +156,9 @@ muddy, so there the bot shows the icon's white variant `<name>_w` (its symbol al
 the set has one; on grey buttons, and everywhere else, the coloured badge. Nothing to configure: the same
 `{icon_<name>}` works on every button.
 
-The shipped set (`config/emojis`, 90 icons and 25 white variants, glyphs from Tabler Icons, MIT licence) is listed in
-`tools/icons/icons.json` and rendered by `tools/icons/render.js` (add an entry there and run it to add an icon; mark
+The shipped set (`config/emojis`, 94 icons and 29 white variants, glyphs from Tabler Icons, MIT licence; the DoorDash
+and Mastercard marks from Simple Icons, CC0, in `tools/icons/glyphs`) is listed in `tools/icons/icons.json` and
+rendered by `tools/icons/render.js` (add an entry there and run it to add an icon; mark
 it `"white": true` to render its white variant too, for an icon used on green, red or blurple buttons): status dots `dot_blue`
 (we ship there), `dot_yellow` (we ship to parts of it) and `dot_grey` (we do not ship there); step numbers `step_1` to
 `step_6`; order statuses `st_submitted`, `st_confirmed`, `st_shipped`, `st_delivered`, `st_cancelled`; and section
@@ -171,6 +172,7 @@ icons, a white symbol on a circle whose colour says what kind of line it marks:
 | red | problems, removal, negative (and `heart`: favourites, thanks) | `alert`, `cross`, `trash`, `door`, `flag`, `thumb_down`, `package_off`, `heart` |
 | amber | waiting, caution | `hourglass`, `swap`, `mailbox` |
 | grey | neutral, back, settings | `minus`, `arrow_left`, `user_minus`, `settings` |
+| the brand's own | a payment method (only there: `icon` in `[[payments.methods]]`) | `brand_apple`, `brand_google`, `brand_paypal`, `brand_cashapp`, `brand_doordash`, `brand_stripe`, `brand_visa`, `brand_mastercard` |
 
 ## `[[server.roles]]`, `[[server.categories]]`, `[[server.channels]]`
 
@@ -243,12 +245,12 @@ reports), and an optional
 | `browse_enabled` | false | Private, paginated product browsing button on the listing header. |
 | `low_stock_threshold` | 0 | Show the "low stock" state (warning color) at or below this stock (0 = off). |
 | `image_hosts` | `[]` | Allowed hosts for product image URLs (`[]` = any `https://` host). |
-| `product_cards` | true | Public product cards under the listing header. `false`: #catalog shows only the header card with its category menu. |
+| `product_cards` | true (shipped: false) | `false`: #catalog shows only the header card with its category menu, and members see the items privately after a pick; `/setup` removes the card messages it posted before. `true`: one public product card per item (with its Buy button) under the header; the menu stays. |
 | `products_per_category_page` | 5 | Product cards per page of the private message a category pick opens (1–9, under its title card; split earlier to respect Discord limits). |
 
 The categories themselves are not settings: catalog managers make them with `/category create|edit|delete|list` and
-put items in them with `/product categories` (see `docs/features/catalog.md`, Categories). The header's menu lists
-"All items" (built in) and at most 24 categories.
+put items in them with `/product categories` (see `docs/features/catalog.md`, Categories). The header's menu is
+always shown and lists "All items" (built in) and at most 24 categories.
 
 ## `[checkout]`, `[[checkout.fulfillment_options]]`, `[[checkout.fees]]`, `[[checkout.details_form]]`
 
@@ -359,24 +361,45 @@ staff decide on its card, when the order ends unpaid, or after `keep_days`.
 
 ### `[[payments.methods]]`
 
-The payment methods customers see in their order ticket, in display order (at most 10; empty = no method picker, the
-order card shows only the provider's instructions). Shipped: credit or debit card, Apple Pay, Google Pay, PayPal and
-Cash App as `"down"`, and the DoorDash eGift card as the one `"active"` method. **Keep only the methods your shop
-really offers.**
+The payment methods customers see, in display order (at most 10; empty = no method picker, the order card shows only
+the provider's instructions). Shipped: credit or debit card, Apple Pay, Google Pay, PayPal and Cash App as `"down"`,
+and the DoorDash eGift card as the one `"active"` method. **Keep only the methods your shop really offers.**
 
 | Setting | Meaning |
 |---|---|
-| `id` | Internal key (never shown). Names: `checkout.payment.method.<id>.label` (may start with an icon) and `.description`. |
-| `status` | `"active"`: customers can use it now. `"down"`: its button shows; pressing it opens a private pop-up ("Dear customer, we're sorry to inform you that … payments are temporarily down") with the methods that work right now, each with a button to use it. |
-| `kind` | What an active method does: `"gift_card"` (the gift card form; needs `provider = "gift_card"`, and must stay active then), `"staff"` (the bot posts in the ticket that the customer wants to pay this way and alerts the staff channel; staff send the payment details in the ticket and press **Mark paid**), `"link"` (a link button to `url`, your hosted payment page; staff press **Mark paid** once paid). |
+| `id` | Internal key (never shown). Names: `checkout.payment.method.<id>.label` and `.description`. |
+| `status` | `"active"`: customers can use it now. `"down"`: its button shows like the others; pressing it opens a private pop-up ("We're sorry! **PayPal** isn't available at the moment. For now we only accept payment by **DoorDash eGift card**.") with a button for each active method. |
+| `kind` | What an active method does: `"gift_card"` (a private how-to with the steps for the exact amount, **Submit gift card** and **Buy a gift card**; needs `provider = "gift_card"`, and must stay active then), `"staff"` (the bot posts in the ticket that the customer wants to pay this way and alerts the staff channel; staff send the payment details in the ticket and press **Mark paid**), `"link"` (a link button to `url`, your hosted payment page; staff press **Mark paid** once paid). |
 | `url` | `kind = "link"` only: the `https://` page where customers pay. |
+| `icon` | The bot's icon shown before the method's name, on its button and in the lists: the name of a picture in `config/emojis` without `.png`. Brand marks, each in the brand's colour: `brand_apple`, `brand_google`, `brand_paypal`, `brand_cashapp`, `brand_doordash` (the shipped gift card method), `brand_stripe`, `brand_visa`, `brand_mastercard`; also `card` and `gift`. Left out: the usual icon for the id (`card`, `apple_pay`, `google_pay`, `paypal`, `cash_app`, `stripe`, `visa`, `mastercard`, `gift_card`), else `wallet`; `""` = no icon. An icon that is not a picture in the folder shows nothing (the button keeps its name, like any missing icon); the `/setup` report names it. |
 
-While an order waits for payment, its card lists every method with its state (`checkout.payment.methods.*`: a blue
-dot for available, a grey dot for temporarily down, and an optional note under them, shown only while a method is
-down) and shows a button per method: what works right now first (Submit gift card and Buy a gift card, then the
-other active methods), the methods that are down on the next row, Cancel order last. To bring a method back, set its `status = "active"` (with `kind`, and `url` for a
-payment page) and `/reload`. The bot never asks for card numbers in Discord: a real card processor (hosted checkout
-page with a verified webhook) is added as a payment provider (`shopbot/features/checkout/payments/__init__.py`).
+**Before the customer presses a method, no text says which methods work.** The shop panel, #how-to-order and #faq list
+every method with its icon wherever their text says `{payment_methods}` (one per line, in this order), next to "You
+choose when you pay, and we'll show you what's available then." While an order waits for payment and nothing was paid
+yet, its card says **Choose how to pay** (`checkout.payment.methods.heading` and `.lead`) over a button per
+method (its icon and name, in this order; secondary, up to three per row) and **Cancel order** alone last. Once a gift
+card counts toward the order, the card shows the gift card steps for the rest and the cards received, with **Submit
+gift card** and **Buy a gift card**. The payment reminder sends the customer to the ticket (with the steps and cards
+once a card was submitted).
+
+**A method coming back needs only a settings change:** set its `status = "active"` (with `kind`, and `url` for a
+payment page) and `/reload`. The lists, the buttons and the pop-up follow; no text changes. The bot never asks for card
+numbers in Discord: a real card processor (hosted checkout page with a verified webhook) is added as a payment
+provider (`shopbot/features/checkout/payments/__init__.py`).
+
+**Adding Stripe later** (once the shop has a Stripe account): create a Stripe Payment Link or checkout page, then add
+
+```toml
+[[payments.methods]]
+id = "stripe"
+status = "active"
+kind = "link"
+url = "https://buy.stripe.com/..."   # your payment page
+icon = "brand_stripe"
+```
+
+and its name in `content.toml` (`checkout.payment.method.stripe.label = "Stripe"`, or `/content set`), then `/reload`
+and `/setup` (the shop panel and guides list it). Staff check the payment in Stripe and press **Mark paid**.
 
 ## `[credits]`
 

@@ -3,6 +3,8 @@ from __future__ import annotations
 import dataclasses
 import re
 
+import pytest
+
 from shopbot.config.readiness import FeatureStatus
 from shopbot.features.base import FeatureModule
 from shopbot.features.setup import MODULE
@@ -10,6 +12,7 @@ from shopbot.features.setup.report import SECTIONS, SetupReport, report_messages
 from shopbot.ui import limits
 from shopbot.ui.limits import validate_message, validate_modal
 from shopbot.ui.spec import MessageSpec, ModalSpec
+from shopbot.version import COMMIT_VARIABLES
 from tests.helpers import TestEnv
 from tests.setup.util import setup
 
@@ -64,6 +67,7 @@ def test_operator_text_has_no_unknown_placeholders(tenv: TestEnv) -> None:
         "{channel}",
         "{status}",
         "{error}",
+        "{version}",
     }
     # The /reset headings and buttons show the bot's icons (rendered by the views, ``Ui.with_icons``).
     icons = {"{icon_trash}", "{icon_shield}", "{icon_alert}", "{icon_cross}"}
@@ -80,6 +84,20 @@ async def test_report_lines_render_without_leftover_placeholders(tenv: TestEnv) 
             for embed in message.embeds:
                 for text in [embed.title or "", embed.description or ""] + [f.value for f in embed.fields]:
                     assert not _LEFTOVER.search(text), text
+
+
+@pytest.mark.parametrize("dry_run", [False, True])
+async def test_report_names_the_running_version(tenv: TestEnv, monkeypatch: pytest.MonkeyPatch, dry_run: bool) -> None:
+    for name in COMMIT_VARIABLES:
+        monkeypatch.delenv(name, raising=False)
+    unknown = await setup(tenv, dry_run=dry_run)
+    lines = (report_messages(tenv.app.ui, tenv.app.op, unknown)[0].embeds[0].description or "").split("\n")
+    assert lines[1] == tenv.app.op("server.setup.version_unknown")  # under the summary line
+    monkeypatch.setenv("RAILWAY_GIT_COMMIT_SHA", "0a1B2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b")
+    known = await setup(tenv, dry_run=dry_run)
+    assert known.version == "0a1b2c3"
+    lines = (report_messages(tenv.app.ui, tenv.app.op, known)[0].embeds[0].description or "").split("\n")
+    assert lines[1] == "Running version: `0a1b2c3` (the commit this deployment was built from)."
 
 
 def test_large_report_is_split_without_losing_any_line(tenv: TestEnv) -> None:

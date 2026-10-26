@@ -19,6 +19,9 @@ OPERATOR_TEXT: dict[str, str] = {
         "Would create: {created} · Would adopt: {adopted} · Would update: {updated} · Up to date: {unchanged} · "
         "Would skip: {skipped}"
     ),
+    "server.setup.version": "Running version: `{version}` (the commit this deployment was built from).",
+    "server.setup.version_unknown": "Running version: unknown (the host did not name the commit; see "
+    "docs/DEPLOYMENT.md).",
     "server.setup.section.roles": "Roles",
     "server.setup.section.categories": "Categories",
     "server.setup.section.channels": "Channels",

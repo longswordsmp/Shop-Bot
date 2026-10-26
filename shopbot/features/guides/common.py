@@ -2,7 +2,8 @@
 
 - ``Texts`` resolves the content keys of one panel build: at runtime a missing required key raises
   ``MissingContent`` and a ``{channel_<key>}`` link to a channel that does not exist raises ``ChannelNotCreated``
-  (nothing incomplete is ever posted); the preview shows ``[content.key]`` markers instead.
+  (nothing incomplete is ever posted); the preview shows ``[content.key]`` markers instead. Texts may also list the
+  shop's payment methods with ``{payment_methods}`` (``shared_values``).
 - ``Card`` / ``Block`` (``shopbot.ui.card``) turn the resolved text into one card, as embeds and messages that respect
   Discord's limits without ever cutting text.
 - ``guide_messages`` puts the guide's banner picture on its last message only, so it closes the guide at its bottom
@@ -32,6 +33,7 @@ from shopbot.config.settings import Settings
 from shopbot.core.panels import remove_message, upsert_message
 from shopbot.core.permissions import channel_send_permissions, missing_permissions
 from shopbot.db.repos import state
+from shopbot.features.checkout import payment_methods
 from shopbot.features.server_keys import channel_mentions, channel_placeholder, channel_placeholders, channel_url
 from shopbot.logging_setup import log_event
 from shopbot.ui import limits
@@ -79,6 +81,8 @@ class Texts:
     channel_names: Collection[str] = ()
     preview: bool = False
     samples: Callable[[str], str | None] | None = None
+    # Values every text may use, computed only when a text uses them (``shared_values``).
+    shared: Mapping[str, Callable[[], str]] = field(default_factory=dict)
     _cache: dict[str, tuple[str, ...]] = field(default_factory=dict, init=False, repr=False)
 
     def _declared(self, key: str) -> tuple[str, ...]:
@@ -107,6 +111,9 @@ class Texts:
                     raise ChannelNotCreated(name.removeprefix("channel_"), key)
         merged: dict[str, str | int] = dict.fromkeys(self.channel_names, PREVIEW_MENTION) if self.preview else {}
         merged.update(self.mentions)
+        for name, value in self.shared.items():
+            if name in declared and "{" + name + "}" in template:
+                merged[name] = value()
         merged.update(values)
         return self.content.render(key, **merged)
 
@@ -150,14 +157,30 @@ def live_mentions(app: App, guild: discord.Guild) -> dict[str, str]:
     return live
 
 
+def shared_values(app: App) -> dict[str, Callable[[], str]]:
+    """``{payment_methods}``: the shop's payment methods with their icons (only with ``payments.methods``)."""
+    if not app.settings.payments.methods:
+        return {}
+    return {payment_methods.PLACEHOLDER: lambda: payment_methods.methods_list(app.ui, app.settings)}
+
+
 def runtime_texts(app: App, guild: discord.Guild) -> Texts:
-    return Texts(app.content, live_mentions(app, guild), channel_names=set(channel_placeholders(app.settings)))
+    return Texts(
+        app.content,
+        live_mentions(app, guild),
+        channel_names=set(channel_placeholders(app.settings)),
+        shared=shared_values(app),
+    )
 
 
 def preview_texts(app: App) -> Texts:
     """Texts for the preview of the real configuration (markers for missing text, ``#channel`` for links)."""
     return Texts(
-        app.content, channel_mentions(app), channel_names=set(channel_placeholders(app.settings)), preview=True
+        app.content,
+        channel_mentions(app),
+        channel_names=set(channel_placeholders(app.settings)),
+        preview=True,
+        shared=shared_values(app),
     )
 
 

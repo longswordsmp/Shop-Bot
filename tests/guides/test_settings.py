@@ -139,8 +139,9 @@ def test_shipped_settings_configure_the_three_guides() -> None:
     assert settings.how_to_buy.channel == "how_to_buy" and settings.how_to_buy.steps == 6
     assert settings.how_to_buy.link_channels == ("catalog", "purchase", "faq")
     assert [s.id for s in settings.faq.sections] == ["ordering", "payment", "shipping", "tracking", "problems"]
-    # ordering: + the two bulk-order answers; payment: + discount codes
-    assert [s.questions for s in settings.faq.sections] == [5, 6, 6, 2, 2]
+    # ordering: + the two bulk-order answers; payment: + discount codes, without "why only gift cards" (the FAQ
+    # never says which payment methods work right now)
+    assert [s.questions for s in settings.faq.sections] == [5, 5, 6, 2, 2]
     # The owner ships to every country in the Americas and to Europe; in the US not to Alaska or North Dakota.
     # Cuba, Russia and Belarus are listed as not available (sanctions; most carriers refuse parcels).
     s = settings.shipping

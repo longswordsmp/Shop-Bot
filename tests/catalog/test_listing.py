@@ -50,9 +50,9 @@ async def test_publish_posts_header_products_and_browse_button(tenv: TestEnv) ->
     head, message = channel.messages
     (header,) = head.embeds
     assert header.title == tenv.text(keys.LISTING_TITLE)
-    # No category yet: no menu (it would only offer All, the cards below) and no line about it.
-    assert header.description == tenv.text(keys.LISTING_DESCRIPTION)
-    assert menu(head) == []
+    # No category yet: the menu offers All only; the optional menu line ends the card.
+    assert header.description == f"{tenv.text(keys.LISTING_DESCRIPTION)}\n\n{tenv.text(keys.PICKER_DESCRIPTION)}"
+    assert menu(head) == [("0", tenv.text(keys.PICKER_ALL))]
     assert buttons(head) == [("sb:ct:browse:0", tenv.text(keys.BUTTON_BROWSE), False)]
     cards = message.embeds
     assert [c.title for c in cards] == [_escaped(p.name) for p in (limited, unlimited, sold_out)]
@@ -110,8 +110,8 @@ async def test_listing_splits_at_ten_embeds_and_6000_characters(tmp_path: Path) 
             await add_product(tenv, f"[p{i}]")
         await service.request_listing_refresh(tenv.app)
         assert [len(m.embeds) for m in channel.messages] == [1, 10, 2]  # header, 10 (embed cap), then 2
-        # header: the browse button (no category, no menu); then 2 rows of 5 buy buttons, then 2
-        assert [len(m.view.children) if m.view else 0 for m in channel.messages] == [1, 10, 2]
+        # header: the menu and the browse button; then 2 rows of 5 buy buttons, then 2
+        assert [len(m.view.children) if m.view else 0 for m in channel.messages] == [2, 10, 2]
         for message in channel.messages:
             assert len(message.embeds) <= 10
 
@@ -169,14 +169,15 @@ async def test_stock_change_edits_in_place(tenv: TestEnv) -> None:
     assert message.embeds[0].color is not None and message.embeds[0].color.value == danger
 
 
-async def test_empty_catalog_shows_the_header_with_the_empty_text_and_no_button(tenv: TestEnv) -> None:
+async def test_empty_catalog_shows_the_header_with_the_empty_text_and_the_menu(tenv: TestEnv) -> None:
     channel = await listing_channel(tenv)
     await service.request_listing_refresh(tenv.app)
-    message = channel.messages[0]
+    (message,) = channel.messages
     assert [e.description for e in message.embeds] == [  # one card: the empty text is its last paragraph
-        f"{tenv.text(keys.LISTING_DESCRIPTION)}\n\n{tenv.text(keys.LISTING_EMPTY)}"
+        "\n\n".join(tenv.text(k) for k in (keys.LISTING_DESCRIPTION, keys.PICKER_DESCRIPTION, keys.LISTING_EMPTY))
     ]
-    assert buttons(message) == []
+    assert menu(message) == [("0", tenv.text(keys.PICKER_ALL))]  # All answers privately that nothing is listed
+    assert buttons(message) == [("sb:ct:browse:0", tenv.text(keys.BUTTON_BROWSE), False)]
 
 
 async def test_deleted_middle_message_is_reposted_in_order(tmp_path: Path) -> None:

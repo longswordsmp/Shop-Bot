@@ -553,21 +553,41 @@ class GiftCardSettings:
 PAYMENT_METHOD_STATUSES = ("active", "down")
 PAYMENT_METHOD_KINDS = ("gift_card", "staff", "link")
 MAX_PAYMENT_METHODS = 10  # with the gift card and Cancel order, at most 5 rows of buttons on the order card
+# The icon a payment method shows when its ``icon`` is not set: the brand's mark for the well-known ids, the gift card
+# for the gift card, else the wallet. An icon is a picture in the icons folder (``shopbot.ui.icons.NAME_RE``).
+PAYMENT_METHOD_ICONS = {
+    "card": "card",
+    "apple_pay": "brand_apple",
+    "google_pay": "brand_google",
+    "paypal": "brand_paypal",
+    "cash_app": "brand_cashapp",
+    "stripe": "brand_stripe",
+    "visa": "brand_visa",
+    "mastercard": "brand_mastercard",
+    "gift_card": "gift",
+}
+_ICON_NAME_PATTERN = re.compile(r"^[a-z0-9_]{2,32}$")
+
+
+def default_payment_icon(method_id: str, kind: str) -> str:
+    return PAYMENT_METHOD_ICONS.get(method_id) or ("gift" if kind == "gift_card" else "wallet")
 
 
 @dataclass(frozen=True)
 class PaymentMethod:
     """``[[payments.methods]]``: a way to pay shown in the order ticket. ``status`` "active" = customers can use it
-    now; "down" = shown, but pressing it explains it is temporarily unavailable and offers the active methods.
-    ``kind`` = what an active method does: "gift_card" (the gift card form of the gift_card provider), "staff" (our
-    team sends the payment details in the ticket and confirms with Mark paid) or "link" (a button to ``url``, a hosted
-    payment page; staff confirm with Mark paid). Labels: content keys checkout.payment.method.<id>.label /
-    .description."""
+    now; "down" = shown, but pressing it explains privately that it cannot be used yet and offers the active methods.
+    ``kind`` = what an active method does: "gift_card" (the gift card how-to and form of the gift_card provider),
+    "staff" (our team sends the payment details in the ticket and confirms with Mark paid) or "link" (a button to
+    ``url``, a hosted payment page; staff confirm with Mark paid). ``icon``: the bot's icon shown before its name
+    (a picture in the icons folder, e.g. "brand_paypal"; empty = none). Names: content keys
+    checkout.payment.method.<id>.label / .description."""
 
     id: str
     status: str = "down"
     kind: str = "staff"
     url: str = ""
+    icon: str = ""
 
     @property
     def active(self) -> bool:
@@ -1221,11 +1241,20 @@ def parse_settings(data: dict[str, Any]) -> Settings:
     gc.finish()
     methods: list[PaymentMethod] = []
     for x in pa.tables("methods"):
+        method_id = x.str_("id", "", pattern=KEY_PATTERN, allow_empty=False)
+        kind = x.str_("kind", "staff", choices=PAYMENT_METHOD_KINDS)
+        # The name of a picture in the icons folder, without ".png"; the /setup report names one that is missing
+        # (``checkout.payment_methods.missing_icons``): the settings do not know the pictures.
+        icon = x.str_("icon", default_payment_icon(method_id, kind))
+        if icon and not _ICON_NAME_PATTERN.match(icon):
+            x.error("icon", 'must be the name of a picture in the icons folder without ".png", e.g. "brand_paypal"')
+            icon = ""
         method = PaymentMethod(
-            id=x.str_("id", "", pattern=KEY_PATTERN, allow_empty=False),
+            id=method_id,
             status=x.str_("status", "down", choices=PAYMENT_METHOD_STATUSES),
-            kind=x.str_("kind", "staff", choices=PAYMENT_METHOD_KINDS),
+            kind=kind,
             url=x.url_("url"),
+            icon=icon,
         )
         if not method.id:
             x.error("id", "is required")

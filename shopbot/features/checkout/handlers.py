@@ -519,7 +519,8 @@ async def on_payment_form(ctx: Ctx) -> None:
 
 async def on_payment_method(ctx: Ctx) -> None:
     """A payment-method button (order card or pop-up): a method that is down opens the private pop-up with the
-    methods that work right now; an active one does what its kind says (``payment_methods``)."""
+    methods we accept at the moment; an active one does what its kind says (``payment_methods``): the gift card
+    shows its how-to privately (the steps for the amount still to pay, Submit gift card, Buy a gift card)."""
     app = ctx.app
     order = await _customer_order(ctx)
     method = app.settings.payments.method(ctx.args[1]) if len(ctx.args) > 1 else None
@@ -528,13 +529,15 @@ async def on_payment_method(ctx: Ctx) -> None:
     if order.status != m.PENDING:
         raise HandlerError(payment_methods.ERROR_STATE)
     if not method.active:
-        spec = payment_methods.down_message(
-            app.ui, app.settings, order.id, method, payment_form_id=views.payment_form_id(order.id)
-        )
-        await ctx.respond(spec, ephemeral=True)
+        await ctx.respond(payment_methods.down_message(app.ui, app.settings, order.id, method), ephemeral=True)
         return
     if method.kind == "gift_card":
-        await ctx.send_modal(await gift_cards.form(app, order))
+        instructions = await service.payment_instructions(app, order)
+        if instructions is None or order.payment_provider != gift_card.PROVIDER_ID:
+            # Not an order paid with gift cards (e.g. placed before the provider changed): the form explains why.
+            await ctx.send_modal(await gift_cards.form(app, order))
+            return
+        await ctx.respond(views.payment_howto(app.ui, app.settings, order, instructions), ephemeral=True)
         return
     if method.kind == "staff":
         await ctx.defer_reply(ephemeral=True)

@@ -183,7 +183,7 @@ how you want to operate** (each is one line in `config/settings.toml`).
 | `catalog.products_per_listing_message` | 1 | One #catalog message per item |
 | `catalog.browse_enabled` | false | No extra private browsing button (the spec only asks for per-item Buy buttons) |
 | `catalog.low_stock_threshold` | 3 | 1-3 units left shows "low stock" |
-| `catalog.product_cards` / `products_per_category_page` | true / 5 | Public item cards stay under the category menu; 5 items per private category page |
+| `catalog.product_cards` / `products_per_category_page` | false / 5 | #catalog is one card: the header with the category menu; the items are seen privately, 5 per page |
 | `new_arrivals.announce_new_products` / `announce_restocks` / `mention_role` | true / true / true | Automatic updates ping Restock Alerts |
 | `tickets.panel_channel` | "" | No standalone ticket panel: support starts with Report a Problem in #purchase |
 | `tickets.channel_name_pattern` | `{prefix}-{number}-{user}` | Ticket names contain a unique number and the username |
@@ -302,21 +302,45 @@ and deletion timers, and of course the products themselves (`/product add`).
   label). Customer and operator messages are told apart by the branded footer; stress-test states with synthetic text
   only get the icon rules. Accepted exceptions are listed in the tool with a reason each.
 
-## 11d. Payment methods (cards temporarily down)
+## 11d. Payment methods (cards not available yet)
 
-- **What the owner asked for, said honestly.** The shop's regular payment options (credit and debit cards, Apple Pay,
-  Google Pay, PayPal, Cash App) are listed as *temporarily down*, with the owner's reason ("our card option is
-  currently down; regular payment options will resume as soon as they are up"), and DoorDash eGift cards as the one
-  method that works now. No text says a down method works today: the order card lists each method with its state,
-  pressing a down method opens a private "Dear customer, we're sorry …" pop-up with buttons for the working methods,
-  and #faq and #how-to-order say the same. Keep only the methods the shop really offers (`[[payments.methods]]`).
-- **Ready to switch back on.** A method returns with a settings change: `status = "active"` and `kind = "staff"` (the
-  customer's choice is posted once in the ticket and alerted in #staff-chat; staff send the details and press Mark
-  paid) or `kind = "link"` (a link button to the shop's own payment page). The bot never takes card details in
-  Discord: real card processing means a payment provider with a hosted page and a verified webhook (payments
-  package), whose page is then the active method.
+- **What the owner asked for.** Texts should not say "we only take gift cards at the moment" (that would need editing
+  again when cards come back). They present the shop's payment methods as the ways to pay, and the customer finds out
+  what works when they choose: pressing a method that is down opens a private pop-up, "We're sorry! **PayPal** isn't
+  available at the moment. For now we only accept payment by **DoorDash eGift card**.", with **Pay with gift card** and
+  **Buy a gift card**.
+- **The wording rule.** Before the customer presses a payment method, no text says "gift cards only", "temporarily
+  down", "unavailable" or similar: the shop panel, #how-to-order and #faq list every method of `[[payments.methods]]`
+  with its icon (`{payment_methods}`, one per line in the settings' order), the review step says "then choose how to
+  pay", the order card says **Choose how to pay** over a button per method, and the notifications before a
+  method was chosen say to open the ticket to pay. The disclosure is the pop-up. A test reads the shipped texts for
+  these words.
+- **Why the small "what's available" qualifier stays.** Next to the list, the texts say "You choose when you pay, and
+  we'll show you what's available then." Without it, a list of six methods under PAYMENT reads as a promise that all
+  six work today, which is not true; no text claims "any payment method" or "all methods". The qualifier stays true
+  whether one method works or all of them, so it needs no edit either.
+- **Data, not text.** The lists, the buttons and the pop-up's accepted methods come from the settings, so a method
+  coming back is one settings change (`status = "active"`, with `kind = "staff"`: the customer's choice is posted once
+  in the ticket and alerted in #staff-chat, staff send the details and press Mark paid; or `kind = "link"`: a link
+  button to the shop's own payment page). Keep only the methods the shop really offers or will offer.
+- **Brand icons.** Each method shows its brand's mark in the brand's own colour (`icon` in `[[payments.methods]]`:
+  `brand_apple`, `brand_google`, `brand_paypal`, `brand_cashapp`, `brand_doordash` for the DoorDash eGift card, and
+  `brand_stripe`, `brand_visa`, `brand_mastercard` ready for later), so a customer recognizes it at a glance; the card
+  method keeps the generic card icon (it covers Visa, Mastercard, American Express and Discover, not only Visa), and
+  with the red DoorDash mark the gift card no longer looks like it. Tabler draws no DoorDash mark and its Mastercard is
+  a card outline, so those two glyphs come from Simple Icons (CC0, `tools/icons/glyphs`). Brand icons are used for payment methods only. An
+  icon that is not a picture in `config/emojis` is named in the `/setup` report; like every missing icon (§11c) it
+  only shows nothing and never keeps checkout from being ready, so a typo cannot close the shop. No Stripe method is
+  shipped (no Stripe account exists); `docs/CONFIGURATION.md` shows how to add one.
+- **The gift card belongs to its method.** Its steps (the exact amount, Submit gift card, Buy a gift card) are shown
+  privately when the customer presses it, not on the order card before a method was chosen. Once a card counts
+  toward the order, the card shows the steps for the rest and the cards received, and the reminder carries them too.
+  Order cards and pop-ups posted before this change keep working (Submit gift card and the method buttons use the
+  same routes).
 - **A part payment asks for the rest.** Once a gift card counts toward an order, the instructions show what is still
   to pay instead of the whole total.
+- The bot never takes card details in Discord: real card processing means a payment provider with a hosted page and a
+  verified webhook (payments package), whose page is then the active method.
 
 ## 11e. Discount codes, buy one get one free and coupons
 
@@ -498,12 +522,18 @@ and deletion timers, and of course the products themselves (`/product add`).
   combination exists cannot be told from its parts. Discord refuses the whole header edit for an emoji it does not
   know, so a refused header is sent once more without the menu's unicode emoji (the listing keeps updating; the
   refresh report tells staff to change the emoji).
-- **The menu appears with the first category.** Before it, its only choice would be "All", the same items as the
-  public cards; with `catalog.product_cards = false` it always shows. Picks are private and safe to repeat, so the
-  router's anti-double-click guard counts each picked category as a click of its own (`per_value`).
-- **The public cards stay** (`catalog.product_cards = true`); `false` leaves only the header with its menu. Discord
-  opens a channel at its newest message, so with many cards members land at the bottom while the menu is on the
-  first message: the owner chooses between pinning the header and `product_cards = false` (`docs/NEXT_STEPS.md`).
+- **The menu is always there**, also before the first category (then it offers All items only) and while nothing is
+  listed (All items then answers privately with the shop's "no items right now" text). It used to appear only with
+  the first category while the public cards were on, so after `/setup` #catalog looked unchanged to the owner, who
+  had asked for the menu; a menu that is always in the same place is also easier to explain. Picks are private and
+  safe to repeat, so the router's anti-double-click guard counts each picked category as a click of its own
+  (`per_value`).
+- **No public item cards by default** (`catalog.product_cards = false`): #catalog is one card, the header with its
+  menu, and the items are seen privately after a pick, as the owner asked ("keep everything in one embed ... except
+  for the catalog because that one shows a private embed"). It also avoids Discord opening #catalog at its newest
+  message, far below the menu. `/setup` (and every listing refresh) deletes the card messages it posted earlier and
+  forgets them; the header keeps its place at the top. `true` brings one public card per item back under the header
+  (the menu stays). New-arrival and restock posts in #new-arrivals do not depend on this setting.
 
 ## 11k. Apartment details on the address step
 

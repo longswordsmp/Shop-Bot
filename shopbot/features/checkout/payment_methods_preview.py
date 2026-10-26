@@ -1,7 +1,7 @@
 """Preview states of the payment methods (only with ``payments.methods``): the pop-up of a method that is down, the
-ticket post and replies of a method our team handles, the reply for a payment page, the errors, and the order card
-once methods are back (an example configuration). Built by the runtime view functions from synthetic sample data.
-Called by ``preview.preview``."""
+private gift card how-to, the ticket post and replies of a method our team handles, the reply for a payment page, the
+errors, and the order card once methods are back (an example configuration). Built by the runtime view functions from
+synthetic sample data. Called by ``preview.preview``."""
 
 from __future__ import annotations
 
@@ -44,14 +44,20 @@ def add_states(app: App, add: Add, pending: m.OrderView, instructions: PaymentIn
     if not methods:
         return
     order = pending.order
-    form_id = views.payment_form_id(order.id)
     down = next((method for method in methods if not method.active), None)
     if down is not None:
         add(
             "payment_method_down",
-            f"Private pop-up when a customer presses a payment method that is down ('{down.id}'): the methods that "
-            "work right now, each with its button.",
-            lambda: pm.down_message(ui, settings, order.id, down, payment_form_id=form_id),
+            f"Private pop-up when a customer presses a payment method that is down ('{down.id}'): the methods we "
+            "accept at the moment, each with its button. The only place a customer learns a method cannot be used.",
+            lambda: pm.down_message(ui, settings, order.id, down),
+        )
+    if instructions is not None and pm.gift_card_method(settings) is not None:
+        add(
+            "payment_gift_card_howto",
+            "Private how-to when the customer presses the gift card method (or Pay with gift card in the pop-up): "
+            "the steps for the exact amount, Submit gift card and Buy a gift card.",
+            lambda: views.payment_howto(ui, settings, order, instructions),
         )
     staff = next((method for method in methods if method.kind == "staff"), None)
     if staff is not None:

@@ -51,6 +51,7 @@ from shopbot.features.server_keys import category_name_key, channel_name_key, ch
 from shopbot.features.setup import overwrites as ow
 from shopbot.features.setup.report import SetupReport
 from shopbot.logging_setup import log_event
+from shopbot.version import short_commit
 
 if TYPE_CHECKING:
     from shopbot.context import App
@@ -719,7 +720,7 @@ async def run_setup(
     app: App, guild: discord.Guild, *, actor_id: int, dry_run: bool = False, publish: bool = True
 ) -> SetupReport:
     """Reconcile the server, publish panels (unless dry run / disabled), audit, and return the report."""
-    report = SetupReport(dry_run=dry_run, publish=publish)
+    report = SetupReport(dry_run=dry_run, publish=publish, version=short_commit())
     await app.resources.refresh()
     reason = app.op("server.setup.audit_reason", user_id=actor_id)
     await Reconciler(app, guild, report, dry_run=dry_run, reason=reason).run()

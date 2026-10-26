@@ -59,7 +59,8 @@ the cancelled texts) without controls. A submitted open order is refused; staff 
 `docs/features/orders_privacy.md`).
 
 After submission the panel shows the key facts line (ticket, order number, current stage), the items, the summary,
-the payment sections (while unpaid: the payment methods, how to pay, what was paid so far), the shipment while the
+the payment sections (while unpaid: "choose how to pay" over a button per payment method, or how to pay
+and what was paid so far once the customer pays with the provider, e.g. a gift card was sent), the shipment while the
 order is shipped (fields `checkout.notify.shipped.carrier_field` and `.number_field`, and the
 `checkout.notify.shipped.track_button` link, the same texts as the shipped notification) and the **progress**
 section (`checkout.progress.heading`): the first stage `checkout.progress.start`, then one line per stage reached

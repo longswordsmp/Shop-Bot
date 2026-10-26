@@ -397,12 +397,12 @@ verification.welcome_mention.description = "👋 Welcome to AmazonYaarts! Read t
 
 # --- How to buy guide ---
 
-# Optional closing line at the bottom of the step-by-step guide posted in the how_to_buy channel, below the steps (e.g. where to find answers). You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
-# description · max 4096 characters · optional · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+# Optional closing line at the bottom of the step-by-step guide posted in the how_to_buy channel, below the steps (e.g. where to find answers). You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. {payment_methods} lists the shop's payment methods, one per line starting with its icon, in the order of [[payments.methods]] (put it on lines of its own).
+# description · max 4096 characters · optional · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}, {payment_methods}
 how_to_buy.closing = "{icon_help} Questions? See {channel_faq}."
 
-# Introduction at the top of the step-by-step guide posted in the how_to_buy channel, above the steps. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
-# description · max 4096 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+# Introduction at the top of the step-by-step guide posted in the how_to_buy channel, above the steps. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. {payment_methods} lists the shop's payment methods, one per line starting with its icon, in the order of [[payments.methods]] (put it on lines of its own).
+# description · max 4096 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}, {payment_methods}
 how_to_buy.introduction = "Ordering takes a few minutes in your own private ticket that only you and our team can see."
 
 # Title of the step-by-step guide posted in the how_to_buy channel.
@@ -441,16 +441,16 @@ how_to_buy.link.purchase.label = "Place an order"
 # field_name · max 256 characters · required
 how_to_buy.step.1.name = "{icon_step_1} Choose your items"
 
-# Explanation of step 1 of 6 in the step-by-step guide posted in the how_to_buy channel. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
-# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-how_to_buy.step.1.value = "Browse {channel_catalog} and press **Buy** on an item, or press **Start order** in {channel_purchase}. Your private order ticket opens."
+# Explanation of step 1 of 6 in the step-by-step guide posted in the how_to_buy channel. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. {payment_methods} lists the shop's payment methods, one per line starting with its icon, in the order of [[payments.methods]] (put it on lines of its own).
+# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}, {payment_methods}
+how_to_buy.step.1.value = "Pick **All items** or a category in {channel_catalog} and press **Buy** on an item, or press **Start order** in {channel_purchase}. Your private order ticket opens."
 
 # Heading of step 2 of 6 in the step-by-step guide posted in the how_to_buy channel, shown in bold. Start it with a step-number icon if you want one shown, e.g. {icon_step_2} (channel links do not work in headings).
 # field_name · max 256 characters · required
 how_to_buy.step.2.name = "{icon_step_2} Add your shipping address"
 
-# Explanation of step 2 of 6 in the step-by-step guide posted in the how_to_buy channel. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
-# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+# Explanation of step 2 of 6 in the step-by-step guide posted in the how_to_buy channel. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. {payment_methods} lists the shop's payment methods, one per line starting with its icon, in the order of [[payments.methods]] (put it on lines of its own).
+# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}, {payment_methods}
 how_to_buy.step.2.value = '''
 Pick your country and fill in the address form.
 {icon_lock} Only our team can see it.'''
@@ -459,34 +459,35 @@ Pick your country and fill in the address form.
 # field_name · max 256 characters · required
 how_to_buy.step.3.name = "{icon_step_3} Choose delivery and extras"
 
-# Explanation of step 3 of 6 in the step-by-step guide posted in the how_to_buy channel. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
-# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+# Explanation of step 3 of 6 in the step-by-step guide posted in the how_to_buy channel. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. {payment_methods} lists the shop's payment methods, one per line starting with its icon, in the order of [[payments.methods]] (put it on lines of its own).
+# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}, {payment_methods}
 how_to_buy.step.3.value = "Standard shipping (about 2 weeks) or Expedited shipping (usually 3–4 days), plus Shipping protection and Discreet packaging if you want them. Prices are listed in {channel_shipping}."
 
 # Heading of step 4 of 6 in the step-by-step guide posted in the how_to_buy channel, shown in bold. Start it with a step-number icon if you want one shown, e.g. {icon_step_4} (channel links do not work in headings).
 # field_name · max 256 characters · required
 how_to_buy.step.4.name = "{icon_step_4} Review and place your order"
 
-# Explanation of step 4 of 6 in the step-by-step guide posted in the how_to_buy channel. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
-# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+# Explanation of step 4 of 6 in the step-by-step guide posted in the how_to_buy channel. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. {payment_methods} lists the shop's payment methods, one per line starting with its icon, in the order of [[payments.methods]] (put it on lines of its own).
+# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}, {payment_methods}
 how_to_buy.step.4.value = "Check every line and the total, then press **Confirm order**. Have a coupon? Apply it here first with **Use coupon** or **Add discount code**."
 
 # Heading of step 5 of 6 in the step-by-step guide posted in the how_to_buy channel, shown in bold. Start it with a step-number icon if you want one shown, e.g. {icon_step_5} (channel links do not work in headings).
 # field_name · max 256 characters · required
 how_to_buy.step.5.name = "{icon_step_5} Pay in your ticket"
 
-# Explanation of step 5 of 6 in the step-by-step guide posted in the how_to_buy channel. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
-# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+# Explanation of step 5 of 6 in the step-by-step guide posted in the how_to_buy channel. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. {payment_methods} lists the shop's payment methods, one per line starting with its icon, in the order of [[payments.methods]] (put it on lines of its own).
+# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}, {payment_methods}
 how_to_buy.step.5.value = '''
-Choose a payment method in your order ticket. Card payments are temporarily down, so for now pay with a DoorDash eGift card for the exact total: press **Submit gift card**.
-{icon_lock} Only our payment team sees the code.'''
+{payment_methods}
+You choose when you pay, and we'll show you what's available then.
+{icon_lock} Never post payment details in a channel.'''
 
 # Heading of step 6 of 6 in the step-by-step guide posted in the how_to_buy channel, shown in bold. Start it with a step-number icon if you want one shown, e.g. {icon_step_6} (channel links do not work in headings).
 # field_name · max 256 characters · required
 how_to_buy.step.6.name = "{icon_step_6} Track your package"
 
-# Explanation of step 6 of 6 in the step-by-step guide posted in the how_to_buy channel. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
-# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+# Explanation of step 6 of 6 in the step-by-step guide posted in the how_to_buy channel. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. {payment_methods} lists the shop's payment methods, one per line starting with its icon, in the order of [[payments.methods]] (put it on lines of its own).
+# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}, {payment_methods}
 how_to_buy.step.6.value = "Your tracking number is posted in your ticket as soon as your order ships. **/myorders** shows all your orders."
 
 # ==================================================================================================
@@ -495,8 +496,8 @@ how_to_buy.step.6.value = "Your tracking number is posted in your ticket as soon
 
 # --- FAQ header ---
 
-# Optional introduction at the top of the FAQ posted in the faq channel, above the first section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
-# description · max 4096 characters · optional · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+# Optional introduction at the top of the FAQ posted in the faq channel, above the first section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. {payment_methods} lists the shop's payment methods, one per line starting with its icon, in the order of [[payments.methods]] (put it on lines of its own).
+# description · max 4096 characters · optional · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}, {payment_methods}
 faq.introduction = "{icon_chat} Can't find your answer? Ask in your order ticket, or press **Report a problem** in {channel_purchase}."
 
 # Optional title at the top of the FAQ posted in the faq channel.
@@ -505,40 +506,40 @@ faq.title = "Frequently asked questions"
 
 # --- FAQ section 'ordering' ---
 
-# Answer to question 1 of 5 in the 'ordering' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
-# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-faq.section.ordering.q.1.answer = "Press **Buy** on an item in {channel_catalog} or **Start order** in {channel_purchase}. A private ticket guides you step by step. Full guide: {channel_how_to_buy}."
+# Answer to question 1 of 5 in the 'ordering' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. {payment_methods} lists the shop's payment methods, one per line starting with its icon, in the order of [[payments.methods]] (put it on lines of its own).
+# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}, {payment_methods}
+faq.section.ordering.q.1.answer = "Pick **All items** or a category in {channel_catalog} and press **Buy** on an item, or press **Start order** in {channel_purchase}. A private ticket guides you step by step. Full guide: {channel_how_to_buy}."
 
 # Question 1 of 5 in the 'ordering' section (channel links do not work in questions).
 # field_name · max 256 characters · required
 faq.section.ordering.q.1.question = "How do I order?"
 
-# Answer to question 2 of 5 in the 'ordering' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
-# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+# Answer to question 2 of 5 in the 'ordering' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. {payment_methods} lists the shop's payment methods, one per line starting with its icon, in the order of [[payments.methods]] (put it on lines of its own).
+# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}, {payment_methods}
 faq.section.ordering.q.2.answer = "Yes, up to 20 different items per order."
 
 # Question 2 of 5 in the 'ordering' section (channel links do not work in questions).
 # field_name · max 256 characters · required
 faq.section.ordering.q.2.question = "Can I order several items at once?"
 
-# Answer to question 3 of 5 in the 'ordering' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
-# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+# Answer to question 3 of 5 in the 'ordering' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. {payment_methods} lists the shop's payment methods, one per line starting with its icon, in the order of [[payments.methods]] (put it on lines of its own).
+# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}, {payment_methods}
 faq.section.ordering.q.3.answer = "No, bulk orders cost nothing extra."
 
 # Question 3 of 5 in the 'ordering' section (channel links do not work in questions).
 # field_name · max 256 characters · required
 faq.section.ordering.q.3.question = "Do you charge extra for bulk orders?"
 
-# Answer to question 4 of 5 in the 'ordering' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
-# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+# Answer to question 4 of 5 in the 'ordering' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. {payment_methods} lists the shop's payment methods, one per line starting with its icon, in the order of [[payments.methods]] (put it on lines of its own).
+# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}, {payment_methods}
 faq.section.ordering.q.4.answer = "Yes, bulk orders get a percentage off. Before you confirm your order, ask our team in your ticket for a discount code."
 
 # Question 4 of 5 in the 'ordering' section (channel links do not work in questions).
 # field_name · max 256 characters · required
 faq.section.ordering.q.4.question = "Do you offer a discount on bulk orders?"
 
-# Answer to question 5 of 5 in the 'ordering' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
-# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+# Answer to question 5 of 5 in the 'ordering' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. {payment_methods} lists the shop's payment methods, one per line starting with its icon, in the order of [[payments.methods]] (put it on lines of its own).
+# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}, {payment_methods}
 faq.section.ordering.q.5.answer = "One at a time: start the next once your order is delivered or closed."
 
 # Question 5 of 5 in the 'ordering' section (channel links do not work in questions).
@@ -551,55 +552,49 @@ faq.section.ordering.title = "{icon_cart} ORDERING"
 
 # --- FAQ section 'payment' ---
 
-# Answer to question 1 of 6 in the 'payment' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
-# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-faq.section.payment.q.1.answer = "Cards (Visa, Mastercard, American Express, Discover), Apple Pay, Google Pay, PayPal and Cash App, but they are temporarily down: for now you pay with a DoorDash eGift card."
+# Answer to question 1 of 5 in the 'payment' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. {payment_methods} lists the shop's payment methods, one per line starting with its icon, in the order of [[payments.methods]] (put it on lines of its own).
+# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}, {payment_methods}
+faq.section.payment.q.1.answer = '''
+{payment_methods}
+You choose in your ticket when you pay, and we'll show you what's available then.'''
 
-# Question 1 of 6 in the 'payment' section (channel links do not work in questions).
+# Question 1 of 5 in the 'payment' section (channel links do not work in questions).
 # field_name · max 256 characters · required
 faq.section.payment.q.1.question = "Which payment methods do you take?"
 
-# Answer to question 2 of 6 in the 'payment' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
-# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-faq.section.payment.q.2.answer = "Our other options will be back as soon as possible. Until then, DoorDash eGift cards are the only way to pay."
+# Answer to question 2 of 5 in the 'payment' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. {payment_methods} lists the shop's payment methods, one per line starting with its icon, in the order of [[payments.methods]] (put it on lines of its own).
+# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}, {payment_methods}
+faq.section.payment.q.2.answer = "Choose **DoorDash eGift card** in your ticket and follow the steps: buy a DoorDash eGift card for the exact total in US dollars (several cards adding up to it are fine), then press **Submit gift card**."
 
-# Question 2 of 6 in the 'payment' section (channel links do not work in questions).
+# Question 2 of 5 in the 'payment' section (channel links do not work in questions).
 # field_name · max 256 characters · required
-faq.section.payment.q.2.question = "Why only gift cards right now?"
+faq.section.payment.q.2.question = "How do I pay with a gift card?"
 
-# Answer to question 3 of 6 in the 'payment' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
-# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-faq.section.payment.q.3.answer = "Buy a DoorDash eGift card for the exact order total in US dollars (several cards adding up to it are fine). After confirming your order, press **Submit gift card** in your ticket and enter the code in the private form."
-
-# Question 3 of 6 in the 'payment' section (channel links do not work in questions).
-# field_name · max 256 characters · required
-faq.section.payment.q.3.question = "How do I pay with a gift card?"
-
-# Answer to question 4 of 6 in the 'payment' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
-# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-faq.section.payment.q.4.answer = '''
-Codes go only into a private form, are stored encrypted, seen only by our payment team and deleted once redeemed.
+# Answer to question 3 of 5 in the 'payment' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. {payment_methods} lists the shop's payment methods, one per line starting with its icon, in the order of [[payments.methods]] (put it on lines of its own).
+# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}, {payment_methods}
+faq.section.payment.q.3.answer = '''
+Payment details only go into private forms. Gift card codes are stored encrypted, seen only by our payment team and deleted once redeemed.
 {icon_alert} Never post a code, card number or password in a channel or send one by DM: we will never ask you to.'''
 
-# Question 4 of 6 in the 'payment' section (channel links do not work in questions).
+# Question 3 of 5 in the 'payment' section (channel links do not work in questions).
 # field_name · max 256 characters · required
-faq.section.payment.q.4.question = "Is my payment safe?"
+faq.section.payment.q.3.question = "Is my payment safe?"
 
-# Answer to question 5 of 6 in the 'payment' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
-# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-faq.section.payment.q.5.answer = "Once our team has checked it. You get a message in your ticket and by DM."
+# Answer to question 4 of 5 in the 'payment' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. {payment_methods} lists the shop's payment methods, one per line starting with its icon, in the order of [[payments.methods]] (put it on lines of its own).
+# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}, {payment_methods}
+faq.section.payment.q.4.answer = "Once our team has checked it. You get a message in your ticket and by DM."
 
-# Question 5 of 6 in the 'payment' section (channel links do not work in questions).
+# Question 4 of 5 in the 'payment' section (channel links do not work in questions).
 # field_name · max 256 characters · required
-faq.section.payment.q.5.question = "When is my payment confirmed?"
+faq.section.payment.q.4.question = "When is my payment confirmed?"
 
-# Answer to question 6 of 6 in the 'payment' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
-# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-faq.section.payment.q.6.answer = "Sometimes: claim the coupon in {channel_announcements}, then press **Use coupon** when you review your order. One code per order."
+# Answer to question 5 of 5 in the 'payment' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. {payment_methods} lists the shop's payment methods, one per line starting with its icon, in the order of [[payments.methods]] (put it on lines of its own).
+# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}, {payment_methods}
+faq.section.payment.q.5.answer = "Sometimes: claim the coupon in {channel_announcements}, then press **Use coupon** when you review your order. One code per order."
 
-# Question 6 of 6 in the 'payment' section (channel links do not work in questions).
+# Question 5 of 5 in the 'payment' section (channel links do not work in questions).
 # field_name · max 256 characters · required
-faq.section.payment.q.6.question = "Do you have discount codes?"
+faq.section.payment.q.5.question = "Do you have discount codes?"
 
 # Heading of the 'payment' section of the FAQ posted in the faq channel, shown in bold (e.g. the topic: ordering, payment...). It may start with one of the bot's icons, e.g. {icon_cart}.
 # title · max 256 characters · required
@@ -607,16 +602,16 @@ faq.section.payment.title = "{icon_wallet} PAYMENT"
 
 # --- FAQ section 'problems' ---
 
-# Answer to question 1 of 2 in the 'problems' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
-# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+# Answer to question 1 of 2 in the 'problems' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. {payment_methods} lists the shop's payment methods, one per line starting with its icon, in the order of [[payments.methods]] (put it on lines of its own).
+# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}, {payment_methods}
 faq.section.problems.q.1.answer = "Yes, until your payment is confirmed: press **Cancel order** in your ticket. Already paid? Write to our team there."
 
 # Question 1 of 2 in the 'problems' section (channel links do not work in questions).
 # field_name · max 256 characters · required
 faq.section.problems.q.1.question = "Can I cancel my order?"
 
-# Answer to question 2 of 2 in the 'problems' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
-# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+# Answer to question 2 of 2 in the 'problems' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. {payment_methods} lists the shop's payment methods, one per line starting with its icon, in the order of [[payments.methods]] (put it on lines of its own).
+# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}, {payment_methods}
 faq.section.problems.q.2.answer = "Press **Report a problem** in {channel_purchase} and choose the order and what happened. A private ticket opens where you can add photos."
 
 # Question 2 of 2 in the 'problems' section (channel links do not work in questions).
@@ -629,48 +624,48 @@ faq.section.problems.title = "{icon_flag} CANCELLATIONS AND PROBLEMS"
 
 # --- FAQ section 'shipping' ---
 
-# Answer to question 1 of 6 in the 'shipping' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
-# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+# Answer to question 1 of 6 in the 'shipping' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. {payment_methods} lists the shop's payment methods, one per line starting with its icon, in the order of [[payments.methods]] (put it on lines of its own).
+# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}, {payment_methods}
 faq.section.shipping.q.1.answer = "To the Americas and Europe, and every US state except Alaska and North Dakota. Full list: {channel_shipping}."
 
 # Question 1 of 6 in the 'shipping' section (channel links do not work in questions).
 # field_name · max 256 characters · required
 faq.section.shipping.q.1.question = "Where do you ship?"
 
-# Answer to question 2 of 6 in the 'shipping' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
-# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+# Answer to question 2 of 6 in the 'shipping' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. {payment_methods} lists the shop's payment methods, one per line starting with its icon, in the order of [[payments.methods]] (put it on lines of its own).
+# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}, {payment_methods}
 faq.section.shipping.q.2.answer = "You choose Standard or Expedited shipping while ordering. Prices are in {channel_shipping} and shown before you confirm."
 
 # Question 2 of 6 in the 'shipping' section (channel links do not work in questions).
 # field_name · max 256 characters · required
 faq.section.shipping.q.2.question = "What does shipping cost?"
 
-# Answer to question 3 of 6 in the 'shipping' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
-# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+# Answer to question 3 of 6 in the 'shipping' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. {payment_methods} lists the shop's payment methods, one per line starting with its icon, in the order of [[payments.methods]] (put it on lines of its own).
+# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}, {payment_methods}
 faq.section.shipping.q.3.answer = "Expedited shipping usually takes 3–4 days, Standard shipping about 2 weeks. Orders ship once payment is confirmed; you get the tracking number when yours ships."
 
 # Question 3 of 6 in the 'shipping' section (channel links do not work in questions).
 # field_name · max 256 characters · required
 faq.section.shipping.q.3.question = "How long does delivery take?"
 
-# Answer to question 4 of 6 in the 'shipping' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
-# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+# Answer to question 4 of 6 in the 'shipping' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. {payment_methods} lists the shop's payment methods, one per line starting with its icon, in the order of [[payments.methods]] (put it on lines of its own).
+# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}, {payment_methods}
 faq.section.shipping.q.4.answer = "Only our team: you enter it in a private form, never in a channel."
 
 # Question 4 of 6 in the 'shipping' section (channel links do not work in questions).
 # field_name · max 256 characters · required
 faq.section.shipping.q.4.question = "Who can see my address?"
 
-# Answer to question 5 of 6 in the 'shipping' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
-# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+# Answer to question 5 of 6 in the 'shipping' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. {payment_methods} lists the shop's payment methods, one per line starting with its icon, in the order of [[payments.methods]] (put it on lines of its own).
+# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}, {payment_methods}
 faq.section.shipping.q.5.answer = "An optional extra: if your package is lost or arrives damaged, we replace it or refund you in store credit."
 
 # Question 5 of 6 in the 'shipping' section (channel links do not work in questions).
 # field_name · max 256 characters · required
 faq.section.shipping.q.5.question = "What is Shipping protection?"
 
-# Answer to question 6 of 6 in the 'shipping' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
-# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+# Answer to question 6 of 6 in the 'shipping' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. {payment_methods} lists the shop's payment methods, one per line starting with its icon, in the order of [[payments.methods]] (put it on lines of its own).
+# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}, {payment_methods}
 faq.section.shipping.q.6.answer = "An optional extra: your order ships in a plain outer box with no logos or product names."
 
 # Question 6 of 6 in the 'shipping' section (channel links do not work in questions).
@@ -683,16 +678,16 @@ faq.section.shipping.title = "{icon_truck} SHIPPING"
 
 # --- FAQ section 'tracking' ---
 
-# Answer to question 1 of 2 in the 'tracking' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
-# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+# Answer to question 1 of 2 in the 'tracking' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. {payment_methods} lists the shop's payment methods, one per line starting with its icon, in the order of [[payments.methods]] (put it on lines of its own).
+# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}, {payment_methods}
 faq.section.tracking.q.1.answer = "In your order ticket and by DM once your order ships. **/myorders** shows it too."
 
 # Question 1 of 2 in the 'tracking' section (channel links do not work in questions).
 # field_name · max 256 characters · required
 faq.section.tracking.q.1.question = "Where is my tracking number?"
 
-# Answer to question 2 of 2 in the 'tracking' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
-# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+# Answer to question 2 of 2 in the 'tracking' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. {payment_methods} lists the shop's payment methods, one per line starting with its icon, in the order of [[payments.methods]] (put it on lines of its own).
+# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}, {payment_methods}
 faq.section.tracking.q.2.answer = '''
 {icon_st_submitted} **Payment submitted**: we're verifying it.
 {icon_st_confirmed} **Payment confirmed**: we checked it.
@@ -1106,7 +1101,7 @@ catalog.button.buy_short = "Buy"
 # button_label · max 80 characters · required · placeholders: {name}
 catalog.category.button_buy = "Buy {name}"
 
-# Text of that card when the category has no item right now. {category} is the category's name.
+# Text of that card when the category has no item right now. {category} is the category's name. (All shows catalog.listing.empty instead, since then nothing is offered at all.)
 # description · max 4096 characters · required · placeholders: {category}
 catalog.category.empty = "{icon_info} There's nothing in this category right now. Pick another one in the menu, or check back soon."
 
@@ -1123,19 +1118,15 @@ catalog.category.title = "{category}"
 # Text of the header card at the top of the product listing channel.
 # description · max 4096 characters · required
 catalog.listing.description = '''
-Every item we sell, with its price and availability. Press **Buy** to add an item to your order.
-
-{icon_dot_blue} In stock
-{icon_dot_yellow} Only a few left
-{icon_dot_grey} Sold out
+Pick **All items** or a category below to see the items, with their prices and **Buy** buttons, in a message only you can see.
 
 {icon_info} Prices are in US dollars. Shipping is added when you order.'''
 
-# Shown below the listing header, and in private browsing, when no product is currently offered.
+# Shown at the end of the listing's header card, in private browsing, and when All is picked in the category menu, while no product is currently offered.
 # description · max 4096 characters · required
 catalog.listing.empty = "{icon_bell} No items are available right now. Turn on **Restock Alerts** in the new-arrivals channel to hear when new items arrive."
 
-# Title of the header card: the first message of the product listing channel (each product follows in its own message).
+# Title of the header card: the first message of the product listing channel, with the category menu (with catalog.product_cards = true the product cards follow it).
 # title · max 256 characters · required
 catalog.listing.title = "Catalog"
 
@@ -1149,9 +1140,9 @@ catalog.picker.all = "{icon_tag} All items"
 # option_description · max 100 characters · optional
 catalog.picker.all_description = "Everything in the shop"
 
-# Optional: last paragraph of the listing's header card while it shows the category menu (there is at least one product, and a category or catalog.product_cards = false), e.g. how the menu works. If empty, the header shows only its own text.
+# Optional: last paragraph of the listing's header card, just above the category menu (always shown), e.g. how the menu works. If empty, the header shows only its own text.
 # description · max 4096 characters · optional
-catalog.picker.description = "{icon_tag} Pick a category below to see its items in a private message."
+catalog.picker.description = ""
 
 # Placeholder of the category menu under the listing's header card. Picking a category shows its items in a private message only that member sees.
 # select_placeholder · max 150 characters · required
@@ -1445,7 +1436,7 @@ checkout.review.credits_field = "Store credit applied"
 checkout.review.description = '''
 Check everything below. You can still go back and change it.
 
-{icon_check} Press **Confirm order** to reserve your items, then pay the exact total with a DoorDash eGift card, right here in this ticket.'''
+{icon_check} Press **Confirm order** to reserve your items, then choose how to pay, right here in this ticket.'''
 
 # Shown in the review step when the total changed since the customer looked at it (prices, fees or their credit balance changed); nothing was submitted yet. {total} is the new total.
 # description · max 4096 characters · required · placeholders: {total}
@@ -1511,7 +1502,7 @@ checkout.expired.title = "Order expired"
 checkout.order_cancel_confirm.description = '''
 {icon_alert} Your order **#{order_number}** will be cancelled and this ticket will close. This cannot be undone.
 
-{icon_info} A gift card our team has not redeemed is not used and stays yours. If our team already redeemed one, its value becomes your store credit.
+{icon_info} Already sent a gift card? One our team has not redeemed is not used and stays yours; if our team already redeemed it, its value becomes your store credit.
 
 Press **Yes, cancel** to cancel the order, or **Keep order** to go back.'''
 
@@ -1560,8 +1551,8 @@ checkout.details.title = "Shipping address"
 # button_label · max 80 characters · required
 checkout.button.start = "{icon_cart} Start order"
 
-# Text of the shop panel.
-# description · max 4096 characters · required
+# Text of the shop panel. {payment_methods} lists the shop's payment methods, one per line starting with its icon, in the order of [[payments.methods]] (put it on lines of its own).
+# description · max 4096 characters · required · placeholders: {payment_methods}
 checkout.panel.description = '''
 Press **Start order** to open your private order ticket.
 {icon_lock} Only you and our team can see it.
@@ -1570,12 +1561,13 @@ Press **Start order** to open your private order ticket.
 {icon_step_1} Choose your items and quantities
 {icon_step_2} Add your shipping address and choose delivery
 {icon_step_3} Review the total and confirm your order
-{icon_step_4} Pay with a DoorDash eGift card for the exact total
+{icon_step_4} Choose how to pay and pay the exact total
 {icon_step_5} Get your tracking number in the ticket once it ships
 
 **{icon_wallet} PAYMENT**
-{icon_gift} DoorDash eGift card only.
-{icon_lock} Never post a code in a channel.
+{payment_methods}
+{icon_info} You choose when you pay, and we'll show you what's available then.
+{icon_lock} Never post payment details in a channel.
 
 **{icon_headset} SUPPORT**
 {icon_flag} Problem with an order? Press **Report a problem**.
@@ -2025,13 +2017,13 @@ checkout.notify.paid.title = "Payment confirmed for order #{order_number}"
 # Reminder sent once when an order is still unpaid checkout.payment_reminder_minutes after it was submitted (the payment instructions are attached below it). {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention. Needed when checkout.payment_reminder_minutes is above 0.
 # description · max 4096 characters · required · placeholders: {order_number}, {total}, {channel_mention}
 checkout.notify.payment_reminder.description = '''
-{icon_gift} We're still waiting for the gift card for order **#{order_number}** ({total}). Press **Submit gift card** in {channel_mention} when you're ready.
+{icon_wallet} We're still waiting for the payment for order **#{order_number}** (total {total}). Open {channel_mention} to pay when you're ready.
 
 {icon_cross} No longer want this order? Press **Cancel order** in the ticket.'''
 
 # Optional title of the payment reminder. {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention.
 # title · max 256 characters · optional · placeholders: {order_number}, {total}, {channel_mention}
-checkout.notify.payment_reminder.title = "Reminder: order #{order_number} waits for payment"
+checkout.notify.payment_reminder.title = "Reminder: order #{order_number} is waiting for payment"
 
 # Notification sent to the customer when their order becomes 'payment_submitted' (the customer submitted their payment; staff are verifying it). {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention.
 # description · max 4096 characters · required · placeholders: {order_number}, {total}, {channel_mention}
@@ -2050,8 +2042,8 @@ checkout.notify.payment_submitted.title = "Order #{order_number} placed"
 checkout.notify.pending_payment.description = '''
 {icon_check} Your order **#{order_number}** ({total}) is reserved and waits for your payment.
 
-{icon_gift} Pay with a DoorDash eGift card for exactly **{total}**: press **Submit gift card** in {channel_mention}.
-{icon_lock} Never post a gift card code in a chat.'''
+{icon_wallet} Open {channel_mention} and choose how to pay.
+{icon_lock} Never post payment details in a channel.'''
 
 # Optional title of the 'submission received' notification. {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention.
 # title · max 256 characters · optional · placeholders: {order_number}, {total}, {channel_mention}
@@ -2141,7 +2133,7 @@ checkout.notify.card_problem.title = "We couldn't accept your gift card"
 
 # Sent to the customer (by DM, else in the ticket) when their message was deleted because it looked like a gift card code (payments.gift_card.chat_guard). {channel_mention} is their order ticket.
 # description · max 4096 characters · required · placeholders: {channel_mention}
-checkout.payment.gift_card.chat_guard = "{icon_shield_lock} For your safety we removed your message in {channel_mention}: it looked like a gift card code. Please use **Submit gift card** in your ticket instead. Only our payment team can see what you enter there."
+checkout.payment.gift_card.chat_guard = "{icon_shield_lock} For your safety we removed your message in {channel_mention}: it looked like a gift card code. Please enter it with **Submit gift card** in your ticket instead (press **DoorDash eGift card** first if you don't see it). Only our payment team can see what you enter there."
 
 # The amount is not a valid amount; {example} shows one.
 # description · max 4096 characters · required · placeholders: {example}
@@ -2226,33 +2218,23 @@ checkout.notify.tracking.details_field = "{icon_map} Tracking details"
 # title · max 256 characters · optional · placeholders: {order_number}, {total}, {channel_mention}
 checkout.notify.tracking.title = "Tracking details for order #{order_number}"
 
-# --- Checkout: payment method pop-up (a method that is down) ---
+# --- Checkout: payment method pop-up (a method that cannot be used yet) ---
 
-# Heading of the pop-up's list of the methods that work right now (it may start with an icon).
-# title · max 256 characters · required
-checkout.payment.down.active_heading = "{icon_dot_blue} AVAILABLE NOW"
+# Text of that pop-up: which methods we accept at the moment. {available} is the names of the methods that are status = "active" (in bold, separated by commas), {method} the name of the method pressed. A button for each method in {available} follows.
+# description · max 4096 characters · required · placeholders: {method}, {available}
+checkout.payment.down.description = "{icon_info} **{method}** isn't available at the moment. For now we only accept payment by {available}."
 
-# How each method that works right now is listed in the pop-up. {method} is its name, {description} its description (empty when it has none).
-# field_value · max 1024 characters · required · placeholders: {method}, {description}
-checkout.payment.down.active_line = '''
-**{method}**
-{description}'''
-
-# Text of that pop-up: the method is temporarily down (and when it comes back, if known). {method} is the method's name. The methods that work right now and their buttons follow.
-# description · max 4096 characters · required · placeholders: {method}
-checkout.payment.down.description = "{icon_alert} Dear customer, we're sorry to inform you that **{method}** payments are temporarily down. They will be back as soon as possible; until then, you can pay with a method that is available now."
-
-# Button in the pop-up that opens the private gift card form (as Submit gift card does).
+# Button in the pop-up that shows how to pay with a gift card (as pressing the gift card method on the order card does), next to Buy a gift card.
 # button_label · max 80 characters · required
-checkout.payment.down.gift_card_button = "{icon_gift} Submit gift card"
+checkout.payment.down.gift_card_button = "{icon_gift} Pay with gift card"
 
-# Optional last line of the pop-up, e.g. 'Press a button below to use one of them.'
+# Optional last line of the pop-up, e.g. 'Press a button below to pay.'
 # description · max 4096 characters · optional
-checkout.payment.down.hint = "Press a button below to pay this way."
+checkout.payment.down.hint = "Press below to pay."
 
-# Title of the private pop-up shown when a customer presses a payment method that is temporarily down. {method} is the method's name.
+# Title of the private pop-up shown when a customer presses a payment method that is status = "down", e.g. 'We're sorry!'. {method} is the method's name.
 # title · max 256 characters · required · placeholders: {method}
-checkout.payment.down.title = "{method} is temporarily down"
+checkout.payment.down.title = "We're sorry!"
 
 # --- Checkout: gift card payment ---
 
@@ -2280,10 +2262,10 @@ checkout.payment.gift_card.card_status.waiting = "received"
 # field_name · max 256 characters · required
 checkout.payment.gift_card.cards_field = "{icon_gift} GIFT CARDS"
 
-# How to pay with gift cards, shown in the order ticket and in the payment reminder. {total} is the amount to pay.
+# How to pay with gift cards. With payments.methods: shown privately when the customer chooses the gift card, and on the order card and in the payment reminder once a card was submitted; without: on the order card and in the reminder. {total} is the amount still to pay.
 # description · max 4096 characters · required · placeholders: {order_number}, {total}
 checkout.payment.gift_card.instructions = '''
-{icon_step_1} Press **Buy a gift card** and choose a **DoorDash eGift Card** (not another brand).
+{icon_step_1} Press **Buy a gift card** and choose a **DoorDash eGift card** (not another brand).
 {icon_step_2} Set the amount to exactly **{total}** and buy it. It arrives by email or text.
 {icon_step_3} Press **Submit gift card** and enter the code (and the PIN, if it has one).
 {icon_lock} Only our payment team sees your code. Never post it in this chat or send it by DM.'''
@@ -2296,7 +2278,7 @@ checkout.payment.gift_card.remaining = "**Still to pay: {remaining}** (received 
 # button_label · max 80 characters · required
 checkout.payment.gift_card.submit_button = "{icon_gift} Submit gift card"
 
-# Optional title of the payment instructions shown in the order ticket while the order waits for payment.
+# Optional title of the gift card payment instructions (it may start with an icon), e.g. '{icon_list} HOW TO PAY'.
 # title · max 256 characters · optional · placeholders: {order_number}, {total}
 checkout.payment.gift_card.title = "{icon_list} HOW TO PAY"
 
@@ -2332,53 +2314,53 @@ checkout.payment.gift_card.form.title = "Gift card · order #{order_number}"
 
 # --- Checkout: payment methods ---
 
-# Optional one-line description of the payment method 'apple_pay' (e.g. the cards it takes), shown in the pop-up's list of methods that work right now.
+# Optional one-line description of the payment method 'apple_pay' (e.g. the cards it takes), shown under its name when it is a payment page (kind = "link") offered again privately.
 # field_value · max 1024 characters · optional
 checkout.payment.method.apple_pay.description = ""
 
-# Name of the payment method 'apple_pay' on its button in the order ticket (it may start with an icon) and in the payment-methods list.
+# Name of the payment method 'apple_pay': on its button in the order ticket and in the list of payment methods ({payment_methods}). Its icon is the method's icon in [[payments.methods]], shown before the name.
 # button_label · max 80 characters · required
-checkout.payment.method.apple_pay.label = "{icon_brand_apple} Apple Pay"
+checkout.payment.method.apple_pay.label = "Apple Pay"
 
-# Optional one-line description of the payment method 'card' (e.g. the cards it takes), shown in the pop-up's list of methods that work right now.
+# Optional one-line description of the payment method 'card' (e.g. the cards it takes), shown under its name when it is a payment page (kind = "link") offered again privately.
 # field_value · max 1024 characters · optional
 checkout.payment.method.card.description = "Visa, Mastercard, American Express and Discover."
 
-# Name of the payment method 'card' on its button in the order ticket (it may start with an icon) and in the payment-methods list.
+# Name of the payment method 'card': on its button in the order ticket and in the list of payment methods ({payment_methods}). Its icon is the method's icon in [[payments.methods]], shown before the name.
 # button_label · max 80 characters · required
-checkout.payment.method.card.label = "{icon_card} Credit or debit card"
+checkout.payment.method.card.label = "Credit or debit card"
 
-# Optional one-line description of the payment method 'cash_app' (e.g. the cards it takes), shown in the pop-up's list of methods that work right now.
+# Optional one-line description of the payment method 'cash_app' (e.g. the cards it takes), shown under its name when it is a payment page (kind = "link") offered again privately.
 # field_value · max 1024 characters · optional
 checkout.payment.method.cash_app.description = ""
 
-# Name of the payment method 'cash_app' on its button in the order ticket (it may start with an icon) and in the payment-methods list.
+# Name of the payment method 'cash_app': on its button in the order ticket and in the list of payment methods ({payment_methods}). Its icon is the method's icon in [[payments.methods]], shown before the name.
 # button_label · max 80 characters · required
-checkout.payment.method.cash_app.label = "{icon_brand_cashapp} Cash App"
+checkout.payment.method.cash_app.label = "Cash App"
 
-# Optional one-line description of the payment method 'gift_card' (e.g. the cards it takes), shown in the pop-up's list of methods that work right now.
+# Optional one-line description of the payment method 'gift_card' (e.g. the cards it takes), shown under its name when it is a payment page (kind = "link") offered again privately.
 # field_value · max 1024 characters · optional
 checkout.payment.method.gift_card.description = "Pay the exact total with one or more DoorDash eGift cards, in a private form."
 
-# Name of the payment method 'gift_card' on its button in the order ticket (it may start with an icon) and in the payment-methods list.
+# Name of the payment method 'gift_card': on its button in the order ticket and in the list of payment methods ({payment_methods}). Its icon is the method's icon in [[payments.methods]], shown before the name.
 # button_label · max 80 characters · required
-checkout.payment.method.gift_card.label = "{icon_gift} DoorDash eGift card"
+checkout.payment.method.gift_card.label = "DoorDash eGift card"
 
-# Optional one-line description of the payment method 'google_pay' (e.g. the cards it takes), shown in the pop-up's list of methods that work right now.
+# Optional one-line description of the payment method 'google_pay' (e.g. the cards it takes), shown under its name when it is a payment page (kind = "link") offered again privately.
 # field_value · max 1024 characters · optional
 checkout.payment.method.google_pay.description = ""
 
-# Name of the payment method 'google_pay' on its button in the order ticket (it may start with an icon) and in the payment-methods list.
+# Name of the payment method 'google_pay': on its button in the order ticket and in the list of payment methods ({payment_methods}). Its icon is the method's icon in [[payments.methods]], shown before the name.
 # button_label · max 80 characters · required
-checkout.payment.method.google_pay.label = "{icon_brand_google} Google Pay"
+checkout.payment.method.google_pay.label = "Google Pay"
 
-# Optional one-line description of the payment method 'paypal' (e.g. the cards it takes), shown in the pop-up's list of methods that work right now.
+# Optional one-line description of the payment method 'paypal' (e.g. the cards it takes), shown under its name when it is a payment page (kind = "link") offered again privately.
 # field_value · max 1024 characters · optional
 checkout.payment.method.paypal.description = ""
 
-# Name of the payment method 'paypal' on its button in the order ticket (it may start with an icon) and in the payment-methods list.
+# Name of the payment method 'paypal': on its button in the order ticket and in the list of payment methods ({payment_methods}). Its icon is the method's icon in [[payments.methods]], shown before the name.
 # button_label · max 80 characters · required
-checkout.payment.method.paypal.label = "{icon_brand_paypal} PayPal"
+checkout.payment.method.paypal.label = "PayPal"
 
 # Private reply when a payment-method button is pressed for an order that no longer waits for payment.
 # description · max 4096 characters · required
@@ -2388,21 +2370,19 @@ checkout.payment.methods.error_state = "This order isn't waiting for a payment a
 # description · max 4096 characters · required
 checkout.payment.methods.error_unavailable = "This payment method is no longer offered. Please choose one of the methods shown on your order."
 
-# Heading of the payment-methods section on the order card while the order waits for payment (it may start with an icon).
+# Heading of the payment section on the order card while the order waits for the customer to choose how to pay (it may start with an icon), e.g. '{icon_wallet} CHOOSE HOW TO PAY'.
 # title · max 256 characters · required
-checkout.payment.methods.heading = "{icon_wallet} PAYMENT METHODS"
+checkout.payment.methods.heading = "{icon_wallet} CHOOSE HOW TO PAY"
 
-# How a method that works right now is listed, e.g. '{icon_dot_blue} **{method}** · available now'.
-# field_value · max 1024 characters · required · placeholders: {method}
-checkout.payment.methods.line_active = "{icon_dot_blue} **{method}** · available now"
+# Text under that heading; a button per payment method follows, e.g. 'Pick a payment method below.' Never say here which methods work right now: pressing a method that cannot be used yet explains it.
+# description · max 4096 characters · required
+checkout.payment.methods.lead = "Pick a payment method below."
 
-# How the methods that are temporarily down are listed (one line for all of them), e.g. '{icon_dot_grey} {method} · temporarily down'. {method} is their names, separated by commas.
-# field_value · max 1024 characters · required · placeholders: {method}
-checkout.payment.methods.line_down = "{icon_dot_grey} {method} · temporarily down"
-
-# Optional text under the list of payment methods, e.g. why only some work right now.
-# description · max 4096 characters · optional
-checkout.payment.methods.note = "{icon_info} They will be back as soon as possible. Until then, please pay with a method marked available now."
+# Private reply to an older button of a method that is now a payment page (kind = "link"), above the link button. {method} is its name, {description} its description (empty when it has none).
+# field_value · max 1024 characters · required · placeholders: {method}, {description}
+checkout.payment.methods.link_line = '''
+**{method}**
+{description}'''
 
 # --- Checkout: payment by a method our team handles ---
 
@@ -2790,7 +2770,7 @@ checkout.status_label.shipped = "Shipped"
 # Optional text of the submitted order. The payment instructions follow below it. {order_number} is the order number, {total} the order total written with common.money_format.
 # description · max 4096 characters · optional · placeholders: {order_number}, {total}
 checkout.submitted.description = '''
-{icon_check} Your items are reserved for you. Choose how to pay below.
+{icon_check} Your items are reserved for you.
 {icon_cross} Changed your mind? Press **Cancel order** until you submit your payment.'''
 
 # Title of the workflow message after the order was submitted (waiting for payment). {order_number} is the order number, {total} the order total written with common.money_format.
@@ -2872,11 +2852,11 @@ Hi {user_mention}, this is your private order ticket.
 {icon_step_2} Add your shipping address
 {icon_step_3} Pick a delivery option and any extras
 {icon_step_4} Review the total and confirm your order
-{icon_step_5} Pay with a DoorDash eGift card for the exact total
+{icon_step_5} Choose how to pay and pay the exact total
 
 Every step happens in the panel below.
 
-{icon_lock} Never post your address or a gift card code in this chat. The bot asks for them in private forms.
+{icon_lock} Never post your address or payment details in this chat. The bot asks for what it needs in private forms.
 {icon_chat} Questions? Write them here and our team will answer.'''
 
 # Optional title of the first message in every order ticket. {ticket_number} is the ticket number.
@@ -3808,7 +3788,7 @@ operations.alert.new_order.description = '''
 {icon_ticket} **Order ticket:** {order_channel}
 
 **{icon_clock} WHAT HAPPENS NOW**
-The customer pays with gift cards in the ticket. You get a payment alert once they cover the total.'''
+The customer chooses how to pay in the ticket. You get an alert once their payment is submitted, or when they ask to pay with a method our team handles.'''
 
 # Optional title of the Staff alert when a customer submitted a new order (operations.ping_roles are mentioned). {order_number} is the order number, {customer_mention} mentions the customer (no ping), {total} is the order total, {status} the status name (checkout.status_label.*), {order_channel} links the customer's order channel.
 # title · max 256 characters · optional · placeholders: {order_number}, {customer_mention}, {total}, {status}, {order_channel}

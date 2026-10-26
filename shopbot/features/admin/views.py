@@ -43,6 +43,7 @@ from shopbot.ui.spec import (
     TextInputSpec,
 )
 from shopbot.ui.style import Ui, chunk_lines
+from shopbot.version import UNKNOWN
 
 ROUTE = "ad"
 ALL_SCOPE = "-"  # custom_id argument meaning "all features"
@@ -271,11 +272,22 @@ def change_line(op: OpFn, change: ReadinessChange) -> str:
 # --------------------------------------------------------------------------------------------------
 
 
+def version_line(op: OpFn, version: str) -> str:
+    """The running version (``shopbot.version.short_commit``) as /status shows it."""
+    if version == UNKNOWN:
+        return op("admin.status.version_unknown")
+    return op("admin.status.version", version=version)
+
+
 def status_overview(ui: Ui, op: OpFn, snap: StatusSnapshot) -> MessageSpec:
     enabled = [f for f in snap.features if f.enabled]
     ready = [f for f in enabled if f.ready]
     description = "\n".join(
-        [op("admin.status.summary", ready=len(ready), enabled=len(enabled)), op("admin.status.hint")]
+        [
+            op("admin.status.summary", ready=len(ready), enabled=len(enabled)),
+            version_line(op, snap.version),
+            op("admin.status.hint"),
+        ]
     )
     feature_fields = list_field(op, op("admin.status.features"), [feature_status_line(op, f) for f in snap.features])
     if not snap.guild_available:
