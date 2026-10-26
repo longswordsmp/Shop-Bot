@@ -132,8 +132,9 @@ Problems reported by `/status`: missing or public `operations.staff_channel`, un
 
 ## Content keys (overview)
 
-- `checkout.staff.*`: the record's field names (`reference_field`, `customer_field`, `channel_field`, `status_field`,
-  `claimed_field`, `tracking_field`, `timeline_field`, `notes_field`), line formats (`timeline_line`: `{time}`
+- `checkout.staff.*`: the record's field names (`customer_field`, `channel_field`, `claimed_field` with
+  `not_claimed`, `delivery_field`, `ship_to_field`, `amount_field`, `tracking_field`, `timeline_field`,
+  `notes_field`; the number, total and status are in `checkout.staff.title`), line formats (`timeline_line`: `{time}`
   `{stage}` `{actor}`; `note_line`: `{time}` `{actor}` `{note}`), stage names (`stage.claimed`, `stage.unclaimed`,
   `stage.correction`, `stage.tracking`) and buttons (`button.claim`, `button.unclaim`, `button.note`,
   `button.correction`, `button.details`, optional `button.tracking`).

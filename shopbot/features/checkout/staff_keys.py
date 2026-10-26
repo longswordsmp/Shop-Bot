@@ -1,6 +1,7 @@
 """Content keys of the staff side of orders (operations package): the live order record in the staff channel
-(#orders: reference, customer, status, claim, tracking, timeline, internal notes and the staff action buttons) and
-the customer notifications staff actions send (rejection reason, correction request, tracking details).
+(#orders: customer, ticket, claim, delivery, destination, amounts, tracking, timeline, internal notes and the staff
+action buttons) and the customer notifications staff actions send (rejection reason, correction request, tracking
+details).
 
 These are business messages (the owner words them), so they are content keys even though staff read most of them.
 Staff-only forms and private replies to staff use operator text (``checkout.text``).
@@ -18,11 +19,13 @@ from shopbot.config.settings import Settings
 FEATURE = "checkout"
 
 # -- the live order record (staff channel) ----------------------------------------------------------------------
-REFERENCE_FIELD = "checkout.staff.reference_field"
 CUSTOMER_FIELD = "checkout.staff.customer_field"
 CHANNEL_FIELD = "checkout.staff.channel_field"
-STATUS_FIELD = "checkout.staff.status_field"
 CLAIMED_FIELD = "checkout.staff.claimed_field"
+NOT_CLAIMED = "checkout.staff.not_claimed"
+DELIVERY_FIELD = "checkout.staff.delivery_field"
+SHIP_TO_FIELD = "checkout.staff.ship_to_field"
+AMOUNT_FIELD = "checkout.staff.amount_field"
 TRACKING_FIELD = "checkout.staff.tracking_field"
 TIMELINE_FIELD = "checkout.staff.timeline_field"
 TIMELINE_LINE = "checkout.staff.timeline_line"
@@ -75,13 +78,6 @@ def content_keys(settings: Settings) -> list[ContentKey]:
     del settings
     return [
         ck(
-            REFERENCE_FIELD,
-            Kind.FIELD_NAME,
-            FEATURE,
-            _G_STAFF,
-            "Name of the field on the staff order record showing the order's unique reference (its number).",
-        ),
-        ck(
             CUSTOMER_FIELD,
             Kind.FIELD_NAME,
             FEATURE,
@@ -97,20 +93,44 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             required=False,
         ),
         ck(
-            STATUS_FIELD,
-            Kind.FIELD_NAME,
-            FEATURE,
-            _G_STAFF,
-            "Name of the field on the staff order record showing the current status (its name from "
-            "checkout.status_label.*).",
-        ),
-        ck(
             CLAIMED_FIELD,
             Kind.FIELD_NAME,
             FEATURE,
             _G_STAFF,
             "Name of the field on the staff order record showing which staff member claimed the order and since "
-            "when (shown only while it is claimed).",
+            "when (while nobody has claimed an open order, it shows checkout.staff.not_claimed).",
+        ),
+        ck(
+            NOT_CLAIMED,
+            Kind.FIELD_VALUE,
+            FEATURE,
+            _G_STAFF,
+            "Shown under checkout.staff.claimed_field while nobody has claimed an open order.",
+        ),
+        ck(
+            DELIVERY_FIELD,
+            Kind.FIELD_NAME,
+            FEATURE,
+            _G_STAFF,
+            "Name of the field on the staff order record showing the delivery option and the extras the customer "
+            "chose (their labels; shown when the order has one).",
+        ),
+        ck(
+            SHIP_TO_FIELD,
+            Kind.FIELD_NAME,
+            FEATURE,
+            _G_STAFF,
+            "Name of the field on the staff order record showing where the order goes: the country (with "
+            "operations.answers_in_orders_channel: checkout.address.ship_to, never the street). The record's "
+            "details button shows the full address privately.",
+        ),
+        ck(
+            AMOUNT_FIELD,
+            Kind.FIELD_NAME,
+            FEATURE,
+            _G_STAFF,
+            "Name of the field on the staff order record with the amounts on one line: items, delivery, extras and "
+            "other fees, store credit, the total, and refunds.",
         ),
         ck(
             TRACKING_FIELD,

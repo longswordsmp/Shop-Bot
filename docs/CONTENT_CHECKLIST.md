@@ -754,6 +754,7 @@ Feature `checkout` — enabled.
 
 | | Key | Where it appears | Kind (max chars) | Required | Placeholders |
 |---|---|---|---|---|---|
+| ✅ | `checkout.staff.amount_field` | Name of the field on the staff order record with the amounts on one line: items, delivery, extras and other fees, store credit, the total, and refunds. | field_name (256) | required |  |
 | ✅ | `checkout.staff.button.cancel` | Staff button: cancel the order (unpaid: stock and credit are returned; paid: nothing is restocked, refunded or returned automatically - use the refund buttons and the return-credit button). | button_label (80) | required |  |
 | ✅ | `checkout.staff.button.claim` | Staff button: claim an open order (records who handles it; a second claim is refused). | button_label (80) | required |  |
 | ✅ | `checkout.staff.button.correction` | Staff button on an order waiting for payment: ask the customer to correct information (opens a form for the message; the customer is notified privately and the order keeps waiting). | button_label (80) | required |  |
@@ -770,14 +771,15 @@ Feature `checkout` — enabled.
 | ✅ | `checkout.staff.button.tracking` | Optional staff button on a paid, in-progress or completed order: add or change tracking details (included in the customer's completion notification, or sent to them when the order is already completed). Leave empty if your workflow does not use tracking details. | button_label (80) | optional |  |
 | ✅ | `checkout.staff.button.unclaim` | Staff button: release the claim (only the member holding it, or an admin). | button_label (80) | required |  |
 | ✅ | `checkout.staff.channel_field` | Optional name of the field on the staff order record that links the customer's order channel. | field_name (256) | optional |  |
-| ✅ | `checkout.staff.claimed_field` | Name of the field on the staff order record showing which staff member claimed the order and since when (shown only while it is claimed). | field_name (256) | required |  |
+| ✅ | `checkout.staff.claimed_field` | Name of the field on the staff order record showing which staff member claimed the order and since when (while nobody has claimed an open order, it shows checkout.staff.not_claimed). | field_name (256) | required |  |
 | ✅ | `checkout.staff.credit_returned_field` | Optional name of the field on the staff order controls showing the applied store credit that was given back to the customer (written with common.money_format). | field_name (256) | optional |  |
 | ✅ | `checkout.staff.customer_field` | Name of the field on the staff order record that mentions the customer (no ping). | field_name (256) | required |  |
+| ✅ | `checkout.staff.delivery_field` | Name of the field on the staff order record showing the delivery option and the extras the customer chose (their labels; shown when the order has one). | field_name (256) | required |  |
 | ✅ | `checkout.staff.description` | Text of the staff order controls. {user_mention} mentions the customer (no ping), {channel_mention} links the order channel, {order_number}/{total}/{status} as in the title. The order lines, totals and buttons follow. | description (4096) | required | `{order_number}`, `{user_mention}`, `{channel_mention}`, `{total}`, `{status}` |
 | ✅ | `checkout.staff.details_title` | Optional title of the message posted under the staff order controls with the customer's form answers (only when a form is defined and operations.answers_in_orders_channel = true; otherwise the answers are shown only privately in the record's details). {order_number} is the order number. | title (256) | optional | `{order_number}` |
-| ✅ | `checkout.staff.reference_field` | Name of the field on the staff order record showing the order's unique reference (its number). | field_name (256) | required |  |
+| ✅ | `checkout.staff.not_claimed` | Shown under checkout.staff.claimed_field while nobody has claimed an open order. | field_value (1024) | required |  |
 | ✅ | `checkout.staff.refunded_field` | Name of the field on the staff order controls showing how much was refunded so far. | field_name (256) | required |  |
-| ✅ | `checkout.staff.status_field` | Name of the field on the staff order record showing the current status (its name from checkout.status_label.*). | field_name (256) | required |  |
+| ✅ | `checkout.staff.ship_to_field` | Name of the field on the staff order record showing where the order goes: the country (with operations.answers_in_orders_channel: checkout.address.ship_to, never the street). The record's details button shows the full address privately. | field_name (256) | required |  |
 | ✅ | `checkout.staff.title` | Title of the order controls posted for staff in checkout.staff_channel for every submitted order (edited on every status change). {order_number} is the order number, {total} the total, {status} the status name (checkout.status_label.*). | title (256) | required | `{order_number}`, `{total}`, `{status}` |
 | ✅ | `checkout.staff.tracking_field` | Name of the field on the staff order record showing the tracking details staff entered. Needed when checkout.staff.button.tracking is configured. | field_name (256) | optional |  |
 
@@ -1197,7 +1199,7 @@ Feature `operations` — enabled.
 
 ## Summary
 
-- Required keys (for the listed features): 433
+- Required keys (for the listed features): 435
 - Required keys still missing: 0
 
 Legend: ✅ configured · ❌ required and missing · ▫️ optional and empty

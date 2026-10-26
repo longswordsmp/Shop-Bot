@@ -11,7 +11,7 @@ from discord import app_commands
 
 from shopbot.features.checkout import content_keys as k
 from shopbot.features.checkout import models as m
-from shopbot.features.checkout import views
+from shopbot.features.checkout import staff_keys, views
 from shopbot.ui.limits import validate_message
 from shopbot.ui.spec import MessageSpec
 from tests.checkout.util import (
@@ -231,6 +231,10 @@ async def test_many_fees_spread_over_several_cards(tmp_path: Path) -> None:
         names = [f.name for embed in message.embeds for f in embed.fields]
         assert all(tenv.text(k.fee_label_key(f"fee{i}")) in names for i in range(30))
         control = staff_message(tenv, placed)
-        assert len(control.embeds) > 1 and all(len(embed.fields) <= 25 for embed in control.embeds)
+        amounts = " · ".join(
+            f.value for e in control.embeds for f in e.fields if f.name == tenv.text(staff_keys.AMOUNT_FIELD)
+        )
+        assert all(f"{tenv.text(k.fee_label_key(f'fee{i}'))} " in amounts for i in range(30))
+        assert all(len(f.value) <= 1024 for e in control.embeds for f in e.fields)
     finally:
         await tenv.close()

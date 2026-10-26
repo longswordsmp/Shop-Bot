@@ -21,7 +21,7 @@ from shopbot.config.banner_ids import BannerId
 from shopbot.config.content import MissingContent
 from shopbot.config.settings import Settings
 from shopbot.features.checkout import content_keys as k
-from shopbot.features.checkout import gift_card_store, views
+from shopbot.features.checkout import flow, gift_card_store, views
 from shopbot.features.checkout import handling_repo as h
 from shopbot.features.checkout import models as m
 from shopbot.features.checkout import staff_keys as sk
@@ -248,7 +248,7 @@ def _blocks(name: str, lines: Sequence[str]) -> list[EmbedField]:
 
 
 def _summary_fields(ui: Ui, settings: Settings, view: m.OrderView) -> tuple[list[EmbedField], list[EmbedField]]:
-    """(order lines, totals) as stored in the order, in the order's currency."""
+    """(order lines, then delivery + destination + amounts) as stored in the order, in the order's currency."""
     order = view.order
     fmt = views.order_money(ui, settings, order.currency)
     lines = [
@@ -256,50 +256,89 @@ def _summary_fields(ui: Ui, settings: Settings, view: m.OrderView) -> tuple[list
     ]
     cart_name = _text(ui, k.CART_FIELD)
     line_fields = _blocks(cart_name, lines) if lines else [EmbedField(name=cart_name, value=_text(ui, k.CART_EMPTY))]
-    totals = [EmbedField(_text(ui, k.CART_SUBTOTAL_FIELD), fmt(order.subtotal_minor), inline=True)]
+    after: list[EmbedField] = []
     option = order.fulfillment_option
     option_label = _optional(ui, k.option_key(option, "label")) if option else None
-    chosen_name = _optional(ui, k.FULFILLMENT_CHOSEN_FIELD)
-    if option_label and chosen_name:
-        totals.append(EmbedField(chosen_name, option_label, inline=True))
-    fee_name = _optional(ui, k.FULFILLMENT_FEE_FIELD)
-    if order.fulfillment_fee_minor > 0 and fee_name:
-        totals.append(EmbedField(fee_name, fmt(order.fulfillment_fee_minor), inline=True))
-    for fee in view.fees:
-        name = _optional(ui, k.fee_label_key(fee.fee_id))
-        if name:
-            totals.append(EmbedField(name, fmt(fee.amount_minor), inline=True))
-    credits_name = _optional(ui, k.REVIEW_CREDITS_FIELD)
-    if order.credits_applied_minor > 0 and credits_name:
-        totals.append(EmbedField(credits_name, fmt(order.credits_applied_minor), inline=True))
-    totals.append(EmbedField(_text(ui, k.REVIEW_TOTAL_FIELD), fmt(order.total_minor), inline=True))
+    extras = [
+        label
+        for fee in view.fees
+        if flow.extra_id_of_fee(fee.fee_id) is not None and (label := _optional(ui, k.fee_label_key(fee.fee_id)))
+    ]
+    delivery = [label for label in (option_label, *extras) if label]
+    if delivery:
+        after.append(EmbedField(_text(ui, sk.DELIVERY_FIELD), " · ".join(delivery)))
+    destination = _destination(ui, settings, order)
+    if destination is not None:
+        after.append(EmbedField(_text(ui, sk.SHIP_TO_FIELD), destination))
+    amount_name = _text(ui, sk.AMOUNT_FIELD)
+    after += [EmbedField(amount_name, value) for value in _joined(_amounts(ui, view, fmt, option_label))]
+    return line_fields, after
+
+
+def _destination(ui: Ui, settings: Settings, order: m.Order) -> str | None:
+    """Where the order goes: only the country (picked from a menu) unless ``operations.answers_in_orders_channel``
+    lets the record show what the customer typed (then ``checkout.address.ship_to``: name and city, never the
+    street). The details button shows the full address privately either way."""
+    country = order.details.get(flow.ADDRESS_COUNTRY)
+    if not country:
+        return None
+    if settings.operations.answers_in_orders_channel:
+        return views.ship_to(ui, settings, order.details)
+    return views.escape(settings.shipping.country_name(country))
+
+
+def _joined(parts: Sequence[str], limit: int = EMBED_FIELD_VALUE) -> list[str]:
+    """``parts`` joined with " · ", continued in another value whenever one would pass ``limit`` characters."""
+    values: list[str] = []
+    for part in parts:
+        if values and len(values[-1]) + 3 + len(part) <= limit:
+            values[-1] = f"{values[-1]} · {part}"
+        else:
+            values.append(part)
+    return values
+
+
+def _amounts(ui: Ui, view: m.OrderView, fmt: views.Money, option_label: str | None) -> list[str]:
+    """Every amount of the order, in order ("Subtotal $12.97", "Standard shipping $5.00", "Total **$17.97**")."""
+    order = view.order
+    parts = [(_text(ui, k.CART_SUBTOTAL_FIELD), order.subtotal_minor)]
+    if order.fulfillment_fee_minor > 0:
+        parts.append((option_label or _optional(ui, k.FULFILLMENT_FEE_FIELD) or "", order.fulfillment_fee_minor))
+    parts += [(_optional(ui, k.fee_label_key(fee.fee_id)) or "", fee.amount_minor) for fee in view.fees]
+    if order.credits_applied_minor > 0:
+        parts.append((_optional(ui, k.REVIEW_CREDITS_FIELD) or "", order.credits_applied_minor))
+    text = [f"{label} {fmt(amount)}".strip() for label, amount in parts]
+    text.append(f"{_text(ui, k.REVIEW_TOTAL_FIELD)} **{fmt(order.total_minor)}**")
     if order.refunded_minor > 0:
-        totals.append(EmbedField(_text(ui, k.STAFF_REFUNDED_FIELD), fmt(order.refunded_minor), inline=True))
+        text.append(f"{_text(ui, k.STAFF_REFUNDED_FIELD)} {fmt(order.refunded_minor)}")
     returned_name = _optional(ui, k.STAFF_CREDIT_RETURNED_FIELD)
     if order.credit_returned_minor > 0 and returned_name:
-        totals.append(EmbedField(returned_name, fmt(order.credit_returned_minor), inline=True))
-    return line_fields, totals
+        text.append(f"{returned_name} {fmt(order.credit_returned_minor)}")
+    return text
 
 
-def _record_fields(ui: Ui, settings: Settings, view: m.OrderView, data: h.StaffData, status: str) -> list[EmbedField]:
-    """Reference, customer, order channel, status, claim, the submitted gift cards and tracking details."""
+def _record_fields(ui: Ui, view: m.OrderView, data: h.StaffData) -> list[EmbedField]:
+    """Customer, order channel and claim (the number and status are in the title)."""
     order = view.order
-    fields = [
-        EmbedField(_text(ui, sk.REFERENCE_FIELD), str(order.number), inline=True),
-        EmbedField(_text(ui, sk.CUSTOMER_FIELD), views.user_mention(order.user_id), inline=True),
-    ]
+    fields = [EmbedField(_text(ui, sk.CUSTOMER_FIELD), views.user_mention(order.user_id), inline=True)]
     channel_name = _optional(ui, sk.CHANNEL_FIELD)
     if channel_name and view.channel_id:
         fields.append(EmbedField(channel_name, views.channel_mention(view.channel_id), inline=True))
-    fields.append(EmbedField(_text(ui, sk.STATUS_FIELD), status, inline=True))
     handling = data.handling
     if handling.claimed_by is not None and handling.claimed_at is not None:
         claimed = f"{views.user_mention(handling.claimed_by)} {_relative(handling.claimed_at)}"
         fields.append(EmbedField(_text(ui, sk.CLAIMED_FIELD), claimed, inline=True))
-    fields += gift_card.record_fields(ui, settings, order, data.gift_cards)
+    elif order.status in h.CLAIMABLE_STATUSES:
+        fields.append(EmbedField(_text(ui, sk.CLAIMED_FIELD), _text(ui, sk.NOT_CLAIMED), inline=True))
+    return fields
+
+
+def _handling_fields(ui: Ui, settings: Settings, order: m.Order, data: h.StaffData) -> list[EmbedField]:
+    """The submitted gift cards and the tracking details."""
+    fields = gift_card.record_fields(ui, settings, order, data.gift_cards)
     tracking_name = _optional(ui, sk.TRACKING_FIELD)
-    if handling.tracking and tracking_name:
-        fields += text_fields(tracking_name, handling.tracking)
+    if data.handling.tracking and tracking_name:
+        fields += text_fields(tracking_name, data.handling.tracking)
     return fields
 
 
@@ -368,8 +407,9 @@ def staff_messages(
         status=status,
     )
     head = ui.embed(title=title, description=description, tone=STATUS_TONES.get(order.status, "info"), timestamp=True)
-    record = _record_fields(ui, settings, view, data, status)
+    record = _record_fields(ui, view, data)
     line_fields, total_fields = _summary_fields(ui, settings, view)
+    total_fields += _handling_fields(ui, settings, order, data)
     timeline_name = _text(ui, sk.TIMELINE_FIELD)
     notes_name = _text(ui, sk.NOTES_FIELD)
     timeline = timeline_lines(ui, timeline_entries(ui, data))[-TIMELINE_MAX:]

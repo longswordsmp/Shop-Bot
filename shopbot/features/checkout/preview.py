@@ -182,14 +182,17 @@ def _order(
 ) -> m.OrderView:
     c = settings.checkout
     option = _sample_option(settings)
+    details: dict[str, str] = {flow.extra_key(extra.id): "1" for extra in c.extras}  # every extra chosen
+    if c.ask_address and settings.shipping.groups:
+        details[flow.ADDRESS_COUNTRY] = settings.shipping.groups[0].countries[0]
+        details.update({f.answer_key: f"[sample {f.id}]" for f in flow.ADDRESS_FIELDS})
     totals = compute_totals(
         [(line.product.price_minor, line.quantity) for line in lines],
         fulfillment_fee_minor=option.fee_minor if option is not None else 0,
-        fees=c.fees,
+        fees=flow.session_fees(c, details),
         credits_available_minor=credits,
         apply_credits=credits > 0,
     )
-    details = {}
     inputs = flow.form_inputs(c, option.id if option is not None else None) + flow.submission_inputs(c)
     for index, item in enumerate(inputs, start=1):
         details[item.answer_key] = f"[sample answer {index}]"

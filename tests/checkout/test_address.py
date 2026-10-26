@@ -7,16 +7,19 @@ from pathlib import Path
 from typing import Any
 
 from shopbot.features.checkout import content_keys as k
-from shopbot.features.checkout import flow, repo, views
+from shopbot.features.checkout import flow, repo, service, staff_keys, views
 from shopbot.features.checkout import models as m
 from tests.checkout.util import (
     add_product,
     error_text,
     go,
     make_env,
+    order,
+    post_answers_in_channel,
     press,
     reload_session,
     set_qty,
+    staff_message,
     start,
     submit,
 )
@@ -134,6 +137,18 @@ async def test_the_order_stores_the_address_and_staff_see_the_country_by_name(tm
         assert placed.details == {"a.country": "US", **TEXAS, "a.street": "1 Main St"}  # one clean line
         answers = dict(views.ordered_answers(tenv.app.settings, placed))
         assert next(iter(answers)) == "a.country" and answers["a.country"] == "United States"
+        # The staff record shows the country only: nothing the customer typed is posted in the staff channel
+        # (the details button shows the full address privately).
+        await tenv.app.scheduler.run_due()
+        record = staff_message(tenv, await order(tenv, placed.id))
+        fields = {f.name: f.value for f in record.embeds[0].fields}
+        assert fields[tenv.text(staff_keys.SHIP_TO_FIELD)] == "United States"
+        assert all(typed not in record.text() for typed in TEXAS.values())
+        # With operations.answers_in_orders_channel the name and the city are shown too, never the street.
+        post_answers_in_channel(tenv)
+        await service.refresh_staff_message(tenv.app, placed.id)
+        fields = {f.name: f.value for f in staff_message(tenv, await order(tenv, placed.id)).embeds[0].fields}
+        assert fields[tenv.text(staff_keys.SHIP_TO_FIELD)] == destination
     finally:
         await tenv.close()
 

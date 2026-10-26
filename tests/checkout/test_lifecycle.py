@@ -13,7 +13,7 @@ import discord
 from shopbot.features import core_keys as core
 from shopbot.features.checkout import content_keys as k
 from shopbot.features.checkout import models as m
-from shopbot.features.checkout import repo, service, views
+from shopbot.features.checkout import repo, service, staff_keys, views
 from shopbot.features.credits import repo as credits_repo
 from tests.checkout.util import (
     add_product,
@@ -324,7 +324,7 @@ async def test_partial_and_full_refunds(co: TestEnv) -> None:
         channel_mention=f"<#{ch.id}>",
     )
     fields = {f.name: f.value for f in staff_message(co, current).embeds[0].fields}
-    assert fields[co.text(k.STAFF_REFUNDED_FIELD)] == money(co, 500)
+    assert f"{co.text(k.STAFF_REFUNDED_FIELD)} {money(co, 500)}" in fields[co.text(staff_keys.AMOUNT_FIELD)]
     too_much = await refund("15.01")
     assert op_text(too_much) == co.app.op("checkout.op.refund_too_much", number=1, max="15.00 USD")
     zero = await refund("0")

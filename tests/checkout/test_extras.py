@@ -10,9 +10,21 @@ import pytest
 
 from shopbot.config.settings import SettingsError, parse_settings
 from shopbot.features.checkout import content_keys as k
-from shopbot.features.checkout import flow, repo, views
+from shopbot.features.checkout import flow, repo, staff_keys, views
 from shopbot.features.checkout import models as m
-from tests.checkout.util import add_product, error_text, go, make_env, money, press, reload_session, start, submit
+from tests.checkout.util import (
+    add_product,
+    error_text,
+    go,
+    make_env,
+    money,
+    order,
+    press,
+    reload_session,
+    staff_message,
+    start,
+    submit,
+)
 from tests.helpers import GUILD_ID, TestEnv, base_settings_dict, deep_merge
 
 EXTRAS: dict[str, Any] = {
@@ -70,6 +82,19 @@ async def test_extras_are_toggled_on_the_delivery_step_and_charged_as_fees(tmp_p
         view = await tenv.app.db.run(repo.order_view, placed.id)
         assert view is not None and [(f.fee_id, f.amount_minor) for f in view.fees] == [("x.discreet", 200)]
         assert k.fee_label_key("x.discreet") == k.extra_key("discreet", "label")  # shown with the extra's name
+        # The staff record names the delivery option and the extras on one line, and every amount on another.
+        await tenv.app.scheduler.run_due()
+        fields = {f.name: f.value for f in staff_message(tenv, await order(tenv, placed.id)).embeds[0].fields}
+        option, extra = tenv.text(k.option_key("standard", "label")), tenv.text(k.extra_key("discreet", "label"))
+        assert fields[tenv.text(staff_keys.DELIVERY_FIELD)] == f"{option} · {extra}"
+        assert fields[tenv.text(staff_keys.AMOUNT_FIELD)] == " · ".join(
+            [
+                f"{tenv.text(k.CART_SUBTOTAL_FIELD)} {money(tenv, 2000)}",
+                f"{option} {money(tenv, 500)}",
+                f"{extra} {money(tenv, 200)}",
+                f"{tenv.text(k.REVIEW_TOTAL_FIELD)} **{money(tenv, 2700)}**",
+            ]
+        )
     finally:
         await tenv.close()
 

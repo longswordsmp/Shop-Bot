@@ -382,7 +382,7 @@ verification.rules.title = "{icon_shield} SERVER RULES"
 
 # --- Verification: welcome mention ---
 
-# Short text under the mention of members who just joined (the mention itself comes first and pings them), posted in the verification channel above the welcome panel and deleted after verification.welcome_mention_seconds (required while that is above 0). You may write {channel_<key>} (for example {channel_catalog}) for a clickable link to a channel from server.channels.
+# Short text under the mention of members who just joined (the mention itself comes first and pings them), posted in the verification channel (under the welcome panel) and deleted after verification.welcome_mention_seconds (required while that is above 0). You may write {channel_<key>} (for example {channel_catalog}) for a clickable link to a channel from server.channels.
 # description · max 4096 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
 verification.welcome_mention.description = "Welcome to AmazonYaarts. Read the rules above and press **Verify** to unlock the shop."
 
@@ -1896,6 +1896,10 @@ checkout.quantity.title = "Choose a quantity"
 
 # --- Checkout: staff order controls (staff channel) ---
 
+# Name of the field on the staff order record with the amounts on one line: items, delivery, extras and other fees, store credit, the total, and refunds.
+# field_name · max 256 characters · required
+checkout.staff.amount_field = "Amount"
+
 # Staff button: cancel the order (unpaid: stock and credit are returned; paid: nothing is restocked, refunded or returned automatically - use the refund buttons and the return-credit button).
 # button_label · max 80 characters · required
 checkout.staff.button.cancel = "Cancel order"
@@ -1960,7 +1964,7 @@ checkout.staff.button.unclaim = "Release claim"
 # field_name · max 256 characters · optional
 checkout.staff.channel_field = "Order ticket"
 
-# Name of the field on the staff order record showing which staff member claimed the order and since when (shown only while it is claimed).
+# Name of the field on the staff order record showing which staff member claimed the order and since when (while nobody has claimed an open order, it shows checkout.staff.not_claimed).
 # field_name · max 256 characters · required
 checkout.staff.claimed_field = "Claimed by"
 
@@ -1972,25 +1976,29 @@ checkout.staff.credit_returned_field = "Credit returned"
 # field_name · max 256 characters · required
 checkout.staff.customer_field = "Customer"
 
+# Name of the field on the staff order record showing the delivery option and the extras the customer chose (their labels; shown when the order has one).
+# field_name · max 256 characters · required
+checkout.staff.delivery_field = "Delivery"
+
 # Text of the staff order controls. {user_mention} mentions the customer (no ping), {channel_mention} links the order channel, {order_number}/{total}/{status} as in the title. The order lines, totals and buttons follow.
 # description · max 4096 characters · required · placeholders: {order_number}, {user_mention}, {channel_mention}, {total}, {status}
-checkout.staff.description = "Use the buttons below to update this order. Correction messages, rejection reasons and tracking details are sent to the customer; internal notes never are. **View details** shows the full record, including the shipping details, only to you."
+checkout.staff.description = "Corrections, reasons and tracking go to the customer; internal notes stay with the team. **View details** shows the full address, only to you."
 
 # Optional title of the message posted under the staff order controls with the customer's form answers (only when a form is defined and operations.answers_in_orders_channel = true; otherwise the answers are shown only privately in the record's details). {order_number} is the order number.
 # title · max 256 characters · optional · placeholders: {order_number}
 checkout.staff.details_title = "Shipping details for order #{order_number}"
 
-# Name of the field on the staff order record showing the order's unique reference (its number).
-# field_name · max 256 characters · required
-checkout.staff.reference_field = "Order number"
+# Shown under checkout.staff.claimed_field while nobody has claimed an open order.
+# field_value · max 1024 characters · required
+checkout.staff.not_claimed = "Not claimed yet"
 
 # Name of the field on the staff order controls showing how much was refunded so far.
 # field_name · max 256 characters · required
 checkout.staff.refunded_field = "Refunded"
 
-# Name of the field on the staff order record showing the current status (its name from checkout.status_label.*).
+# Name of the field on the staff order record showing where the order goes (checkout.address.ship_to: never the street; the record's details button shows the full address privately).
 # field_name · max 256 characters · required
-checkout.staff.status_field = "Status"
+checkout.staff.ship_to_field = "Ship to"
 
 # Title of the order controls posted for staff in checkout.staff_channel for every submitted order (edited on every status change). {order_number} is the order number, {total} the total, {status} the status name (checkout.status_label.*).
 # title · max 256 characters · required · placeholders: {order_number}, {total}, {status}

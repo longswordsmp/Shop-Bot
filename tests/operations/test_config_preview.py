@@ -206,4 +206,4 @@ async def test_the_record_leaves_out_the_oldest_notes_when_discord_limits_are_re
     kept = [i for i in range(5) if f"<{i}>" in listed]
     assert kept and kept == list(range(5 - len(kept), 5)) and len(kept) < 5  # the oldest notes were left out
     assert tenv.text(staff_keys.TIMELINE_FIELD) in names
-    assert tenv.text(staff_keys.REFERENCE_FIELD) in names and tenv.text(staff_keys.STATUS_FIELD) in names
+    assert tenv.text(staff_keys.CUSTOMER_FIELD) in names and tenv.text(staff_keys.AMOUNT_FIELD) in names

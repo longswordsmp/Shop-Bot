@@ -65,11 +65,16 @@ async def test_record_always_shows_reference_customer_status_and_timeline(ops: T
     message = await record(ops, placed.id)
     embed = message.embeds[0]
     fields = {f.name: f.value for f in embed.fields}
-    assert fields[ops.text(staff_keys.REFERENCE_FIELD)] == "1"
+    # The number, the total and the status are in the title (no fields repeat them).
+    assert embed.title == render(
+        ops, k.STAFF_TITLE, order_number="1", total=money(ops, 1000), status=ops.text(k.status_label_key(m.PENDING))
+    )
     assert fields[ops.text(staff_keys.CUSTOMER_FIELD)] == f"<@{placed.user_id}>"
     assert fields[ops.text(staff_keys.CHANNEL_FIELD)] == f"<#{ch.id}>"  # type: ignore[attr-defined]
-    assert fields[ops.text(staff_keys.STATUS_FIELD)] == ops.text(k.status_label_key(m.PENDING))
-    assert ops.text(staff_keys.CLAIMED_FIELD) not in fields
+    assert fields[ops.text(staff_keys.CLAIMED_FIELD)] == ops.text(staff_keys.NOT_CLAIMED)
+    amounts = fields[ops.text(staff_keys.AMOUNT_FIELD)]
+    price = money(ops, 1000)
+    assert amounts == f"{ops.text(k.CART_SUBTOTAL_FIELD)} {price} · {ops.text(k.REVIEW_TOTAL_FIELD)} **{price}**"
     timeline = fields[ops.text(staff_keys.TIMELINE_FIELD)]
     assert timeline == render(
         ops,
@@ -221,6 +226,8 @@ async def test_final_orders_cannot_be_claimed(ops: TestEnv) -> None:
     await mark(ops, staffer, placed.id, m.CANCELLED)
     message = await record(ops, placed.id)
     assert staff_views.claim_id(placed.id) not in _ids(message)
+    # A finished order no longer says "not claimed yet".
+    assert ops.text(staff_keys.CLAIMED_FIELD) not in [f.name for f in message.embeds[0].fields]
     stale = await press(ops, staffer, message, staff_views.claim_id(placed.id))
     assert op_text(stale) == ops.app.op("checkout.op.claim_state", number=1, status=m.CANCELLED)
     assert (await handling(ops, placed.id)).claimed_by is None

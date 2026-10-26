@@ -51,7 +51,9 @@ only; order tickets are handled from #orders.
 (names, addresses, references ...). With `operations.answers_in_orders_channel = false` (shipped and default):
 
 - nothing the customer typed is posted in the staff channel; the live order record shows only the reference, the
-  customer mention, status, claim, order lines, totals, timeline and internal notes;
+  customer mention, status, claim, order lines, the delivery option and extras, the destination **country** (picked
+  from a menu; with the setting on, also the name and city, never the street), the amounts, timeline and internal
+  notes;
 - staff see the answers, with their configured labels, **privately**: the record's **Details** button (a reply only
   the clicking staff member sees, after the server-side staff check) and `/order view` / `/order lookup` (staff-only,
   private reply);

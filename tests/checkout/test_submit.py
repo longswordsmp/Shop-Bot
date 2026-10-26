@@ -8,7 +8,7 @@ from shopbot.features import core_keys as core
 from shopbot.features.catalog import repo as catalog_repo
 from shopbot.features.checkout import content_keys as k
 from shopbot.features.checkout import models as m
-from shopbot.features.checkout import repo, service, views
+from shopbot.features.checkout import repo, service, staff_keys, views
 from tests.checkout.util import (
     add_product,
     audit_actions,
@@ -297,8 +297,9 @@ async def test_full_workflow_order_keeps_details_fees_and_posts_staff_details(co
         (tenv.text(k.option_form_key("delivery", "address", "label")), "[sample address]"),
     ]
     control = staff_message(tenv, placed)
-    names = [f.name for f in control.embeds[0].fields]
-    assert tenv.text(k.fee_label_key("tax")) in names and tenv.text(k.FULFILLMENT_CHOSEN_FIELD) in names
+    fields = {f.name: f.value for f in control.embeds[0].fields}
+    assert f"{tenv.text(k.fee_label_key('tax'))} " in fields[tenv.text(staff_keys.AMOUNT_FIELD)]
+    assert fields[tenv.text(staff_keys.DELIVERY_FIELD)] == tenv.text(k.option_key("delivery", "label"))
 
 
 async def test_order_numbers_are_sequential_and_unique(co: TestEnv) -> None:
