@@ -25,9 +25,20 @@
 - Admin = `OWNER_ID`, members with Discord's Administrator permission, or roles in `permissions.admin_roles`.
   Staff = admins plus roles in `permissions.staff_roles` (and feature-specific staff roles).
 
+## Resetting the server (/reset)
+
+- Only `OWNER_ID` or the server owner can reset; the router admits administrators and every reset control checks
+  the owner again. The preview's fingerprint is in the confirmation form's id, so a confirmation for a server that
+  changed since the preview is refused, and a forged id does no more than the owner could.
+- Nothing is deleted before the owner typed `RESET <server name>`, the DM for the result was delivered, and the
+  database backup was written (`backups/before-reset-<time>.db`, never removed by the `/backup` rotation).
+- Without `wipe_shop_data` no data is deleted; with it the shop and customer tables listed in
+  `shopbot/features/setup/reset_store.py` are emptied in one transaction (the audit log, texts and counters stay).
+  A test fails when a new table is not listed as wiped or kept.
+
 ## Who can see what (server layout)
 
-- Users who have not pressed "I agree" in #welcome see only 📌 START HERE (read-only). 📦 CATALOG and 🛒 PURCHASE are
+- Users who have not pressed Verify in #welcome see only 📌 INFORMATION (read-only). 🏬 SHOP and 🧾 ORDERS are
   `members_readonly`: hidden from `@everyone`, readable by the Member role, writable only by staff and the bot.
   🔒 STAFF is visible only to Staff and admin roles (Owner).
 - Roles members give themselves (Member via "I agree", Restock Alerts via #new-arrivals) are refused as settings

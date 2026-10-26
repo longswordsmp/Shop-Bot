@@ -239,6 +239,28 @@ and deletion timers, and of course the products themselves (`/product add`).
   that are already posted are refreshed at once (`/setup` is still what posts new panels). Private (ephemeral) replies
   cannot be right-clicked in Discord, so `/content set` suggestions also match a few words of the current text.
 
+## 11b. /reset
+
+- **Owner only, typed confirmation, backup first.** `/reset` deletes channels, categories and roles, so it is limited
+  to `OWNER_ID` and the server owner, previews privately, and needs `RESET <server name>` (case and spacing
+  ignored). The preview's fingerprint travels in the form's id: if the server changed in between, nothing happens.
+  The result goes by DM because the command's channel is deleted too; if the DM fails, nothing happens. The backup
+  is written before any deletion and named `before-reset-…` so the `/backup` rotation never removes it.
+- **Data kept by default.** Orders, products, reviews and store credit stay. Ticket and order channels are deleted
+  like any other channel, through the same path as a channel deleted by hand (tickets recorded as deleted, unfinished
+  checkouts expired). `/setup` afterwards posts the staff cards of open orders whose channel is gone (the same
+  `post_staff_message` as the restart recovery) and, once after a reset, gives the new Customer role back to members
+  with a qualifying order (the normal role task, so the same checks and audit apply). Members verify again on the new
+  welcome panel: the Member role means "accepted the rules shown now".
+- **Wipe is explicit and complete.** `wipe_shop_data:True` empties the tables in `reset_store.WIPED_TABLES` in one
+  transaction (foreign keys checked at commit). Counters and AUTOINCREMENT sequences are kept, so no order number or
+  id is ever reused (old DMs and buttons can never point to a new order). Pending tasks of wiped features are
+  cancelled; system tasks (`KEPT_TASK_KINDS`) stay. Tests fail when a table or a kept task kind is not classified.
+- **Pace.** One deletion per second (`reset.PACE_SECONDS`): discord.py already waits on rate limits, and Discord's
+  anti-abuse systems watch for bots deleting many channels at once.
+- **A private 🛠・setup channel** is created at the end, because a server without channels has nowhere to type
+  `/setup`. It only grants permissions the bot holds itself (Discord refuses others).
+
 ## 12. Assumptions
 
 - One Discord server per bot instance (`GUILD_ID`).

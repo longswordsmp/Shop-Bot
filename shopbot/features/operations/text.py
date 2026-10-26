@@ -7,6 +7,9 @@ from __future__ import annotations
 
 OPERATOR_TEXT: dict[str, str] = {
     "operations.publish.alerts": "Staff alerts and reminders are posted in {channel}.",
+    "operations.publish.customer_role_restored": (
+        "Customer role: given back to {count} customers whose role was deleted by /reset."
+    ),
     "operations.publish.no_guild": "Staff alerts: the configured server is not available.",
     "operations.publish.staff_channel_missing": (
         "operations.staff_channel: channel '{name}' does not exist yet (run /setup); staff alerts cannot be posted."

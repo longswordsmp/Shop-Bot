@@ -102,23 +102,36 @@ See `docs/DEPLOYMENT.md` → Troubleshooting if anything else appears.
 
 ## 10. Run `/setup`
 
+**Already ran the old layout in this server?** Run **`/reset`** first (owner only: `OWNER_ID` or the server owner).
+It shows you privately every channel, category and role it would delete and what it keeps (`@everyone`, bot and
+booster roles, roles above the bot, channels a Community server must keep). Press **Continue** and type
+`RESET <server name>`. It then makes a database backup (`/data/backups/before-reset-<time>.db`, never rotated away),
+deletes the listed channels, categories and roles at about one per second, and sends you the progress and the result
+by DM (allow DMs from server members first; without a DM it changes nothing). Orders, products, reviews and store
+credit are **kept** unless you run `/reset wipe_shop_data:True`, which also deletes every order, product, review,
+ticket and customer record (they stay in the backup). Open tickets lose their channel without a transcript, so close
+the ones you want to keep first. At the end it creates a private **🛠・setup** channel: run `/setup` there, then
+delete it. `/setup` posts the staff cards of open orders again in the new #orders channel and gives customers the new
+Customer role; everyone else presses **Verify** again on the new welcome panel.
+
 In your server, as the owner/admin: **`/setup dry_run:True`** first. It lists what it would create.
 
 Look at its **Problems** section: it lists every channel or category the bot does not manage that `@everyone` can
 see. In a new server that is Discord's default **#general** text channel and **General** voice channel (and their
-"Text Channels"/"Voice Channels" categories). Unverified users must see only 📌 START HERE, so **delete them** (or
-deny View Channel to `@everyone` on them); the bot never changes or deletes channels it does not manage, and every
-`/setup` run reports them until they are gone.
+"Text Channels"/"Voice Channels" categories). Unverified users must see only 📌 INFORMATION, so **delete them** (or
+deny View Channel to `@everyone` on them); `/setup` never changes or deletes channels it does not manage, and every
+run reports them until they are gone.
 
-The structure comes from your specification and is already named (content.toml): 📌 START HERE, 📦 CATALOG,
-🛒 PURCHASE and 🔒 STAFF with #welcome, #how-to-buy, #faq, #shipping, #announcements, #catalog, #new-arrivals,
-#reviews, #purchase, #orders, #staff-chat, #bot-log, #transcripts, and the roles Owner, Staff, Member, Customer and
-Restock Alerts. Existing channels/roles with the same names are reused instead of duplicated.
+The structure comes from your specification and is already named (content.toml): 📌 INFORMATION, 🏬 SHOP,
+🧾 ORDERS and 🔒 STAFF with 📜・welcome, 🧭・how-to-order, ❔・faq, 🚚・shipping, 📣・announcements, 📦・catalog,
+✨・new-arrivals, ⭐・reviews, 🛒・place-order, 📋・orders, 💬・staff-chat, 📒・bot-log and 📁・transcripts, and the
+roles Owner, Staff, Member, Customer and Restock Alerts. Existing channels/roles with the same names are reused
+instead of duplicated.
 
 Then **`/setup`**. It creates or repairs roles, categories, channels and permissions, gives the Owner role to
-`OWNER_ID`, and posts every panel: #welcome (rules + "I agree"), #how-to-buy, #faq, #shipping, #catalog,
-#new-arrivals and #purchase (Start + Report a Problem), each with its banner picture at the top. It is safe to run
-again any time; it never duplicates or deletes anything except withdrawing panels of features that are not ready.
+`OWNER_ID`, and posts every panel: 📜・welcome (rules + Verify), 🧭・how-to-order, ❔・faq, 🚚・shipping, 📦・catalog,
+✨・new-arrivals and 🛒・place-order (Start + Report a Problem), each with its banner picture at the top. It is safe to
+run again any time; it never duplicates or deletes anything except withdrawing panels of features that are not ready.
 `/status` should show every enabled feature as **ready**.
 
 Check: Server Settings → Roles shows the bot's role **above** Owner, Staff, Member, Customer and Restock Alerts
@@ -180,9 +193,14 @@ Locally you can also run `python -m tools.checklist --write`, `python -m tools.c
 Use a second (non-staff) Discord account as the "customer".
 
 **Server & entry**
-- [ ] `/setup` twice: the second run reports nothing new to create; the Owner account has the Owner role.
-- [ ] Customer account before "I agree": sees only 📌 START HERE (read-only).
-- [ ] #welcome "I agree" → private confirmation; 📦 CATALOG and 🛒 PURCHASE appear; clicking again says already verified.
+- [ ] `/reset` as a staff or admin account that is not the owner → refused. As the owner: the private list matches
+      the server; Cancel changes nothing; Continue with a wrong phrase changes nothing; the right phrase → DM with the
+      progress and the result, only the kept roles and 🛠・setup remain.
+- [ ] `/setup` in 🛠・setup, then `/setup` again: the second run reports nothing new to create; the Owner account has
+      the Owner role.
+- [ ] Customer account joins → mentioned in #welcome, the mention disappears after 30 seconds.
+- [ ] Customer account before Verify: sees only 📌 INFORMATION (read-only).
+- [ ] #welcome Verify → private confirmation; 🏬 SHOP and 🧾 ORDERS appear; clicking again says already verified.
 - [ ] #how-to-order link buttons open #catalog, #place-order, #faq; #faq shows its topics and #shipping your countries with their dots.
 
 **Catalog & new arrivals**
@@ -214,7 +232,7 @@ Use a second (non-staff) Discord account as the "customer".
       `/order view` show them privately to staff.
 
 **Problems, staff, admin**
-- [ ] #purchase Report a Problem → choose order and type → form → private problem ticket; staff Resolve/Reject.
+- [ ] #place-order Report a Problem → choose order and type → form → private problem ticket; staff Resolve/Reject.
 - [ ] #staff-chat gets new-order / paid alerts (staff pinged) and reminders once thresholds are set; the Owner gets DMs.
 - [ ] `/announce` (staff) → embed in #announcements; a customer cannot use it.
 - [ ] `/orders`, `/order view`, `/status`, `/content show`, `/backup`, `/audit`; #bot-log shows the actions.

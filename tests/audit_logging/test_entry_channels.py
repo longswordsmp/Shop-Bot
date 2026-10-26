@@ -7,7 +7,8 @@ import discord
 
 from shopbot.features.setup.report import report_messages
 from shopbot.features.setup.service import MAX_PUBLIC_UNMANAGED_LINES, channel_kind
-from shopbot.ui.limits import validate_message
+from shopbot.ui.limits import validate_message, validate_modal
+from shopbot.ui.spec import ModalSpec
 from tests.audit_logging.util import add_voice_channel, allow_everyone_to_view, audit_events
 from tests.fakes import FakeCategory, FakeTextChannel
 from tests.helpers import TestEnv
@@ -151,7 +152,10 @@ def test_the_setup_preview_shows_the_warning_within_limits(tenv: TestEnv) -> Non
         text = "\n".join(field.value for embed in state.spec.embeds for field in embed.fields)
         assert hint in text and "[sample unmanaged text]" in text
     for state in states:
-        assert validate_message(state.spec) == [], state.name
+        if isinstance(state.spec, ModalSpec):  # the /reset confirmation form
+            assert validate_modal(state.spec) == [], state.name
+        else:
+            assert validate_message(state.spec) == [], state.name
 
 
 def test_channel_kinds() -> None:

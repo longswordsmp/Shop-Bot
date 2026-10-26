@@ -1,4 +1,4 @@
-"""The admin-only /setup slash command."""
+"""The admin-only /setup slash command and the owner-only /reset command."""
 
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ from discord import app_commands
 
 from shopbot.commands import app_of, reply, require_admin
 from shopbot.features.setup.report import notice_message, report_messages
+from shopbot.features.setup.reset_handlers import handle_reset
 from shopbot.features.setup.service import run_setup, setup_lock
 from shopbot.logging_setup import log_event
 from shopbot.ui.discord_render import RenderError
@@ -55,3 +56,20 @@ def build_setup_command() -> app_commands.Command[Any, ..., None]:
         await handle_setup(interaction, dry_run=dry_run, publish=publish)
 
     return setup_command
+
+
+def build_reset_command() -> app_commands.Command[Any, ..., None]:
+    @app_commands.command(
+        name="reset",
+        description="Owner only: delete the server's channels, categories and roles so /setup can build them anew.",
+    )
+    @app_commands.describe(
+        wipe_shop_data="Also delete every order, product, review, ticket and customer record (default: keep them).",
+    )
+    @app_commands.default_permissions(administrator=True)
+    @app_commands.guild_only()
+    @require_admin()
+    async def reset_command(interaction: discord.Interaction[Any], wipe_shop_data: bool = False) -> None:
+        await handle_reset(interaction, wipe=wipe_shop_data)
+
+    return reset_command

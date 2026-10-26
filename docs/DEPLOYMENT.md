@@ -115,7 +115,9 @@ data written since.
 
 ## Backups
 
-- In Discord: `/backup` (admin) creates `/data/backups/bot-<timestamp>.db`.
+- In Discord: `/backup` (admin) creates `/data/backups/bot-<timestamp>.db` (the newest 10 are kept).
+- `/reset` first writes `/data/backups/before-reset-<timestamp>.db`; the `/backup` rotation never removes these, so
+  delete old ones yourself when you no longer need them.
 - To copy a backup off Railway, use the Railway CLI or a temporary shell on the service and download the file;
   never post database files in Discord (they contain private customer data).
 - To restore: stop the service, replace `/data/bot.db` with the backup file (and delete `bot.db-wal`/`bot.db-shm`
@@ -135,6 +137,9 @@ data written since.
 | `config_invalid` | Typo or wrong type in settings.toml | Fix the path named in the log. |
 | `db_init_failed` | Volume missing / read-only / downgrade | Check the `/data` volume and `DB_PATH`. |
 | `instance_locked` | Another process uses the database | Ensure replicas = 1; wait for the old deployment to stop. |
+| `server_reset` (warning) | The owner ran `/reset` (counts of what was deleted, the backup file) | Run `/setup` in the 🛠・setup channel it created. |
+| `reset_delete_failed` | `/reset` could not delete a channel or role (HTTP status and Discord code in the log) | Delete it by hand, or give the bot Manage Channels / move its role higher, and run `/reset` again. |
+| `reset_dm_failed` / `reset_backup_failed` | `/reset` stopped before changing anything (DMs closed, or the backup could not be written) | Allow DMs from server members / check the volume, then run `/reset` again. |
 | Buttons answer "unavailable" | Feature not ready | Run `/status`, fill missing content, `/reload` or `/content set`, then `/setup`. |
 | `/setup` reports missing permissions | Bot role lacks permissions or is too low | Give the bot role the permissions in the invite URL and drag it above managed roles. |
 | `/setup` problems: "not managed by /setup, and `@everyone` can see it" (log `setup_public_unmanaged_channels`) | A channel/category the bot does not manage (usually Discord's default #general and General voice) is visible to users who have not accepted the rules | Delete it, or deny View Channel to `@everyone` on it, then run `/setup dry_run:True` again. The bot never changes channels it does not manage. |

@@ -1407,6 +1407,24 @@ async def post_staff_message(app: App, order_id: int, *, adopt: bool = False) ->
     return True
 
 
+async def repost_lost_staff_messages(app: App) -> int:
+    """Post the controls of every open order whose controls were in a channel that no longer exists (the orders
+    channel was deleted, e.g. by /reset): /setup calls it after creating the new channel. Orders whose channel still
+    exists are left alone; a single deleted message is posted again by the order's next change or a restart.
+    Returns how many were posted."""
+    if app.bot is None:
+        return 0
+    posted = 0
+    for order in await app.db.run(repo.orders_with_status, app.env.guild_id, m.OPEN_STATUSES):
+        if order.staff_channel_id is None or app.bot.get_channel(order.staff_channel_id) is not None:
+            continue  # never posted yet (its submission task posts it), or still in place
+        if await post_staff_message(app, order.id):
+            posted += 1
+    if posted:
+        log_event(log, logging.INFO, "checkout_staff_messages_reposted", count=posted)
+    return posted
+
+
 def answers_in_staff_channel(app: App) -> bool:
     """Whether the customer's form answers are posted as messages in the staff channel
     (``operations.answers_in_orders_channel``). Off: staff see them only privately (the record's Details button,

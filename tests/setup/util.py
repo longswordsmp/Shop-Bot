@@ -9,9 +9,11 @@ import discord
 from shopbot.context import App
 from shopbot.db.repos import audit as audit_repo
 from shopbot.features import all_modules
+from shopbot.features.setup import reset, reset_views
 from shopbot.features.setup.report import SetupReport
 from shopbot.features.setup.service import run_setup
-from tests.fakes import FakeBot, FakeInteraction, FakeMember
+from tests.admin.util import run_command
+from tests.fakes import FakeBot, FakeInteraction, FakeMember, FakeMessage, click, submit_modal
 from tests.helpers import TestEnv, base_settings_dict
 
 
@@ -82,3 +84,29 @@ async def audit_events(tenv: TestEnv, action: str) -> list[audit_repo.AuditEvent
 
 def all_lines(report: SetupReport) -> str:
     return "\n".join(line for lines in report.lines.values() for line in lines)
+
+
+# -- /reset --------------------------------------------------------------------------------------------------------
+
+
+def phrase(tenv: TestEnv) -> str:
+    return reset.confirmation_phrase(tenv.guild.name)
+
+
+async def preview(tenv: TestEnv, user: FakeMember, *, wipe: bool = False) -> FakeMessage:
+    interaction = await run_command(tenv, "reset", user=user, wipe_shop_data=wipe)
+    assert interaction.last_sent is not None
+    return interaction.last_sent
+
+
+def continue_id(message: FakeMessage) -> str:
+    return next(c for c in message.custom_ids() if c.startswith("sb:rs:go:"))
+
+
+async def confirm(tenv: TestEnv, user: FakeMember, message: FakeMessage, typed: str) -> FakeInteraction:
+    opened = await click(tenv.app, user=user, custom_id=continue_id(message), message=message)
+    modal = opened.response.modal
+    assert modal is not None, opened.response.calls
+    return await submit_modal(
+        tenv.app, user=user, custom_id=modal.custom_id, fields={reset_views.PHRASE_INPUT_ID: typed}, message=message
+    )

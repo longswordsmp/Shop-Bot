@@ -12,7 +12,7 @@ from shopbot.core.channels import CREATE_PRIVATE_REQUIRED
 from shopbot.core.panels import upsert_message
 from shopbot.core.permissions import channel_send_permissions, missing_permissions
 from shopbot.features.checkout import content_keys as k
-from shopbot.features.checkout import views
+from shopbot.features.checkout import service, views
 from shopbot.features.credits import service as credits_service
 from shopbot.logging_setup import log_event
 from shopbot.ui.discord_render import RenderError
@@ -96,4 +96,7 @@ async def publish(app: App) -> list[str]:
     else:
         lines.append(app.op("checkout.publish.panel", action=action, channel=channel.mention))
     lines.extend(_diagnostics(app, guild))
+    reposted = await service.repost_lost_staff_messages(app)
+    if reposted:
+        lines.append(app.op("checkout.publish.staff_reposted", count=reposted))
     return lines

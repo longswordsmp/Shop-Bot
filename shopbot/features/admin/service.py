@@ -43,6 +43,8 @@ CONTENT_PROBLEM_KINDS = ("missing_content", "invalid_content")
 
 BACKUP_KEEP = 10
 BACKUP_DIR_NAME = "backups"
+BACKUP_PREFIX = "bot"
+# Only /backup files are rotated (``bot-<stamp>[-n].db``).
 BACKUP_NAME_RE = re.compile(r"^bot-(\d{8}T\d{6}Z)(?:-(\d+))?\.db$")
 
 MAINTENANCE_KIND = "admin.maintenance"
@@ -524,14 +526,14 @@ def backup_stamp(now: int) -> str:
     return datetime.fromtimestamp(now, tz=UTC).strftime("%Y%m%dT%H%M%SZ")
 
 
-def next_backup_path(directory: Path, now: int) -> Path:
-    """``bot-<UTC timestamp>.db`` in ``directory`` (a numeric suffix avoids overwriting a same-second file)."""
+def next_backup_path(directory: Path, now: int, prefix: str = BACKUP_PREFIX) -> Path:
+    """``<prefix>-<UTC timestamp>.db`` in ``directory`` (a numeric suffix avoids overwriting a same-second file)."""
     directory.mkdir(parents=True, exist_ok=True)
     stamp = backup_stamp(now)
-    candidate = directory / f"bot-{stamp}.db"
+    candidate = directory / f"{prefix}-{stamp}.db"
     counter = 1
     while candidate.exists():
-        candidate = directory / f"bot-{stamp}-{counter}.db"
+        candidate = directory / f"{prefix}-{stamp}-{counter}.db"
         counter += 1
     return candidate
 
@@ -558,13 +560,14 @@ def rotate_backups(directory: Path, keep: int = BACKUP_KEEP) -> tuple[list[Path]
     return backups[len(removed) :], removed
 
 
-async def create_backup(app: App, *, actor_id: int) -> BackupReport:
-    """Consistent online copy of the database into ``<DB_PATH parent>/backups``, keeping the newest 10."""
+async def create_backup(app: App, *, actor_id: int, prefix: str = BACKUP_PREFIX) -> BackupReport:
+    """Consistent online copy of the database into ``<DB_PATH parent>/backups``, keeping the newest 10 /backup files.
+    Another ``prefix`` (the copy /reset makes first) names a file the rotation never removes."""
     db_path = Path(app.env.db_path)
     if str(app.env.db_path) == ":memory:":
         raise BackupUnavailable()
     directory = backup_directory(db_path)
-    path = await asyncio.to_thread(next_backup_path, directory, app.clock.now())
+    path = await asyncio.to_thread(next_backup_path, directory, app.clock.now(), prefix)
     try:
         await app.db.backup_to(path)
     except (sqlite3.Error, OSError):

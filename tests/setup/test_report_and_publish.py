@@ -8,8 +8,8 @@ from shopbot.features.base import FeatureModule
 from shopbot.features.setup import MODULE
 from shopbot.features.setup.report import SECTIONS, SetupReport, report_messages
 from shopbot.ui import limits
-from shopbot.ui.limits import validate_message
-from shopbot.ui.spec import MessageSpec
+from shopbot.ui.limits import validate_message, validate_modal
+from shopbot.ui.spec import MessageSpec, ModalSpec
 from tests.helpers import TestEnv
 from tests.setup.util import setup
 
@@ -46,6 +46,23 @@ def test_operator_text_has_no_unknown_placeholders(tenv: TestEnv) -> None:
         "{error_id}",
         "{count}",
         "{key}",
+        # /reset
+        "{phrase}",
+        "{data}",
+        "{names}",
+        "{orders}",
+        "{tickets}",
+        "{done}",
+        "{total}",
+        "{channels}",
+        "{categories}",
+        "{roles}",
+        "{backup}",
+        "{products}",
+        "{reviews}",
+        "{channel}",
+        "{status}",
+        "{error}",
     }
     for key, text in MODULE.operator_text.items():
         assert key.startswith("server.")
@@ -168,7 +185,11 @@ def test_preview_states_pass_limits(tenv: TestEnv) -> None:
     names = [s.name for s in states]
     assert "report" in names and "report_dry_run" in names
     assert any(name.startswith("report_large_part_") for name in names)
+    assert {"reset_preview", "reset_form", "reset_result", "reset_result_problems"} <= set(names)
     for state in states:
         assert state.feature == "server"
+        if isinstance(state.spec, ModalSpec):  # the /reset confirmation form
+            assert validate_modal(state.spec) == [], state.name
+            continue
         assert isinstance(state.spec, MessageSpec)
         assert validate_message(state.spec) == [], state.name

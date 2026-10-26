@@ -132,6 +132,16 @@ Default visibility: administrator
 |---|---|---|---|
 | `/reload` | admin | Reload settings.toml and content.toml without restarting. | - |
 
+## /reset
+
+Owner only: delete the server's channels, categories and roles so /setup can build them anew.
+
+Default visibility: administrator
+
+| Command | Access | Description | Options |
+|---|---|---|---|
+| `/reset` | admin | Owner only: delete the server's channels, categories and roles so /setup can build them anew. | `wipe_shop_data` (optional): Also delete every order, product, review, ticket and customer record (default: keep them). |
+
 ## /review
 
 Customer review tools for staff.

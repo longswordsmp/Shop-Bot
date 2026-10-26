@@ -33,6 +33,7 @@ from shopbot.features.checkout import models as checkout_models
 from shopbot.features.checkout import service as checkout_service
 from shopbot.features.checkout import views as checkout_views
 from shopbot.features.operations import content_keys as k
+from shopbot.features.operations import customer_role as customer_role_module
 from shopbot.features.operations import views
 from shopbot.logging_setup import log_event
 from shopbot.ui.discord_render import RenderError, send_kwargs
@@ -345,4 +346,7 @@ async def publish(app: App) -> list[str]:
             lines.append(app.op("operations.publish.customer_role_missing", name=role_key))
         elif not can_manage_role(me, customer_role) or not me.guild_permissions.manage_roles:
             lines.append(app.op("operations.publish.customer_role_hierarchy", role=customer_role.mention))
+        restored = await customer_role_module.restore(app)
+        if restored is not None:
+            lines.append(app.op("operations.publish.customer_role_restored", count=restored))
     return lines

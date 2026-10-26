@@ -9,8 +9,9 @@ from typing import Any
 import pytest
 
 from shopbot.config.loader import load_config
-from tests.helpers import ROOT, TestEnv, banner_names, make_test_env
-from tests.setup.util import setup
+from shopbot.features.setup import reset
+from tests.helpers import OWNER_ID, ROOT, TestEnv, banner_names, make_test_env
+from tests.setup.util import confirm, phrase, preview, setup
 
 PANEL_CHANNELS = {  # channel name (as /setup creates it) -> banner id its first bot message shows
     "📜・welcome": "welcome",
@@ -63,3 +64,22 @@ async def test_setup_posts_every_panel_with_its_banner(shipped: TestEnv) -> None
     counts = {name: len(bot_messages(shipped, name)) for name in PANEL_CHANNELS}
     await setup(shipped)
     assert {name: len(bot_messages(shipped, name)) for name in PANEL_CHANNELS} == counts
+
+
+async def test_after_a_reset_setup_builds_the_same_server_again(
+    shipped: TestEnv, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(reset, "PACE_SECONDS", 0)
+    await setup(shipped)
+    names_before = sorted(c.name for c in shipped.guild.channels)
+    owner = shipped.guild.add_member(id=OWNER_ID, name="owner")
+    await confirm(shipped, owner, await preview(shipped, owner), phrase(shipped))
+    [setup_channel] = shipped.guild.channels
+    report = await setup(shipped)
+    assert report.counts.get("failed", 0) == 0, report.lines
+    # The same layout again (plus the private channel the reset made for /setup), every panel with its banner.
+    assert sorted(c.name for c in shipped.guild.channels if c is not setup_channel) == names_before
+    for name, banner_id in PANEL_CHANNELS.items():
+        messages = bot_messages(shipped, name)
+        assert messages, f"#{name} has no panel"
+        assert banner_names(messages[0])[0].startswith(f"banner-{banner_id}-")

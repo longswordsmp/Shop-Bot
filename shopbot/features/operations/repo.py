@@ -202,6 +202,16 @@ def qualifying_statuses(trigger: str) -> tuple[str, ...]:
     return (checkout_models.FULFILLED,)
 
 
+def latest_qualifying_orders(conn: sqlite3.Connection, guild_id: int, statuses: Sequence[str]) -> list[tuple[int, int]]:
+    """``(user_id, order_id)`` of each member's newest order that makes them a customer."""
+    rows = conn.execute(
+        "SELECT user_id, MAX(id) AS order_id FROM orders WHERE guild_id = ? "
+        "AND status IN (SELECT value FROM json_each(?)) GROUP BY user_id ORDER BY user_id",
+        (guild_id, json.dumps(list(statuses))),
+    )
+    return [(int(r["user_id"]), int(r["order_id"])) for r in rows]
+
+
 def has_qualifying_order(conn: sqlite3.Connection, guild_id: int, user_id: int, statuses: Sequence[str]) -> bool:
     placeholders = ", ".join("?" for _ in statuses)
     row = conn.execute(

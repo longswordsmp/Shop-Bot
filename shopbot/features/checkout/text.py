@@ -224,6 +224,7 @@ OPERATOR_TEXT: dict[str, str] = {
     "checkout.publish.invalid": "Shop panel violates Discord limits: {error}",
     "checkout.publish.failed": "Shop panel could not be posted (HTTP {status}).",
     "checkout.publish.panel": "Shop panel {action} in {channel}.",
+    "checkout.publish.staff_reposted": "Staff cards of {count} open orders posted again (their channel was deleted).",
     "checkout.publish.staff_channel_missing": (
         "checkout.staff_channel: channel '{name}' does not exist yet; staff order controls cannot be posted."
     ),
