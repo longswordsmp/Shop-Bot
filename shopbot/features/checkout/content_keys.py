@@ -15,7 +15,7 @@ from shopbot.config.content_keys import ContentKey, Kind, ck
 from shopbot.config.settings import CheckoutSettings, FormField, Settings
 from shopbot.features import core_keys as core
 from shopbot.features.checkout import models as m
-from shopbot.features.checkout import staff_keys
+from shopbot.features.checkout import payment_methods, staff_keys
 from shopbot.features.checkout.payments import PROVIDERS
 from shopbot.features.server_keys import private_channel_problems, reference_problems
 
@@ -1304,6 +1304,7 @@ def content_keys(settings: Settings) -> list[ContentKey]:
     provider = PROVIDERS.get(settings.payments.provider)
     if provider is not None:
         keys += provider.content_keys(settings)
+    keys += payment_methods.content_keys(settings)
     keys += staff_keys.content_keys(settings)  # staff side of orders (operations package)
     return keys
 

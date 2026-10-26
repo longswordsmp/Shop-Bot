@@ -29,7 +29,17 @@ from shopbot.core.countries import area_name
 from shopbot.features import core_keys as core
 from shopbot.features.catalog import repo as catalog_repo
 from shopbot.features.checkout import content_keys as k
-from shopbot.features.checkout import flow, gift_cards, repo, service, staff, staff_keys, staff_views, views
+from shopbot.features.checkout import (
+    flow,
+    gift_cards,
+    payment_methods,
+    repo,
+    service,
+    staff,
+    staff_keys,
+    staff_views,
+    views,
+)
 from shopbot.features.checkout import handling_repo as h
 from shopbot.features.checkout import models as m
 from shopbot.features.checkout.payments import gift_card
@@ -423,6 +433,35 @@ async def on_payment_form(ctx: Ctx) -> None:
     """Submit gift card: the private form of an order that waits for payment."""
     order = await _customer_order(ctx)
     await ctx.send_modal(await gift_cards.form(ctx.app, order))
+
+
+async def on_payment_method(ctx: Ctx) -> None:
+    """A payment-method button (order card or pop-up): a method that is down opens the private pop-up with the
+    methods that work right now; an active one does what its kind says (``payment_methods``)."""
+    app = ctx.app
+    order = await _customer_order(ctx)
+    method = app.settings.payments.method(ctx.args[1]) if len(ctx.args) > 1 else None
+    if method is None:
+        raise HandlerError(payment_methods.ERROR_UNAVAILABLE)
+    if order.status != m.PENDING:
+        raise HandlerError(payment_methods.ERROR_STATE)
+    if not method.active:
+        spec = payment_methods.down_message(
+            app.ui, app.settings, order.id, method, payment_form_id=views.payment_form_id(order.id)
+        )
+        await ctx.respond(spec, ephemeral=True)
+        return
+    if method.kind == "gift_card":
+        await ctx.send_modal(await gift_cards.form(app, order))
+        return
+    if method.kind == "staff":
+        await ctx.defer_reply(ephemeral=True)
+        first = await service.request_payment_method(app, order, method)
+        key = payment_methods.STAFF_REPLY if first else payment_methods.STAFF_ALREADY
+        await ctx.respond(payment_methods.reply(app.ui, key, method), ephemeral=True)
+        return
+    # A payment page (kind "link") is a link button, which sends nothing: an older button of the method.
+    await ctx.respond(payment_methods.link_message(app.ui, method), ephemeral=True)
 
 
 async def on_payment_submit(ctx: Ctx) -> None:
@@ -877,6 +916,7 @@ def register(app: App) -> None:
         "ocancel_no": on_order_cancel_no,
         "ocancel_yes": on_order_cancel_yes,
         "payform": on_payment_form,
+        payment_methods.ACTION: on_payment_method,
     }
     for action, handler in customer.items():
         router.component(route, action, feature=feature)(handler)

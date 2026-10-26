@@ -21,7 +21,7 @@ class PaymentInstructions:
     ``title_key``/``description_key`` are content keys with the placeholders ``{order_number}`` and ``{total}``.
     ``link_url`` (a provider's hosted payment page) is shown as a link button labelled by ``link_label_key``.
     ``form_label_key``: a button that opens the provider's private payment form (the gift card form). ``fields``:
-    what the customer has paid so far (rendered by the provider's ``progress``).
+    what the customer has paid so far (rendered by the provider's ``progress``); ``amount_due``: what is left to pay.
     """
 
     description_key: str
@@ -30,6 +30,9 @@ class PaymentInstructions:
     link_label_key: str | None = None
     form_label_key: str | None = None
     fields: tuple[EmbedField, ...] = ()
+    # What is still to pay (formatted) once part of the total was paid, e.g. one gift card of two: the instructions'
+    # {total} shows it, so the customer pays the rest and not the whole total again. None: nothing paid yet.
+    amount_due: str | None = None
 
 
 @dataclass(frozen=True)

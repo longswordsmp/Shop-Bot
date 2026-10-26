@@ -29,6 +29,7 @@ _ORDER_VALUES: dict[str, str | int] = {
     "total": "[sample total]",
     "status": "[sample status]",
     "order_channel": f"<#{SAMPLE_CHANNEL_ID}>",
+    "method": "[sample payment method]",
 }
 _FAILURE_VALUES: dict[str, dict[str, str | int]] = {
     k.FAILURE_NOTIFICATION: {"user_mention": f"<@{SAMPLE_USER_ID}>", "notification": "[sample notification]"},
@@ -50,7 +51,7 @@ def preview(app: App) -> list[PreviewState]:
             return
         states.append(PreviewState(feature=k.FEATURE, name=name, note=note, spec=spec))
 
-    for alert in k.ORDER_ALERTS:
+    for alert in k.order_alerts(app.settings):
         add(
             f"alert_{alert}",
             f"Staff alert in operations.staff_channel: {alert.replace('_', ' ')} (mentions operations.ping_roles).",

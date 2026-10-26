@@ -471,11 +471,11 @@ how_to_buy.step.4.value = "Check every line and the total, then press **Confirm 
 
 # Heading of step 5 of 6 in the step-by-step guide posted in the how_to_buy channel, shown in bold. Start it with a step-number icon if you want one shown, e.g. {icon_step_5} (channel links do not work in headings).
 # field_name · max 256 characters · required
-how_to_buy.step.5.name = "{icon_step_5} Pay with a DoorDash eGift card"
+how_to_buy.step.5.name = "{icon_step_5} Pay in your ticket"
 
 # Explanation of step 5 of 6 in the step-by-step guide posted in the how_to_buy channel. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-how_to_buy.step.5.value = "Buy a DoorDash eGift card for the exact total and press **Submit gift card** in your ticket. Only our payment team sees the code."
+how_to_buy.step.5.value = "Choose a payment method in your order ticket. Card payments are temporarily down, so for now pay with a DoorDash eGift card for the exact total: press **Submit gift card**. Only our payment team sees the code."
 
 # Heading of step 6 of 6 in the step-by-step guide posted in the how_to_buy channel, shown in bold. Start it with a step-number icon if you want one shown, e.g. {icon_step_6} (channel links do not work in headings).
 # field_name · max 256 characters · required
@@ -531,33 +531,49 @@ faq.section.ordering.title = "{icon_cart} ORDERING"
 
 # --- FAQ section 'payment' ---
 
-# Answer to question 1 of 3 in the 'payment' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
+# Answer to question 1 of 5 in the 'payment' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-faq.section.payment.q.1.answer = "With a DoorDash eGift card for the exact order total, in US dollars. After you confirm your order, press **Submit gift card** in your order ticket and enter the code in the private form. Several cards that add up to the total are fine."
+faq.section.payment.q.1.answer = "Our regular payment options are credit and debit cards (Visa, Mastercard, American Express and Discover), Apple Pay, Google Pay, PayPal and Cash App. They are temporarily down right now, so for the moment you pay with a DoorDash eGift card."
 
-# Question 1 of 3 in the 'payment' section (channel links do not work in questions).
+# Question 1 of 5 in the 'payment' section (channel links do not work in questions).
 # field_name · max 256 characters · required
-faq.section.payment.q.1.question = "How do I pay?"
+faq.section.payment.q.1.question = "Which payment methods do you take?"
 
-# Answer to question 2 of 3 in the 'payment' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
+# Answer to question 2 of 5 in the 'payment' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-faq.section.payment.q.2.answer = "Codes are entered only in a private form, stored encrypted, seen only by our payment team and deleted once your card is redeemed. Never post a gift card code, card number or password in a channel, and never send one by DM: our team will never ask you to."
+faq.section.payment.q.2.answer = "Our card option is currently down. Regular payment options will resume as soon as they are back up; until then, DoorDash eGift cards are the only way to pay."
 
-# Question 2 of 3 in the 'payment' section (channel links do not work in questions).
+# Question 2 of 5 in the 'payment' section (channel links do not work in questions).
 # field_name · max 256 characters · required
-faq.section.payment.q.2.question = "Is my payment safe?"
+faq.section.payment.q.2.question = "Why only gift cards right now?"
 
-# Answer to question 3 of 3 in the 'payment' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
+# Answer to question 3 of 5 in the 'payment' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-faq.section.payment.q.3.answer = "As soon as our team has checked it. You get a message in your order ticket and by DM."
+faq.section.payment.q.3.answer = "Buy a DoorDash eGift card for the exact order total, in US dollars. After you confirm your order, press **Submit gift card** in your order ticket and enter the code in the private form. Several cards that add up to the total are fine."
 
-# Question 3 of 3 in the 'payment' section (channel links do not work in questions).
+# Question 3 of 5 in the 'payment' section (channel links do not work in questions).
 # field_name · max 256 characters · required
-faq.section.payment.q.3.question = "When is my payment confirmed?"
+faq.section.payment.q.3.question = "How do I pay with a gift card?"
+
+# Answer to question 4 of 5 in the 'payment' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
+# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+faq.section.payment.q.4.answer = "Codes are entered only in a private form, stored encrypted, seen only by our payment team and deleted once your card is redeemed. Never post a gift card code, card number or password in a channel, and never send one by DM: our team will never ask you to."
+
+# Question 4 of 5 in the 'payment' section (channel links do not work in questions).
+# field_name · max 256 characters · required
+faq.section.payment.q.4.question = "Is my payment safe?"
+
+# Answer to question 5 of 5 in the 'payment' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
+# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+faq.section.payment.q.5.answer = "As soon as our team has checked it. You get a message in your order ticket and by DM."
+
+# Question 5 of 5 in the 'payment' section (channel links do not work in questions).
+# field_name · max 256 characters · required
+faq.section.payment.q.5.question = "When is my payment confirmed?"
 
 # Heading of the 'payment' section of the FAQ posted in the faq channel, shown in bold (e.g. the topic: ordering, payment...). It may start with one of the bot's icons, e.g. {icon_cart}.
 # title · max 256 characters · required
-faq.section.payment.title = "{icon_gift} PAYMENT"
+faq.section.payment.title = "{icon_wallet} PAYMENT"
 
 # --- FAQ section 'problems' ---
 
@@ -1853,6 +1869,34 @@ checkout.notify.tracking.details_field = "{icon_location} Tracking details"
 # title · max 256 characters · optional · placeholders: {order_number}, {total}, {channel_mention}
 checkout.notify.tracking.title = "Tracking details for order #{order_number}"
 
+# --- Checkout: payment method pop-up (a method that is down) ---
+
+# Heading of the pop-up's list of the methods that work right now (it may start with an icon).
+# title · max 256 characters · required
+checkout.payment.down.active_heading = "{icon_check} WORKING RIGHT NOW"
+
+# How each method that works right now is listed in the pop-up. {method} is its name, {description} its description (empty when it has none).
+# field_value · max 1024 characters · required · placeholders: {method}, {description}
+checkout.payment.down.active_line = '''
+**{method}**
+{description}'''
+
+# Text of that pop-up: the method is temporarily down (and when it comes back, if known). {method} is the method's name. The methods that work right now and their buttons follow.
+# description · max 4096 characters · required · placeholders: {method}
+checkout.payment.down.description = "Dear customer, we're sorry to inform you that **{method}** payments are currently down. Regular payment options will resume as soon as they are back up."
+
+# Button in the pop-up that opens the private gift card form (as Submit gift card does).
+# button_label · max 80 characters · required
+checkout.payment.down.gift_card_button = "{icon_gift} Pay with gift card"
+
+# Optional last line of the pop-up, e.g. 'Press a button below to use one of them.'
+# description · max 4096 characters · optional
+checkout.payment.down.hint = "Press a button below to pay this way."
+
+# Title of the private pop-up shown when a customer presses a payment method that is temporarily down. {method} is the method's name.
+# title · max 256 characters · required · placeholders: {method}
+checkout.payment.down.title = "{method} is temporarily down"
+
 # --- Checkout: gift card payment ---
 
 # Link button to payments.gift_card.buy_url (where customers buy a card).
@@ -1930,6 +1974,98 @@ checkout.payment.gift_card.form.pin_placeholder = "Leave empty if your card has 
 # Title of the private gift card form.
 # modal_title · max 45 characters · required · placeholders: {order_number}
 checkout.payment.gift_card.form.title = "Gift card · order #{order_number}"
+
+# --- Checkout: payment methods ---
+
+# Optional one-line description of the payment method 'apple_pay' (e.g. the cards it takes), shown in the pop-up's list of methods that work right now.
+# field_value · max 1024 characters · optional
+checkout.payment.method.apple_pay.description = ""
+
+# Name of the payment method 'apple_pay' on its button in the order ticket (it may start with an icon) and in the payment-methods list.
+# button_label · max 80 characters · required
+checkout.payment.method.apple_pay.label = "{icon_brand_apple} Apple Pay"
+
+# Optional one-line description of the payment method 'card' (e.g. the cards it takes), shown in the pop-up's list of methods that work right now.
+# field_value · max 1024 characters · optional
+checkout.payment.method.card.description = "Visa, Mastercard, American Express and Discover."
+
+# Name of the payment method 'card' on its button in the order ticket (it may start with an icon) and in the payment-methods list.
+# button_label · max 80 characters · required
+checkout.payment.method.card.label = "{icon_card} Credit or debit card"
+
+# Optional one-line description of the payment method 'cash_app' (e.g. the cards it takes), shown in the pop-up's list of methods that work right now.
+# field_value · max 1024 characters · optional
+checkout.payment.method.cash_app.description = ""
+
+# Name of the payment method 'cash_app' on its button in the order ticket (it may start with an icon) and in the payment-methods list.
+# button_label · max 80 characters · required
+checkout.payment.method.cash_app.label = "{icon_brand_cashapp} Cash App"
+
+# Optional one-line description of the payment method 'gift_card' (e.g. the cards it takes), shown in the pop-up's list of methods that work right now.
+# field_value · max 1024 characters · optional
+checkout.payment.method.gift_card.description = "Pay the exact total with one or more DoorDash eGift cards, in a private form."
+
+# Name of the payment method 'gift_card' on its button in the order ticket (it may start with an icon) and in the payment-methods list.
+# button_label · max 80 characters · required
+checkout.payment.method.gift_card.label = "{icon_gift} DoorDash eGift card"
+
+# Optional one-line description of the payment method 'google_pay' (e.g. the cards it takes), shown in the pop-up's list of methods that work right now.
+# field_value · max 1024 characters · optional
+checkout.payment.method.google_pay.description = ""
+
+# Name of the payment method 'google_pay' on its button in the order ticket (it may start with an icon) and in the payment-methods list.
+# button_label · max 80 characters · required
+checkout.payment.method.google_pay.label = "{icon_brand_google} Google Pay"
+
+# Optional one-line description of the payment method 'paypal' (e.g. the cards it takes), shown in the pop-up's list of methods that work right now.
+# field_value · max 1024 characters · optional
+checkout.payment.method.paypal.description = ""
+
+# Name of the payment method 'paypal' on its button in the order ticket (it may start with an icon) and in the payment-methods list.
+# button_label · max 80 characters · required
+checkout.payment.method.paypal.label = "{icon_brand_paypal} PayPal"
+
+# Private reply when a payment-method button is pressed for an order that no longer waits for payment.
+# description · max 4096 characters · required
+checkout.payment.methods.error_state = "This order isn't waiting for a payment anymore, so nothing is needed."
+
+# Private reply when a payment-method button is pressed that is no longer offered (the settings changed).
+# description · max 4096 characters · required
+checkout.payment.methods.error_unavailable = "This payment method is no longer offered. Please choose one of the methods shown on your order."
+
+# Heading of the payment-methods section on the order card while the order waits for payment (it may start with an icon).
+# title · max 256 characters · required
+checkout.payment.methods.heading = "{icon_wallet} PAYMENT METHODS"
+
+# How a method that works right now is listed, e.g. '{icon_dot_blue} **{method}** · available now'.
+# field_value · max 1024 characters · required · placeholders: {method}
+checkout.payment.methods.line_active = "{icon_dot_blue} **{method}** · available now"
+
+# How a method that is temporarily down is listed, e.g. '{icon_dot_grey} {method} · temporarily down'.
+# field_value · max 1024 characters · required · placeholders: {method}
+checkout.payment.methods.line_down = "{icon_dot_grey} {method} · temporarily down"
+
+# Optional text under the list of payment methods, e.g. why only some work right now.
+# description · max 4096 characters · optional
+checkout.payment.methods.note = "Our card option is currently down. Regular payment options will resume as soon as they are back up; until then, please pay with a DoorDash eGift card."
+
+# --- Checkout: payment by a method our team handles ---
+
+# Private reply when the customer chooses the same method again. {method} is the method's name.
+# description · max 4096 characters · required · placeholders: {method}
+checkout.payment.staff_method.already = "You already asked to pay with {method}. Our team will reply in your order ticket."
+
+# Text of that message: our team will send the payment details in this ticket. {method} is the method's name, {user_mention} mentions the customer.
+# description · max 4096 characters · required · placeholders: {method}, {user_mention}
+checkout.payment.staff_method.posted = "{user_mention} would like to pay with **{method}**. Our team will send you the payment details right here in this ticket."
+
+# Private reply to the customer after choosing such a method. {method} is the method's name.
+# description · max 4096 characters · required · placeholders: {method}
+checkout.payment.staff_method.reply = "Thanks! Our team will send you the {method} payment details in your order ticket."
+
+# Title of the message posted in the order ticket when the customer chooses a method our team handles (kind = "staff"). {method} is the method's name.
+# title · max 256 characters · required · placeholders: {method}
+checkout.payment.staff_method.title = "Paying with {method}"
 
 # --- Checkout: quantity form ---
 
@@ -2296,7 +2432,7 @@ checkout.status_label.shipped = "Shipped"
 # Optional text of the submitted order. The payment instructions follow below it. {order_number} is the order number, {total} the order total written with common.money_format.
 # description · max 4096 characters · optional · placeholders: {order_number}, {total}
 checkout.submitted.description = '''
-Your items are reserved for you. Pay with a DoorDash eGift card to place the order: see how below.
+Your items are reserved for you. Choose how to pay below.
 
 Changed your mind? You can press **Cancel order** until you submit your payment.'''
 
@@ -3058,6 +3194,14 @@ Prepare the order, then press **Mark shipped** on its record with the carrier an
 # title · max 256 characters · optional · placeholders: {order_number}, {customer_mention}, {total}, {status}, {order_channel}
 operations.alert.paid_order.title = "Payment confirmed for order #{order_number}"
 
+# Staff alert when a customer chose a payment method our team handles (payments.methods kind "staff") and waits for the payment details in their order ticket ({method} is the method's name) (operations.ping_roles are mentioned). {order_number} is the order number, {customer_mention} mentions the customer (no ping), {total} is the order total, {status} the status name (checkout.status_label.*), {order_channel} links the customer's order channel.
+# description · max 4096 characters · required · placeholders: {order_number}, {customer_mention}, {total}, {status}, {order_channel}, {method}
+operations.alert.payment_method.description = "{customer_mention} wants to pay for order #{order_number} ({total}) with **{method}**. Send them the payment details in {order_channel}, then press **Mark paid** on the order record once the payment arrived."
+
+# Optional title of the Staff alert when a customer chose a payment method our team handles (payments.methods kind "staff") and waits for the payment details in their order ticket ({method} is the method's name) (operations.ping_roles are mentioned). {order_number} is the order number, {customer_mention} mentions the customer (no ping), {total} is the order total, {status} the status name (checkout.status_label.*), {order_channel} links the customer's order channel.
+# title · max 256 characters · optional · placeholders: {order_number}, {customer_mention}, {total}, {status}, {order_channel}, {method}
+operations.alert.payment_method.title = "Payment details needed for order #{order_number}"
+
 # Staff alert when a customer submitted their payment (gift cards covering the total) and it waits to be verified (operations.ping_roles are mentioned). {order_number} is the order number, {customer_mention} mentions the customer (no ping), {total} is the order total, {status} the status name (checkout.status_label.*), {order_channel} links the customer's order channel.
 # description · max 4096 characters · required · placeholders: {order_number}, {customer_mention}, {total}, {status}, {order_channel}
 operations.alert.payment_submitted.description = '''
@@ -3227,6 +3371,14 @@ operations.owner.paid_order.description = ""
 # Optional title of the Owner's private alert when an order's payment was confirmed and it waits to be shipped (empty = the staff alert's title). Placeholders as in the staff alert.
 # title · max 256 characters · optional; falls back to operations.alert.paid_order.title · placeholders: {order_number}, {customer_mention}, {total}, {status}, {order_channel}
 operations.owner.paid_order.title = ""
+
+# Optional text of the Owner's private alert when a customer chose a payment method our team handles (payments.methods kind "staff") and waits for the payment details in their order ticket ({method} is the method's name) (empty = the staff alert's text). Placeholders as in the staff alert.
+# description · max 4096 characters · optional; falls back to operations.alert.payment_method.description · placeholders: {order_number}, {customer_mention}, {total}, {status}, {order_channel}, {method}
+operations.owner.payment_method.description = ""
+
+# Optional title of the Owner's private alert when a customer chose a payment method our team handles (payments.methods kind "staff") and waits for the payment details in their order ticket ({method} is the method's name) (empty = the staff alert's title). Placeholders as in the staff alert.
+# title · max 256 characters · optional; falls back to operations.alert.payment_method.title · placeholders: {order_number}, {customer_mention}, {total}, {status}, {order_channel}, {method}
+operations.owner.payment_method.title = ""
 
 # Optional text of the Owner's private alert when a customer submitted their payment (gift cards covering the total) and it waits to be verified (empty = the staff alert's text). Placeholders as in the staff alert.
 # description · max 4096 characters · optional; falls back to operations.alert.payment_submitted.description · placeholders: {order_number}, {customer_mention}, {total}, {status}, {order_channel}

@@ -310,6 +310,26 @@ Codes are stored only encrypted, with the key from the `GIFT_CARD_KEY` environme
 a `gift_card.key` file the bot creates next to the database (see `docs/SECURITY.md`). A code is deleted as soon as
 staff decide on its card, when the order ends unpaid, or after `keep_days`.
 
+### `[[payments.methods]]`
+
+The payment methods customers see in their order ticket, in display order (at most 10; empty = no method picker, the
+order card shows only the provider's instructions). Shipped: credit or debit card, Apple Pay, Google Pay, PayPal and
+Cash App as `"down"`, and the DoorDash eGift card as the one `"active"` method. **Keep only the methods your shop
+really offers.**
+
+| Setting | Meaning |
+|---|---|
+| `id` | Internal key (never shown). Names: `checkout.payment.method.<id>.label` (may start with an icon) and `.description`. |
+| `status` | `"active"`: customers can use it now. `"down"`: its button shows; pressing it opens a private pop-up ("Dear customer, we're sorry to inform you that … is currently down") with the methods that work right now, each with a button to use it. |
+| `kind` | What an active method does: `"gift_card"` (the gift card form; needs `provider = "gift_card"`, and must stay active then), `"staff"` (the bot posts in the ticket that the customer wants to pay this way and alerts the staff channel; staff send the payment details in the ticket and press **Mark paid**), `"link"` (a link button to `url`, your hosted payment page; staff press **Mark paid** once paid). |
+| `url` | `kind = "link"` only: the `https://` page where customers pay. |
+
+While an order waits for payment, its card lists every method with its state (`checkout.payment.methods.*`: a blue
+dot for available, a grey dot for temporarily down, and an optional note such as why only gift cards work right now)
+and shows a button per method. To bring a method back, set its `status = "active"` (with `kind`, and `url` for a
+payment page) and `/reload`. The bot never asks for card numbers in Discord: a real card processor (hosted checkout
+page with a verified webhook) is added as a payment provider (`shopbot/features/checkout/payments/__init__.py`).
+
 ## `[credits]`
 
 `allow_at_checkout` (true): customers may apply their balance at checkout.

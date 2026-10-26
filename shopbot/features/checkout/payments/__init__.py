@@ -10,6 +10,10 @@
 
 The bot never asks for or accepts bank or credit card details or passwords.
 
+The payment methods customers choose from in their ticket (``[[payments.methods]]``: card, PayPal, gift card, ...,
+each active or temporarily down) are a layer above the provider: see ``checkout.payment_methods``. Bringing card
+payments back means adding a provider as below and offering its page as an active method.
+
 Adding an approved provider (hosted checkout page / payment link + verified webhook)
 -----------------------------------------------------------------------------------
 1. Create ``payments/<provider>.py`` with a class implementing ``PaymentProvider``:

@@ -299,6 +299,22 @@ and deletion timers, and of course the products themselves (`/product add`).
   label). Customer and operator messages are told apart by the branded footer; stress-test states with synthetic text
   only get the icon rules. Accepted exceptions are listed in the tool with a reason each.
 
+## 11d. Payment methods (cards temporarily down)
+
+- **What the owner asked for, said honestly.** The shop's regular payment options (credit and debit cards, Apple Pay,
+  Google Pay, PayPal, Cash App) are listed as *temporarily down*, with the owner's reason ("our card option is
+  currently down; regular payment options will resume as soon as they are up"), and DoorDash eGift cards as the one
+  method that works now. No text says a down method works today: the order card lists each method with its state,
+  pressing a down method opens a private "Dear customer, we're sorry …" pop-up with buttons for the working methods,
+  and #faq and #how-to-order say the same. Keep only the methods the shop really offers (`[[payments.methods]]`).
+- **Ready to switch back on.** A method returns with a settings change: `status = "active"` and `kind = "staff"` (the
+  customer's choice is posted once in the ticket and alerted in #staff-chat; staff send the details and press Mark
+  paid) or `kind = "link"` (a link button to the shop's own payment page). The bot never takes card details in
+  Discord: real card processing means a payment provider with a hosted page and a verified webhook (payments
+  package), whose page is then the active method.
+- **A part payment asks for the rest.** Once a gift card counts toward an order, the instructions show what is still
+  to pay instead of the whole total.
+
 ## 12. Assumptions
 
 - One Discord server per bot instance (`GUILD_ID`).

@@ -58,14 +58,15 @@ from typing import TYPE_CHECKING
 import discord
 
 from shopbot.config.content import MissingContent
-from shopbot.core.events import ORDER_STATUS_CHANGED, ORDER_SUBMITTED
+from shopbot.config.settings import PaymentMethod
+from shopbot.core.events import ORDER_STATUS_CHANGED, ORDER_SUBMITTED, PAYMENT_METHOD_REQUESTED
 from shopbot.core.ratelimit import Cooldowns
 from shopbot.db.repos import notifications as notif_repo
 from shopbot.features import core_keys as core
 from shopbot.features.catalog import repo as catalog_repo
 from shopbot.features.catalog import service as catalog_service
 from shopbot.features.checkout import content_keys as k
-from shopbot.features.checkout import flow, gift_card_store, repo, staff_keys, staff_views, views
+from shopbot.features.checkout import flow, gift_card_store, payment_methods, repo, staff_keys, staff_views, views
 from shopbot.features.checkout import handling_repo as h
 from shopbot.features.checkout import models as m
 from shopbot.features.checkout.payments import (
@@ -266,6 +267,32 @@ async def get_order(app: App, order_id: int) -> m.Order | None:
 
 async def get_order_by_number(app: App, number: int) -> m.Order | None:
     return await app.db.run(repo.get_order_by_number, app.env.guild_id, number)
+
+
+async def request_payment_method(app: App, order: m.Order, method: PaymentMethod) -> bool:
+    """The customer chose a payment method our team handles (kind "staff"): post it once in the order ticket, alert
+    the staff (``PAYMENT_METHOD_REQUESTED``) and audit it. False when the customer already asked for this method."""
+    key = payment_methods.request_key(order.id, method.id)
+    if await app.db.run(notif_repo.already_sent, key):
+        return False
+    view = await order_view(app, order.id)
+    if view is not None and view.channel_id:
+        await app.notifier.notify_channel(
+            channel_id=view.channel_id,
+            spec=payment_methods.staff_method_post(app.ui, method, order.user_id),
+            kind=payment_methods.NOTIFY_KIND,
+            dedupe_key=key,
+            user_id=order.user_id,
+        )
+    await app.audit.record(
+        payment_methods.AUDIT_ACTION,
+        actor_id=order.user_id,
+        target_type="order",
+        target_id=order.id,
+        details={"number": order.number, "method": method.id},
+    )
+    await app.events.publish(PAYMENT_METHOD_REQUESTED, order_id=order.id, method=method.id)
+    return True
 
 
 async def order_view(app: App, order_id: int) -> m.OrderView | None:
@@ -1230,7 +1257,14 @@ async def payment_instructions(app: App, order: m.Order) -> PaymentInstructions 
     if instructions.description_key not in app.content.registry:
         return None
     progress = await provider.progress(app, order)
-    return replace(instructions, fields=progress) if progress else instructions
+    if progress:
+        instructions = replace(instructions, fields=progress)
+    if provider.id == gift_card.PROVIDER_ID:
+        counted = gift_card.counted_minor(await app.db.run(gift_card_store.cards, order.id))
+        if counted:  # part of the total is paid: the instructions ask for the rest
+            due = views.order_money(app.ui, app.settings, order.currency)(max(0, order.total_minor - counted))
+            instructions = replace(instructions, amount_due=due)
+    return instructions
 
 
 async def customer_order_messages(app: App, order_id: int) -> views.OrderMessages:

@@ -94,6 +94,10 @@
     {"name": "package_off", "kind": "badge", "icon": "outline/package-off", "color": "red"},
     {"name": "swap", "kind": "badge", "icon": "outline/arrows-exchange", "color": "amber"},
     {"name": "hourglass", "kind": "badge", "icon": "outline/hourglass", "color": "amber"},
-    {"name": "mailbox", "kind": "badge", "icon": "outline/mailbox", "color": "amber"}
+    {"name": "mailbox", "kind": "badge", "icon": "outline/mailbox", "color": "amber"},
+    {"name": "brand_apple", "kind": "badge", "icon": "outline/brand-apple", "color": "orange"},
+    {"name": "brand_google", "kind": "badge", "icon": "outline/brand-google", "color": "orange"},
+    {"name": "brand_paypal", "kind": "badge", "icon": "outline/brand-paypal", "color": "orange"},
+    {"name": "brand_cashapp", "kind": "badge", "icon": "outline/brand-cashapp", "color": "orange"}
   ]
 }

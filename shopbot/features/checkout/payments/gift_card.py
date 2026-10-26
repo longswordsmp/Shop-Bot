@@ -415,6 +415,11 @@ def card_status(ui: Ui, card: store.GiftCard) -> str | None:
     return None  # withdrawn cards are not listed
 
 
+def counted_minor(cards: list[store.GiftCard]) -> int:
+    """The value of the cards that count toward the total (submitted or redeemed; refused ones do not)."""
+    return sum(card.amount_minor for card in cards if card.status in store.ACTIVE)
+
+
 def cards_fields(
     ui: Ui, settings: Settings, order: Order, cards: list[store.GiftCard], *, only: tuple[int, ...] | None = None
 ) -> tuple[EmbedField, ...]:
@@ -431,7 +436,7 @@ def cards_fields(
         )
         if line:
             lines.append(line)
-    counted = sum(card.amount_minor for card in cards if card.status in store.ACTIVE)
+    counted = counted_minor(cards)
     remaining = max(0, order.total_minor - counted)
     if remaining and counted:
         line = ui.text(REMAINING, remaining=fmt(remaining), received=fmt(counted))

@@ -30,6 +30,7 @@ from shopbot.db.repos import state
 from shopbot.db.repos.tasks import Task
 from shopbot.features.checkout import content_keys as checkout_keys
 from shopbot.features.checkout import models as checkout_models
+from shopbot.features.checkout import payment_methods as checkout_payment_methods
 from shopbot.features.checkout import service as checkout_service
 from shopbot.features.checkout import views as checkout_views
 from shopbot.features.operations import content_keys as k
@@ -115,6 +116,12 @@ async def on_order_status_changed(app: App, *, order_id: int, status: str, **_: 
         if order is not None and order.status == status:
             payload = {"alert": k.PAYMENT_SUBMITTED, "order_id": order_id}
             await schedule_alert(app, f"{order_alert_key(k.PAYMENT_SUBMITTED, order_id)}:v{order.version}", payload)
+
+
+async def on_payment_method_requested(app: App, *, order_id: int, method: str, **_: Any) -> None:
+    """Once per order and method (the customer may also ask for another method)."""
+    payload = {"alert": k.PAYMENT_METHOD, "order_id": order_id, "method": method}
+    await schedule_alert(app, f"{order_alert_key(k.PAYMENT_METHOD, order_id)}:{method}", payload)
 
 
 async def on_failure(
@@ -244,14 +251,16 @@ async def _post(app: App, spec: MessageSpec, *, kind: str, dedupe_key: str) -> N
         raise AlertIncomplete(kind)  # retried with backoff; the notifier never posts the same key twice
 
 
-async def _order_alert(app: App, alert: str, order_id: int, dedupe_key: str) -> None:
+async def _order_alert(
+    app: App, alert: str, order_id: int, dedupe_key: str, extra: dict[str, str | int] | None = None
+) -> None:
     view = await checkout_service.order_view(app, order_id)
     if view is None:
         return
     order = view.order
     record_url = message_url(app, order.staff_channel_id, order.staff_message_id)
     ticket_url = f"https://discord.com/channels/{app.env.guild_id}/{view.channel_id}" if view.channel_id else None
-    values = order_values(app, view)
+    values = {**order_values(app, view), **(extra or {})}
     staff_spec = views.order_alert(
         app.ui, alert, values, ping_role_ids=ping_role_ids(app), record_url=record_url, ticket_url=ticket_url
     )
@@ -291,6 +300,14 @@ async def alert_task(app: App, task: Task) -> None:
             if not isinstance(order_id, int):
                 raise PermanentTaskError("payload has no order_id")
             await _order_alert(app, str(alert), order_id, dedupe_key)
+        elif alert == k.PAYMENT_METHOD:
+            order_id, method = task.payload.get("order_id"), task.payload.get("method")
+            if not isinstance(order_id, int) or not isinstance(method, str):
+                raise PermanentTaskError("payload has no order_id/method")
+            if app.settings.payments.method(method) is None:
+                return  # the method is no longer offered: nothing to ask the staff
+            name = checkout_payment_methods.method_name(app.ui, method)
+            await _order_alert(app, k.PAYMENT_METHOD, order_id, dedupe_key, {"method": name})
         elif alert == ALERT_FAILURE:
             failure = task.payload.get("kind")
             raw = task.payload.get("values")

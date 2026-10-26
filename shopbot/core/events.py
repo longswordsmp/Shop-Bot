@@ -26,6 +26,10 @@ PRODUCT_CHANGED = "catalog.product_changed"
 # actor_id (int | None; None = automatic).
 ORDER_SUBMITTED = "checkout.order_submitted"
 ORDER_STATUS_CHANGED = "checkout.order_status_changed"
+# checkout: a customer chose a payment method our team handles (``payments.methods`` kind "staff"); the staff are
+# alerted to send the payment details. Payload: order_id (int), method (str, the method's id). Published once per
+# order and method.
+PAYMENT_METHOD_REQUESTED = "checkout.payment_method_requested"
 
 # A failure staff should hear about (the operations feature posts a #staff-chat alert). Published by the router
 # (interaction handler errors), the command tree (command errors), the scheduler (a task failed permanently), the

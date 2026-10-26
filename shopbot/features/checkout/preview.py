@@ -17,7 +17,15 @@ from shopbot.config.content import MissingContent
 from shopbot.config.settings import FulfillmentOption, Settings
 from shopbot.features.catalog.repo import NAME_MAX, Product
 from shopbot.features.checkout import content_keys as k
-from shopbot.features.checkout import flow, gift_card_preview, panel, staff, staff_preview, views
+from shopbot.features.checkout import (
+    flow,
+    gift_card_preview,
+    panel,
+    payment_methods_preview,
+    staff,
+    staff_preview,
+    views,
+)
 from shopbot.features.checkout import models as m
 from shopbot.features.checkout.payments import get_provider
 from shopbot.features.checkout.totals import compute_totals
@@ -546,7 +554,7 @@ def preview(app: App) -> list[PreviewState]:
             partial(_same, largest_order.main),
         )
         extras = [*largest_order.instructions, *largest_order.items]
-        for index, spec in enumerate(extras, start=1):
+        for index, spec in enumerate(extras, start=2):  # part 1 is the workflow message itself
             add(
                 f"order_submitted_largest_part_{index}",
                 "Separate message after the largest order's workflow message (payment instructions or order lines).",
@@ -618,6 +626,7 @@ def preview(app: App) -> list[PreviewState]:
     )
 
     gift_card_preview.add_states(app, add, pending, _order(settings, m.PAYMENT_SUBMITTED, lines), instructions)
+    payment_methods_preview.add_states(app, add, pending, instructions)
 
     # -- errors (private) -------------------------------------------------------------------------------------------
     sample = views.escape(products[0].name)

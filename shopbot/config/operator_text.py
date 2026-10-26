@@ -31,6 +31,7 @@ AUDIT_TITLES: dict[str, str] = {
     "checkout.gift_card_revealed": "Gift card code revealed",
     "checkout.gift_card_submitted": "Gift card submitted",
     "checkout.order_submitted": "Order placed",
+    "checkout.payment_method_requested": "Payment method chosen",
     "checkout.order_pending_payment": "Waiting for payment again",
     "checkout.order_payment_submitted": "Payment submitted",
     "checkout.order_paid": "Payment confirmed",

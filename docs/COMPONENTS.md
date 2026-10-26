@@ -35,6 +35,7 @@ perform staff actions check staff status inside the handler, e.g. per-ticket-cat
 | component | `co` | `ocancel_yes` | checkout | any | no | `shopbot.features.checkout.handlers.on_order_cancel_yes` |
 | component | `co` | `page` | checkout | any | no | `shopbot.features.checkout.handlers.on_page` |
 | component | `co` | `payform` | checkout | any | no | `shopbot.features.checkout.handlers.on_payment_form` |
+| component | `co` | `paym` | checkout | any | no | `shopbot.features.checkout.handlers.on_payment_method` |
 | modal | `co` | `paysubmit` | checkout | any | no | `shopbot.features.checkout.handlers.on_payment_submit` |
 | component | `co` | `pick` | checkout | any | no | `shopbot.features.checkout.handlers.on_pick` |
 | modal | `co` | `qty` | checkout | any | no | `shopbot.features.checkout.handlers.on_quantity` |

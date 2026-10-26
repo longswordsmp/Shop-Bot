@@ -103,6 +103,10 @@
 - Money is never lost to a decision: a placed order (`payment_submitted`) is never rejected or cancelled while its
   cards wait (staff may have redeemed a revealed card), and redeemed cards of an order that ends unpaid become store
   credit. The value counted is the one the customer declared; staff check it while redeeming.
+- Payment methods (`[[payments.methods]]`) that are down only show a private explanation; an active `staff` method
+  only posts that the customer wants to pay that way (staff send the details in the private ticket) and a `link`
+  method only links to the shop's own payment page. None of them collects payment details in Discord, and staff
+  still confirm the payment themselves (Mark paid).
 - Payment integrations are behind a provider interface; any future provider must use the provider's hosted
   checkout or payment links and verify payment server-side (e.g. signed webhooks), never trust a user's claim.
 

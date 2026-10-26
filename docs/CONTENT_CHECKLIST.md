@@ -234,12 +234,16 @@ Feature `faq` — enabled.
 
 | | Key | Where it appears | Kind (max chars) | Required | Placeholders |
 |---|---|---|---|---|---|
-| ✅ | `faq.section.payment.q.1.answer` | Answer to question 1 of 3 in the 'payment' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. | field_value (1024) | required | `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
-| ✅ | `faq.section.payment.q.1.question` | Question 1 of 3 in the 'payment' section (channel links do not work in questions). | field_name (256) | required |  |
-| ✅ | `faq.section.payment.q.2.answer` | Answer to question 2 of 3 in the 'payment' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. | field_value (1024) | required | `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
-| ✅ | `faq.section.payment.q.2.question` | Question 2 of 3 in the 'payment' section (channel links do not work in questions). | field_name (256) | required |  |
-| ✅ | `faq.section.payment.q.3.answer` | Answer to question 3 of 3 in the 'payment' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. | field_value (1024) | required | `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
-| ✅ | `faq.section.payment.q.3.question` | Question 3 of 3 in the 'payment' section (channel links do not work in questions). | field_name (256) | required |  |
+| ✅ | `faq.section.payment.q.1.answer` | Answer to question 1 of 5 in the 'payment' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. | field_value (1024) | required | `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
+| ✅ | `faq.section.payment.q.1.question` | Question 1 of 5 in the 'payment' section (channel links do not work in questions). | field_name (256) | required |  |
+| ✅ | `faq.section.payment.q.2.answer` | Answer to question 2 of 5 in the 'payment' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. | field_value (1024) | required | `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
+| ✅ | `faq.section.payment.q.2.question` | Question 2 of 5 in the 'payment' section (channel links do not work in questions). | field_name (256) | required |  |
+| ✅ | `faq.section.payment.q.3.answer` | Answer to question 3 of 5 in the 'payment' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. | field_value (1024) | required | `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
+| ✅ | `faq.section.payment.q.3.question` | Question 3 of 5 in the 'payment' section (channel links do not work in questions). | field_name (256) | required |  |
+| ✅ | `faq.section.payment.q.4.answer` | Answer to question 4 of 5 in the 'payment' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. | field_value (1024) | required | `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
+| ✅ | `faq.section.payment.q.4.question` | Question 4 of 5 in the 'payment' section (channel links do not work in questions). | field_name (256) | required |  |
+| ✅ | `faq.section.payment.q.5.answer` | Answer to question 5 of 5 in the 'payment' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. | field_value (1024) | required | `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
+| ✅ | `faq.section.payment.q.5.question` | Question 5 of 5 in the 'payment' section (channel links do not work in questions). | field_name (256) | required |  |
 | ✅ | `faq.section.payment.title` | Heading of the 'payment' section of the FAQ posted in the faq channel, shown in bold (e.g. the topic: ordering, payment...). It may start with one of the bot's icons, e.g. {icon_cart}. | title (256) | required |  |
 
 ### FAQ section 'problems'
@@ -721,6 +725,17 @@ Feature `checkout` — enabled.
 | ✅ | `checkout.notify.tracking.details_field` | Name of the field showing the tracking details in the customer's completion notification and in the tracking notification. Needed when checkout.staff.button.tracking is configured. | field_name (256) | optional |  |
 | ✅ | `checkout.notify.tracking.title` | Optional title of the notification sent when staff add or change tracking details of a completed order. {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention. | title (256) | optional | `{order_number}`, `{total}`, `{channel_mention}` |
 
+### Checkout: payment method pop-up (a method that is down)
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ✅ | `checkout.payment.down.active_heading` | Heading of the pop-up's list of the methods that work right now (it may start with an icon). | title (256) | required |  |
+| ✅ | `checkout.payment.down.active_line` | How each method that works right now is listed in the pop-up. {method} is its name, {description} its description (empty when it has none). | field_value (1024) | required | `{method}`, `{description}` |
+| ✅ | `checkout.payment.down.description` | Text of that pop-up: the method is temporarily down (and when it comes back, if known). {method} is the method's name. The methods that work right now and their buttons follow. | description (4096) | required | `{method}` |
+| ✅ | `checkout.payment.down.gift_card_button` | Button in the pop-up that opens the private gift card form (as Submit gift card does). | button_label (80) | required |  |
+| ✅ | `checkout.payment.down.hint` | Optional last line of the pop-up, e.g. 'Press a button below to use one of them.' | description (4096) | optional |  |
+| ✅ | `checkout.payment.down.title` | Title of the private pop-up shown when a customer presses a payment method that is temporarily down. {method} is the method's name. | title (256) | required | `{method}` |
+
 ### Checkout: gift card payment
 
 | | Key | Where it appears | Kind (max chars) | Required | Placeholders |
@@ -747,6 +762,38 @@ Feature `checkout` — enabled.
 | ✅ | `checkout.payment.gift_card.form.pin_label` | Label of the optional PIN input. | input_label (45) | required |  |
 | ✅ | `checkout.payment.gift_card.form.pin_placeholder` | Optional hint in the PIN input. | input_placeholder (100) | optional |  |
 | ✅ | `checkout.payment.gift_card.form.title` | Title of the private gift card form. | modal_title (45) | required | `{order_number}` |
+
+### Checkout: payment methods
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ▫️ | `checkout.payment.method.apple_pay.description` | Optional one-line description of the payment method 'apple_pay' (e.g. the cards it takes), shown in the pop-up's list of methods that work right now. | field_value (1024) | optional |  |
+| ✅ | `checkout.payment.method.apple_pay.label` | Name of the payment method 'apple_pay' on its button in the order ticket (it may start with an icon) and in the payment-methods list. | button_label (80) | required |  |
+| ✅ | `checkout.payment.method.card.description` | Optional one-line description of the payment method 'card' (e.g. the cards it takes), shown in the pop-up's list of methods that work right now. | field_value (1024) | optional |  |
+| ✅ | `checkout.payment.method.card.label` | Name of the payment method 'card' on its button in the order ticket (it may start with an icon) and in the payment-methods list. | button_label (80) | required |  |
+| ▫️ | `checkout.payment.method.cash_app.description` | Optional one-line description of the payment method 'cash_app' (e.g. the cards it takes), shown in the pop-up's list of methods that work right now. | field_value (1024) | optional |  |
+| ✅ | `checkout.payment.method.cash_app.label` | Name of the payment method 'cash_app' on its button in the order ticket (it may start with an icon) and in the payment-methods list. | button_label (80) | required |  |
+| ✅ | `checkout.payment.method.gift_card.description` | Optional one-line description of the payment method 'gift_card' (e.g. the cards it takes), shown in the pop-up's list of methods that work right now. | field_value (1024) | optional |  |
+| ✅ | `checkout.payment.method.gift_card.label` | Name of the payment method 'gift_card' on its button in the order ticket (it may start with an icon) and in the payment-methods list. | button_label (80) | required |  |
+| ▫️ | `checkout.payment.method.google_pay.description` | Optional one-line description of the payment method 'google_pay' (e.g. the cards it takes), shown in the pop-up's list of methods that work right now. | field_value (1024) | optional |  |
+| ✅ | `checkout.payment.method.google_pay.label` | Name of the payment method 'google_pay' on its button in the order ticket (it may start with an icon) and in the payment-methods list. | button_label (80) | required |  |
+| ▫️ | `checkout.payment.method.paypal.description` | Optional one-line description of the payment method 'paypal' (e.g. the cards it takes), shown in the pop-up's list of methods that work right now. | field_value (1024) | optional |  |
+| ✅ | `checkout.payment.method.paypal.label` | Name of the payment method 'paypal' on its button in the order ticket (it may start with an icon) and in the payment-methods list. | button_label (80) | required |  |
+| ✅ | `checkout.payment.methods.error_state` | Private reply when a payment-method button is pressed for an order that no longer waits for payment. | description (4096) | required |  |
+| ✅ | `checkout.payment.methods.error_unavailable` | Private reply when a payment-method button is pressed that is no longer offered (the settings changed). | description (4096) | required |  |
+| ✅ | `checkout.payment.methods.heading` | Heading of the payment-methods section on the order card while the order waits for payment (it may start with an icon). | title (256) | required |  |
+| ✅ | `checkout.payment.methods.line_active` | How a method that works right now is listed, e.g. '{icon_dot_blue} **{method}** · available now'. | field_value (1024) | required | `{method}` |
+| ✅ | `checkout.payment.methods.line_down` | How a method that is temporarily down is listed, e.g. '{icon_dot_grey} {method} · temporarily down'. | field_value (1024) | required | `{method}` |
+| ✅ | `checkout.payment.methods.note` | Optional text under the list of payment methods, e.g. why only some work right now. | description (4096) | optional |  |
+
+### Checkout: payment by a method our team handles
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ✅ | `checkout.payment.staff_method.already` | Private reply when the customer chooses the same method again. {method} is the method's name. | description (4096) | required | `{method}` |
+| ✅ | `checkout.payment.staff_method.posted` | Text of that message: our team will send the payment details in this ticket. {method} is the method's name, {user_mention} mentions the customer. | description (4096) | required | `{method}`, `{user_mention}` |
+| ✅ | `checkout.payment.staff_method.reply` | Private reply to the customer after choosing such a method. {method} is the method's name. | description (4096) | required | `{method}` |
+| ✅ | `checkout.payment.staff_method.title` | Title of the message posted in the order ticket when the customer chooses a method our team handles (kind = "staff"). {method} is the method's name. | title (256) | required | `{method}` |
 
 ### Checkout: quantity form
 
@@ -1156,6 +1203,8 @@ Feature `operations` — enabled.
 | ✅ | `operations.alert.new_order.title` | Optional title of the Staff alert when a customer submitted a new order (operations.ping_roles are mentioned). {order_number} is the order number, {customer_mention} mentions the customer (no ping), {total} is the order total, {status} the status name (checkout.status_label.*), {order_channel} links the customer's order channel. | title (256) | optional | `{order_number}`, `{customer_mention}`, `{total}`, `{status}`, `{order_channel}` |
 | ✅ | `operations.alert.paid_order.description` | Staff alert when an order's payment was confirmed and it waits to be shipped (operations.ping_roles are mentioned). {order_number} is the order number, {customer_mention} mentions the customer (no ping), {total} is the order total, {status} the status name (checkout.status_label.*), {order_channel} links the customer's order channel. | description (4096) | required | `{order_number}`, `{customer_mention}`, `{total}`, `{status}`, `{order_channel}` |
 | ✅ | `operations.alert.paid_order.title` | Optional title of the Staff alert when an order's payment was confirmed and it waits to be shipped (operations.ping_roles are mentioned). {order_number} is the order number, {customer_mention} mentions the customer (no ping), {total} is the order total, {status} the status name (checkout.status_label.*), {order_channel} links the customer's order channel. | title (256) | optional | `{order_number}`, `{customer_mention}`, `{total}`, `{status}`, `{order_channel}` |
+| ✅ | `operations.alert.payment_method.description` | Staff alert when a customer chose a payment method our team handles (payments.methods kind "staff") and waits for the payment details in their order ticket ({method} is the method's name) (operations.ping_roles are mentioned). {order_number} is the order number, {customer_mention} mentions the customer (no ping), {total} is the order total, {status} the status name (checkout.status_label.*), {order_channel} links the customer's order channel. | description (4096) | required | `{order_number}`, `{customer_mention}`, `{total}`, `{status}`, `{order_channel}`, `{method}` |
+| ✅ | `operations.alert.payment_method.title` | Optional title of the Staff alert when a customer chose a payment method our team handles (payments.methods kind "staff") and waits for the payment details in their order ticket ({method} is the method's name) (operations.ping_roles are mentioned). {order_number} is the order number, {customer_mention} mentions the customer (no ping), {total} is the order total, {status} the status name (checkout.status_label.*), {order_channel} links the customer's order channel. | title (256) | optional | `{order_number}`, `{customer_mention}`, `{total}`, `{status}`, `{order_channel}`, `{method}` |
 | ✅ | `operations.alert.payment_submitted.description` | Staff alert when a customer submitted their payment (gift cards covering the total) and it waits to be verified (operations.ping_roles are mentioned). {order_number} is the order number, {customer_mention} mentions the customer (no ping), {total} is the order total, {status} the status name (checkout.status_label.*), {order_channel} links the customer's order channel. | description (4096) | required | `{order_number}`, `{customer_mention}`, `{total}`, `{status}`, `{order_channel}` |
 | ✅ | `operations.alert.payment_submitted.title` | Optional title of the Staff alert when a customer submitted their payment (gift cards covering the total) and it waits to be verified (operations.ping_roles are mentioned). {order_number} is the order number, {customer_mention} mentions the customer (no ping), {total} is the order total, {status} the status name (checkout.status_label.*), {order_channel} links the customer's order channel. | title (256) | optional | `{order_number}`, `{customer_mention}`, `{total}`, `{status}`, `{order_channel}` |
 | ✅ | `operations.button.open_record` | Optional link button under order alerts and order reminders that jumps to the order's live record in checkout.staff_channel. | button_label (80) | optional |  |
@@ -1197,6 +1246,8 @@ Feature `operations` — enabled.
 | ▫️ | `operations.owner.new_order.title` | Optional title of the Owner's private alert when a customer submitted a new order (empty = the staff alert's title). Placeholders as in the staff alert. | title (256) | optional (falls back to `operations.alert.new_order.title`) | `{order_number}`, `{customer_mention}`, `{total}`, `{status}`, `{order_channel}` |
 | ▫️ | `operations.owner.paid_order.description` | Optional text of the Owner's private alert when an order's payment was confirmed and it waits to be shipped (empty = the staff alert's text). Placeholders as in the staff alert. | description (4096) | optional (falls back to `operations.alert.paid_order.description`) | `{order_number}`, `{customer_mention}`, `{total}`, `{status}`, `{order_channel}` |
 | ▫️ | `operations.owner.paid_order.title` | Optional title of the Owner's private alert when an order's payment was confirmed and it waits to be shipped (empty = the staff alert's title). Placeholders as in the staff alert. | title (256) | optional (falls back to `operations.alert.paid_order.title`) | `{order_number}`, `{customer_mention}`, `{total}`, `{status}`, `{order_channel}` |
+| ▫️ | `operations.owner.payment_method.description` | Optional text of the Owner's private alert when a customer chose a payment method our team handles (payments.methods kind "staff") and waits for the payment details in their order ticket ({method} is the method's name) (empty = the staff alert's text). Placeholders as in the staff alert. | description (4096) | optional (falls back to `operations.alert.payment_method.description`) | `{order_number}`, `{customer_mention}`, `{total}`, `{status}`, `{order_channel}`, `{method}` |
+| ▫️ | `operations.owner.payment_method.title` | Optional title of the Owner's private alert when a customer chose a payment method our team handles (payments.methods kind "staff") and waits for the payment details in their order ticket ({method} is the method's name) (empty = the staff alert's title). Placeholders as in the staff alert. | title (256) | optional (falls back to `operations.alert.payment_method.title`) | `{order_number}`, `{customer_mention}`, `{total}`, `{status}`, `{order_channel}`, `{method}` |
 | ▫️ | `operations.owner.payment_submitted.description` | Optional text of the Owner's private alert when a customer submitted their payment (gift cards covering the total) and it waits to be verified (empty = the staff alert's text). Placeholders as in the staff alert. | description (4096) | optional (falls back to `operations.alert.payment_submitted.description`) | `{order_number}`, `{customer_mention}`, `{total}`, `{status}`, `{order_channel}` |
 | ▫️ | `operations.owner.payment_submitted.title` | Optional title of the Owner's private alert when a customer submitted their payment (gift cards covering the total) and it waits to be verified (empty = the staff alert's title). Placeholders as in the staff alert. | title (256) | optional (falls back to `operations.alert.payment_submitted.title`) | `{order_number}`, `{customer_mention}`, `{total}`, `{status}`, `{order_channel}` |
 
@@ -1206,7 +1257,7 @@ Feature `operations` — enabled.
 
 ## Summary
 
-- Required keys (for the listed features): 436
+- Required keys (for the listed features): 461
 - Required keys still missing: 0
 
 Legend: ✅ configured · ❌ required and missing · ▫️ optional and empty

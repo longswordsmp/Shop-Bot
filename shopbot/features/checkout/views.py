@@ -40,7 +40,7 @@ from shopbot.features.catalog import content_keys as catalog_keys
 from shopbot.features.catalog import views as catalog_views
 from shopbot.features.catalog.repo import Product
 from shopbot.features.checkout import content_keys as k
-from shopbot.features.checkout import flow, gift_card_store
+from shopbot.features.checkout import flow, gift_card_store, payment_methods
 from shopbot.features.checkout import models as m
 from shopbot.features.checkout.order_money import Money, order_money
 from shopbot.features.checkout.payments import PaymentInstructions, gift_card
@@ -1333,20 +1333,40 @@ def order_header_fields(ui: Ui, settings: Settings, view: m.OrderView) -> list[E
     return fields
 
 
-def instructions_embed(ui: Ui, instructions: PaymentInstructions, values: Mapping[str, str | int]) -> EmbedSpec:
-    """The payment instructions as a card of their own (only when they do not fit into the order card)."""
+def _instruction_values(instructions: PaymentInstructions, values: Mapping[str, str | int]) -> dict[str, str | int]:
+    """The order's values for the payment instructions: their {total} is what is still to pay."""
+    return {**values, "total": instructions.amount_due} if instructions.amount_due else dict(values)
+
+
+def instructions_embed(
+    ui: Ui, instructions: PaymentInstructions, values: Mapping[str, str | int], methods: str | None = None
+) -> EmbedSpec:
+    """The payment instructions (after the payment-methods section ``methods``, if any) as a card of their own (only
+    when they do not fit into the order card)."""
+    values = _instruction_values(instructions, values)
     title = _optional(ui, instructions.title_key, **values)
     description = _text(ui, instructions.description_key, **values)
+    if methods:
+        description = f"{methods}\n\n{heading(title)}\n{description}" if title else f"{methods}\n\n{description}"
+        title = None
     return ui.embed(title=title, description=description, tone="info", fields=instructions.fields, branding_text=False)
 
 
 def _with_instructions(
-    ui: Ui, card: EmbedSpec, instructions: PaymentInstructions, values: Mapping[str, str | int]
+    ui: Ui,
+    card: EmbedSpec,
+    instructions: PaymentInstructions,
+    values: Mapping[str, str | int],
+    methods: str | None = None,
 ) -> EmbedSpec:
-    """``card`` with the payment instructions as its last section (their title as the section heading)."""
+    """``card`` with the payment-methods section ``methods`` (if any) and the payment instructions as its last
+    sections (their title as the section heading)."""
+    values = _instruction_values(instructions, values)
     title = _optional(ui, instructions.title_key, **values)
     text = _text(ui, instructions.description_key, **values)
     section = f"{heading(title)}\n{text}" if title else text
+    if methods:
+        section = f"{methods}\n\n{section}"
     return replace(card, description=f"{card.description}\n\n{section}" if card.description else section)
 
 
@@ -1418,15 +1438,17 @@ def order_messages(
             tone=_STATUS_TONES.get(order.status, "info"),
         )
     paying = instructions if pending else None
-    tail = [instructions_embed(ui, paying, values)] if paying is not None else []
+    methods = payment_methods.section_text(ui, settings) if paying is not None else None
+    tail = [instructions_embed(ui, paying, values, methods)] if paying is not None else []
     pay = _payment_buttons(ui, instructions, order.id) if pending else ()
     cancel = _button(ui, k.BUTTON_CANCEL_ORDER, order_cancel_id(order.id), style="danger") if pending else None
 
     def embeds_for(with_lines: bool, with_instructions: bool) -> list[EmbedSpec]:
         fields = header_fields + (line_fields if with_lines else []) + total_fields
         if with_instructions and paying is not None:
-            # One card: the instructions are its last section, what was paid so far follows the totals.
-            return _spread(_with_instructions(ui, head, paying, values), [*fields, *paying.fields])
+            # One card: the payment methods and instructions are its last sections, what was paid so far follows
+            # the totals.
+            return _spread(_with_instructions(ui, head, paying, values, methods), [*fields, *paying.fields])
         return _spread(head, fields)
 
     # Most complete first: everything; the lines separately; the instructions separately; both separately.
@@ -1435,11 +1457,17 @@ def order_messages(
     return OrderMessages(
         main=MessageSpec(
             embeds=tuple(embeds_for(with_lines, with_instructions)),
-            rows=rows_of(*pay, cancel) if with_instructions else rows_of(cancel),
+            rows=payment_methods.payment_rows(ui, settings, order.id, pay, cancel)
+            if with_instructions
+            else rows_of(cancel),
             banner=ui.banner(status_banner(order.status)),
         ),
         # Continuation messages: only the workflow message (the first part) shows the banner.
-        instructions=() if with_instructions else tuple(MessageSpec(embeds=(e,), rows=rows_of(*pay)) for e in tail),
+        instructions=()
+        if with_instructions
+        else tuple(
+            MessageSpec(embeds=(e,), rows=payment_methods.payment_rows(ui, settings, order.id, pay, None)) for e in tail
+        ),
         items=() if with_lines else tuple(_pack_fields(line_fields, head.color)),
     )
 

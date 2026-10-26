@@ -525,10 +525,39 @@ class GiftCardSettings:
     chat_guard: bool = True
 
 
+PAYMENT_METHOD_STATUSES = ("active", "down")
+PAYMENT_METHOD_KINDS = ("gift_card", "staff", "link")
+MAX_PAYMENT_METHODS = 10  # two rows of buttons on the order card
+
+
+@dataclass(frozen=True)
+class PaymentMethod:
+    """``[[payments.methods]]``: a way to pay shown in the order ticket. ``status`` "active" = customers can use it
+    now; "down" = shown, but pressing it explains it is temporarily unavailable and offers the active methods.
+    ``kind`` = what an active method does: "gift_card" (the gift card form of the gift_card provider), "staff" (our
+    team sends the payment details in the ticket and confirms with Mark paid) or "link" (a button to ``url``, a hosted
+    payment page; staff confirm with Mark paid). Labels: content keys checkout.payment.method.<id>.label /
+    .description."""
+
+    id: str
+    status: str = "down"
+    kind: str = "staff"
+    url: str = ""
+
+    @property
+    def active(self) -> bool:
+        return self.status == "active"
+
+
 @dataclass(frozen=True)
 class PaymentSettings:
     provider: str = ""
     gift_card: GiftCardSettings = GiftCardSettings()
+    # Empty: no method picker (the order card shows the provider's payment instructions only).
+    methods: tuple[PaymentMethod, ...] = ()
+
+    def method(self, method_id: str) -> PaymentMethod | None:
+        return next((m for m in self.methods if m.id == method_id), None)
 
 
 @dataclass(frozen=True)
@@ -1117,8 +1146,41 @@ def parse_settings(data: dict[str, Any]) -> Settings:
         chat_guard=gc.bool_("chat_guard", True),
     )
     gc.finish()
-    payments = PaymentSettings(provider=pa.str_("provider", "", pattern=KEY_PATTERN), gift_card=gift_card)
+    methods: list[PaymentMethod] = []
+    for x in pa.tables("methods"):
+        method = PaymentMethod(
+            id=x.str_("id", "", pattern=KEY_PATTERN, allow_empty=False),
+            status=x.str_("status", "down", choices=PAYMENT_METHOD_STATUSES),
+            kind=x.str_("kind", "staff", choices=PAYMENT_METHOD_KINDS),
+            url=x.url_("url"),
+        )
+        if not method.id:
+            x.error("id", "is required")
+        if method.kind == "link" and not method.url:
+            x.error("url", 'is required for kind = "link" (the https:// page where customers pay)')
+        if method.kind != "link" and method.url:
+            x.error("url", 'is only used with kind = "link"')
+        x.finish()
+        methods.append(method)
+    payments = PaymentSettings(
+        provider=pa.str_("provider", "", pattern=KEY_PATTERN), gift_card=gift_card, methods=tuple(methods)
+    )
     pa.finish()
+    _unique(payments.methods, lambda x: x.id, "payments.methods", errors)
+    if len(payments.methods) > MAX_PAYMENT_METHODS:
+        errors.append(f"payments.methods: at most {MAX_PAYMENT_METHODS} methods (two rows of buttons)")
+    if payments.methods and not any(m.active for m in payments.methods):
+        errors.append('payments.methods: at least one method must be status = "active" (customers need a way to pay)')
+    gift_methods = [m for m in payments.methods if m.kind == "gift_card"]
+    if len(gift_methods) > 1:
+        errors.append('payments.methods: at most one method of kind = "gift_card"')
+    if gift_methods and payments.provider != "gift_card":
+        errors.append('payments.methods: kind = "gift_card" needs payments.provider = "gift_card"')
+    if payments.methods and payments.provider == "gift_card" and not any(m.active for m in gift_methods):
+        errors.append(
+            'payments.methods: with payments.provider = "gift_card", list the gift card as an active method '
+            '(kind = "gift_card", status = "active"); the order flow is built around it'
+        )
 
     cr = root.table("credits")
     credits = CreditSettings(allow_at_checkout=cr.bool_("allow_at_checkout", True))

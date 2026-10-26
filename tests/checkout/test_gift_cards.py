@@ -194,6 +194,22 @@ async def test_several_cards_add_up_and_value_beyond_the_total_becomes_store_cre
     assert reply.last_sent is not None
 
 
+async def test_after_a_first_card_the_instructions_ask_for_what_is_still_to_pay(gc: TestEnv) -> None:
+    customer, placed, message = await _placed(gc)
+    usd = views.order_money(gc.app.ui, gc.app.settings, "USD")
+
+    def instructions(total: int) -> str:
+        text = gc.app.content.render(gift_card.INSTRUCTIONS, order_number=str(placed.number), total=usd(total))
+        assert text is not None
+        return text
+
+    before = message.embeds[0].description or ""
+    assert instructions(1000) in before
+    await _submit(gc, customer, placed, amount="4.00")
+    after = message.embeds[0].description or ""
+    assert instructions(600) in after and instructions(1000) not in after  # not the whole total again
+
+
 async def test_a_refused_card_puts_the_order_back_and_the_customer_can_pay_again(gc: TestEnv) -> None:
     customer, placed, _ = await _placed(gc)
     await _submit(gc, customer, placed)

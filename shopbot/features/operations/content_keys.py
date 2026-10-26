@@ -22,6 +22,8 @@ NEW_ORDER = "new_order"
 PAYMENT_SUBMITTED = "payment_submitted"
 PAID_ORDER = "paid_order"
 ORDER_ALERTS = (NEW_ORDER, PAYMENT_SUBMITTED, PAID_ORDER)
+# A customer chose a payment method our team handles (payments.methods kind "staff"): declared only while one exists.
+PAYMENT_METHOD = "payment_method"
 
 FAILURE_NOTIFICATION = "notification"
 FAILURE_TASK = "task"
@@ -35,6 +37,7 @@ BUTTON_OPEN_RECORD = "operations.button.open_record"
 BUTTON_OPEN_TICKET = "operations.button.open_ticket"
 
 ORDER_PLACEHOLDERS = ("order_number", "customer_mention", "total", "status", "order_channel")
+PAYMENT_METHOD_PLACEHOLDERS = (*ORDER_PLACEHOLDERS, "method")
 REMINDER_ORDER_PLACEHOLDERS = (*ORDER_PLACEHOLDERS, "waiting_since", "minutes")
 REMINDER_TICKET_PLACEHOLDERS = ("ticket_number", "customer_mention", "ticket_channel", "waiting_since", "minutes")
 FAILURE_PLACEHOLDERS: dict[str, tuple[str, ...]] = {
@@ -43,6 +46,17 @@ FAILURE_PLACEHOLDERS: dict[str, tuple[str, ...]] = {
     FAILURE_ERROR: ("source", "error_id", "error"),
     FAILURE_ROLE: ("user_mention", "role_mention"),
 }
+
+
+def order_alerts(settings: Settings) -> tuple[str, ...]:
+    """The order alerts this configuration sends (the payment-method alert only with a method our team handles)."""
+    if any(method.kind == "staff" for method in settings.payments.methods):
+        return (*ORDER_ALERTS, PAYMENT_METHOD)
+    return ORDER_ALERTS
+
+
+def alert_placeholders(alert: str) -> tuple[str, ...]:
+    return PAYMENT_METHOD_PLACEHOLDERS if alert == PAYMENT_METHOD else ORDER_PLACEHOLDERS
 
 
 def alert_key(alert: str, part: str) -> str:
@@ -73,6 +87,10 @@ _ALERT_DOC = {
     NEW_ORDER: "a customer submitted a new order",
     PAYMENT_SUBMITTED: "a customer submitted their payment (gift cards covering the total) and it waits to be verified",
     PAID_ORDER: "an order's payment was confirmed and it waits to be shipped",
+    PAYMENT_METHOD: (
+        'a customer chose a payment method our team handles (payments.methods kind "staff") and waits for the '
+        "payment details in their order ticket ({method} is the method's name)"
+    ),
 }
 _REMINDER_DOC = {
     repo.UNCLAIMED: ("an open order nobody claimed", "operations.unclaimed_order_minutes"),
@@ -113,8 +131,9 @@ def content_keys(settings: Settings) -> list[ContentKey]:
     g_reminders = "Operations: staff reminders (staff channel)"
     g_failures = "Operations: failure alerts (staff channel)"
     keys: list[ContentKey] = []
-    for alert in ORDER_ALERTS:
+    for alert in order_alerts(settings):
         doc = f"Staff alert when {_ALERT_DOC[alert]} (operations.ping_roles are mentioned). {_ORDER_DOC}"
+        alert_values = alert_placeholders(alert)
         keys += [
             ck(
                 alert_key(alert, "title"),
@@ -123,7 +142,7 @@ def content_keys(settings: Settings) -> list[ContentKey]:
                 g_alerts,
                 f"Optional title of the {doc}",
                 required=False,
-                placeholders=ORDER_PLACEHOLDERS,
+                placeholders=alert_values,
             ),
             ck(
                 alert_key(alert, "description"),
@@ -131,7 +150,7 @@ def content_keys(settings: Settings) -> list[ContentKey]:
                 FEATURE,
                 g_alerts,
                 doc,
-                placeholders=ORDER_PLACEHOLDERS,
+                placeholders=alert_values,
             ),
             ck(
                 owner_key(alert, "title"),
@@ -140,7 +159,7 @@ def content_keys(settings: Settings) -> list[ContentKey]:
                 g_owner,
                 f"Optional title of the Owner's private alert when {_ALERT_DOC[alert]} (empty = the staff alert's "
                 "title). Placeholders as in the staff alert.",
-                placeholders=ORDER_PLACEHOLDERS,
+                placeholders=alert_values,
                 fallback=alert_key(alert, "title"),
             ),
             ck(
@@ -150,7 +169,7 @@ def content_keys(settings: Settings) -> list[ContentKey]:
                 g_owner,
                 f"Optional text of the Owner's private alert when {_ALERT_DOC[alert]} (empty = the staff alert's "
                 "text). Placeholders as in the staff alert.",
-                placeholders=ORDER_PLACEHOLDERS,
+                placeholders=alert_values,
                 fallback=alert_key(alert, "description"),
             ),
         ]
