@@ -2925,7 +2925,7 @@ reviews.rating.5.label = "5 stars - Excellent"
 
 # --- Report a Problem: private choice step (shown only to the customer) ---
 
-# Tells the customer that screenshots or files can be uploaded in the private ticket once it is open (the ticket channel allows attachments). Shown below the choice step, below the confirmation after the report was created, and on the report's ticket panel while the report is open.
+# Tells the customer that screenshots or files can be uploaded in the private ticket once it is open (the ticket channel allows attachments). Shown below the confirmation after the report was created and on the report's ticket panel while the report is open.
 # description · max 4096 characters · required
 problems.attachments_note = "{icon_photo} Photos or screenshots help our team review your report. You can add them here while the ticket is open."
 
@@ -3246,6 +3246,14 @@ problems.type.wrong_item.label = "Wrong item received"
 
 # --- Operations: staff alerts (staff channel) ---
 
+# Staff alert when an order left an item with catalog.low_stock_threshold units or fewer (once per drop; operations.ping_roles are mentioned). {name} is the item's name, {count} the units that can still be ordered.
+# description · max 4096 characters · required · placeholders: {name}, {count}
+operations.alert.low_stock.description = "Only **{count}** left of **{name}** after the latest order. Restock it with /product stock before it sells out."
+
+# Optional title of the Staff alert when an order left an item with catalog.low_stock_threshold units or fewer (once per drop; operations.ping_roles are mentioned). {name} is the item's name, {count} the units that can still be ordered.
+# title · max 256 characters · optional · placeholders: {name}, {count}
+operations.alert.low_stock.title = "Low stock: {name}"
+
 # Staff alert when a customer submitted a new order (operations.ping_roles are mentioned). {order_number} is the order number, {customer_mention} mentions the customer (no ping), {total} is the order total, {status} the status name (checkout.status_label.*), {order_channel} links the customer's order channel.
 # description · max 4096 characters · required · placeholders: {order_number}, {customer_mention}, {total}, {status}, {order_channel}
 operations.alert.new_order.description = '''
@@ -3300,6 +3308,14 @@ operations.alert.payment_submitted.description = '''
 # Optional title of the Staff alert when a customer submitted their payment (gift cards covering the total) and it waits to be verified (operations.ping_roles are mentioned). {order_number} is the order number, {customer_mention} mentions the customer (no ping), {total} is the order total, {status} the status name (checkout.status_label.*), {order_channel} links the customer's order channel.
 # title · max 256 characters · optional · placeholders: {order_number}, {customer_mention}, {total}, {status}, {order_channel}
 operations.alert.payment_submitted.title = "Payment submitted for order #{order_number}"
+
+# Staff alert when an order sold an item out (once per drop; operations.ping_roles are mentioned). {name} is the item's name, {count} the units that can still be ordered.
+# description · max 4096 characters · required · placeholders: {name}, {count}
+operations.alert.sold_out.description = "**{name}** just sold out: its Buy button is disabled in the catalog. Restock it with /product stock to sell it again."
+
+# Optional title of the Staff alert when an order sold an item out (once per drop; operations.ping_roles are mentioned). {name} is the item's name, {count} the units that can still be ordered.
+# title · max 256 characters · optional · placeholders: {name}, {count}
+operations.alert.sold_out.title = "Sold out: {name}"
 
 # Optional link button under order alerts and order reminders that jumps to the order's live record in checkout.staff_channel.
 # button_label · max 80 characters · optional

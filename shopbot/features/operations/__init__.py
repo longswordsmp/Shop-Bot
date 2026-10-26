@@ -22,9 +22,15 @@ from __future__ import annotations
 from functools import partial
 from typing import TYPE_CHECKING
 
-from shopbot.core.events import FAILURE, ORDER_STATUS_CHANGED, ORDER_SUBMITTED, PAYMENT_METHOD_REQUESTED
+from shopbot.core.events import (
+    FAILURE,
+    ORDER_STATUS_CHANGED,
+    ORDER_SUBMITTED,
+    PAYMENT_METHOD_REQUESTED,
+    PRODUCT_CHANGED,
+)
 from shopbot.features.base import FeatureModule
-from shopbot.features.operations import alerts, customer_role, preview, reminders
+from shopbot.features.operations import alerts, customer_role, preview, reminders, stock
 from shopbot.features.operations import content_keys as keys
 from shopbot.features.operations.text import OPERATOR_TEXT
 
@@ -47,6 +53,9 @@ def register(app: App) -> None:
     app.events.subscribe(ORDER_STATUS_CHANGED, partial(alerts.on_order_status_changed, app))
     app.events.subscribe(ORDER_STATUS_CHANGED, partial(customer_role.on_order_status_changed, app))
     app.events.subscribe(PAYMENT_METHOD_REQUESTED, partial(alerts.on_payment_method_requested, app))
+    app.events.subscribe(ORDER_SUBMITTED, partial(stock.on_order_submitted, app))
+    app.events.subscribe(ORDER_STATUS_CHANGED, partial(stock.on_order_status_changed, app))
+    app.events.subscribe(PRODUCT_CHANGED, partial(stock.on_product_changed, app))
     app.events.subscribe(FAILURE, partial(alerts.on_failure, app))
     app.bot.add_listener("message", partial(reminders.on_message, app))
 

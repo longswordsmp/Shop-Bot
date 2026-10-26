@@ -1223,6 +1223,8 @@ Feature `operations` — enabled.
 
 | | Key | Where it appears | Kind (max chars) | Required | Placeholders |
 |---|---|---|---|---|---|
+| ✅ | `operations.alert.low_stock.description` | Staff alert when an order left an item with catalog.low_stock_threshold units or fewer (once per drop; operations.ping_roles are mentioned). {name} is the item's name, {count} the units that can still be ordered. | description (4096) | required | `{name}`, `{count}` |
+| ✅ | `operations.alert.low_stock.title` | Optional title of the Staff alert when an order left an item with catalog.low_stock_threshold units or fewer (once per drop; operations.ping_roles are mentioned). {name} is the item's name, {count} the units that can still be ordered. | title (256) | optional | `{name}`, `{count}` |
 | ✅ | `operations.alert.new_order.description` | Staff alert when a customer submitted a new order (operations.ping_roles are mentioned). {order_number} is the order number, {customer_mention} mentions the customer (no ping), {total} is the order total, {status} the status name (checkout.status_label.*), {order_channel} links the customer's order channel. | description (4096) | required | `{order_number}`, `{customer_mention}`, `{total}`, `{status}`, `{order_channel}` |
 | ✅ | `operations.alert.new_order.title` | Optional title of the Staff alert when a customer submitted a new order (operations.ping_roles are mentioned). {order_number} is the order number, {customer_mention} mentions the customer (no ping), {total} is the order total, {status} the status name (checkout.status_label.*), {order_channel} links the customer's order channel. | title (256) | optional | `{order_number}`, `{customer_mention}`, `{total}`, `{status}`, `{order_channel}` |
 | ✅ | `operations.alert.paid_order.description` | Staff alert when an order's payment was confirmed and it waits to be shipped (operations.ping_roles are mentioned). {order_number} is the order number, {customer_mention} mentions the customer (no ping), {total} is the order total, {status} the status name (checkout.status_label.*), {order_channel} links the customer's order channel. | description (4096) | required | `{order_number}`, `{customer_mention}`, `{total}`, `{status}`, `{order_channel}` |
@@ -1231,6 +1233,8 @@ Feature `operations` — enabled.
 | ✅ | `operations.alert.payment_method.title` | Optional title of the Staff alert when a customer chose a payment method our team handles (payments.methods kind "staff") and waits for the payment details in their order ticket ({method} is the method's name) (operations.ping_roles are mentioned). {order_number} is the order number, {customer_mention} mentions the customer (no ping), {total} is the order total, {status} the status name (checkout.status_label.*), {order_channel} links the customer's order channel. | title (256) | optional | `{order_number}`, `{customer_mention}`, `{total}`, `{status}`, `{order_channel}`, `{method}` |
 | ✅ | `operations.alert.payment_submitted.description` | Staff alert when a customer submitted their payment (gift cards covering the total) and it waits to be verified (operations.ping_roles are mentioned). {order_number} is the order number, {customer_mention} mentions the customer (no ping), {total} is the order total, {status} the status name (checkout.status_label.*), {order_channel} links the customer's order channel. | description (4096) | required | `{order_number}`, `{customer_mention}`, `{total}`, `{status}`, `{order_channel}` |
 | ✅ | `operations.alert.payment_submitted.title` | Optional title of the Staff alert when a customer submitted their payment (gift cards covering the total) and it waits to be verified (operations.ping_roles are mentioned). {order_number} is the order number, {customer_mention} mentions the customer (no ping), {total} is the order total, {status} the status name (checkout.status_label.*), {order_channel} links the customer's order channel. | title (256) | optional | `{order_number}`, `{customer_mention}`, `{total}`, `{status}`, `{order_channel}` |
+| ✅ | `operations.alert.sold_out.description` | Staff alert when an order sold an item out (once per drop; operations.ping_roles are mentioned). {name} is the item's name, {count} the units that can still be ordered. | description (4096) | required | `{name}`, `{count}` |
+| ✅ | `operations.alert.sold_out.title` | Optional title of the Staff alert when an order sold an item out (once per drop; operations.ping_roles are mentioned). {name} is the item's name, {count} the units that can still be ordered. | title (256) | optional | `{name}`, `{count}` |
 | ✅ | `operations.button.open_record` | Optional link button under order alerts and order reminders that jumps to the order's live record in checkout.staff_channel. | button_label (80) | optional |  |
 
 ### Operations: staff reminders (staff channel)
@@ -1281,7 +1285,7 @@ Feature `operations` — enabled.
 
 ## Summary
 
-- Required keys (for the listed features): 468
+- Required keys (for the listed features): 470
 - Required keys still missing: 0
 
 Legend: ✅ configured · ❌ required and missing · ▫️ optional and empty

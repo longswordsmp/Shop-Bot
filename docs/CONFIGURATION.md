@@ -282,6 +282,8 @@ reminders, Owner alerts, Customer role) and `docs/features/catalog.md`.
 
 `operations.answers_in_orders_channel` (shipped false): post the customer's form answers under the order record in #orders; when false they appear only in the private Details view and `/order view`.
 
+`operations.stock_alerts` (shipped true): post a low-stock alert in `#staff-chat` when an order leaves an item at or below `catalog.low_stock_threshold`, and a sold-out alert when it takes the last units; once per drop, quiet after restocks and for unlimited items. See `docs/features/operations.md`.
+
 ## `[payments]`
 
 `provider`: **business decision.** Shipped: `"gift_card"`.

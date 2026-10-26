@@ -18,6 +18,8 @@ only a real server can confirm:
 4. **#shipping.** Standard "about 2 weeks", Expedited "usually 3–4 days", the US states one by one, the picture at
    the very bottom.
 5. **Products with pictures.** `/product add image:<picture>`: the picture shows under the item's name in #catalog.
+6. **Staff tools.** `/stats` answers privately with the week's sales, the open orders by next step and the best
+   sellers. Order an item down to 3 units: one "Low stock" alert in #staff-chat; order the rest: one "Sold out" alert.
 
 ## 2. Decisions only the owner can make
 
@@ -49,10 +51,10 @@ only a real server can confirm:
 
 1. **Order-specific payment links.** For a `link` method, add the order number and total to the page link, so staff
    can match payments without asking.
-2. **`/stats` for staff.** Sales today, this week and this month, open orders by status, best-selling items.
-3. **Low-stock alert to staff.** A #staff-chat alert when an item reaches the low-stock threshold (customers already
-   see "only a few left").
-4. **Discount codes.** A code field on the review step (percent or fixed amount, expiry, usage limit), shown on the
+2. **Discount codes.** A code field on the review step (percent or fixed amount, expiry, usage limit), shown on the
    receipt and the staff record.
-5. **Saved address.** Offer the customer's last address on their next order (still entered privately, never shown in
+3. **Saved address.** Offer the customer's last address on their next order (still entered privately, never shown in
    a channel).
+
+Done since this list was written: `/stats` for staff, and low-stock / sold-out alerts in #staff-chat
+(`operations.stock_alerts`, see `docs/features/operations.md`).

@@ -1,5 +1,5 @@
 """Staff order commands: ``/orders`` (browse orders, filter by status and member, paginated; open a record from the
-list) and ``/order`` (lookup, view, list, status, refund, cancel, note).
+list), ``/order`` (lookup, view, list, status, refund, cancel, note) and ``/stats`` (sales and open orders).
 
 Hidden from non-staff by default permissions (manage_messages); authorized by ``require_staff`` with the checkout
 staff roles on every invocation. Status changes, refunds and notes go through the same code path as the buttons of
@@ -15,7 +15,7 @@ from discord import app_commands
 
 from shopbot.commands import app_of, reply, require_staff
 from shopbot.features.checkout import content_keys as k
-from shopbot.features.checkout import gift_cards, service, staff
+from shopbot.features.checkout import gift_cards, service, staff, stats
 from shopbot.features.checkout import handling_repo as h
 from shopbot.features.checkout import models as m
 from shopbot.features.checkout.payments import gift_card
@@ -197,6 +197,28 @@ def build_orders_command() -> app_commands.Command[Any, ..., None]:
     return orders
 
 
+async def show_stats(interaction: discord.Interaction[Any], period: str) -> None:
+    app = await _ready_app(interaction)
+    if app is None:
+        return
+    await _defer(interaction)
+    await reply(interaction, await stats.stats_reply(app, period), ephemeral=True)
+
+
+def build_stats_command() -> app_commands.Command[Any, ..., None]:
+    """A fresh ``/stats`` command (sales of a period, the orders that need staff now, best sellers)."""
+
+    @app_commands.command(name="stats", description="Sales, orders that need attention, and best sellers.")
+    @app_commands.describe(period="Which orders count for sales and best sellers (default: the last 7 days)")
+    @app_commands.guild_only()
+    @app_commands.default_permissions(manage_messages=True)
+    @require_staff(staff_role_keys)
+    async def stats_command(interaction: discord.Interaction[Any], period: stats.Period = "7d") -> None:
+        await show_stats(interaction, period)
+
+    return stats_command
+
+
 def build_group() -> app_commands.Group:
     """A fresh ``/order`` group (one per application instance)."""
     group = app_commands.Group(name="order", description="Order tools for staff.")
@@ -293,3 +315,4 @@ def register(app: App) -> None:
         raise RuntimeError("register() requires app.bot")
     app.bot.tree.add_command(build_group(), guild=app.guild_object)
     app.bot.tree.add_command(build_orders_command(), guild=app.guild_object)
+    app.bot.tree.add_command(build_stats_command(), guild=app.guild_object)

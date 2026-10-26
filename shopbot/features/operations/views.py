@@ -90,6 +90,19 @@ def order_alert(
     )
 
 
+def stock_alert(ui: Ui, alert: str, values: Values, *, ping_role_ids: Sequence[int] = ()) -> MessageSpec:
+    """An item ran low or sold out (``operations.stock``): the staff alert (pings ``ping_role_ids``)."""
+    return _embed_message(
+        ui,
+        k.alert_key(alert, "title"),
+        k.alert_key(alert, "description"),
+        values,
+        tone="danger" if alert == k.SOLD_OUT else "warning",
+        banner=STAFF_ALERT_BANNER,
+        ping_role_ids=ping_role_ids,
+    )
+
+
 def reminder(
     ui: Ui, kind: str, values: Values, *, ping_role_ids: Sequence[int] = (), link_url: str | None = None
 ) -> MessageSpec:

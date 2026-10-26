@@ -24,6 +24,11 @@ PAID_ORDER = "paid_order"
 ORDER_ALERTS = (NEW_ORDER, PAYMENT_SUBMITTED, PAID_ORDER)
 # A customer chose a payment method our team handles (payments.methods kind "staff"): declared only while one exists.
 PAYMENT_METHOD = "payment_method"
+# An order left an item low or sold it out (operations.stock_alerts; see operations.stock).
+LOW_STOCK = "low_stock"
+SOLD_OUT = "sold_out"
+STOCK_ALERTS = (LOW_STOCK, SOLD_OUT)
+STOCK_PLACEHOLDERS = ("name", "count")
 
 FAILURE_NOTIFICATION = "notification"
 FAILURE_TASK = "task"
@@ -173,6 +178,35 @@ def content_keys(settings: Settings) -> list[ContentKey]:
                 fallback=alert_key(alert, "description"),
             ),
         ]
+    if o.stock_alerts:
+        stock_doc = {
+            LOW_STOCK: "an order left an item with catalog.low_stock_threshold units or fewer",
+            SOLD_OUT: "an order sold an item out",
+        }
+        for alert in STOCK_ALERTS:
+            doc = (
+                f"Staff alert when {stock_doc[alert]} (once per drop; operations.ping_roles are mentioned). {{name}} "
+                "is the item's name, {count} the units that can still be ordered."
+            )
+            keys += [
+                ck(
+                    alert_key(alert, "title"),
+                    Kind.TITLE,
+                    FEATURE,
+                    g_alerts,
+                    f"Optional title of the {doc}",
+                    required=False,
+                    placeholders=STOCK_PLACEHOLDERS,
+                ),
+                ck(
+                    alert_key(alert, "description"),
+                    Kind.DESCRIPTION,
+                    FEATURE,
+                    g_alerts,
+                    doc,
+                    placeholders=STOCK_PLACEHOLDERS,
+                ),
+            ]
     keys += [
         ck(
             BUTTON_OPEN_RECORD,

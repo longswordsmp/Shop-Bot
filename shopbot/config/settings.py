@@ -784,6 +784,9 @@ class OperationsSettings:
     unfulfilled_order_minutes: int = 0
     unanswered_ticket_minutes: int = 0
     reminder_repeat_minutes: int = 0
+    # An alert in staff_channel when an order leaves an item with catalog.low_stock_threshold units or fewer, and when
+    # it sells out (once per drop: a restock lets it alert again).
+    stock_alerts: bool = False
 
     def reminders_enabled(self) -> bool:
         return any(
@@ -1493,5 +1496,6 @@ def _parse_operations(r: _Reader) -> OperationsSettings:
             unfulfilled_order_minutes=r.int_("unfulfilled_order_minutes", 0, min_=0, max_=_MAX_MINUTES),
             unanswered_ticket_minutes=r.int_("unanswered_ticket_minutes", 0, min_=0, max_=_MAX_MINUTES),
             reminder_repeat_minutes=r.int_("reminder_repeat_minutes", 0, min_=0, max_=_MAX_MINUTES),
+            stock_alerts=r.bool_("stock_alerts", False),
         ),
     )

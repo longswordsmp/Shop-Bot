@@ -166,6 +166,16 @@ Default visibility: administrator
 |---|---|---|---|
 | `/setup` | admin | Create or repair the server's roles, categories and channels, then publish panels. | `dry_run` (optional): Only report what would change; change nothing.; `publish` (optional): Also post or update the panels of every ready feature (default: true). |
 
+## /stats
+
+Sales, orders that need attention, and best sellers.
+
+Default visibility: manage_messages
+
+| Command | Access | Description | Options |
+|---|---|---|---|
+| `/stats` | staff | Sales, orders that need attention, and best sellers. | `period` (optional): Which orders count for sales and best sellers (default: the last 7 days) |
+
 ## /status
 
 Show readiness, missing configuration, permissions and tasks.

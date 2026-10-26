@@ -21,6 +21,7 @@ from dataclasses import replace
 from typing import TYPE_CHECKING, Any
 
 import discord
+from discord.utils import escape_markdown
 
 from shopbot.config.content import MissingContent
 from shopbot.core.permissions import can_manage_role, channel_send_permissions, missing_permissions
@@ -28,6 +29,7 @@ from shopbot.core.scheduler import PermanentTaskError
 from shopbot.db.repos import notifications as notif_repo
 from shopbot.db.repos import state
 from shopbot.db.repos.tasks import Task
+from shopbot.features.catalog import repo as catalog_repo
 from shopbot.features.checkout import content_keys as checkout_keys
 from shopbot.features.checkout import models as checkout_models
 from shopbot.features.checkout import payment_methods as checkout_payment_methods
@@ -272,6 +274,15 @@ async def _order_alert(
         await notify_owner(app, owner_spec, kind=f"operations.owner.{alert}", dedupe_key=OWNER_PREFIX + dedupe_key)
 
 
+async def _stock_alert(app: App, alert: str, product_id: int, dedupe_key: str) -> None:
+    product = await app.db.run(catalog_repo.get_product, app.env.guild_id, product_id)
+    if product is None or product.archived or not app.settings.operations.stock_alerts:
+        return  # removed meanwhile, or the alerts were switched off
+    values: dict[str, str | int] = {"name": escape_markdown(product.name), "count": product.available or 0}
+    spec = views.stock_alert(app.ui, alert, values, ping_role_ids=ping_role_ids(app))
+    await _post(app, spec, kind=f"operations.alert.{alert}", dedupe_key=dedupe_key)
+
+
 async def _failure_alert(app: App, failure: str, values: dict[str, str | int], dedupe_key: str) -> None:
     staff_spec = views.failure_alert(
         app.ui, failure, values, ping_role_ids=ping_role_ids(app) if failure != k.FAILURE_ERROR else ()
@@ -308,6 +319,11 @@ async def alert_task(app: App, task: Task) -> None:
                 return  # the method is no longer offered: nothing to ask the staff
             name = checkout_payment_methods.method_name(app.ui, method)
             await _order_alert(app, k.PAYMENT_METHOD, order_id, dedupe_key, {"method": name})
+        elif alert in k.STOCK_ALERTS:
+            product_id = task.payload.get("product_id")
+            if not isinstance(product_id, int):
+                raise PermanentTaskError("payload has no product_id")
+            await _stock_alert(app, str(alert), product_id, dedupe_key)
         elif alert == ALERT_FAILURE:
             failure = task.payload.get("kind")
             raw = task.payload.get("values")

@@ -12,6 +12,8 @@ Package `operations` of the server specification (sections 2, 5, 6 and 8). It co
 | `#transcripts`: closure time, final status and close reason in the transcript message | `tickets` (`{closed_at}`, `{final_status}`, `{close_reason}`) |
 | Customer role: assigned and removed by configurable rules | `operations.customer_role` |
 | `/orders` (browse, filter, paginate, open a record) and `/order view` | `checkout.commands` |
+| `/stats`: sales of a period, open orders by next step, best sellers | `checkout.stats` |
+| `#staff-chat`: low-stock and sold-out alerts | `operations.stock` |
 
 The `operations` feature module has **no switch of its own**: it is enabled whenever `features.checkout` or
 `features.tickets` is on. Like every feature it is *ready* only when its settings are valid and its texts are
@@ -72,6 +74,8 @@ Internal notes used to be `order_events` rows without a status change; migration
 | Task failed | a scheduled task failed permanently | yes | yes (critical) |
 | Error | a button, form or command failed unexpectedly (with the reference the member saw) | no | no |
 | Customer role | the customer role could not be given/removed | yes | no |
+| Low stock | an order leaves an item with `catalog.low_stock_threshold` units or fewer (`operations.stock_alerts`) | yes | no |
+| Sold out | an order takes the last units of an item (`operations.stock_alerts`) | yes | no |
 
 Alerts carry identifiers only (numbers, mentions, totals, links, internal names); never form answers, payment details
 or error texts. Every alert is a durable `operations.alert` task with a dedupe key, so it survives a restart and is
@@ -82,6 +86,18 @@ when the DM fails, the alert is posted in `#staff-chat` with a mention of the Ow
 
 Pings notify only when the role is mentionable or the bot has "Mention @everyone, @here and All Roles"; `/setup` reports
 roles that cannot be pinged.
+
+## Stock alerts
+
+With `operations.stock_alerts = true` (shipped on), an order that leaves an item low (at or below
+`catalog.low_stock_threshold`, shipped 3; 0 turns low-stock alerts off and keeps sold-out alerts) or sells it out posts one alert in
+`#staff-chat`, with the units left and the `/product stock` hint. Each item's level is remembered
+(`kv_state`, `operations.stock_level:<product id>`), so an item alerts once per drop: fine → low, fine → sold out,
+low → sold out. Two more orders of an item that is already low do not alert again. An order that ends unpaid
+(cancelled, expired, rejected) gives its units back and only updates the level; a staff stock change
+(`/product stock`, `/product edit`, archiving) updates the level without an alert, so after a restock the next drop
+alerts again. Unlimited items never alert. Texts: `operations.alert.low_stock.*`, `operations.alert.sold_out.*`
+(`{name}`, `{count}`); the numbers are read when the alert is sent.
 
 ## Reminders
 
@@ -115,6 +131,7 @@ staff_channel = "staff_chat"   # required; staff/admin channel
 ping_roles = ["staff"]
 owner_dm_alerts = true
 answers_in_orders_channel = false  # true = also post the customer's form answers under each record in #orders
+stock_alerts = true            # low-stock / sold-out alerts in #staff-chat (low needs catalog.low_stock_threshold > 0)
 unclaimed_order_minutes = 0    # reminders: 0 = off (business decisions)
 unpaid_order_minutes = 0
 unfulfilled_order_minutes = 0
@@ -154,6 +171,11 @@ Staff-only forms and private replies to staff are operator text (`checkout.note.
 - `/orders [status] [member]`: staff; the order list (10 per page) with a status filter menu, a menu that opens an
   order's full record privately, and previous/next buttons. Same list as `/order list`.
 - `/order view <number>`: staff; the full record (same as `/order lookup`).
+- `/stats [period]`: staff; a private overview. **Sales** of the period (last 24 hours, 7 days (default), 30 days or
+  all time): orders placed, orders paid (and how many ended unpaid), revenue after refunds and the average order,
+  refunds. **Needs attention now**: open orders of any age by what staff do next (waiting for payment, payment to
+  check, to ship, shipped). **Best sellers** of the period (top 5 by units). Sales count only orders whose payment
+  was confirmed; orders in another currency (placed before `checkout.currency` changed) are noted, not added.
 - `/order note` now stores the note as staff activity (shown on the record).
 - `/ticket close` in an order ticket: closes the ticket of an order that was never submitted (the unfinished order is
   cancelled); refused while a submitted order of the ticket is open (see `docs/features/orders_privacy.md`).
@@ -169,8 +191,10 @@ Staff-only forms and private replies to staff are operator text (`checkout.note.
 4. On another order: Mark paid (paid alert), Tracking details, Mark completed (the completion notification shows the
    tracking details; the customer gets the Customer role), then refund it fully (the role is removed).
 5. Set a reminder threshold to 1 minute and wait: a reminder appears in `#staff-chat`.
-6. `/orders`, filter by status, open a record from the menu; `/order view 1`.
-7. Check `#bot-log` for the audit entries and `#transcripts` for the closure time and final status.
+6. `/orders`, filter by status, open a record from the menu; `/order view 1`; `/stats` and `/stats period:30d`.
+7. Set `catalog.low_stock_threshold = 3`, give an item 4 units and order 1: one low-stock alert in `#staff-chat`;
+   order the rest: one sold-out alert.
+8. Check `#bot-log` for the audit entries and `#transcripts` for the closure time and final status.
 
 ## Limitations
 

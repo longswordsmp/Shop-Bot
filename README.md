@@ -46,7 +46,7 @@ Roles: **Owner** (given to `OWNER_ID`), **Staff**, **Member** (the #welcome "I a
 - **#orders** — one live record per order: Claim, in progress, completed, tracking, notes, correction requests,
   reject with reason, cancel, details; **#staff-chat** alerts and reminders; **#bot-log** audit; **#transcripts**.
 - **Customers** — `/myorders`, DMs for every status change (with channel fallback), reviews after completion.
-- **Admin tools** — `/status`, `/content`, `/reload`, `/backup`, `/audit`, `/tasks`, `/orders`, `/order view`.
+- **Admin tools** — `/status`, `/content`, `/reload`, `/backup`, `/audit`, `/tasks`, `/orders`, `/order view`, `/stats`.
 
 ## Quick start (local)
 

@@ -416,6 +416,8 @@ unpaid_order_minutes = 1440          # an order still waiting for payment this l
 unfulfilled_order_minutes = 2880     # a paid order not shipped this long after the payment was confirmed
 unanswered_ticket_minutes = 240      # a support ticket whose customer has waited this long for a staff reply
 reminder_repeat_minutes = 0          # repeat a reminder this often while it still applies (0 = remind once)
+stock_alerts = true                  # alert staff_channel when an order leaves an item low (catalog.low_stock_threshold
+                                     # units or fewer) or sold out; once per drop (a restock lets it alert again)
 
 [tickets]
 panel_channel = ""                   # "" = no standalone ticket panel (support starts from #purchase)

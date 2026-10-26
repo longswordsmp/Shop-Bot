@@ -24,9 +24,11 @@ from shopbot.features.checkout import (
     payment_methods_preview,
     staff,
     staff_preview,
+    stats,
     views,
 )
 from shopbot.features.checkout import models as m
+from shopbot.features.checkout.order_money import order_money
 from shopbot.features.checkout.payments import get_provider
 from shopbot.features.checkout.totals import compute_totals
 from shopbot.ui.spec import MessageSpec, ModalSpec, PreviewState
@@ -732,5 +734,27 @@ def preview(app: App) -> list[PreviewState]:
             status="",
             user_id=0,
         ),
+    )
+    sample_stats = stats.Stats(
+        currency=settings.checkout.currency or "USD",
+        placed=38,
+        sold=31,
+        ended_unsold=5,
+        revenue_minor=184_250,
+        refunded_minor=2_000,
+        open_counts={"pending": 2, "submitted": 1, "to_ship": 4, "shipped": 6},
+        best=tuple(stats.BestSeller(f"[sample product {i}]", 20 - 3 * i, (20 - 3 * i) * 1_299) for i in range(1, 6)),
+        other_currency=1,
+    )
+    stats_money = order_money(ui, settings, sample_stats.currency)
+    add(
+        "staff_stats",
+        "Staff only (/stats): sales of the last 7 days, the orders that need staff now, best sellers (sample numbers).",
+        lambda: stats.stats_message(ui, op, stats_money, sample_stats, "7d"),
+    )
+    add(
+        "staff_stats_empty",
+        "Staff only (/stats) in a new shop: nothing sold yet.",
+        lambda: stats.stats_message(ui, op, stats_money, stats.Stats(currency=sample_stats.currency), "24h"),
     )
     return states

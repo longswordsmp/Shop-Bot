@@ -144,7 +144,7 @@ Check: Server Settings → Roles shows the bot's role **above** Owner, Staff, Me
 (Discord only lets the bot give roles below its own). Give your staff the Staff role.
 
 **Who sees which slash command.** Discord lists a command only for members with its default permission: the staff
-commands (`/orders`, `/order`, `/ticket`, `/review`, `/announce`) need *Manage Messages*, which `/setup` gives the Staff
+commands (`/orders`, `/order`, `/stats`, `/ticket`, `/review`, `/announce`) need *Manage Messages*, which `/setup` gives the Staff
 role (`permissions = ["manage_messages"]` in `settings.toml`; it also lets staff delete and pin messages; `/setup`
 only adds it and keeps any other permissions the role already has). Admin commands need Administrator; `/product` needs Manage
 Server. To fine-tune, open **Server Settings → Integrations → (the bot) → Manage** and allow or deny each command for
@@ -250,7 +250,7 @@ Use a second (non-staff) Discord account as the "customer".
 - [ ] #place-order Report a Problem → choose order and type → form → private problem ticket; staff Resolve/Reject.
 - [ ] #staff-chat gets new-order / paid alerts (staff pinged) and reminders once thresholds are set; the Owner gets DMs.
 - [ ] `/announce` (staff) → embed in #announcements; a customer cannot use it.
-- [ ] `/orders`, `/order view`, `/status`, `/content show`, `/backup`, `/audit`; #bot-log shows the actions.
+- [ ] `/orders`, `/order view`, `/stats`, `/status`, `/content show`, `/backup`, `/audit`; #bot-log shows the actions.
 - [ ] Restart the service (Railway → Restart) → every old button still works.
 
 Record what you tested and anything unexpected. Every failure answered with the generic error text (a crash, or

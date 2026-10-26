@@ -73,6 +73,15 @@ def preview(app: App) -> list[PreviewState]:
                 views.order_alert, ui, alert, _ORDER_VALUES, owner=True, record_url=SAMPLE_URL, ticket_url=SAMPLE_URL
             ),
         )
+    if app.settings.operations.stock_alerts:
+        stock_notes = {k.LOW_STOCK: "an order left an item low", k.SOLD_OUT: "an order sold an item out"}
+        for alert in k.STOCK_ALERTS:
+            item: dict[str, str | int] = {"name": "[sample product]", "count": 0 if alert == k.SOLD_OUT else 2}
+            add(
+                f"alert_{alert}",
+                f"Staff alert in operations.staff_channel: {stock_notes[alert]} (once per drop; pings ping_roles).",
+                partial(views.stock_alert, ui, alert, item, ping_role_ids=ping),
+            )
     for kind in repo.REMINDER_KINDS:
         if kind == repo.UNANSWERED:
             values: dict[str, str | int] = {
