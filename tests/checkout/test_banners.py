@@ -12,8 +12,8 @@ import pytest
 
 from shopbot.config.banner_ids import BannerId
 from shopbot.features.checkout import content_keys as k
+from shopbot.features.checkout import discounts, panel, service, staff, staff_views, views
 from shopbot.features.checkout import models as m
-from shopbot.features.checkout import panel, service, staff, staff_views, views
 from shopbot.features.checkout import preview as checkout_preview
 from shopbot.features.tickets import service as tickets_service
 from shopbot.ui.spec import MessageSpec
@@ -433,6 +433,21 @@ EXPECTED: dict[str, BannerId] = {
     "error_product_unavailable": "general-response",
     "error_order_not_cancellable": "general-response",
     "error_minimum_not_met": "general-response",
+    # Discount codes and claimed coupons.
+    "workflow_review_discount_percent": _REVIEW,
+    "workflow_review_discount_bogo": _REVIEW,
+    "workflow_review_discount_not_applying": _REVIEW,
+    "workflow_review_discount_buttons": _REVIEW,
+    "workflow_review_discount_credits_applied": _REVIEW,
+    **{f"discount_error_{reason}": "general-response" for reason in discounts.REASONS},
+    "discount_error_too_many_tries": "general-response",
+    "order_discount_submitted": "order-status",
+    "order_discount_paid": "successful-confirmation",
+    "order_discount_shipped": "completed-or-dispatched",
+    "notify_submitted_discount": "order-status",
+    "discount_claim_reply": "successful-confirmation",
+    "discount_claim_reply_simple": "successful-confirmation",
+    "discount_offer_ended": "general-response",
 }
 
 

@@ -60,13 +60,22 @@ import discord
 from shopbot.config.content import MissingContent
 from shopbot.config.settings import PaymentMethod
 from shopbot.core.events import ORDER_STATUS_CHANGED, ORDER_SUBMITTED, PAYMENT_METHOD_REQUESTED
-from shopbot.core.ratelimit import Cooldowns
+from shopbot.core.ratelimit import Cooldowns, SlidingWindowLimiter
 from shopbot.db.repos import notifications as notif_repo
 from shopbot.features import core_keys as core
 from shopbot.features.catalog import repo as catalog_repo
 from shopbot.features.catalog import service as catalog_service
 from shopbot.features.checkout import content_keys as k
-from shopbot.features.checkout import flow, gift_card_store, payment_methods, repo, staff_keys, staff_views, views
+from shopbot.features.checkout import (
+    discounts,
+    flow,
+    gift_card_store,
+    payment_methods,
+    repo,
+    staff_keys,
+    staff_views,
+    views,
+)
 from shopbot.features.checkout import handling_repo as h
 from shopbot.features.checkout import models as m
 from shopbot.features.checkout.payments import (
@@ -104,6 +113,9 @@ CREDITS_FEATURE = "credits"
 REVIEWS_FEATURE = "reviews"
 # Anti-spam: minimum seconds between two order channels created by the same member (not a business rule).
 START_COOLDOWN_SECONDS = 10
+# Guessing discount codes: at most this many typed codes that could not be used, per customer, in this many seconds.
+DISCOUNT_TRIES = 5
+DISCOUNT_TRIES_SECONDS = 600
 # Refund reasons are also stored as the store-credit note of a refund to credit.
 REFUND_REASON_MAX = views.REFUND_REASON_MAX
 # How many recent staff-channel messages are searched for an order's controls before posting them again.
@@ -155,6 +167,9 @@ class FollowupIncomplete(Exception):
 @dataclass
 class CheckoutRuntime:
     cooldowns: Cooldowns
+    # Discount codes a customer typed that could not be used: at most DISCOUNT_TRIES per DISCOUNT_TRIES_SECONDS
+    # (protection against guessing codes; ``discount_codes``).
+    discount_tries: SlidingWindowLimiter
     refund_locks: dict[int, asyncio.Lock] = field(default_factory=dict)
     followup_locks: dict[int, asyncio.Lock] = field(default_factory=dict)
     start_locks: dict[int, asyncio.Lock] = field(default_factory=dict)
@@ -191,7 +206,12 @@ def runtime(app: App) -> CheckoutRuntime:
     state = _RUNTIMES.get(app)
     if state is None:
         clock = app.clock
-        state = CheckoutRuntime(cooldowns=Cooldowns(clock=lambda: float(clock.now())))
+        state = CheckoutRuntime(
+            cooldowns=Cooldowns(clock=lambda: float(clock.now())),
+            discount_tries=SlidingWindowLimiter(
+                DISCOUNT_TRIES, DISCOUNT_TRIES_SECONDS, clock=lambda: float(clock.now())
+            ),
+        )
         _RUNTIMES[app] = state
     return state
 
@@ -238,7 +258,7 @@ def customer_error(app: App, exc: repo.CheckoutError) -> HandlerError:
     """The configured customer message for a checkout rule violation."""
     if isinstance(exc, repo.SessionNotActive):
         return HandlerError(k.ERROR_SESSION_CLOSED)
-    if isinstance(exc, (repo.SessionNotFound, repo.ProductMissing)):
+    if isinstance(exc, (repo.SessionNotFound, repo.ProductMissing, repo.CouponNotClaimed)):
         return HandlerError(core.ERROR_NOT_FOUND)
     if isinstance(exc, repo.ProductUnavailable):
         return HandlerError(k.ERROR_PRODUCT_UNAVAILABLE, name=views.escape(exc.name))
@@ -250,6 +270,12 @@ def customer_error(app: App, exc: repo.CheckoutError) -> HandlerError:
         return HandlerError(k.ERROR_CART_FULL, max=exc.maximum)
     if isinstance(exc, repo.MinimumNotMet):
         return HandlerError(k.CART_MINIMUM_NOT_MET, minimum=views.money(app.ui, exc.minimum))
+    if isinstance(exc, repo.CodeRefused):
+        reason = exc.check.reason or discounts.UNKNOWN
+        values: dict[str, str | int] = {"code": views.escape(exc.code)}
+        if reason == discounts.MINIMUM:
+            values["minimum"] = views.money(app.ui, exc.check.minimum_minor)
+        return HandlerError(k.discount_error_key(reason), **values)
     return HandlerError(core.ERROR_INVALID_INPUT)
 
 
@@ -302,7 +328,9 @@ async def order_view(app: App, order_id: int) -> m.OrderView | None:
 
 
 async def workflow_data(app: App, session_id: int) -> m.WorkflowData | None:
-    return await app.db.run(repo.load_workflow, app.env.guild_id, session_id, app.settings, credits_enabled(app))
+    return await app.db.run(
+        repo.load_workflow, app.env.guild_id, session_id, app.settings, credits_enabled(app), app.clock.now()
+    )
 
 
 async def workflow_spec(app: App, session_id: int, *, notice: str | None = None) -> MessageSpec:

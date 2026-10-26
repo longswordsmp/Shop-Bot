@@ -37,7 +37,9 @@ Roles: **Owner** (given to `OWNER_ID`), **Staff**, **Member** (the #welcome "I a
 - **#how-to-order / #faq / #shipping** — one card each: numbered steps with channel links; FAQ topics with their
   questions; every country we ship to with a blue (everywhere) or yellow (some areas excluded) dot, the delivery
   options and prices.
-- **#announcements** — `/announce` (staff) with title, message, configured fields, image and optional role ping.
+- **#announcements** — `/announce` (staff) with title, message, configured fields, image and optional role ping;
+  `/announce preset:` posts a ready-made announcement after a private preview, e.g. the warehouse sale with its
+  **Claim coupon** button (buy one, get one free), which shows **Offer ended** once the coupon ends.
 - **#catalog** — one live embed per item with a Buy button (disabled when sold out), availability colors, uploaded
   images that stay attached; `/product add|edit|remove|list|...`.
 - **#new-arrivals** — Restock Alerts opt-in button and automatic new-item / back-in-stock posts (each once).
@@ -45,6 +47,8 @@ Roles: **Owner** (given to `OWNER_ID`), **Staff**, **Member** (the #welcome "I a
   Problem (private problem ticket with staff Resolve/Reject).
 - **#orders** — one live record per order: Claim, in progress, completed, tracking, notes, correction requests,
   reject with reason, cancel, details; **#staff-chat** alerts and reminders; **#bot-log** audit; **#transcripts**.
+- **Discount codes** — `/discount create|list|end` (percent off, amount off, buy one get one free); customers type a
+  code or press **Use coupon** for a coupon they claimed, on the review step of their order.
 - **Customers** — `/myorders`, DMs for every status change (with channel fallback), reviews after completion.
 - **Admin tools** — `/status`, `/content`, `/reload`, `/backup`, `/audit`, `/tasks`, `/orders`, `/order view`, `/stats`.
 

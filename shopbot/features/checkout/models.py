@@ -24,7 +24,9 @@ state changed and applies nothing.
 
 Refunds of a paid order have two parts: money (``refunded_minor``, at most ``total_minor``) and the store credit
 the customer applied (``credits_applied_minor``, returned all at once; ``credit_returned_minor`` is read from the
-credit ledger). An order is fully refunded - and moves to ``refunded`` - once both are covered.
+credit ledger). An order is fully refunded - and moves to ``refunded`` - once both are covered. A discount
+(``discount_minor``, from a discount code) was never paid, so it is never refunded: it is already taken off
+``total_minor``.
 """
 
 from __future__ import annotations
@@ -138,6 +140,8 @@ class Session:
     created_at: int
     updated_at: int
     expires_at: int | None
+    # The discount code the customer applied (checked again whenever the review is shown and at submission).
+    discount_code_id: int | None = None
 
     @property
     def active(self) -> bool:
@@ -186,6 +190,12 @@ class Order:
     closed_at: int | None
     # Store credit given back to the customer for this order (its ``order_return`` ledger row; 0 when none).
     credit_returned_minor: int = 0
+    # The discount code the order used: its id, the code and kind as they were when the order was placed, and the
+    # amount it took off the items (0 without a code).
+    discount_code_id: int | None = None
+    discount_code: str | None = None
+    discount_kind: str | None = None
+    discount_minor: int = 0
 
     @property
     def refundable_minor(self) -> int:
@@ -305,12 +315,41 @@ class ProductPage:
 
 
 @dataclass(frozen=True)
+class AppliedDiscount:
+    """The discount code of an unfinished order as checked now (``discounts.evaluate``): ``amount_minor`` is what it
+    takes off the items, 0 when it does not apply; ``reason`` is why it does not apply (``discounts.REASONS``; None
+    when it does) and ``minimum_minor`` the code's minimum (for that reason's text)."""
+
+    code_id: int
+    code: str
+    kind: str
+    amount_minor: int
+    reason: str | None = None
+    minimum_minor: int = 0
+
+    @property
+    def applies(self) -> bool:
+        return self.reason is None
+
+
+@dataclass(frozen=True)
+class DiscountOffer:
+    """What the review step offers: ``codes`` - discount codes are on and the shop has at least one usable code (the
+    Add discount code button); ``coupons`` - (code id, code) of coupons the customer claimed that can still be used,
+    newest first (one Use coupon button each)."""
+
+    codes: bool = False
+    coupons: tuple[tuple[int, str], ...] = ()
+
+
+@dataclass(frozen=True)
 class WorkflowData:
     """Everything the workflow message of an active session needs (one consistent database snapshot).
 
     ``credits_enabled``: checkout may offer credits right now; ``credits_available_minor``: how much credit could
     be applied to this order (``min(balance, gross total)``); ``ticket_number``: the order ticket's number (the
-    reference the live panel shows).
+    reference the live panel shows); ``discount``: the discount code the customer applied, as checked now (None
+    without one, or while discount codes are off); ``offer``: the discount buttons the review step shows.
     """
 
     session: Session
@@ -320,3 +359,5 @@ class WorkflowData:
     credits_enabled: bool
     credits_available_minor: int
     ticket_number: int | None = None
+    discount: AppliedDiscount | None = None
+    offer: DiscountOffer = field(default_factory=DiscountOffer)

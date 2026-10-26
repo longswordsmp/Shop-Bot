@@ -69,16 +69,30 @@ workflow message that is edited in place for every step.
 
 **Steps:** browse (paginated product menu → quantity form) → cart (edit quantities, minimum order) → fulfillment
 (only if options are configured) → details (only if forms are configured; split over two forms when more than five
-fields) → review (items, fees, fulfillment fee, store credit, total) → submit. Back/Continue/Cancel move between
-steps; Continue is disabled until the step is complete.
+fields) → review (items, discount code, fees, fulfillment fee, store credit, total) → submit. Back/Continue/Cancel
+move between steps; Continue is disabled until the step is complete.
 
-**Totals** (one function for display and charging): subtotal = Σ unit price × quantity; fulfillment fee; each fee
-(flat, or percent of subtotal rounded half up); credits = min(balance, total) when applied; total = subtotal + fees
-− credits. Integer minor units throughout.
+**Discount codes** (review step, `checkout.discount_codes`; codes are made with `/discount`): **Add discount code**
+(while the shop has a code that is not ended or expired) opens a private form; **Use coupon CODE** applies a coupon
+the customer claimed (the two newest that can still be used). These buttons are secondary and share the store
+credit's row (Confirm order stays the one main action). A code that applies is shown under the subtotal
+("Discount (SAVE10) · -$2.00", or "Buy one, get one free (BOGO) · -$5.99") and **Remove discount** replaces those
+buttons; one code per order. A code that cannot be used gets a private reply with its reason (unknown, ended, expired,
+used up, already used, a minimum, no eligible items, buy one get one free needs two items); after 5 such typed codes
+in 10 minutes the customer waits a few minutes. A code that would take nothing off (only free items) does not apply.
+A code that stops applying while the order is put together (the cart changed, it ended) shows "Discount (CODE) · not
+applied" in the summary and its reason under the total, and the total is without it. The rules (buy one get one free
+pairs, product limits, how uses are counted) are in `docs/DECISIONS.md` §11e.
+
+**Totals** (one function for display and charging): subtotal = Σ unit price × quantity; discount (from the discount
+code, at most the items); fulfillment fee; each fee (flat, or percent of the items after the discount, rounded half
+up); credits = min(balance, total) when applied; total = subtotal − discount + fees − credits. Integer minor units
+throughout.
 
 **Submit** (one atomic transaction): the total in the button must match a fresh recomputation (else the review is
-shown again with your price-changed text); every product must still be available; stock is reserved for every line
-(all or nothing — concurrent customers cannot oversell); credits are debited; the order (number, items, fees,
+shown again with your price-changed text; a discount code that expired, ended or was used up since the review changes
+the total this way); every product must still be available; stock is reserved for every line (all or nothing —
+concurrent customers cannot oversell); credits are debited; the order (number, items, fees, discount code and amount,
 reservations, payment record, history) is written. A duplicate submit returns the same order.
 
 After submit: the customer sees your payment instructions; staff get a control message in `checkout.staff_channel`.
@@ -121,7 +135,7 @@ error cannot lose them; each step is idempotent.
 **Refunds and store credit after payment:** money refunds (partial or full, optionally paid out as store credit) and
 giving back the store credit applied to the order are separate staff actions. An order counts as fully refunded
 when money refunds plus returned credit cover the total plus the credit applied. Neither ever exceeds what was paid
-or applied, and repeating an action changes nothing.
+or applied, and repeating an action changes nothing. A discount was never paid, so it is never refunded.
 
 **Staff controls carry the status they were shown for:** a button from an older view (the order changed meanwhile)
 does nothing except refresh the controls, so a stale "cancel" can never cancel an order that was paid in between.

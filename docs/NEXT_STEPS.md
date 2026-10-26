@@ -20,6 +20,9 @@ only a real server can confirm:
 5. **Products with pictures.** `/product add image:<picture>`: the picture shows under the item's name in #catalog.
 6. **Staff tools.** `/stats` answers privately with the week's sales, the open orders by next step and the best
    sellers. Order an item down to 3 units: one "Low stock" alert in #staff-chat; order the rest: one "Sold out" alert.
+7. **Discount codes.** `/discount create` a code, then in an order ticket press **Add discount code** on the review
+   step: the discount shows under the subtotal and stays on the order card, the #orders record and `/order view`
+   (the checks are in step 12 of `docs/MORNING.md`).
 
 ## 2. Decisions only the owner can make
 
@@ -51,10 +54,11 @@ only a real server can confirm:
 
 1. **Order-specific payment links.** For a `link` method, add the order number and total to the page link, so staff
    can match payments without asking.
-2. **Discount codes.** A code field on the review step (percent or fixed amount, expiry, usage limit), shown on the
-   receipt and the staff record.
-3. **Saved address.** Offer the customer's last address on their next order (still entered privately, never shown in
+2. **Saved address.** Offer the customer's last address on their next order (still entered privately, never shown in
    a channel).
 
-Done since this list was written: `/stats` for staff, and low-stock / sold-out alerts in #staff-chat
-(`operations.stock_alerts`, see `docs/features/operations.md`).
+Done since this list was written: `/stats` for staff, low-stock / sold-out alerts in #staff-chat
+(`operations.stock_alerts`, see `docs/features/operations.md`), and discount codes: `/discount` (percent off, amount
+off, buy one get one free; product limits, minimum, uses, end date, once per customer), the code field and claimed
+coupons on the review step, the discount on the order card, the #orders record and `/order view` (see
+`docs/DECISIONS.md` §11e).

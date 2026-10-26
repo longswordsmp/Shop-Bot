@@ -267,10 +267,12 @@ reports), and an optional
 | `transcript_on_close` | true | Transcript of the order channel when it closes (uses the tickets transcript channel and text). |
 | `session_expiry_warning_minutes` | 0 | Warn in the ticket this long before an idle cart expires (0 = off). |
 | `customer_role` / `customer_role_on` / `customer_role_remove_on_refund` | `customer` / `fulfilled` / true | Role given when an order reaches `paid` (also counts later statuses, shipped included) or `fulfilled` (delivered); removed after a full refund unless another order qualifies. |
+| `discount_codes` | true | Discount codes made with `/discount` (percent off, amount off, buy one get one free): the review step offers Add discount code while a code can be used, and the coupons the customer claimed. `false` = no discount buttons, a code already applied to an unfinished order is ignored, claim buttons say the offer is not available and `/discount` says codes are off. Orders placed with a code keep showing it. |
 
 Submission form (`[[checkout.submission_form]]`, up to 5 fields, asked when the customer presses Submit; answers are
 stored with the order and shown to staff). Fulfillment options: `id`, `fee_minor`, optional `[[...form]]`. Fees: `id`, `kind` = `flat` (`amount_minor`) or
-`percent` (`basis_points`, 100 = 1%; rounded half up). Details form: up to 5 fields like ticket forms.
+`percent` (`basis_points`, 100 = 1%; rounded half up; charged on the items after a discount code). Details form: up to
+5 fields like ticket forms.
 
 ## Specification features (`[verification]`, `[how_to_buy]`, `[faq]`, `[shipping]`, `[announcements]`, `[new_arrivals]`, `[problems]`, `[my_orders]`, `[operations]`)
 
@@ -279,6 +281,15 @@ Each section is documented, key by key, in its own page and in the comments of `
 `docs/features/announcements.md`, `docs/features/new_arrivals.md`, `docs/features/problems.md`,
 `docs/features/customer_panel.md` (my_orders and the order ticket), `docs/features/operations.md` (staff alerts,
 reminders, Owner alerts, Customer role) and `docs/features/catalog.md`.
+
+`[[announcements.presets]]` (shipped: `warehouse_sale`, coupon `BOGO`): ready-made announcements staff post with
+`/announce preset:<id>` after a private preview. Each entry: `id` (a-z, 0-9, `_`, 1-32 characters, unique; also used
+in its content keys `announcements.preset.<id>.title` / `.description`, plus `.claim_button` / `.ended_button` with a
+coupon), `name` (what staff pick in the command, at most 100 characters), `coupon` (optional discount code made with
+`/discount create`, 3 to 14 characters so the customer's "Use coupon <code>" button stays short; the post gets its
+claim button, which shows the ended label once the code ends or expires; `{coupon}` in the preset's text is the code),
+`coupon_command` (optional; the `/discount create code:<coupon> ...` command shown to staff while the coupon does not
+exist) and `banner` (optional banner id, default `announcements`). At most 25. See `docs/features/announcements.md`.
 
 `operations.answers_in_orders_channel` (shipped false): post the customer's form answers under the order record in #orders; when false they appear only in the private Details view and `/order view`.
 

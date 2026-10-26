@@ -13,6 +13,8 @@ perform staff actions check staff status inside the handler, e.g. per-ticket-cat
 | component | `ad` | `keys` | admin | admin | no | `shopbot.features.admin.handlers.keys_page` |
 | component | `ad` | `miss` | admin | admin | no | `shopbot.features.admin.handlers.missing_page` |
 | component | `ad` | `status` | admin | admin | no | `shopbot.features.admin.handlers.status_page` |
+| component | `an` | `cancel` | announcements | staff | no | `shopbot.features.announcements.handlers.on_cancel` |
+| component | `an` | `post` | announcements | staff | no | `shopbot.features.announcements.handlers.on_post` |
 | component | `an` | `retry` | announcements | staff | no | `shopbot.features.announcements.handlers.on_retry` |
 | modal | `an` | `submit` | announcements | staff | no | `shopbot.features.announcements.handlers.on_submit` |
 | component | `co` | `acountry` | checkout | any | no | `shopbot.features.checkout.handlers.on_address_country` |
@@ -24,6 +26,10 @@ perform staff actions check staff status inside the handler, e.g. per-ticket-cat
 | component | `co` | `cancel_no` | checkout | any | no | `shopbot.features.checkout.handlers.on_cancel_no` |
 | component | `co` | `cancel_yes` | checkout | any | no | `shopbot.features.checkout.handlers.on_cancel_yes` |
 | component | `co` | `credits` | checkout | any | no | `shopbot.features.checkout.handlers.on_credits` |
+| modal | `co` | `dcform` | checkout | any | no | `shopbot.features.checkout.handlers.on_discount_form` |
+| component | `co` | `dcode` | checkout | any | no | `shopbot.features.checkout.handlers.on_discount_open` |
+| component | `co` | `dcremove` | checkout | any | no | `shopbot.features.checkout.handlers.on_discount_remove` |
+| component | `co` | `dcuse` | checkout | any | no | `shopbot.features.checkout.handlers.on_discount_use` |
 | component | `co` | `details` | checkout | any | no | `shopbot.features.checkout.handlers.on_details` |
 | modal | `co` | `dform` | checkout | any | no | `shopbot.features.checkout.handlers.on_details_form` |
 | component | `co` | `edit` | checkout | any | no | `shopbot.features.checkout.handlers.on_edit` |
@@ -78,6 +84,7 @@ perform staff actions check staff status inside the handler, e.g. per-ticket-cat
 | modal | `ct` | `editform` | catalog | staff | no | `shopbot.features.catalog.handlers.on_edit_form` |
 | component | `ct` | `remove` | catalog | staff | no | `shopbot.features.catalog.handlers.on_remove` |
 | component | `ct` | `remove_no` | catalog | staff | no | `shopbot.features.catalog.handlers.on_remove_cancel` |
+| component | `dc` | `claim` | checkout | any | no | `shopbot.features.checkout.handlers.on_coupon_claim` |
 | component | `mo` | `page` | my_orders | any | no | `shopbot.features.my_orders.handlers.on_page` |
 | component | `na` | `toggle` | new_arrivals | any | no | `shopbot.features.new_arrivals.handlers.on_toggle` |
 | modal | `pr` | `form` | problems | any | no | `shopbot.features.problems.handlers.form_submit` |
@@ -116,6 +123,7 @@ perform staff actions check staff status inside the handler, e.g. per-ticket-cat
 ## Scheduled task kinds
 
 - `admin.maintenance`
+- `announcements.offer_ended`
 - `catalog.refresh_listing`
 - `checkout.activity_followup`
 - `checkout.after_submit`

@@ -19,9 +19,9 @@ from __future__ import annotations
 import re
 from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass, field
-from typing import Any, TypeVar
+from typing import Any, TypeVar, cast
 
-from shopbot.config.banner_ids import BANNER_IDS
+from shopbot.config.banner_ids import BANNER_IDS, BannerId
 from shopbot.core.countries import AREA_CODES, COUNTRIES, LISTED_AREAS
 
 T = TypeVar("T")
@@ -496,6 +496,10 @@ class CheckoutSettings:
     customer_role: str = ""
     customer_role_on: str = "fulfilled"
     customer_role_remove_on_refund: bool = True
+    # Discount codes (/discount): the review step offers Add discount code and the customer's claimed coupons. Off: no
+    # discount buttons, a code already applied to an unfinished order is ignored, and claim buttons answer that the
+    # offer is not available.
+    discount_codes: bool = True
 
     def fulfillment(self, option_id: str | None) -> FulfillmentOption | None:
         return next((o for o in self.fulfillment_options if o.id == option_id), None)
@@ -698,6 +702,15 @@ class ShippingSettings:
 ANNOUNCEMENT_MAX_FIELDS = 3  # the /announce form holds title + message + these fields (Discord: 5 inputs)
 ANNOUNCEMENT_FIELD_MAX_LENGTH = 1024  # an embed field value holds at most 1024 characters
 ANNOUNCEMENT_MAX_MENTION_ROLES = 25  # Discord shows at most 25 autocomplete choices
+ANNOUNCEMENT_MAX_PRESETS = 25  # likewise for the presets offered by /announce preset:
+ANNOUNCEMENT_PRESET_NAME_MAX = 100  # an autocomplete choice's name holds at most 100 characters
+ANNOUNCEMENT_PRESET_ID = re.compile(r"^[a-z0-9_]{1,32}$")
+# A discount code as /discount stores it (``checkout.discounts``): letters, digits, "-" and "_", 3 to 32 characters.
+DISCOUNT_CODE_PATTERN = re.compile(r"^[A-Z0-9_-]{3,32}$")
+DISCOUNT_CREATE_COMMAND = "/discount create "  # how a preset's coupon_command starts
+# A preset's coupon is at most this long, so the "Use coupon <code>" button a customer gets on the review step after
+# claiming it stays within 25 characters (docs/QUALITY_STANDARDS.md, B1).
+ANNOUNCEMENT_COUPON_MAX = 14
 
 
 @dataclass(frozen=True)
@@ -712,6 +725,20 @@ class AnnouncementField:
 
 
 @dataclass(frozen=True)
+class AnnouncementPreset:
+    """[[announcements.presets]]: a ready-made announcement staff post with ``/announce preset:<id>``. Its texts are
+    the content keys ``announcements.preset.<id>.*``; ``name`` is what staff see in the command's suggestions."""
+
+    id: str
+    name: str
+    # The discount code its claim button claims (normalized: upper case); "" = no claim button.
+    coupon: str = ""
+    # The /discount create command staff are shown when the coupon does not exist yet ("" = a generic hint).
+    coupon_command: str = ""
+    banner: BannerId = "announcements"  # banner picture of the posted announcement
+
+
+@dataclass(frozen=True)
 class AnnouncementSettings:
     """[announcements]: /announce and the channel it publishes to."""
 
@@ -722,9 +749,13 @@ class AnnouncementSettings:
     mention_roles: tuple[str, ...] = ()
     fields: tuple[AnnouncementField, ...] = ()
     allow_image: bool = True
+    presets: tuple[AnnouncementPreset, ...] = ()
 
     def field(self, field_id: str) -> AnnouncementField | None:
         return next((f for f in self.fields if f.id == field_id), None)
+
+    def preset(self, preset_id: str) -> AnnouncementPreset | None:
+        return next((p for p in self.presets if p.id == preset_id), None)
 
 
 @dataclass(frozen=True)
@@ -1125,6 +1156,7 @@ def parse_settings(data: dict[str, Any]) -> Settings:
         customer_role=co.str_("customer_role", "", pattern=KEY_PATTERN),
         customer_role_on=co.str_("customer_role_on", "fulfilled", choices=CUSTOMER_ROLE_TRIGGERS),
         customer_role_remove_on_refund=co.bool_("customer_role_remove_on_refund", True),
+        discount_codes=co.bool_("discount_codes", True),
     )
     co.finish()
     _unique(checkout.fulfillment_options, lambda x: x.id, "checkout.fulfillment_options", errors)
@@ -1435,14 +1467,52 @@ def _parse_announcements(r: _Reader) -> AnnouncementSettings:
     mention_roles = r.keys_("mention_roles")
     if len(mention_roles) > ANNOUNCEMENT_MAX_MENTION_ROLES:
         r.error("mention_roles", f"at most {ANNOUNCEMENT_MAX_MENTION_ROLES} roles can be offered")
+    presets = tuple(_announcement_preset(p) for p in r.tables("presets"))
+    if len(presets) > ANNOUNCEMENT_MAX_PRESETS:
+        r.error("presets", f"at most {ANNOUNCEMENT_MAX_PRESETS} presets can be offered")
+    _unique(presets, lambda x: x.id, r._p("presets"), r._errors)
     settings = AnnouncementSettings(
         channel=r.str_("channel", "", pattern=KEY_PATTERN),
         roles=r.keys_("roles"),
         mention_roles=mention_roles,
         fields=tuple(fields),
         allow_image=r.bool_("allow_image", True),
+        presets=presets,
     )
     return _finish(r, settings)
+
+
+def _announcement_preset(p: _Reader) -> AnnouncementPreset:
+    preset_id = p.str_("id", "", pattern=ANNOUNCEMENT_PRESET_ID, allow_empty=False)
+    if not preset_id and p._get("id") is None:
+        p.error("id", "is required")
+    name = p.str_("name", "", max_len=ANNOUNCEMENT_PRESET_NAME_MAX)
+    if not name.strip():
+        p.error("name", "is required (the name staff pick in /announce preset:)")
+    elif "\n" in name or name != name.strip():
+        p.error("name", "must be one line without surrounding spaces")
+    coupon = p.str_("coupon", "").strip().upper()
+    if coupon and (not DISCOUNT_CODE_PATTERN.match(coupon) or len(coupon) > ANNOUNCEMENT_COUPON_MAX):
+        p.error(
+            "coupon",
+            f"must be a discount code: letters, digits, '-' and '_', 3 to {ANNOUNCEMENT_COUPON_MAX} characters (the "
+            "review step's 'Use coupon <code>' button stays short)",
+        )
+    command = p.str_("coupon_command", "").strip()
+    start = f"{DISCOUNT_CREATE_COMMAND}code:{coupon}"
+    if command and not coupon:
+        p.error("coupon_command", "needs a coupon")
+    elif command and ("\n" in command or not f"{command} ".startswith(f"{start} ")):
+        p.error("coupon_command", f"must be one line starting with '{start}' (the preset's coupon)")
+    preset = AnnouncementPreset(
+        id=preset_id,
+        name=name,
+        coupon=coupon,
+        coupon_command=command,
+        banner=cast(BannerId, p.str_("banner", "announcements", choices=BANNER_IDS)),
+    )
+    p.finish()
+    return preset
 
 
 MAX_PROBLEM_TYPES = 25  # one selection menu

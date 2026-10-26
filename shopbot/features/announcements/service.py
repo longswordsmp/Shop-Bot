@@ -24,13 +24,14 @@ import logging
 import re
 import secrets
 import sqlite3
-from collections.abc import Mapping
-from dataclasses import dataclass
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Protocol
 
 import aiohttp
 import discord
 
+from shopbot.config.banner_ids import BannerId
 from shopbot.config.content import MissingContent
 from shopbot.core.permissions import CHANNEL_SEND_PERMISSIONS, missing_permissions
 from shopbot.features.announcements import repo, views
@@ -90,11 +91,12 @@ class AttachmentLike(Protocol):
 @dataclass(frozen=True)
 class Problem:
     """Why an announcement cannot be posted (operator text). ``code`` goes to logs/audit; ``retryable`` problems
-    offer to reopen the prefilled form."""
+    offer to reopen the prefilled form; ``url``: a message the problem is about (the reply links it)."""
 
     text: str
     code: str
     retryable: bool = True
+    url: str | None = None
 
 
 def staff_role_keys(app: App) -> tuple[str, ...]:
@@ -106,11 +108,11 @@ def new_token() -> str:
     return secrets.token_hex(12)
 
 
-def _message_url(guild_id: int, channel_id: int, message_id: int) -> str:
+def message_url(guild_id: int, channel_id: int, message_id: int) -> str:
     return f"https://discord.com/channels/{guild_id}/{channel_id}/{message_id}"
 
 
-def _plain(text: str, limit: int = 100) -> str:
+def plain(text: str, limit: int = 100) -> str:
     """Untrusted names (file names, typed role names) shown inside operator text: no backticks, bounded."""
     cleaned = text.replace("`", "'").strip()
     return cleaned if len(cleaned) <= limit else cleaned[: limit - 1] + "…"
@@ -135,19 +137,26 @@ def form_inputs(app: App) -> list[views.FormInput]:
     return inputs
 
 
-def announcement_banner(app: App) -> FileSpec | None:
-    """The banner picture every announcement is posted with (None when banners are off or it is missing)."""
-    return app.ui.banner(views.ANNOUNCEMENT_BANNER)
+def banner_id(app: App, preset_id: str | None = None) -> BannerId:
+    """The banner an announcement is posted with: the preset's (``[[announcements.presets]]`` banner) or the
+    announcements banner."""
+    preset = app.settings.announcements.preset(preset_id) if preset_id else None
+    return preset.banner if preset is not None else views.ANNOUNCEMENT_BANNER
 
 
-def upload_limit(app: App) -> int:
+def announcement_banner(app: App, banner: BannerId = views.ANNOUNCEMENT_BANNER) -> FileSpec | None:
+    """The banner picture an announcement is posted with (None when banners are off or it is missing)."""
+    return app.ui.banner(banner)
+
+
+def upload_limit(app: App, banner: BannerId = views.ANNOUNCEMENT_BANNER) -> int:
     """Largest image /announce accepts: the server's upload limit (boost level), capped by the per-message file limit
     every bot message is validated against (``ui.limits.FILES_TOTAL_BYTES``), minus the banner uploaded with the same
     message."""
     limit = getattr(app.guild, "filesize_limit", None)
     guild_limit = limit if isinstance(limit, int) and limit > 0 else discord.utils.DEFAULT_FILE_SIZE_LIMIT_BYTES
-    banner = announcement_banner(app)
-    return max(0, min(guild_limit, FILES_TOTAL_BYTES) - (banner.size if banner is not None else 0))
+    picture = announcement_banner(app, banner)
+    return max(0, min(guild_limit, FILES_TOTAL_BYTES) - (picture.size if picture is not None else 0))
 
 
 def megabytes(size: int) -> str:
@@ -161,16 +170,18 @@ def _declared_extension(content_type: str | None, filename: str) -> str | None:
     return suffix if suffix in EXTENSION_TYPES else None
 
 
-def check_attachment(app: App, attachment: AttachmentLike) -> ImageRef | Problem:
+def check_attachment(
+    app: App, attachment: AttachmentLike, banner: BannerId = views.ANNOUNCEMENT_BANNER
+) -> ImageRef | Problem:
     op = app.op
     if not app.settings.announcements.allow_image:
         return Problem(op("announcements.error.image_disabled"), "image_disabled", retryable=False)
     extension = _declared_extension(attachment.content_type, attachment.filename)
     if extension is None or not attachment.url.startswith(CDN_PREFIXES):
         return Problem(
-            op("announcements.error.image_type", filename=_plain(attachment.filename)), "image_type", retryable=False
+            op("announcements.error.image_type", filename=plain(attachment.filename)), "image_type", retryable=False
         )
-    limit = upload_limit(app)
+    limit = upload_limit(app, banner)
     if attachment.size > limit:
         return Problem(
             op("announcements.error.image_too_large", size=megabytes(attachment.size), limit=megabytes(limit)),
@@ -207,11 +218,13 @@ def resolve_mention_key(app: App, raw: str | None) -> str | Problem | None:
         if role is not None and role.name.casefold() == lowered:
             return key
     return Problem(
-        app.op("announcements.error.mention_not_allowed", role=_plain(value)), "mention_not_allowed", retryable=False
+        app.op("announcements.error.mention_not_allowed", role=plain(value)), "mention_not_allowed", retryable=False
     )
 
 
-def target_channel(app: App, *, with_image: bool) -> discord.TextChannel | Problem:
+def target_channel(
+    app: App, *, with_image: bool, banner: BannerId = views.ANNOUNCEMENT_BANNER
+) -> discord.TextChannel | Problem:
     """The announcements channel, if it exists and the bot can post (and attach files: the image, the banner) there."""
     op = app.op
     guild = app.guild
@@ -221,7 +234,7 @@ def target_channel(app: App, *, with_image: bool) -> discord.TextChannel | Probl
     channel = app.resources.text_channel(guild, key)
     if channel is None:
         return Problem(op("announcements.error.channel_missing", channel=key), "channel_missing")
-    with_files = with_image or announcement_banner(app) is not None
+    with_files = with_image or announcement_banner(app, banner) is not None
     required = CHANNEL_SEND_PERMISSIONS + (("attach_files",) if with_files else ())
     missing = missing_permissions(guild.me, channel, required)
     if missing:
@@ -298,25 +311,54 @@ def _tx_create(
     )
 
 
-def _state_reply(app: App, item: Announcement | None, actor_id: int, now: int) -> views.Reply | None:
-    """Why a form can no longer be used, or None when it can."""
+def state_reply(app: App, item: Announcement | None, actor_id: int, now: int) -> views.Reply | None:
+    """Why a form (or a preset's preview) can no longer be used, or None when it can."""
     op = app.op
+    if item is not None and item.preset_id is not None:
+        return _preset_state_reply(app, item, actor_id, now)
     if item is None:
         return views.unknown_form_reply(op)
     if item.actor_id != actor_id:
         return views.not_owner_reply(op)
     if item.status == "published" and item.channel_id and item.message_id:
-        return views.already_published_reply(op, url=_message_url(item.guild_id, item.channel_id, item.message_id))
+        return views.already_published_reply(op, url=message_url(item.guild_id, item.channel_id, item.message_id))
     if item.status == "posting":
         return views.busy_reply(op)
     if item.status == "interrupted":
-        return views.interrupted_reply(op, channel=_channel_text(app))
+        return views.interrupted_reply(op, channel=channel_text(app))
     if item.expired(now):
         return views.expired_reply(op, hours=DRAFT_TTL_SECONDS // 3600)
     return None
 
 
-def _channel_text(app: App) -> str:
+def _preset_state_reply(app: App, item: Announcement, actor_id: int, now: int) -> views.Reply | None:
+    op = app.op
+    if item.actor_id != actor_id:
+        return views.preset_notice_reply(op, op("announcements.preset.not_owner"), banner="error", tone="danger")
+    if item.status == "published" and item.channel_id and item.message_id:
+        url = message_url(item.guild_id, item.channel_id, item.message_id)
+        line = op("announcements.preset.already", url=url)
+        return replace(views.preset_notice_reply(op, line, banner="general-response", tone="info"), link_url=url)
+    if item.status == "posting":
+        return views.preset_notice_reply(
+            op, op("announcements.error.busy"), banner="submission-and-processing", tone="info"
+        )
+    if item.status == "interrupted":
+        return views.preset_notice_reply(
+            op, op("announcements.error.interrupted", channel=channel_text(app)), banner="error"
+        )
+    if item.expired(now):
+        hours = DRAFT_TTL_SECONDS // 3600
+        return views.preset_notice_reply(op, op("announcements.preset.expired", hours=hours), banner="cancellation")
+    return None
+
+
+def unknown_preview_reply(app: App) -> views.Reply:
+    """A preset's Post or Cancel whose preview is unknown (cancelled, expired and purged, or malformed)."""
+    return views.preset_notice_reply(app.op, app.op("announcements.preset.unknown"), banner="error")
+
+
+def channel_text(app: App) -> str:
     key = app.settings.announcements.channel
     channel_id = app.resources.channel_id(key)
     return f"<#{channel_id}>" if channel_id else f"`{key}`"
@@ -325,7 +367,9 @@ def _channel_text(app: App) -> str:
 async def reopen_form(app: App, *, token: str, actor_id: int) -> ModalSpec | views.Reply:
     """The form again for the "edit and try again" button, prefilled with what the failed attempt contained."""
     item = await app.db.run(repo.get_by_token, app.env.guild_id, token)
-    blocked = _state_reply(app, item, actor_id, app.clock.now())
+    if item is not None and item.preset_id is not None:
+        return views.unknown_form_reply(app.op)  # a preset's preview has no form
+    blocked = state_reply(app, item, actor_id, app.clock.now())
     if blocked is not None or item is None:
         return blocked or views.unknown_form_reply(app.op)
     defaults: dict[str, str] = {views.TITLE_INPUT: item.title or "", views.MESSAGE_INPUT: item.message or ""}
@@ -435,7 +479,9 @@ def sniff_image(data: bytes) -> str | None:
     return None
 
 
-async def download_image(app: App, image: ImageRef) -> tuple[bytes, str] | Problem:
+async def download_image(
+    app: App, image: ImageRef, banner: BannerId = views.ANNOUNCEMENT_BANNER
+) -> tuple[bytes, str] | Problem:
     """Download the uploaded image again; returns (bytes, upload filename)."""
     op = app.op
     http = getattr(app.bot, "http", None)
@@ -448,7 +494,7 @@ async def download_image(app: App, image: ImageRef) -> tuple[bytes, str] | Probl
         return Problem(op("announcements.error.image_download"), "image_download")
     if not isinstance(data, bytes):
         return Problem(op("announcements.error.image_download"), "image_download")
-    limit = upload_limit(app)
+    limit = upload_limit(app, banner)
     if len(data) > limit:
         return Problem(
             op("announcements.error.image_too_large", size=megabytes(len(data)), limit=megabytes(limit)),
@@ -469,10 +515,35 @@ class Posted:
     has_image: bool
 
 
+# Builds the post from the image attached to it (None: no image) and the role it mentions (None: nobody).
+Build = Callable[[FileSpec | None, int | None], MessageSpec]
+
+
 async def _post(app: App, item: Announcement, submission: Submission) -> Posted | list[Problem]:
     """Validate everything, then post. Returns the problems (nothing posted) or the posted message."""
-    problems = input_problems(app, submission)
-    channel = target_channel(app, with_image=item.image is not None)
+
+    def build(image: FileSpec | None, role_id: int | None) -> MessageSpec:
+        return views.announcement_message(
+            app.ui,
+            title=submission.title,
+            message=submission.message,
+            fields=field_entries(app, submission.values),
+            image=image,
+            mention_role_id=role_id,
+        )
+
+    return await send_announcement(app, item, build, input_problems(app, submission))
+
+
+async def send_announcement(
+    app: App, item: Announcement, build: Build, problems: list[Problem]
+) -> Posted | list[Problem]:
+    """Check the channel, the bot's permissions there, the mention and the image, then post what ``build`` returns.
+    Returns the problems (nothing posted; ``problems`` are ones found earlier, e.g. in the typed text) or the posted
+    message."""
+    problems = list(problems)
+    banner = banner_id(app, item.preset_id)
+    channel = target_channel(app, with_image=item.image is not None, banner=banner)
     if isinstance(channel, Problem):
         problems.append(channel)
     role: discord.Role | Problem | None = None
@@ -485,16 +556,7 @@ async def _post(app: App, item: Announcement, submission: Submission) -> Posted 
     if problems or isinstance(channel, Problem) or isinstance(role, Problem):
         return problems
     ping = role
-
-    def build(image: FileSpec | None) -> MessageSpec:
-        return views.announcement_message(
-            app.ui,
-            title=submission.title,
-            message=submission.message,
-            fields=field_entries(app, submission.values),
-            image=image,
-            mention_role_id=ping.id if ping is not None else None,
-        )
+    role_id = ping.id if ping is not None else None
 
     # Checked before downloading: a reference (no bytes yet) with the upload's size stands in for the image.
     reference = (
@@ -504,16 +566,16 @@ async def _post(app: App, item: Announcement, submission: Submission) -> Posted 
         if item.image is not None
         else None
     )
-    problems = limit_problems(app, build(reference))
+    problems = limit_problems(app, build(reference, role_id))
     if problems:
         return problems
     upload: tuple[bytes, str] | None = None
     if item.image is not None:
-        downloaded = await download_image(app, item.image)
+        downloaded = await download_image(app, item.image, banner)
         if isinstance(downloaded, Problem):
             return [downloaded]
         upload = downloaded
-    spec = build(FileSpec.of(upload[1], upload[0]) if upload else None)
+    spec = build(FileSpec.of(upload[1], upload[0]) if upload else None, role_id)
     try:
         message = await channel.send(**send_kwargs(spec))
     except RenderError as exc:
@@ -533,7 +595,7 @@ async def _post(app: App, item: Announcement, submission: Submission) -> Posted 
 
 
 # Problems that come from the server state (channel, permissions, Discord) rather than from what staff typed.
-_AUDITED_PROBLEMS = frozenset(
+AUDITED_PROBLEMS = frozenset(
     {
         "no_guild",
         "channel_missing",
@@ -564,7 +626,7 @@ async def submit(app: App, *, token: str, actor_id: int, fields: Mapping[str, st
         now=app.clock.now(),
     )
     if outcome != "claimed" or item is None:
-        return _state_reply(app, item, actor_id, app.clock.now()) or views.unknown_form_reply(app.op)
+        return state_reply(app, item, actor_id, app.clock.now()) or views.unknown_form_reply(app.op)
     posted: Posted | list[Problem] = []
     try:
         posted = await _post(app, item, submission)
@@ -580,7 +642,7 @@ async def submit(app: App, *, token: str, actor_id: int, fields: Mapping[str, st
 async def _failure_reply(app: App, item: Announcement, problems: list[Problem]) -> views.Reply:
     codes = sorted({p.code for p in problems})
     log_event(log, logging.INFO, "announcement_not_posted", announcement_id=item.id, problems=codes)
-    audited = [code for code in codes if code in _AUDITED_PROBLEMS]
+    audited = [code for code in codes if code in AUDITED_PROBLEMS]
     if audited:
         try:
             await app.audit.record(
@@ -627,7 +689,7 @@ async def _published(app: App, item: Announcement, submission: Submission, poste
         )
     except Exception:
         log.exception("audit of a published announcement failed")
-    url = getattr(message, "jump_url", None) or _message_url(app.env.guild_id, channel.id, message.id)
+    url = getattr(message, "jump_url", None) or message_url(app.env.guild_id, channel.id, message.id)
     return views.published_reply(
         app.op,
         channel_id=channel.id,

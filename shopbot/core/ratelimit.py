@@ -29,6 +29,18 @@ class SlidingWindowLimiter:
             self._prune(now)
         return 0.0
 
+    def wait(self, key: Hashable) -> float:
+        """Seconds until ``hit`` would allow ``key`` again (0 when it would now), without recording an event."""
+        events = self._events.get(key)
+        if not events:
+            return 0.0
+        now = self._clock()
+        while events and now - events[0] >= self.window:
+            events.popleft()
+        if len(events) < self.max_events:
+            return 0.0
+        return max(0.0, self.window - (now - events[0]))
+
     def _prune(self, now: float) -> None:
         for key in [k for k, v in self._events.items() if not v or now - v[-1] >= self.window]:
             del self._events[key]

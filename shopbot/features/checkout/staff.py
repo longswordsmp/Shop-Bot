@@ -707,10 +707,17 @@ def _amount_lines(app: App, view: m.OrderView) -> list[str]:
         order = view.order
         amounts = (
             ("checkout.lookup.subtotal", order.subtotal_minor),
+            ("checkout.lookup.discount", order.discount_minor),
             ("checkout.lookup.total", order.total_minor),
             ("checkout.lookup.refunded", order.refunded_minor),
         )
         return [
-            app.op("checkout.lookup.fact", label=app.op(key), value=amount(app, minor, order.currency))
+            app.op(
+                "checkout.lookup.fact",
+                label=app.op(key, code=order.discount_code or "-"),
+                # The discount is taken off: written with a minus, so it never reads like a charge.
+                value=("-" if key == "checkout.lookup.discount" else "") + amount(app, minor, order.currency),
+            )
             for key, minor in amounts
+            if minor > 0 or key != "checkout.lookup.discount"
         ]

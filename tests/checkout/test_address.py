@@ -161,7 +161,9 @@ async def test_a_country_we_do_not_ship_to_cannot_be_chosen(tmp_path: Path) -> N
         assert error_text(forged) == tenv.text("common.error.invalid_input")
         early = await press(tenv, user, message, views.address_open_id(session.id))
         assert error_text(early) == tenv.text(k.ERROR_COUNTRY_FIRST)
-        data = await tenv.app.db.run(repo.load_workflow, GUILD_ID, session.id, tenv.app.settings, False)
+        data = await tenv.app.db.run(
+            repo.load_workflow, GUILD_ID, session.id, tenv.app.settings, False, tenv.clock.now()
+        )
         assert data is not None and flow.ADDRESS_COUNTRY not in data.session.details
     finally:
         await tenv.close()

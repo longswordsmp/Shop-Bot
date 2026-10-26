@@ -29,7 +29,8 @@ from shopbot.core.money import MAX_AMOUNT_MINOR
 from shopbot.db.repos import state
 from shopbot.db.repos import tasks as task_repo
 from shopbot.features.catalog import repo as catalog_repo
-from shopbot.features.checkout import flow
+from shopbot.features.checkout import discount_repo, flow
+from shopbot.features.checkout import discounts as disc
 from shopbot.features.checkout import gift_card_store as gift_cards
 from shopbot.features.checkout import models as m
 from shopbot.features.checkout.totals import Totals, compute_totals
@@ -188,6 +189,20 @@ class PriceChanged(CheckoutError):
         self.totals = totals
 
 
+class CodeRefused(CheckoutError):
+    """The discount code cannot be applied to this order: ``check.reason`` says why (``discounts.REASONS``); ``code``
+    is the code as the customer gave it (normalized)."""
+
+    def __init__(self, code: str, check: disc.Check) -> None:
+        super().__init__(check.reason or "")
+        self.code = code
+        self.check = check
+
+
+class CouponNotClaimed(CheckoutError):
+    """A Use coupon button for a code the customer never claimed (a forged or stale control)."""
+
+
 class RefundNotAllowed(CheckoutError):
     """reason: 'missing' | 'state' | 'amount' (a credit return: 'state' when there is nothing left to return)."""
 
@@ -237,6 +252,7 @@ def _session(r: sqlite3.Row) -> m.Session:
         created_at=int(r["created_at"]),
         updated_at=int(r["updated_at"]),
         expires_at=_opt_int(r["expires_at"]),
+        discount_code_id=_opt_int(r["discount_code_id"]),
     )
 
 
@@ -270,6 +286,10 @@ def _order(r: sqlite3.Row) -> m.Order:
         fulfilled_at=_opt_int(r["fulfilled_at"]),
         closed_at=_opt_int(r["closed_at"]),
         credit_returned_minor=int(returned or 0),
+        discount_code_id=_opt_int(r["discount_code_id"]),
+        discount_code=None if r["discount_code"] is None else str(r["discount_code"]),
+        discount_kind=None if r["discount_kind"] is None else str(r["discount_kind"]),
+        discount_minor=int(r["discount_minor"]),
     )
 
 
@@ -393,6 +413,7 @@ def update_session(
     fulfillment_option: str | None = _UNSET,
     details: Mapping[str, str] = _UNSET,
     apply_credits: bool = _UNSET,
+    discount_code_id: int | None = _UNSET,
 ) -> m.Session:
     """Change fields of the caller's ACTIVE session (activity also pushes its expiry back)."""
     current = _active_owned(conn, guild_id, session_id, user_id)
@@ -402,16 +423,18 @@ def update_session(
         "fulfillment_option": current.fulfillment_option if fulfillment_option is _UNSET else fulfillment_option,
         "details": _dump(current.details if details is _UNSET else details),
         "apply_credits": int(current.apply_credits if apply_credits is _UNSET else apply_credits),
+        "discount_code_id": current.discount_code_id if discount_code_id is _UNSET else discount_code_id,
     }
     cur = conn.execute(
         "UPDATE checkout_sessions SET step = ?, page = ?, fulfillment_option = ?, details = ?, apply_credits = ?, "
-        "updated_at = ?, expires_at = ?, version = version + 1 WHERE id = ? AND status = ?",
+        "discount_code_id = ?, updated_at = ?, expires_at = ?, version = version + 1 WHERE id = ? AND status = ?",
         (
             values["step"],
             values["page"],
             values["fulfillment_option"],
             values["details"],
             values["apply_credits"],
+            values["discount_code_id"],
             now,
             _expires(now, expiry_seconds),
             session_id,
@@ -668,6 +691,21 @@ def add_to_cart(
 # ---------------------------------------------------------------------------------------------------
 
 
+def session_discount(
+    conn: sqlite3.Connection,
+    guild_id: int,
+    session: m.Session,
+    lines: Sequence[m.CartLine],
+    settings: CheckoutSettings,
+    now: int,
+) -> m.AppliedDiscount | None:
+    """The discount code the session applied, checked against its cart now (``discount_repo.session_discount``); None
+    without one, and while discount codes are off (``checkout.discount_codes``: a stored code is ignored then)."""
+    if not settings.discount_codes:
+        return None
+    return discount_repo.session_discount(conn, guild_id, session, lines, now)
+
+
 def session_totals(
     conn: sqlite3.Connection,
     guild_id: int,
@@ -675,13 +713,16 @@ def session_totals(
     lines: Sequence[m.CartLine],
     settings: CheckoutSettings,
     credits_enabled: bool,
+    discount: m.AppliedDiscount | None = None,
 ) -> tuple[Totals, int]:
-    """(totals with current prices and settings, credit that could be applied)."""
+    """(totals with current prices and settings, credit that could be applied). ``discount``: the session's code as
+    checked now (``session_discount``); it takes its amount off the items (0 when it does not apply)."""
     option = settings.fulfillment(session.fulfillment_option)
     fulfillment_fee = option.fee_minor if option is not None else 0
     pairs = [(line.product.price_minor, line.quantity) for line in lines]
     fees = flow.session_fees(settings, session.details)
-    base = compute_totals(pairs, fulfillment_fee_minor=fulfillment_fee, fees=fees)
+    off = discount.amount_minor if discount is not None else 0
+    base = compute_totals(pairs, fulfillment_fee_minor=fulfillment_fee, fees=fees, discount_minor=off)
     available = (
         credits_repo.applicable_amount(conn, guild_id, session.user_id, base.gross_minor) if credits_enabled else 0
     )
@@ -691,8 +732,52 @@ def session_totals(
         fees=fees,
         credits_available_minor=available,
         apply_credits=session.apply_credits and credits_enabled,
+        discount_minor=off,
     )
     return totals, available
+
+
+def apply_discount(
+    conn: sqlite3.Connection,
+    *,
+    guild_id: int,
+    session_id: int,
+    user_id: int,
+    now: int,
+    expiry_seconds: int,
+    code: str | None = None,
+    code_id: int | None = None,
+) -> m.Session:
+    """Apply a discount code to the caller's ACTIVE session on the review step: the code the customer typed (``code``,
+    normalized here) or a coupon they claimed (``code_id``; only with their claim). One code per order: it replaces
+    a code applied before. Raises ``CodeRefused`` with the reason when it does not apply to this cart now (nothing
+    is written), ``WrongStep`` outside the review step."""
+    session = _active_owned(conn, guild_id, session_id, user_id)
+    if session.step != m.REVIEW:
+        raise WrongStep(session.step)
+    if code_id is not None:
+        found = discount_repo.get_code(conn, guild_id, code_id)
+        if found is None or not discount_repo.claimed(conn, found.id, user_id):
+            raise CouponNotClaimed(str(code_id))  # a forged or stale button
+        name = found.code
+    else:
+        name = disc.normalize(code or "")
+        found = discount_repo.find_code(conn, guild_id, name) if disc.valid_format(name) else None
+        if found is None:
+            name = disc.shown(name)
+    lines = discount_repo.cart_lines(load_cart(conn, guild_id, session_id))
+    result = discount_repo.check(conn, guild_id, found, user_id, lines, now)
+    if found is None or not result.applies:
+        raise CodeRefused(name, result)
+    return update_session(
+        conn,
+        guild_id=guild_id,
+        session_id=session_id,
+        user_id=user_id,
+        now=now,
+        expiry_seconds=expiry_seconds,
+        discount_code_id=found.id,
+    )
 
 
 def product_page(conn: sqlite3.Connection, guild_id: int, page: int, per_page: int) -> m.ProductPage:
@@ -704,14 +789,26 @@ def product_page(conn: sqlite3.Connection, guild_id: int, page: int, per_page: i
 
 
 def load_workflow(
-    conn: sqlite3.Connection, guild_id: int, session_id: int, settings: Settings, credits_enabled: bool
+    conn: sqlite3.Connection,
+    guild_id: int,
+    session_id: int,
+    settings: Settings,
+    credits_enabled: bool,
+    now: int,
 ) -> m.WorkflowData | None:
+    """The workflow snapshot of a session (``now`` decides whether its discount code has expired)."""
     session = get_session(conn, session_id)
     if session is None or session.guild_id != guild_id:
         return None
     lines = load_cart(conn, guild_id, session_id)
     browse = product_page(conn, guild_id, session.page, settings.checkout.products_per_page)
-    totals, available = session_totals(conn, guild_id, session, lines, settings.checkout, credits_enabled)
+    discount = session_discount(conn, guild_id, session, lines, settings.checkout, now)
+    totals, available = session_totals(conn, guild_id, session, lines, settings.checkout, credits_enabled, discount)
+    offer = (
+        discount_repo.offer(conn, guild_id, session.user_id, lines, now)
+        if settings.checkout.discount_codes and session.discount_code_id is None and session.step == m.REVIEW
+        else m.DiscountOffer()
+    )
     return m.WorkflowData(
         session=session,
         lines=tuple(lines),
@@ -720,6 +817,8 @@ def load_workflow(
         credits_enabled=credits_enabled,
         credits_available_minor=available,
         ticket_number=ticket_number(conn, session.ticket_id),
+        discount=discount,
+        offer=offer,
     )
 
 
@@ -943,6 +1042,11 @@ def submit_order(
     total to pay AND the gross amount (before credits) must match, because store credit can absorb a price change
     in the total alone. A missing gross amount (a control rendered before it was recorded) counts as changed.
 
+    The session's discount code is checked again here, in the transaction that inserts the order, with its uses
+    counted now (SQLite's write lock serializes submissions, so ``max_uses`` and once per customer hold when two
+    customers submit at once): a code that stopped applying (expired, ended, used up) changes the totals, which gives
+    ``PriceChanged``. A code that applies is stored on the order (its id, the code and kind, the amount).
+
     In the same transaction: the session's expiry task is cancelled, the payment reminder/expiry tasks are scheduled
     (when configured) and the ``checkout.after_submit`` follow-up is scheduled.
     """
@@ -978,7 +1082,8 @@ def submit_order(
         raise DetailsIncomplete()
     if c.ask_address and flow.address_problem(settings.shipping, session.details) is not None:
         raise DetailsIncomplete()  # e.g. we stopped shipping to the country after the address was entered
-    totals, _ = session_totals(conn, guild_id, session, lines, c, credits_enabled)
+    discount = session_discount(conn, guild_id, session, lines, c, now)
+    totals, _ = session_totals(conn, guild_id, session, lines, c, credits_enabled, discount)
     if totals.subtotal_minor < c.min_order_total_minor:
         raise MinimumNotMet(c.min_order_total_minor)
     if totals.gross_minor > MAX_AMOUNT_MINOR:
@@ -997,11 +1102,13 @@ def submit_order(
     answers = flow.relevant_answers(inputs, session.details)
     if c.ask_address:
         answers.update(flow.address_answers(session.details))
+    used = discount if discount is not None and discount.applies else None
     cursor = conn.execute(
         "INSERT INTO orders(guild_id, number, user_id, session_id, ticket_id, status, currency, subtotal_minor, "
         "fulfillment_fee_minor, fees_minor, credits_applied_minor, total_minor, fulfillment_option, details, "
-        "payment_provider, customer_message_id, created_at, updated_at) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "payment_provider, customer_message_id, created_at, updated_at, discount_code_id, discount_code, "
+        "discount_kind, discount_minor) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (
             guild_id,
             number,
@@ -1021,6 +1128,10 @@ def submit_order(
             session.message_id,
             now,
             now,
+            used.code_id if used is not None else None,
+            used.code if used is not None else None,
+            used.kind if used is not None else None,
+            totals.discount_minor,
         ),
     )
     order_id = int(cursor.lastrowid or 0)

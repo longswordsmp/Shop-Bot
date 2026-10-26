@@ -16,7 +16,7 @@ Default visibility: manage_messages
 
 | Command | Access | Description | Options |
 |---|---|---|---|
-| `/announce` | staff | Publish an announcement in the announcements channel. | `image` (optional): Optional picture shown in the announcement (png, jpg, gif or webp).; `mention` (optional): Optional role to mention with the announcement (from announcements.mention_roles). |
+| `/announce` | staff | Publish an announcement in the announcements channel. | `image` (optional): Optional picture shown in the announcement (png, jpg, gif or webp).; `mention` (optional): Optional role to mention with the announcement (from announcements.mention_roles).; `preset` (optional): Optional ready-made announcement (from announcements.presets): preview it, then post it. |
 
 ## /audit
 
@@ -64,6 +64,18 @@ Default visibility: manage_guild
 | `/credits balance` | staff | Show a member's credit balance. | `member`: The member whose balance to show. |
 | `/credits history` | staff | Show a member's credit history (newest first, paginated). | `member`: The member whose history to show.; `page` (optional): Page number (default 1). |
 | `/credits adjust` | admin | Add credits to or remove credits from a member (admins only). | `member`: The member whose balance to change.; `action`: add: give credits; remove: take credits away (never below 0).; `amount`: Amount in the shop currency, e.g. 12.50.; `note`: Internal reason, shown only in the staff history and the audit log. |
+
+## /discount
+
+Discount codes customers use at checkout.
+
+Default visibility: manage_guild
+
+| Command | Access | Description | Options |
+|---|---|---|---|
+| `/discount create` | staff | Create a discount code customers enter on the review step. | `code`: The code customers type, e.g. SAVE10 (3-32 letters, digits, - or _); `type`: What the code gives; `value` (optional): Percent (1-100) or amount, e.g. 5.00; leave empty for buy one, get one free; `products` (optional): Only these product numbers, e.g. 12, 15 (empty: every item); `min_subtotal` (optional): Minimum items subtotal, e.g. 25.00; `max_uses` (optional): How many orders can use it in total; `expires_in_days` (optional): Ends after this many days (1-365; empty: no end date); `once_per_customer` (optional): Each customer can use it once (default: yes) |
+| `/discount list` | staff | Show the active discount codes, then the latest ended ones. | - |
+| `/discount end` | staff | End a discount code (orders placed with it keep their discount). | `code`: The code to end |
 
 ## /myorders
 

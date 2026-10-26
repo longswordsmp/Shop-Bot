@@ -2,7 +2,8 @@
 
 Customer routes (``co``, any member): every handler re-loads the session/order by id, checks it belongs to the
 configured guild and to the clicking member (staff can see order channels but cannot act on a customer's
-workflow), checks its state, then performs and persists the change and edits the single workflow message.
+workflow), checks its state, then performs and persists the change and edits the single workflow message. The claim
+button of a coupon (``dc``, any member, e.g. under an announcement) answers privately (``discount_codes``).
 
 Discord keeps a select menu showing the option that was picked until its message is edited, and picking the same
 option again sends nothing. So after a pick in the product or cart menu (the quantity form opens) and after a
@@ -30,6 +31,8 @@ from shopbot.features import core_keys as core
 from shopbot.features.catalog import repo as catalog_repo
 from shopbot.features.checkout import content_keys as k
 from shopbot.features.checkout import (
+    discount_codes,
+    discount_views,
     flow,
     gift_cards,
     payment_methods,
@@ -297,6 +300,47 @@ async def on_credits(ctx: Ctx) -> None:
     session = await _session(ctx)
     await service.set_apply_credits(ctx.app, session, ctx.arg_int(1) == 1)
     await _render(ctx, session.id)
+
+
+async def on_discount_open(ctx: Ctx) -> None:
+    """Add discount code: the private code form (refused while the limit on guessing codes is reached)."""
+    session = await _session(ctx)
+    if not ctx.app.settings.checkout.discount_codes:
+        raise HandlerError(core.ERROR_UNAVAILABLE)
+    if session.step != m.REVIEW:
+        raise HandlerError(core.ERROR_INVALID_INPUT)
+    if discount_codes.tries_wait(ctx.app, session.user_id) > 0:
+        raise HandlerError(k.DISCOUNT_TOO_MANY_TRIES)
+    await ctx.send_modal(views.discount_modal(ctx.app.ui, session.id))
+
+
+async def on_discount_form(ctx: Ctx) -> None:
+    """The code form was sent: apply the code (the review shows it) or answer privately why it cannot be used."""
+    session = await _session(ctx)
+    await discount_codes.apply_typed(ctx.app, session, ctx.fields.get(views.DISCOUNT_INPUT, ""))
+    await _render(ctx, session.id)
+
+
+async def on_discount_use(ctx: Ctx) -> None:
+    """Use coupon: apply a coupon the customer claimed."""
+    session = await _session(ctx)
+    await discount_codes.apply_coupon(ctx.app, session, ctx.arg_int(1))
+    await _render(ctx, session.id)
+
+
+async def on_discount_remove(ctx: Ctx) -> None:
+    session = await _session(ctx)
+    await discount_codes.remove(ctx.app, session)
+    await _render(ctx, session.id)
+
+
+async def on_coupon_claim(ctx: Ctx) -> None:
+    """A claim button (``sb:dc:claim:<code_id>``, e.g. under an announcement): claim the coupon, answer privately."""
+    member = ctx.member
+    if member is None or member.bot:
+        raise HandlerError(core.ERROR_PERMISSION)
+    await ctx.defer_reply(ephemeral=True)
+    await ctx.respond(await discount_codes.claim(ctx.app, member.id, ctx.arg_int(0)), ephemeral=True)
 
 
 def _shown_amount(ctx: Ctx, index: int) -> int | None:
@@ -908,6 +952,9 @@ def register(app: App) -> None:
         "aopen": on_address_open,
         "details": on_details,
         "credits": on_credits,
+        "dcode": on_discount_open,
+        "dcuse": on_discount_use,
+        "dcremove": on_discount_remove,
         "submit": on_submit,
         "cancel": on_cancel,
         "cancel_no": on_cancel_no,
@@ -925,6 +972,8 @@ def register(app: App) -> None:
     router.modal(route, "aform", feature=feature)(on_address_form)
     router.modal(route, "sform", feature=feature)(on_submission_form)
     router.modal(route, "paysubmit", feature=feature)(on_payment_submit)
+    router.modal(route, "dcform", feature=feature)(on_discount_form)
+    router.component(discount_views.CLAIM_ROUTE, discount_views.CLAIM_ACTION, feature=feature)(on_coupon_claim)
     for action in views.STAFF_ACTION_TARGETS:
         router.component(staff_route, action, feature=feature, access="staff", staff_roles=staff_role_keys)(
             on_staff_action

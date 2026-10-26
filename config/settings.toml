@@ -258,7 +258,7 @@ questions = 3
 
 [[faq.sections]]
 id = "payment"
-questions = 5
+questions = 6
 
 [[faq.sections]]
 id = "shipping"
@@ -331,6 +331,18 @@ allow_image = true                   # staff may attach one image (png, jpg, gif
 # style = "short"                    # "short" (one line) or "paragraph"
 # required = false                   # true = staff must fill it in
 # max_length = 1024                  # 1-1024 characters
+
+# Ready-made announcements staff post with /announce preset:<id> (at most 25): a private preview, then Post
+# announcement. The texts are content keys announcements.preset.<id>.title / .description, plus .claim_button and
+# .ended_button when the preset has a coupon. The coupon is a discount code made with /discount create; the
+# announcement gets its claim button, which shows the ended label once the code ends or expires.
+[[announcements.presets]]
+id = "warehouse_sale"                # internal key (a-z, 0-9, _), also used in the content keys
+name = "Warehouse sale: buy one, get one free"   # what staff pick in /announce preset: (at most 100 characters)
+coupon = "BOGO"                      # discount code the claim button claims ("" = no button)
+# The command staff are shown when the coupon does not exist yet (replace <ids...> with the product numbers).
+coupon_command = "/discount create code:BOGO type:Buy one, get one free once_per_customer:false products:<ids of the old stock>"
+banner = "announcements"             # banner picture of the announcement (a banner id)
 
 [new_arrivals]
 channel = "new_arrivals"             # channel of the opt-in panel and the automatic product updates
@@ -495,6 +507,10 @@ transcript_on_close = true
 customer_role = "customer"           # role key given to members whose order reached customer_role_on ("" = off)
 customer_role_on = "fulfilled"       # "paid" (payment confirmed) or "fulfilled" (order completed)
 customer_role_remove_on_refund = true  # remove the role when an order is fully refunded and no other order qualifies
+# Discount codes made with /discount (percent off, amount off, buy one get one free): the review step offers "Add
+# discount code" while at least one code can be used, plus the coupons the customer claimed. false = no discount
+# buttons, a code already applied to an unfinished order is ignored, and claim buttons say the offer is not available.
+discount_codes = true
 # The shipping address is asked on its own step, before the delivery options: the customer picks a country we
 # ship to ([shipping] groups) from menus, then fills in a private form (name, street, city, state/region, postal
 # code). Addresses in [shipping.excluded_areas] (Alaska, North Dakota) are refused; only staff see the full address.

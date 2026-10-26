@@ -233,16 +233,18 @@ Feature `faq` — enabled.
 
 | | Key | Where it appears | Kind (max chars) | Required | Placeholders |
 |---|---|---|---|---|---|
-| ✅ | `faq.section.payment.q.1.answer` | Answer to question 1 of 5 in the 'payment' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. | field_value (1024) | required | `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
-| ✅ | `faq.section.payment.q.1.question` | Question 1 of 5 in the 'payment' section (channel links do not work in questions). | field_name (256) | required |  |
-| ✅ | `faq.section.payment.q.2.answer` | Answer to question 2 of 5 in the 'payment' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. | field_value (1024) | required | `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
-| ✅ | `faq.section.payment.q.2.question` | Question 2 of 5 in the 'payment' section (channel links do not work in questions). | field_name (256) | required |  |
-| ✅ | `faq.section.payment.q.3.answer` | Answer to question 3 of 5 in the 'payment' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. | field_value (1024) | required | `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
-| ✅ | `faq.section.payment.q.3.question` | Question 3 of 5 in the 'payment' section (channel links do not work in questions). | field_name (256) | required |  |
-| ✅ | `faq.section.payment.q.4.answer` | Answer to question 4 of 5 in the 'payment' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. | field_value (1024) | required | `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
-| ✅ | `faq.section.payment.q.4.question` | Question 4 of 5 in the 'payment' section (channel links do not work in questions). | field_name (256) | required |  |
-| ✅ | `faq.section.payment.q.5.answer` | Answer to question 5 of 5 in the 'payment' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. | field_value (1024) | required | `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
-| ✅ | `faq.section.payment.q.5.question` | Question 5 of 5 in the 'payment' section (channel links do not work in questions). | field_name (256) | required |  |
+| ✅ | `faq.section.payment.q.1.answer` | Answer to question 1 of 6 in the 'payment' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. | field_value (1024) | required | `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
+| ✅ | `faq.section.payment.q.1.question` | Question 1 of 6 in the 'payment' section (channel links do not work in questions). | field_name (256) | required |  |
+| ✅ | `faq.section.payment.q.2.answer` | Answer to question 2 of 6 in the 'payment' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. | field_value (1024) | required | `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
+| ✅ | `faq.section.payment.q.2.question` | Question 2 of 6 in the 'payment' section (channel links do not work in questions). | field_name (256) | required |  |
+| ✅ | `faq.section.payment.q.3.answer` | Answer to question 3 of 6 in the 'payment' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. | field_value (1024) | required | `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
+| ✅ | `faq.section.payment.q.3.question` | Question 3 of 6 in the 'payment' section (channel links do not work in questions). | field_name (256) | required |  |
+| ✅ | `faq.section.payment.q.4.answer` | Answer to question 4 of 6 in the 'payment' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. | field_value (1024) | required | `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
+| ✅ | `faq.section.payment.q.4.question` | Question 4 of 6 in the 'payment' section (channel links do not work in questions). | field_name (256) | required |  |
+| ✅ | `faq.section.payment.q.5.answer` | Answer to question 5 of 6 in the 'payment' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. | field_value (1024) | required | `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
+| ✅ | `faq.section.payment.q.5.question` | Question 5 of 6 in the 'payment' section (channel links do not work in questions). | field_name (256) | required |  |
+| ✅ | `faq.section.payment.q.6.answer` | Answer to question 6 of 6 in the 'payment' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. | field_value (1024) | required | `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
+| ✅ | `faq.section.payment.q.6.question` | Question 6 of 6 in the 'payment' section (channel links do not work in questions). | field_name (256) | required |  |
 | ✅ | `faq.section.payment.title` | Heading of the 'payment' section of the FAQ posted in the faq channel, shown in bold (e.g. the topic: ordering, payment...). It may start with one of the bot's icons, e.g. {icon_cart}. | title (256) | required |  |
 
 ### FAQ section 'problems'
@@ -636,6 +638,49 @@ Feature `checkout` — enabled.
 |---|---|---|---|---|---|
 | ✅ | `checkout.channel_prefix` | Channel-name prefix of private order channels ({prefix} in tickets.channel_name_pattern; the number is the shared ticket/order-channel counter). Discord lower-cases channel names. | channel_prefix (60) | required |  |
 | ✅ | `checkout.channel_topic` | Optional topic of each order channel. {user_name} is the customer's display name. | channel_topic (1024) | optional | `{user_name}` |
+
+### Checkout: discount codes (review step)
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ✅ | `checkout.discount.button_add` | Button on the review step that opens the private discount code form, e.g. '{icon_discount} Add discount code'. Shown while the shop has at least one discount code that can be used (/discount). | button_label (80) | required |  |
+| ✅ | `checkout.discount.button_remove` | Button on the review step that takes the applied discount code off the order (it replaces the add and use buttons while a code is applied). | button_label (80) | required |  |
+| ✅ | `checkout.discount.button_use` | Button on the review step for a coupon the customer claimed (at most two, newest first): pressing it applies the code, e.g. '{icon_gift} Use coupon {code}'. {code} is the code. | button_label (80) | required | `{code}` |
+| ✅ | `checkout.discount.error.already_used` | Private reply when the customer's discount code cannot be used because the code is once per customer and this customer already placed an order with it; also shown in the summary of the review step (checkout.summary.discount_note) when a code the customer applied stops applying. {code} is the code. | description (4096) | required | `{code}` |
+| ✅ | `checkout.discount.error.ended` | Private reply when the customer's discount code cannot be used because staff ended the code (/discount end); also shown in the summary of the review step (checkout.summary.discount_note) when a code the customer applied stops applying. {code} is the code. | description (4096) | required | `{code}` |
+| ✅ | `checkout.discount.error.expired` | Private reply when the customer's discount code cannot be used because the code's end date has passed; also shown in the summary of the review step (checkout.summary.discount_note) when a code the customer applied stops applying. {code} is the code. | description (4096) | required | `{code}` |
+| ✅ | `checkout.discount.error.minimum` | Private reply when the customer's discount code cannot be used because the items in the cart are worth less than the code's minimum ({minimum}); also shown in the summary of the review step (checkout.summary.discount_note) when a code the customer applied stops applying. {code} is the code. | description (4096) | required | `{code}`, `{minimum}` |
+| ✅ | `checkout.discount.error.needs_two_items` | Private reply when the customer's discount code cannot be used because the code is buy one, get one free and fewer than two eligible items are in the cart; also shown in the summary of the review step (checkout.summary.discount_note) when a code the customer applied stops applying. {code} is the code. | description (4096) | required | `{code}` |
+| ✅ | `checkout.discount.error.no_eligible_items` | Private reply when the customer's discount code cannot be used because the code is limited to some items and none of them is in the cart; also shown in the summary of the review step (checkout.summary.discount_note) when a code the customer applied stops applying. {code} is the code. | description (4096) | required | `{code}` |
+| ✅ | `checkout.discount.error.too_many_tries` | Private reply after 5 codes that could not be used within 10 minutes (protection against guessing codes): the customer waits a few minutes before trying again. | description (4096) | required |  |
+| ✅ | `checkout.discount.error.unknown` | Private reply when the customer's discount code cannot be used because the shop has no code with this name (or it uses characters codes never have); also shown in the summary of the review step (checkout.summary.discount_note) when a code the customer applied stops applying. {code} is the code. | description (4096) | required | `{code}` |
+| ✅ | `checkout.discount.error.used_up` | Private reply when the customer's discount code cannot be used because the code was used as many times as it allows; also shown in the summary of the review step (checkout.summary.discount_note) when a code the customer applied stops applying. {code} is the code. | description (4096) | required | `{code}` |
+| ✅ | `checkout.discount.input_label` | Label of the code field in the form. | input_label (45) | required |  |
+| ✅ | `checkout.discount.input_placeholder` | Optional greyed-out example inside the empty code field. | input_placeholder (100) | optional |  |
+| ✅ | `checkout.discount.modal_title` | Title of the discount code form. | modal_title (45) | required |  |
+| ✅ | `checkout.summary.bogo_line` | How a buy one, get one free discount is written in the summary, e.g. 'Buy one, get one free ({code}) · -{amount}'. {code} is the code, {amount} the price of the free items. | format (100) | required | `{code}`, `{amount}` |
+| ✅ | `checkout.summary.discount_line` | How a percent or amount discount is written in the summary, right under the subtotal (review step, order ticket, staff record), e.g. 'Discount ({code}) · -{amount}'. {code} is the code, {amount} the amount it takes off. | format (100) | required | `{code}`, `{amount}` |
+| ✅ | `checkout.summary.discount_note` | Shown under the total of the review step when a code the customer applied stops applying, e.g. '{icon_alert} {reason} You can also press **Remove discount**.'. {reason} is the reason's text (checkout.discount.error.*). | field_value (1024) | required | `{reason}` |
+| ✅ | `checkout.summary.discount_off_line` | Shown in the summary in the discount's place when a code the customer applied stops applying (the cart changed, the code expired, was used up or ended), e.g. 'Discount ({code}) · not applied'. The total is shown without the discount; the note under it says why (checkout.summary.discount_note). | format (100) | required | `{code}` |
+
+### Checkout: claimed coupons (private replies to an announcement's claim button)
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ✅ | `checkout.discount.claim.description` | First text of the private reply after a coupon was claimed (claiming it again shows the same reply). {code} is the code. | description (4096) | required | `{code}` |
+| ✅ | `checkout.discount.claim.ended` | Text of that reply. | description (4096) | required |  |
+| ✅ | `checkout.discount.claim.ended_title` | Title of the private reply to a claim button whose offer has ended (the code ended or expired, or discount codes are switched off). | title (256) | required |  |
+| ✅ | `checkout.discount.claim.heading` | Heading of the coupon's terms in the claim reply, shown in bold, e.g. '{icon_gift} YOUR COUPON'. The terms follow, one per line (checkout.discount.terms.*). | title (256) | required |  |
+| ✅ | `checkout.discount.claim.howto` | How to use the coupon (under checkout.discount.claim.howto_heading). {code} is the code; {channel_catalog} links the catalog channel. | description (4096) | required | `{code}`, `{channel_catalog}` |
+| ✅ | `checkout.discount.claim.howto_heading` | Heading of how to use the coupon in the claim reply, shown in bold, e.g. '{icon_info} HOW TO USE IT'. | title (256) | required |  |
+| ✅ | `checkout.discount.claim.title` | Title of the private reply after a coupon was claimed. | title (256) | required |  |
+| ✅ | `checkout.discount.terms.amount` | The terms of an amount coupon, e.g. '**{amount} off** your items'. {amount} is the amount. | field_value (1024) | required | `{amount}` |
+| ✅ | `checkout.discount.terms.bogo` | The terms of a buy one, get one free coupon, e.g. '**Buy one, get one free:** the cheaper item of every pair is free'. | field_value (1024) | required |  |
+| ✅ | `checkout.discount.terms.expires` | Shown when the coupon has an end date: {date} is that date (each reader sees it in their own time zone). | field_value (1024) | required | `{date}` |
+| ✅ | `checkout.discount.terms.minimum` | Shown when the coupon needs a minimum: {minimum} is the items subtotal the cart needs. | field_value (1024) | required | `{minimum}` |
+| ✅ | `checkout.discount.terms.once` | Shown when each customer can use the coupon once. | field_value (1024) | required |  |
+| ✅ | `checkout.discount.terms.percent` | The terms of a percent coupon, e.g. '**{percent}% off** your items'. {percent} is the percentage. | field_value (1024) | required | `{percent}` |
+| ✅ | `checkout.discount.terms.products` | Shown when the coupon counts only some items: {products} lists their names. | field_value (1024) | required | `{products}` |
 
 ### Checkout: error messages (private)
 
@@ -1090,6 +1135,19 @@ Feature `reviews` — enabled.
 | ✅ | `reviews.rating.5.emoji` | Optional emoji shown next to the option for rating 5 of 5 in the rating selection menu. | emoji (100) | optional |  |
 | ✅ | `reviews.rating.5.label` | Option label for rating 5 of 5 in the rating selection menu of the review request (options are listed from the highest rating to the lowest). Also shown on the published review when reviews.rating.5.display is empty. | option_label (100) | required |  |
 
+## #announcements (/announce)
+
+Feature `announcements` — enabled.
+
+### Announcements: presets (posted with /announce preset:)
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ✅ | `announcements.preset.warehouse_sale.claim_button` | Button under the 'warehouse_sale' preset announcement (/announce preset:warehouse_sale, staff name 'Warehouse sale: buy one, get one free') that claims the coupon BOGO (e.g. '{icon_gift} Claim coupon'). Pressing it answers privately with the coupon's terms (checkout.discount.claim.*). | button_label (80) | required |  |
+| ✅ | `announcements.preset.warehouse_sale.description` | Text of the 'warehouse_sale' preset announcement (/announce preset:warehouse_sale, staff name 'Warehouse sale: buy one, get one free'). Discord formatting, icons ({icon_gift}), section headings and channel links ({channel_catalog}) work here. {coupon} is the coupon's code (BOGO), e.g. 'press **Use coupon {coupon}** on the review step'. | description (4096) | required | `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}`, `{coupon}` |
+| ✅ | `announcements.preset.warehouse_sale.ended_button` | Label the button under the 'warehouse_sale' preset announcement (/announce preset:warehouse_sale, staff name 'Warehouse sale: buy one, get one free') shows (disabled) once the coupon BOGO has ended or expired, e.g. 'Offer ended'. | button_label (80) | required |  |
+| ✅ | `announcements.preset.warehouse_sale.title` | Title of the 'warehouse_sale' preset announcement (/announce preset:warehouse_sale, staff name 'Warehouse sale: buy one, get one free'), posted in the 'announcements' channel. Plain text (no icons). | title (256) | required |  |
+
 ## Report a Problem
 
 Feature `problems` — enabled.
@@ -1285,7 +1343,7 @@ Feature `operations` — enabled.
 
 ## Summary
 
-- Required keys (for the listed features): 470
+- Required keys (for the listed features): 508
 - Required keys still missing: 0
 
 Legend: ✅ configured · ❌ required and missing · ▫️ optional and empty

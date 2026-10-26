@@ -173,6 +173,7 @@ Constraints:
 | `created_at` | INTEGER | yes |  |  |
 | `updated_at` | INTEGER | yes |  |  |
 | `expires_at` | INTEGER |  |  |  |
+| `discount_code_id` | INTEGER |  |  |  |
 
 Indexes: `idx_sessions_user`, `uq_active_session_per_ticket` (unique)
 
@@ -424,8 +425,11 @@ Constraints:
 | `expires_at` | INTEGER | yes |  |  |
 | `updated_at` | INTEGER | yes |  |  |
 | `published_at` | INTEGER |  |  |  |
+| `preset_id` | TEXT |  |  |  |
+| `discount_code_id` | INTEGER |  |  |  |
+| `offer_ended_at` | INTEGER |  |  |  |
 
-Indexes: `idx_announcements_expiry`
+Indexes: `idx_announcements_code`, `uq_announcements_offer` (unique), `idx_announcements_expiry`
 
 Constraints:
 
@@ -620,53 +624,6 @@ Constraints:
 - `name TEXT NOT NULL PRIMARY KEY CHECK (length(name) BETWEEN 2 AND 32)`
 - `sha256 TEXT NOT NULL CHECK (length(sha256) = 64)`
 
-## `orders`
-
-| Column | Type | Not null | Default | Key |
-|---|---|---|---|---|
-| `id` | INTEGER |  |  | PK |
-| `guild_id` | INTEGER | yes |  |  |
-| `number` | INTEGER | yes |  |  |
-| `user_id` | INTEGER | yes |  |  |
-| `session_id` | INTEGER |  |  |  |
-| `ticket_id` | INTEGER |  |  |  |
-| `status` | TEXT | yes |  |  |
-| `currency` | TEXT | yes |  |  |
-| `subtotal_minor` | INTEGER | yes |  |  |
-| `fulfillment_fee_minor` | INTEGER | yes | 0 |  |
-| `fees_minor` | INTEGER | yes | 0 |  |
-| `credits_applied_minor` | INTEGER | yes | 0 |  |
-| `total_minor` | INTEGER | yes |  |  |
-| `refunded_minor` | INTEGER | yes | 0 |  |
-| `fulfillment_option` | TEXT |  |  |  |
-| `details` | TEXT | yes | '{}' |  |
-| `payment_provider` | TEXT | yes |  |  |
-| `customer_message_id` | INTEGER |  |  |  |
-| `staff_channel_id` | INTEGER |  |  |  |
-| `staff_message_id` | INTEGER |  |  |  |
-| `version` | INTEGER | yes | 1 |  |
-| `created_at` | INTEGER | yes |  |  |
-| `updated_at` | INTEGER | yes |  |  |
-| `paid_at` | INTEGER |  |  |  |
-| `fulfilled_at` | INTEGER |  |  |  |
-| `closed_at` | INTEGER |  |  |  |
-
-Indexes: `idx_orders_status`, `idx_orders_user`
-
-Constraints:
-
-- `number INTEGER NOT NULL CHECK (number > 0)`
-- `status TEXT NOT NULL CHECK (status IN (`
-- `currency TEXT NOT NULL CHECK (length(currency) = 3)`
-- `subtotal_minor INTEGER NOT NULL CHECK (subtotal_minor >= 0)`
-- `fulfillment_fee_minor INTEGER NOT NULL DEFAULT 0 CHECK (fulfillment_fee_minor >= 0)`
-- `fees_minor INTEGER NOT NULL DEFAULT 0 CHECK (fees_minor >= 0)`
-- `credits_applied_minor INTEGER NOT NULL DEFAULT 0 CHECK (credits_applied_minor >= 0)`
-- `total_minor INTEGER NOT NULL CHECK (total_minor >= 0)`
-- `refunded_minor INTEGER NOT NULL DEFAULT 0 CHECK (refunded_minor >= 0)`
-- `CHECK (total_minor = subtotal_minor + fulfillment_fee_minor + fees_minor - credits_applied_minor)`
-- `CHECK (refunded_minor <= total_minor)`
-
 ## `gift_cards`
 
 | Column | Type | Not null | Default | Key |
@@ -720,3 +677,108 @@ Constraints:
 
 - `delta_minor INTEGER NOT NULL CHECK (delta_minor != 0)`
 - `kind TEXT NOT NULL CHECK (kind IN ('admin_adjust', 'order_debit', 'order_return', 'refund_to_credit', 'gift_card'))`
+
+## `discount_codes`
+
+| Column | Type | Not null | Default | Key |
+|---|---|---|---|---|
+| `id` | INTEGER |  |  | PK |
+| `guild_id` | INTEGER | yes |  |  |
+| `code` | TEXT | yes |  |  |
+| `kind` | TEXT | yes |  |  |
+| `value` | INTEGER | yes |  |  |
+| `min_subtotal_minor` | INTEGER | yes | 0 |  |
+| `max_uses` | INTEGER |  |  |  |
+| `once_per_customer` | INTEGER | yes | 1 |  |
+| `expires_at` | INTEGER |  |  |  |
+| `created_by` | INTEGER |  |  |  |
+| `created_at` | INTEGER | yes |  |  |
+| `updated_at` | INTEGER | yes |  |  |
+| `ended_at` | INTEGER |  |  |  |
+| `ended_by` | INTEGER |  |  |  |
+
+Indexes: `idx_discount_codes_guild`, `uq_discount_codes_live` (unique)
+
+Constraints:
+
+- `code TEXT NOT NULL CHECK (length(code) BETWEEN 3 AND 32 AND code NOT GLOB '*[^A-Z0-9_-]*')`
+- `kind TEXT NOT NULL CHECK (kind IN ('percent', 'amount', 'bogo'))`
+- `min_subtotal_minor INTEGER NOT NULL DEFAULT 0 CHECK (min_subtotal_minor >= 0)`
+- `max_uses INTEGER CHECK (max_uses IS NULL OR max_uses > 0)`
+- `once_per_customer INTEGER NOT NULL DEFAULT 1 CHECK (once_per_customer IN (0, 1))`
+- `CHECK (kind != 'percent' OR value BETWEEN 100 AND 10000)`
+- `CHECK (kind != 'amount' OR value BETWEEN 1 AND 1000000000000)`
+- `CHECK (kind != 'bogo' OR value = 0)`
+
+## `discount_code_products`
+
+| Column | Type | Not null | Default | Key |
+|---|---|---|---|---|
+| `code_id` | INTEGER | yes |  | PK |
+| `product_id` | INTEGER | yes |  | PK |
+
+## `discount_claims`
+
+| Column | Type | Not null | Default | Key |
+|---|---|---|---|---|
+| `code_id` | INTEGER | yes |  | PK |
+| `guild_id` | INTEGER | yes |  |  |
+| `user_id` | INTEGER | yes |  | PK |
+| `claimed_at` | INTEGER | yes |  |  |
+
+Indexes: `idx_discount_claims_user`
+
+## `orders`
+
+| Column | Type | Not null | Default | Key |
+|---|---|---|---|---|
+| `id` | INTEGER |  |  | PK |
+| `guild_id` | INTEGER | yes |  |  |
+| `number` | INTEGER | yes |  |  |
+| `user_id` | INTEGER | yes |  |  |
+| `session_id` | INTEGER |  |  |  |
+| `ticket_id` | INTEGER |  |  |  |
+| `status` | TEXT | yes |  |  |
+| `currency` | TEXT | yes |  |  |
+| `subtotal_minor` | INTEGER | yes |  |  |
+| `fulfillment_fee_minor` | INTEGER | yes | 0 |  |
+| `fees_minor` | INTEGER | yes | 0 |  |
+| `credits_applied_minor` | INTEGER | yes | 0 |  |
+| `total_minor` | INTEGER | yes |  |  |
+| `refunded_minor` | INTEGER | yes | 0 |  |
+| `fulfillment_option` | TEXT |  |  |  |
+| `details` | TEXT | yes | '{}' |  |
+| `payment_provider` | TEXT | yes |  |  |
+| `customer_message_id` | INTEGER |  |  |  |
+| `staff_channel_id` | INTEGER |  |  |  |
+| `staff_message_id` | INTEGER |  |  |  |
+| `version` | INTEGER | yes | 1 |  |
+| `created_at` | INTEGER | yes |  |  |
+| `updated_at` | INTEGER | yes |  |  |
+| `paid_at` | INTEGER |  |  |  |
+| `fulfilled_at` | INTEGER |  |  |  |
+| `closed_at` | INTEGER |  |  |  |
+| `discount_code_id` | INTEGER |  |  |  |
+| `discount_code` | TEXT |  |  |  |
+| `discount_kind` | TEXT |  |  |  |
+| `discount_minor` | INTEGER | yes | 0 |  |
+
+Indexes: `idx_orders_discount`, `idx_orders_status`, `idx_orders_user`
+
+Constraints:
+
+- `number INTEGER NOT NULL CHECK (number > 0)`
+- `status TEXT NOT NULL CHECK (status IN (`
+- `currency TEXT NOT NULL CHECK (length(currency) = 3)`
+- `subtotal_minor INTEGER NOT NULL CHECK (subtotal_minor >= 0)`
+- `fulfillment_fee_minor INTEGER NOT NULL DEFAULT 0 CHECK (fulfillment_fee_minor >= 0)`
+- `fees_minor INTEGER NOT NULL DEFAULT 0 CHECK (fees_minor >= 0)`
+- `credits_applied_minor INTEGER NOT NULL DEFAULT 0 CHECK (credits_applied_minor >= 0)`
+- `total_minor INTEGER NOT NULL CHECK (total_minor >= 0)`
+- `refunded_minor INTEGER NOT NULL DEFAULT 0 CHECK (refunded_minor >= 0)`
+- `discount_kind TEXT CHECK (discount_kind IS NULL OR discount_kind IN ('percent', 'amount', 'bogo'))`
+- `discount_minor INTEGER NOT NULL DEFAULT 0 CHECK (discount_minor >= 0 AND discount_minor <= subtotal_minor)`
+- `CHECK ((discount_code IS NULL) = (discount_kind IS NULL))`
+- `CHECK (discount_minor = 0 OR discount_code IS NOT NULL)`
+- `CHECK (total_minor = subtotal_minor + fulfillment_fee_minor + fees_minor - discount_minor - credits_applied_minor)`
+- `CHECK (refunded_minor <= total_minor)`

@@ -33,14 +33,15 @@ texts; the others are reviewed by eye with `python -m tools.build_preview` befor
 - **I4 Status dots.** `dot_blue` = yes / available / active, `dot_yellow` = partly / pending, `dot_grey` = no /
   not available / not yet.
 
-Icon dictionary: cart = items and cart; receipt = order, order summary, total; wallet = payment, payment methods,
-store credit; card = card payments; gift = gift cards; truck = delivery and shipping; package_out = shipped;
-st_delivered = delivered; location = address, ship to; clock = time, processing, progress; calendar = dates;
-ticket = ticket; shield = protection; lock = privacy; box = packaging; check = done, confirmed; cross = cancelled,
-refused, close; alert = warning, problem; info = information; chat = questions, talk to us; headset = support;
-hourglass = waiting; tag = price, catalog; coins = amounts and store credit balance; help = FAQ; star = reviews;
-list = steps and details; user = customer; flag = report a problem; arrow_right = continue; arrow_left = back;
-plus = add; trash = delete; edit = change; link = open elsewhere.
+Icon dictionary: cart = items and cart; receipt = order, order summary, total; wallet = payment, payment methods, store
+credit; card = card payments; gift = gift cards and claimed coupons; discount = discount codes; truck = delivery and
+shipping; package_out = shipped; st_delivered = delivered; location = address, ship to; clock = time, processing,
+progress; calendar = dates; ticket = ticket; shield = protection; lock = privacy; box = packaging; check = done,
+confirmed; cross = cancelled, refused, close; alert = warning, problem; info = information; chat = questions, talk to
+us; headset = support; hourglass = waiting; tag = price, catalog; coins = amounts and store credit balance; help = FAQ;
+star = reviews; list = steps and details; user = customer; flag = report a problem; arrow_right = continue; arrow_left =
+back; plus = add; minus = take off (remove store credit, a discount); trash = delete; edit = change; link = open
+elsewhere.
 
 ## 3. Words
 

@@ -267,13 +267,13 @@ and deletion timers, and of course the products themselves (`/product add`).
   settings (`/setup` cannot re-create those), and the channels holding history: transcripts, the bot log and
   published reviews live only as Discord messages, so their channels are kept and `/setup` moves them into the new
   layout (they keep their records).
-- **Data kept by default.** Orders, products, reviews and store credit stay. Ticket and order channels are deleted
-  like any other channel, through the same path as a channel deleted by hand (tickets recorded as deleted, unfinished
-  checkouts expired). `/setup` afterwards posts the staff cards of open orders whose channel is gone, with their
-  item and answer messages (dedupe keys per new channel), and, when the reset deleted the Customer role, gives the
+- **Data kept by default.** Orders, products, discount codes, reviews and store credit stay. Ticket and order channels
+  are deleted like any other channel, through the same path as a channel deleted by hand (tickets recorded as deleted,
+  unfinished checkouts expired). `/setup` afterwards posts the staff cards of open orders whose channel is gone, with
+  their item and answer messages (dedupe keys per new channel), and, when the reset deleted the Customer role, gives the
   new one back to every member with a qualifying order (the normal role task, which fetches the member itself, so it
-  works without the member cache). Unpaid orders are counted in the preview: their customers pay in the deleted
-  order channel. Members verify again on the new welcome panel.
+  works without the member cache). Unpaid orders are counted in the preview: their customers pay in the deleted order
+  channel. Members verify again on the new welcome panel.
 - **Interruptions.** Each deletion catches any error (reported, the run goes on). Forgetting the records, the audit
   entry (`completed: false` when cut off) run in a `finally`; a `running` marker in `kv_state` is cleared only once
   the owner was told the result, so a restart in the middle is reported by DM at the next start. The router refuses
@@ -314,6 +314,76 @@ and deletion timers, and of course the products themselves (`/product add`).
   package), whose page is then the active method.
 - **A part payment asks for the rest.** Once a gift card counts toward an order, the instructions show what is still
   to pay instead of the whole total.
+
+## 11e. Discount codes, buy one get one free and coupons
+
+- **What.** Catalog managers create discount codes with `/discount create`: percent off (1-100 %), an amount off (in
+  the shop currency) or buy one, get one free; optionally limited to some products, with a minimum items subtotal, a
+  total number of uses, an end date (1-365 days) and once per customer (the default). Customers type a code on the
+  review step (**Add discount code**, shown while the shop has a code that is not ended or expired), or press **Use
+  coupon CODE** for a coupon they claimed with a claim button (for example under an announcement). `/discount list`
+  shows the codes with their terms, uses and claims; `/discount end` ends one. `[checkout] discount_codes = false`
+  switches it all off.
+- **Why it is built this way.** A discount changes the money of an order, so it follows the same rules as the rest
+  of checkout: one pure function computes it (`checkout/discounts.py`), the totals function takes it, and the
+  submission checks it again inside the transaction that creates the order. The submit button already carries the
+  totals the customer saw, so a code that stops applying between the review and Submit (it expired, was ended or
+  used up) gives the existing "the total changed" review instead of an order at a price nobody saw.
+- **The rules.**
+  - The items a code counts: every line, or only the lines of its products. Delivery, extras, fees and store credit
+    never count.
+  - Percent: the percentage of those items, rounded half up. Amount: the amount, at most those items.
+  - Buy one, get one free: every eligible unit is listed by unit price, highest first, and every second unit is free,
+    so the cheaper unit of each pair is free (units of $10, $8 and $5 save $8; a fourth unit of $3 saves $3 more). The
+    cart needs at least two eligible units.
+  - The minimum is the items subtotal of the whole cart.
+  - Percent fees are charged on the items after the discount; flat fees and delivery are unchanged; store credit
+    covers what is left. The order stores the discount (`discount_minor`), the code's id, and the code and its kind
+    as they were (a snapshot), and its total is subtotal + delivery + fees - discount - credit (a database CHECK).
+  - One code per order (applying another replaces it).
+  - Only items with a price count, and a code that would take nothing off (a free item in a buy one, get one free
+    pair, 1% of a few cents) does not apply: an order never stores, or counts a use of, a code that saved nothing (a
+    once-per-customer code would otherwise be used up for nothing).
+  - Each reason a code does not apply has its own customer text (unknown, ended, expired, used up, already used,
+    minimum, no eligible items, needs two items). A code that stops applying while the order is put together (the
+    cart changed, the code ended) shows "not applied" in the discount's place and the reason under the total; the
+    total is then without it.
+- **How uses are counted.** From the orders that used the code, never with a counter that could drift: an order
+  counts unless it ended without ever being paid (cancelled, expired or rejected while unpaid). An order that was
+  paid and refunded later still counts. `max_uses` and once per customer are checked again when the order is
+  created; SQLite's write lock serializes two customers submitting at the same moment, so only one gets the last use.
+- **Refunds.** A discount was never paid, so it is never refunded: what can be refunded is the total (what the
+  customer paid), a full refund still means the total plus the store credit applied, and the gift card amount to pay
+  is the total.
+- **Guessing codes.** At most 5 typed codes that could not be used per customer in 10 minutes; then the form answers
+  "please wait a few minutes" (kept in memory: a restart forgets it). A code that does not exist is repeated in the
+  reply with only the characters codes can have.
+- **Coupons.** A claim button (`sb:dc:claim:<code id>`) records the member's claim once and answers privately with
+  the terms and how to use it; the review step offers the two newest claimed coupons that can still be used. When the
+  offer has ended (the code ended, expired or was used up, or codes are off) it says so. A code is never deleted:
+  ending it keeps it on the orders that used it, and the same name can be created again. `/discount end` publishes
+  `DISCOUNT_CODE_ENDED`, so a post that offered the code can be marked as ended.
+
+## 11f. Announcement presets (the warehouse sale)
+
+- **What.** `/announce preset:<id>` posts a ready-made announcement (`[[announcements.presets]]`, texts
+  `announcements.preset.<id>.*`) after a private preview, with the claim button of its coupon. The shipped
+  `warehouse_sale` preset is the owner's announcement of the new warehouse and the buy one, get one free sale on the
+  old stock (coupon `BOGO`), written from the owner's words: every point kept (thanks for the support, the brand-new
+  warehouse it made possible, clearing the old stock, buy one, get one free for a limited time until the old stock is
+  gone, claim the coupon below and redeem it at checkout, thanks again), the grammar fixed, steps with icons.
+- **A preview with a Post button instead of a form.** The text is fixed, so there is nothing to type; what can go
+  wrong is the coupon (not created yet, ended, used up, codes off). The preview shows the post exactly and names the
+  fix (the exact `/discount create` command, `coupon_command`) before anything is posted, and Post checks it all again.
+- **Posted once.** The preview reuses the announcements table and its claim-once update (draft → posting); the
+  preview's row keeps the code id it showed (Post refuses a coupon that was ended and created again since, because
+  staff never saw its terms), and a unique index allows one posting or posted announcement per preset and code, so
+  two staff members (or a double press, also across a restart) cannot post the same offer twice. A post deleted in
+  Discord stops counting at the next preview, so the offer can be posted again.
+- **The button follows the offer.** When the code ends (`/discount end`) or a press finds it expired, a durable task
+  edits only the button (the disabled ended label); a startup sweep catches codes that ended or expired while nobody
+  watched. Used up does not switch it (a use comes back when an unpaid order is cancelled). The claim button itself
+  belongs to checkout (`sb:dc:claim:<id>`, part of 11e), so claiming works the same under any post.
 
 ## 12. Assumptions
 

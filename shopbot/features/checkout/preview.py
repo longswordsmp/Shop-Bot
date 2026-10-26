@@ -18,6 +18,9 @@ from shopbot.config.settings import FulfillmentOption, Settings
 from shopbot.features.catalog.repo import NAME_MAX, Product
 from shopbot.features.checkout import content_keys as k
 from shopbot.features.checkout import (
+    discount_preview,
+    discount_repo,
+    discounts,
     flow,
     gift_card_preview,
     panel,
@@ -142,16 +145,27 @@ def _data(
     *,
     page: m.ProductPage | None = None,
     credits_enabled: bool = False,
+    code: discounts.Code | None = None,
+    reason: str | None = None,
+    offer: m.DiscountOffer | None = None,
 ) -> m.WorkflowData:
+    """``code``: the discount code the session applied (``reason``: why it no longer applies); ``offer``: the
+    discount buttons of the review step."""
     c = settings.checkout
     option = c.fulfillment(session.fulfillment_option)
     available = SAMPLE_CREDITS_MINOR if credits_enabled else 0
+    discount: m.AppliedDiscount | None = None
+    if code is not None:
+        session = replace(session, discount_code_id=code.id)
+        amount = 0 if reason else discounts.discount_amount(code, discount_repo.cart_lines(lines))
+        discount = m.AppliedDiscount(code.id, code.code, code.kind, amount, reason, code.min_subtotal_minor)
     totals = compute_totals(
         [(line.product.price_minor, line.quantity) for line in lines],
         fulfillment_fee_minor=option.fee_minor if option is not None else 0,
         fees=c.fees,
         credits_available_minor=available,
         apply_credits=session.apply_credits and credits_enabled,
+        discount_minor=discount.amount_minor if discount is not None else 0,
     )
     return m.WorkflowData(
         session=session,
@@ -161,6 +175,8 @@ def _data(
         credits_enabled=credits_enabled,
         credits_available_minor=min(available, totals.gross_minor),
         ticket_number=SAMPLE_TICKET_NUMBER,
+        discount=discount,
+        offer=offer or m.DiscountOffer(),
     )
 
 
@@ -190,19 +206,23 @@ def _order(
     *,
     refunded: int | None = None,
     credits: int = 0,
+    code: discounts.Code | None = None,
 ) -> m.OrderView:
+    """A sample order in ``status``; ``code``: the discount code it was placed with."""
     c = settings.checkout
     option = _sample_option(settings)
     details: dict[str, str] = {flow.extra_key(extra.id): "1" for extra in c.extras}  # every extra chosen
     if c.ask_address and settings.shipping.groups:
         details[flow.ADDRESS_COUNTRY] = settings.shipping.groups[0].countries[0]
         details.update({f.answer_key: f"[sample {f.id}]" for f in flow.ADDRESS_FIELDS})
+    discount = discounts.discount_amount(code, discount_repo.cart_lines(lines)) if code is not None else 0
     totals = compute_totals(
         [(line.product.price_minor, line.quantity) for line in lines],
         fulfillment_fee_minor=option.fee_minor if option is not None else 0,
         fees=flow.session_fees(c, details),
         credits_available_minor=credits,
         apply_credits=credits > 0,
+        discount_minor=discount,
     )
     inputs = flow.form_inputs(c, option.id if option is not None else None) + flow.submission_inputs(c)
     for index, item in enumerate(inputs, start=1):
@@ -235,6 +255,10 @@ def _order(
         paid_at=SAMPLE_TIME if paid else None,
         fulfilled_at=SAMPLE_TIME if status in (m.FULFILLED, m.REFUNDED) else None,
         closed_at=None,
+        discount_code_id=code.id if code is not None else None,
+        discount_code=code.code if code is not None else None,
+        discount_kind=code.kind if code is not None else None,
+        discount_minor=discount,
     )
     items = tuple(
         m.OrderItem(
@@ -646,6 +670,17 @@ def preview(app: App) -> list[PreviewState]:
     )
 
     gift_card_preview.add_states(app, add, pending, _order(settings, m.PAYMENT_SUBMITTED, lines), instructions)
+    if c.discount_codes:
+        discount_preview.add_states(
+            app,
+            add,
+            partial(_data, settings, credits_enabled=credits),
+            partial(_order, settings),
+            review=review,
+            lines=lines,
+            instructions=instructions,
+            links=links,
+        )
     payment_methods_preview.add_states(app, add, pending, instructions)
 
     # -- errors (private) -------------------------------------------------------------------------------------------

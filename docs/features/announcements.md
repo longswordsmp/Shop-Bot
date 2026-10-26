@@ -20,6 +20,9 @@ Authorized staff publish announcements in the announcements channel with `/annou
      color and a timestamp.
 3. The staff member gets a private confirmation (operator text) with a link to the post.
 
+With `preset:` (see [Presets](#presets)) there is no form: staff post a ready-made announcement after a private
+preview.
+
 Nobody is mentioned unless a mention role was chosen; then only that role (Discord `allowed_mentions` is limited to
 it, so `@everyone`, `@here` or role mentions typed into the text never ping). The bot never posts an announcement on
 its own: every post comes from a submitted form.
@@ -38,6 +41,7 @@ mentioned), **nothing is posted** and the staff member gets a private operator e
 | `mention_roles` | `[]` | Role keys staff may choose to mention. Empty: announcements never mention anyone. At most 25. The role must be mentionable (`mentionable = true` in `[[server.roles]]`, applied by `/setup`) unless the bot has the Mention @everyone permission in the channel. |
 | `allow_image` | `true` | Whether staff may attach one image (png, jpg, gif or webp, up to 10 MB minus the announcements banner picture, about 9.4 MB with the shipped banner: the per-message file limit every bot message is checked against, also on boosted servers). The option stays visible when off but is refused. |
 | `[[announcements.fields]]` | none | Up to 3 extra form inputs, each posted as an embed field: `id` (internal key), `style` (`short` or `paragraph`), `required` (default `false`), `max_length` (1-1024, default 1024). |
+| `[[announcements.presets]]` | `warehouse_sale` (shipped) | Up to 25 ready-made announcements for `/announce preset:` (see [Presets](#presets)): `id` (a-z, 0-9, `_`, 1-32 characters, unique), `name` (what staff pick, plain text, at most 100 characters), `coupon` (optional discount code its claim button claims, written like `/discount` codes and upper-cased), `coupon_command` (optional: the `/discount create code:<coupon> ...` command staff are shown while the coupon does not exist), `banner` (optional banner id, default `announcements`). |
 
 Example:
 
@@ -63,6 +67,10 @@ submitted.
 | Key | Required | Where it is shown |
 |---|---|---|
 | `announcements.field.<id>.name` | yes, for each configured field | Heading of that field in posted announcements; also the field's label in the staff form when it fits (45 characters), otherwise the form shows `Field '<id>'`. |
+| `announcements.preset.<id>.title` | yes, for each preset | Title of the preset's announcement (plain text, no icons). |
+| `announcements.preset.<id>.description` | yes, for each preset | Text of the preset's announcement: Discord formatting, icons, section headings and `{channel_<key>}` links. |
+| `announcements.preset.<id>.claim_button` | yes, for a preset with a coupon | Label of the claim button, e.g. `{icon_gift} Claim coupon`. |
+| `announcements.preset.<id>.ended_button` | yes, for a preset with a coupon | Label the button shows (disabled) once the coupon ended or expired, e.g. `Offer ended`. |
 | `branding.author_name`, `branding.footer_text` | optional (shared) | Author line and footer of every announcement. |
 
 With no extra fields configured, the feature needs no content of its own (the announcement text is typed by staff).
@@ -75,10 +83,54 @@ Everything staff see while publishing (form labels, confirmations, errors) is op
 
 | Command | Access | Options |
 |---|---|---|
-| `/announce` | staff (`permissions.staff_roles`, `announcements.roles`, admins); hidden by default from members without Manage Messages (adjust under Server Settings → Integrations, e.g. for `announcements.roles`) | `image` (optional attachment), `mention` (optional; autocomplete lists the existing `mention_roles`; the role key or the role's name are accepted) |
+| `/announce` | staff (`permissions.staff_roles`, `announcements.roles`, admins); hidden by default from members without Manage Messages (adjust under Server Settings → Integrations, e.g. for `announcements.roles`) | `image` (optional attachment), `mention` (optional; autocomplete lists the existing `mention_roles`; the role key or the role's name are accepted), `preset` (optional; autocomplete lists the presets by name, to staff only; the id or the name are accepted) |
 
-Permissions are enforced by the bot on the command, on the form submission and on the retry button (the router
-re-checks staff access every time; a form can only be submitted by the staff member who opened it).
+Permissions are enforced by the bot on the command, on the form submission, on the retry button and on a preset's
+Post announcement and Cancel buttons (the router re-checks staff access every time; a form or preview can only be
+used by the staff member who opened it).
+
+## Presets
+
+A preset is a ready-made announcement: its texts are configured once (`announcements.preset.<id>.*`) and staff post
+it with `/announce preset:<id>` (plus `mention` and `image` as usual). The shipped preset `warehouse_sale` announces
+the warehouse sale: buy one, get one free on the old stock with the coupon `BOGO`.
+
+1. **Private preview.** The command answers privately with two messages: the announcement as it will be posted (its
+   claim button shown disabled; the mention is not pinged in the copy, the card lists it), then a card with the
+   channel, the mention and, for a preset with a
+   coupon, the coupon's terms in plain words (for example "buy one, get one free (the cheaper item of every pair is
+   free) · only <products> · no end date"), with **Post announcement** and **Cancel**. Nothing is posted yet.
+2. **Problems first.** When the announcement could not be posted now, the card says why and how to fix it, and has
+   no Post button (nothing is stored): the coupon does not exist, has ended or expired (with the exact command to
+   create it, `coupon_command`), it is used up, discount codes are switched off (`checkout.discount_codes`) or the
+   checkout feature is not ready, this preset already announced the same coupon (with a link to that post), a
+   `{channel_<key>}` link points to a channel /setup has not created, plus the usual channel, permission, mention and
+   image problems.
+3. **Post announcement** checks everything again at that moment and posts the announcement once: one embed with the
+   preset's title and text, the branding (author line, footer, timestamp), the banner inside the card at the bottom
+   (above the card when an image is attached), the mention when chosen (only that role is pinged) and the claim
+   button of the coupon (`sb:dc:claim:<code id>`, handled by the checkout feature: it records the claim and answers
+   privately with the coupon's terms and how to use it; it keeps working after restarts). The card becomes the
+   confirmation with a link to the post. If posting fails because of the server (a permission, Discord), the card
+   lists the problem and keeps **Post announcement** for after the fix; if the coupon stopped being usable, staff run
+   the preset again after fixing it. The preview remembers the code it showed: when the coupon was ended and created
+   again in between (a new code, whose terms may differ), Post refuses it and staff run the preset again to see the
+   new terms.
+4. **Cancel** drops the preview; nothing was posted.
+5. **When the offer ends.** `/discount end` on the coupon, or a claim press after the coupon expired (the member is
+   told the offer has ended), switches the posted button to the disabled `ended_button` label; only the button
+   changes, so the text still reads as it was posted (a known limit: the grey "Offer ended" button tells readers). A
+   coupon that is merely used up keeps its button (a use comes back when an unpaid order is cancelled); presses then
+   answer that the offer has ended. A coupon that ends while the announcement is being posted gets its button switched
+   right after (the confirmation says so). After `/reset wipe_shop_data` deleted the codes, a kept post keeps its
+   button and a press answers that the offer has ended.
+
+The shipped preset needs the coupon to exist first, e.g.
+`/discount create code:BOGO type:Buy one, get one free once_per_customer:false products:<ids of the old stock>`
+(product numbers from `/product list`). Add a preset by adding a `[[announcements.presets]]` entry with its texts
+(`/content set`, or content.toml) and `/reload`. In a preset's text, `{coupon}` is its coupon's code (the shipped
+text says "press **Use coupon {coupon}** on the review step"), so the text follows the `coupon` setting. A coupon has
+at most 14 characters, so the customer's "Use coupon <code>" button stays short.
 
 ## Reliability
 
@@ -97,9 +149,23 @@ re-checks staff access every time; a form can only be submitted by the staff mem
 - **Image:** the upload is validated when the command runs (type, size, Discord CDN link) and downloaded again when
   the form is submitted; the real format is detected from the file's first bytes.
 - **Audit:** `announcements.published` (actor, channel, message id, title/message length, filled field ids, image yes/no,
-  mention role; never the text), `announcements.failed` (problems caused by the server state or Discord, e.g.
-  `channel_missing`, `missing_permissions`, `forbidden`, `send_failed`, `image_download`), and
+  mention role; never the text; for a preset its id and coupon), `announcements.failed` (problems caused by the server
+  state or Discord, e.g. `channel_missing`, `missing_permissions`, `forbidden`, `send_failed`, `image_download`), and
   `announcements.interrupted`.
+- **Presets post once:** a preset's preview is a row of the same table (`preset_id` set, no text); Post claims it like
+  a form submission (a double press gets "being published" or "already posted" with the link, also after a restart:
+  `sb:an:post:<token>` and `sb:an:cancel:<token>` carry only the token). The row keeps the code id its preview
+  showed; the claim refuses another code (`changed`) and a second announcement of the same preset and code while the
+  first is posting or posted (a unique index), so two staff members posting the same offer post it once; a post
+  deleted in Discord no longer counts (the next preview checks). A preview's token never opens or submits the typed
+  form (and a form's token never posts a preset).
+- **Offer ended:** `/discount end` publishes `DISCOUNT_CODE_ENDED` and a claim press after expiry publishes
+  `DISCOUNT_OFFER_ENDED`; both schedule a durable task (`announcements.offer_ended`, one per post, retried with backoff
+  while Discord fails) that edits the button and records `offer_ended_at`. At startup every post whose code ended or
+  expired while the bot was not watching is scheduled too, so the button is switched even when the event was missed
+  or nobody pressed it. A deleted post or channel counts as done. A switch that failed for good (e.g. the bot may not
+  edit the post) is tried again by `/discount end` and at startup, not by every later press (one failure alerts
+  staff once).
 
 ## Testing it manually in Discord
 
@@ -118,11 +184,21 @@ re-checks staff access every time; a form can only be submitted by the staff mem
    permission in the channel (permission error, nothing posted), delete the channel (channel missing; `/setup`
    recreates it, then **Edit and try again** publishes).
 8. Restart the bot while a form is open, then submit it: it is published.
+9. Presets: `/announce preset:warehouse_sale` before the coupon exists → the card names the `/discount create`
+   command and has no Post button. Create it, run the preset again → the copy and the card with the coupon's terms;
+   **Post announcement** → one post with **Claim coupon**; press Post again → "already posted". As a customer press
+   **Claim coupon** → the private coupon reply. `/discount end code:BOGO` → the button shows **Offer ended**.
 
 ## Limitations
 
 - The announcements are posted, not edited or deleted by the bot afterwards (delete a post with Discord's own
-  message menu; the audit log keeps the record).
+  message menu; the audit log keeps the record). The only edit is a preset's claim button switching to its ended
+  label.
+- A preset's private preview stays in the staff member's chat after Post (Discord keeps private replies until they
+  are dismissed); only its card turns into the confirmation.
+- A preset post whose posting was interrupted by a restart is marked interrupted like a form; if it was in fact
+  posted, its button is not switched when the offer ends (a press still answers that the offer has ended; delete
+  that post in Discord if it should go).
 - One image per announcement, shown in the embed under the announcements banner (the banner is the message's first
   attachment, above the embed). The image and the banner together stay within 10 MB, and posting needs the bot's
   Attach Files permission in the channel whenever banners are on.

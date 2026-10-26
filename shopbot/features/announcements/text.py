@@ -77,4 +77,78 @@ OPERATOR_TEXT: dict[str, str] = {
     "announcements.error.expired": (
         "This announcement form expired ({hours} hours after it was opened). Run /announce again."
     ),
+    # presets (/announce preset:<id>): the private preview, Post and Cancel
+    "announcements.preset.preview_title": "Preview: {name}",
+    "announcements.preset.preview_intro": (
+        "The announcement above is what will be posted (its button works once it is posted; the mention is listed "
+        "below). Check it, then press **Post announcement**."
+    ),
+    "announcements.preset.channel": "**Channel:** {channel}",
+    "announcements.preset.mention": "**Mention:** {role}",
+    "announcements.preset.mention_none": "**Mention:** nobody",
+    "announcements.preset.image": "**Image:** attached under the text",
+    "announcements.preset.coupon": "**Coupon:** `{code}` · {terms}",
+    "announcements.preset.problem_title": "Preview: {name} (cannot be posted yet)",
+    "announcements.preset.problem_hint": "Fix the problem above, then run /announce preset:{preset} again.",
+    "announcements.preset.post_rerun_hint": (
+        "Nothing was posted. Fix the problem above, then run /announce preset:{preset} again."
+    ),
+    "announcements.preset.post_retry_hint": (
+        "Nothing was posted. Fix the problem, then press **Post announcement** again."
+    ),
+    "announcements.preset.post": "Post announcement",
+    "announcements.preset.cancel": "Cancel",
+    "announcements.preset.cancelled_title": "Announcement cancelled",
+    "announcements.preset.cancelled": "Nothing was posted.",
+    "announcements.preset.done_coupon": "Claim button: coupon `{code}` · {terms}",
+    "announcements.preset.notice_title": "Announcement preview",
+    "announcements.preset.already": "This announcement was already posted: {url}",
+    "announcements.preset.unknown": (
+        "This preview is no longer valid (it was cancelled or has expired). Run /announce again."
+    ),
+    "announcements.preset.not_owner": "This preview was opened by another staff member.",
+    "announcements.preset.expired": "This preview expired ({hours} hours after it was opened). Run /announce again.",
+    "announcements.preset.unknown_preset": (
+        "There is no preset '{preset}' (announcements.presets). Pick one from the list /announce suggests."
+    ),
+    "announcements.preset.removed": (
+        "The preset '{preset}' is no longer in the settings (announcements.presets). Nothing was posted."
+    ),
+    "announcements.preset.text_missing": (
+        "The preset's text `{key}` is not set in content.toml. Set it with /content set, then try again."
+    ),
+    "announcements.preset.link_missing": (
+        "The text links the channel `{channel}`, which does not exist yet. Run /setup first."
+    ),
+    "announcements.preset.coupon_missing": (
+        "The coupon `{code}` does not exist, or it has ended or expired, so its claim button would not work. Create "
+        "it with this command:\n{command}"
+    ),
+    "announcements.preset.coupon_changed": (
+        "The coupon `{code}` was ended and created again since this preview, so its terms may differ from what the "
+        "preview showed."
+    ),
+    "announcements.preset.ended_while_posting": (
+        "The coupon `{code}` ended while the announcement was being posted, so its button is being switched to the "
+        "ended label."
+    ),
+    "announcements.preset.coupon_command": (
+        "`/discount create code:{code}` with the type and terms this announcement describes"
+    ),
+    "announcements.preset.coupon_used_up": (
+        "The coupon `{code}` has been used as many times as it allows ({uses} orders). End it with "
+        "`/discount end code:{code}`, create it again with more uses, then run /announce again."
+    ),
+    "announcements.preset.coupons_off": (
+        "Discount codes are switched off (checkout.discount_codes = false), so the claim button would only say the "
+        "offer has ended. Switch them on and run /reload, then run /announce again."
+    ),
+    "announcements.preset.checkout_off": (
+        "The checkout feature is not ready, so the coupon cannot be claimed or used. Check /status, then run "
+        "/announce again."
+    ),
+    "announcements.preset.already_announced": (
+        "This offer (coupon `{code}`) was already announced (Open announcement below). To post it again, delete that "
+        "announcement in Discord first."
+    ),
 }

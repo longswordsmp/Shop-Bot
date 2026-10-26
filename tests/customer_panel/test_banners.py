@@ -23,7 +23,9 @@ async def test_the_submission_form_keeps_the_review_banner_until_the_order_is_su
         _, session, _, message = await start(tenv, customer)
         await to_review(tenv, customer, message, session.id, [(p1.id, 1)])
         assert banner_names(message) == [review]
-        data = await tenv.app.db.run(repo.load_workflow, GUILD_ID, session.id, tenv.app.settings, True)
+        data = await tenv.app.db.run(
+            repo.load_workflow, GUILD_ID, session.id, tenv.app.settings, True, tenv.clock.now()
+        )
         assert data is not None
         total, gross = data.totals.total_minor, data.totals.gross_minor
         edits = len(message.edits)

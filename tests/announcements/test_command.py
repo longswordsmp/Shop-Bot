@@ -43,10 +43,10 @@ def test_command_metadata(env: AnnounceEnv) -> None:
     assert command.guild_only is True
     assert command.description
     params = {p.name: p for p in command.parameters}
-    assert set(params) == {"image", "mention"}
+    assert set(params) == {"image", "mention", "preset"}
     assert all(not p.required and p.description for p in params.values())
     assert params["image"].type == discord.AppCommandOptionType.attachment
-    assert params["mention"].autocomplete
+    assert params["mention"].autocomplete and params["preset"].autocomplete
     assert len(command.checks) == 1
 
 

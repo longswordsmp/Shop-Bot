@@ -30,6 +30,14 @@ ORDER_STATUS_CHANGED = "checkout.order_status_changed"
 # alerted to send the payment details. Payload: order_id (int), method (str, the method's id). Published once per
 # order and method.
 PAYMENT_METHOD_REQUESTED = "checkout.payment_method_requested"
+# checkout: staff ended a discount code (/discount end); orders placed with it keep their discount. A feature that
+# posted the code (e.g. an announcement with its claim button) marks that post as ended. Payload: code_id (int), code
+# (str, the code), actor_id (int). Published once, after the change committed.
+DISCOUNT_CODE_ENDED = "checkout.discount_code_ended"
+# checkout: a claim button was pressed after its code ended or expired (the member was told the offer has ended). A
+# feature that posted the code switches that post's button to "offer ended" too. Published on every such press, so
+# handlers must be idempotent. Payload: code_id (int).
+DISCOUNT_OFFER_ENDED = "checkout.discount_offer_ended"
 
 # A failure staff should hear about (the operations feature posts a #staff-chat alert). Published by the router
 # (interaction handler errors), the command tree (command errors), the scheduler (a task failed permanently), the

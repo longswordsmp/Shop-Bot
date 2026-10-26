@@ -14,8 +14,8 @@ from functools import partial
 from shopbot.config.content_keys import ContentKey, Kind, ck
 from shopbot.config.settings import CheckoutSettings, FormField, Settings
 from shopbot.features import core_keys as core
+from shopbot.features.checkout import discounts, payment_methods, staff_keys
 from shopbot.features.checkout import models as m
-from shopbot.features.checkout import payment_methods, staff_keys
 from shopbot.features.checkout.payments import PROVIDERS
 from shopbot.features.server_keys import channel_placeholder, private_channel_problems, reference_problems
 
@@ -130,6 +130,34 @@ REVIEW_PRICE_CHANGED = "checkout.review.price_changed"
 BUTTON_APPLY_CREDITS = "checkout.button.apply_credits"
 BUTTON_REMOVE_CREDITS = "checkout.button.remove_credits"
 BUTTON_SUBMIT = "checkout.button.submit"
+
+# -- workflow: discount codes on the review step (checkout.discount_codes) ---------------------------------
+DISCOUNT_BUTTON_ADD = "checkout.discount.button_add"
+DISCOUNT_BUTTON_USE = "checkout.discount.button_use"
+DISCOUNT_BUTTON_REMOVE = "checkout.discount.button_remove"
+DISCOUNT_MODAL_TITLE = "checkout.discount.modal_title"
+DISCOUNT_INPUT_LABEL = "checkout.discount.input_label"
+DISCOUNT_INPUT_PLACEHOLDER = "checkout.discount.input_placeholder"
+SUMMARY_DISCOUNT_LINE = "checkout.summary.discount_line"
+SUMMARY_BOGO_LINE = "checkout.summary.bogo_line"
+SUMMARY_DISCOUNT_NOTE = "checkout.summary.discount_note"
+SUMMARY_DISCOUNT_OFF_LINE = "checkout.summary.discount_off_line"
+DISCOUNT_TOO_MANY_TRIES = "checkout.discount.error.too_many_tries"
+# -- claimed coupons (the claim button of an announcement; private replies) ------------------------------------
+CLAIM_TITLE = "checkout.discount.claim.title"
+CLAIM_DESCRIPTION = "checkout.discount.claim.description"
+CLAIM_HEADING = "checkout.discount.claim.heading"
+CLAIM_HOWTO_HEADING = "checkout.discount.claim.howto_heading"
+CLAIM_HOWTO = "checkout.discount.claim.howto"
+CLAIM_ENDED_TITLE = "checkout.discount.claim.ended_title"
+CLAIM_ENDED = "checkout.discount.claim.ended"
+TERMS_PERCENT = "checkout.discount.terms.percent"
+TERMS_AMOUNT = "checkout.discount.terms.amount"
+TERMS_BOGO = "checkout.discount.terms.bogo"
+TERMS_PRODUCTS = "checkout.discount.terms.products"
+TERMS_MINIMUM = "checkout.discount.terms.minimum"
+TERMS_EXPIRES = "checkout.discount.terms.expires"
+TERMS_ONCE = "checkout.discount.terms.once"
 
 # -- quantity form ------------------------------------------------------------------------------------
 QUANTITY_TITLE = "checkout.quantity.title"
@@ -295,6 +323,19 @@ def stage_key(status: str) -> str:
 def submission_field_key(field_id: str, name: str) -> str:
     """Key of a ``checkout.submission_form`` field, e.g. ``checkout.submission.form.reference.label``."""
     return f"checkout.submission.form.{field_id}.{name}"
+
+
+def discount_error_key(reason: str) -> str:
+    """The customer text for a discount code that does not apply (``discounts.REASONS``), e.g.
+    ``checkout.discount.error.expired``."""
+    return f"checkout.discount.error.{reason}"
+
+
+def catalog_placeholder(settings: Settings) -> tuple[str, ...]:
+    """The placeholder that links the catalog channel (``catalog.listing_channel``, e.g. ``channel_catalog``) as a
+    clickable #channel; none while no listing channel is set."""
+    channel = settings.catalog.listing_channel
+    return (channel_placeholder(channel),) if channel else ()
 
 
 def purchase_placeholder(settings: Settings) -> tuple[str, ...]:
@@ -1428,6 +1469,7 @@ def content_keys(settings: Settings) -> list[ContentKey]:
         )
     keys += _extra_keys(c)
     keys += _address_keys(settings)
+    keys += _discount_keys(settings)
     provider = PROVIDERS.get(settings.payments.provider)
     if provider is not None:
         keys += provider.content_keys(settings)
@@ -1573,6 +1615,261 @@ def _address_keys(settings: Settings) -> list[ContentKey]:
                 required=False,
             ),
         ]
+    return keys
+
+
+# The customer text of each reason a discount code does not apply: (reason, what happened, placeholders besides {code}).
+_DISCOUNT_REASON_DOCS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
+    (discounts.UNKNOWN, "the shop has no code with this name (or it uses characters codes never have)", ()),
+    (discounts.ENDED, "staff ended the code (/discount end)", ()),
+    (discounts.EXPIRED, "the code's end date has passed", ()),
+    (discounts.USED_UP, "the code was used as many times as it allows", ()),
+    (discounts.ALREADY_USED, "the code is once per customer and this customer already placed an order with it", ()),
+    (discounts.NO_ELIGIBLE_ITEMS, "the code is limited to some items and none of them is in the cart", ()),
+    (discounts.MINIMUM, "the items in the cart are worth less than the code's minimum ({minimum})", ("minimum",)),
+    (
+        discounts.NEEDS_TWO_ITEMS,
+        "the code is buy one, get one free and fewer than two eligible items are in the cart",
+        (),
+    ),
+)
+
+
+def _discount_keys(settings: Settings) -> list[ContentKey]:
+    """Discount codes on the review step and claimed coupons. Registered always (an order placed with a code keeps
+    showing its discount); required while ``checkout.discount_codes`` is on."""
+    on = settings.checkout.discount_codes
+    group = "Checkout: discount codes (review step)"
+    g_claim = "Checkout: claimed coupons (private replies to an announcement's claim button)"
+    keys: list[ContentKey] = [
+        ck(
+            DISCOUNT_BUTTON_ADD,
+            Kind.BUTTON_LABEL,
+            FEATURE,
+            group,
+            "Button on the review step that opens the private discount code form, e.g. '{icon_discount} Add discount "
+            "code'. Shown while the shop has at least one discount code that can be used (/discount).",
+            required=on,
+        ),
+        ck(
+            DISCOUNT_BUTTON_USE,
+            Kind.BUTTON_LABEL,
+            FEATURE,
+            group,
+            "Button on the review step for a coupon the customer claimed (at most two, newest first): pressing it "
+            "applies the code, e.g. '{icon_gift} Use coupon {code}'. {code} is the code.",
+            required=on,
+            placeholders=("code",),
+        ),
+        ck(
+            DISCOUNT_BUTTON_REMOVE,
+            Kind.BUTTON_LABEL,
+            FEATURE,
+            group,
+            "Button on the review step that takes the applied discount code off the order (it replaces the add and "
+            "use buttons while a code is applied).",
+            required=on,
+        ),
+        ck(DISCOUNT_MODAL_TITLE, Kind.MODAL_TITLE, FEATURE, group, "Title of the discount code form.", required=on),
+        ck(DISCOUNT_INPUT_LABEL, Kind.INPUT_LABEL, FEATURE, group, "Label of the code field in the form.", required=on),
+        ck(
+            DISCOUNT_INPUT_PLACEHOLDER,
+            Kind.INPUT_PLACEHOLDER,
+            FEATURE,
+            group,
+            "Optional greyed-out example inside the empty code field.",
+            required=False,
+        ),
+        ck(
+            SUMMARY_DISCOUNT_LINE,
+            Kind.FORMAT,
+            FEATURE,
+            group,
+            "How a percent or amount discount is written in the summary, right under the subtotal (review step, order "
+            "ticket, staff record), e.g. 'Discount ({code}) · -{amount}'. {code} is the code, {amount} the amount it "
+            "takes off.",
+            required=on,
+            placeholders=("code", "amount"),
+        ),
+        ck(
+            SUMMARY_BOGO_LINE,
+            Kind.FORMAT,
+            FEATURE,
+            group,
+            "How a buy one, get one free discount is written in the summary, e.g. 'Buy one, get one free ({code}) · "
+            "-{amount}'. {code} is the code, {amount} the price of the free items.",
+            required=on,
+            placeholders=("code", "amount"),
+        ),
+        ck(
+            SUMMARY_DISCOUNT_OFF_LINE,
+            Kind.FORMAT,
+            FEATURE,
+            group,
+            "Shown in the summary in the discount's place when a code the customer applied stops applying (the cart "
+            "changed, the code expired, was used up or ended), e.g. 'Discount ({code}) · not applied'. The total is "
+            "shown without the discount; the note under it says why (checkout.summary.discount_note).",
+            required=on,
+            placeholders=("code",),
+        ),
+        ck(
+            SUMMARY_DISCOUNT_NOTE,
+            Kind.FIELD_VALUE,
+            FEATURE,
+            group,
+            "Shown under the total of the review step when a code the customer applied stops applying, e.g. "
+            "'{icon_alert} {reason} You can also press **Remove discount**.'. {reason} is the reason's text "
+            "(checkout.discount.error.*).",
+            required=on,
+            placeholders=("reason",),
+        ),
+    ]
+    for reason, what, extra in _DISCOUNT_REASON_DOCS:
+        keys.append(
+            ck(
+                discount_error_key(reason),
+                Kind.DESCRIPTION,
+                FEATURE,
+                group,
+                f"Private reply when the customer's discount code cannot be used because {what}; also shown in the "
+                "summary of the review step (checkout.summary.discount_note) when a code the customer applied stops "
+                "applying. {code} is the code.",
+                required=on,
+                placeholders=("code", *extra),
+            )
+        )
+    keys += [
+        ck(
+            DISCOUNT_TOO_MANY_TRIES,
+            Kind.DESCRIPTION,
+            FEATURE,
+            group,
+            "Private reply after 5 codes that could not be used within 10 minutes (protection against guessing codes): "
+            "the customer waits a few minutes before trying again.",
+            required=on,
+        ),
+        ck(
+            CLAIM_TITLE,
+            Kind.TITLE,
+            FEATURE,
+            g_claim,
+            "Title of the private reply after a coupon was claimed.",
+            required=on,
+        ),
+        ck(
+            CLAIM_DESCRIPTION,
+            Kind.DESCRIPTION,
+            FEATURE,
+            g_claim,
+            "First text of the private reply after a coupon was claimed (claiming it again shows the same reply). "
+            "{code} is the code.",
+            required=on,
+            placeholders=("code",),
+        ),
+        ck(
+            CLAIM_HEADING,
+            Kind.TITLE,
+            FEATURE,
+            g_claim,
+            "Heading of the coupon's terms in the claim reply, shown in bold, e.g. '{icon_gift} YOUR COUPON'. The "
+            "terms follow, one per line (checkout.discount.terms.*).",
+            required=on,
+        ),
+        ck(
+            CLAIM_HOWTO_HEADING,
+            Kind.TITLE,
+            FEATURE,
+            g_claim,
+            "Heading of how to use the coupon in the claim reply, shown in bold, e.g. '{icon_info} HOW TO USE IT'.",
+            required=on,
+        ),
+        ck(
+            CLAIM_HOWTO,
+            Kind.DESCRIPTION,
+            FEATURE,
+            g_claim,
+            "How to use the coupon (under checkout.discount.claim.howto_heading). {code} is the code; "
+            + (
+                f"{{{catalog_placeholder(settings)[0]}}} links the catalog channel."
+                if catalog_placeholder(settings)
+                else "a link to the catalog channel is available once catalog.listing_channel is set."
+            ),
+            required=on,
+            placeholders=("code", *catalog_placeholder(settings)),
+        ),
+        ck(
+            CLAIM_ENDED_TITLE,
+            Kind.TITLE,
+            FEATURE,
+            g_claim,
+            "Title of the private reply to a claim button whose offer has ended (the code ended or expired, or "
+            "discount codes are switched off).",
+            required=on,
+        ),
+        ck(CLAIM_ENDED, Kind.DESCRIPTION, FEATURE, g_claim, "Text of that reply.", required=on),
+        ck(
+            TERMS_PERCENT,
+            Kind.FIELD_VALUE,
+            FEATURE,
+            g_claim,
+            "The terms of a percent coupon, e.g. '**{percent}% off** your items'. {percent} is the percentage.",
+            required=on,
+            placeholders=("percent",),
+        ),
+        ck(
+            TERMS_AMOUNT,
+            Kind.FIELD_VALUE,
+            FEATURE,
+            g_claim,
+            "The terms of an amount coupon, e.g. '**{amount} off** your items'. {amount} is the amount.",
+            required=on,
+            placeholders=("amount",),
+        ),
+        ck(
+            TERMS_BOGO,
+            Kind.FIELD_VALUE,
+            FEATURE,
+            g_claim,
+            "The terms of a buy one, get one free coupon, e.g. '**Buy one, get one free:** the cheaper item of every "
+            "pair is free'.",
+            required=on,
+        ),
+        ck(
+            TERMS_PRODUCTS,
+            Kind.FIELD_VALUE,
+            FEATURE,
+            g_claim,
+            "Shown when the coupon counts only some items: {products} lists their names.",
+            required=on,
+            placeholders=("products",),
+        ),
+        ck(
+            TERMS_MINIMUM,
+            Kind.FIELD_VALUE,
+            FEATURE,
+            g_claim,
+            "Shown when the coupon needs a minimum: {minimum} is the items subtotal the cart needs.",
+            required=on,
+            placeholders=("minimum",),
+        ),
+        ck(
+            TERMS_EXPIRES,
+            Kind.FIELD_VALUE,
+            FEATURE,
+            g_claim,
+            "Shown when the coupon has an end date: {date} is that date (each reader sees it in their own time zone).",
+            required=on,
+            placeholders=("date",),
+        ),
+        ck(
+            TERMS_ONCE,
+            Kind.FIELD_VALUE,
+            FEATURE,
+            g_claim,
+            "Shown when each customer can use the coupon once.",
+            required=on,
+        ),
+    ]
     return keys
 
 

@@ -69,7 +69,7 @@ def commands_markdown(app: App) -> str:
         lines += ["| Command | Access | Description | Options |", "|---|---|---|---|"]
         for name, command in _command_rows(top):
             options = "; ".join(
-                f"`{p.name}`{'' if p.required else ' (optional)'}: {p.description}" for p in command.parameters
+                f"`{p.display_name}`{'' if p.required else ' (optional)'}: {p.description}" for p in command.parameters
             )
             lines.append(f"| `{name}` | {_access(command)} | {command.description} | {options or '-'} |")
         lines.append("")

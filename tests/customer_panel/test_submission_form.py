@@ -44,7 +44,7 @@ async def _review(tenv: TestEnv, price: int = 1000) -> tuple[FakeMember, m.Sessi
 
 
 async def _totals(tenv: TestEnv, session_id: int) -> tuple[int, int]:
-    data = await tenv.app.db.run(repo.load_workflow, GUILD_ID, session_id, tenv.app.settings, True)
+    data = await tenv.app.db.run(repo.load_workflow, GUILD_ID, session_id, tenv.app.settings, True, tenv.clock.now())
     assert data is not None
     return data.totals.total_minor, data.totals.gross_minor
 

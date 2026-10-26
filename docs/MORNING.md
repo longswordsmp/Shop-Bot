@@ -114,8 +114,8 @@ Press **Continue** and type `RESET <server name>`. It then makes a database back
 deletes the listed channels, categories and roles at about one per second while every button answers "unavailable".
 The progress and the result come by DM (allow DMs from server members first; without a DM it changes nothing). If
 the bot restarts in the middle, it tells you by DM at the next start: run `/reset` again to finish. Orders, products,
-reviews and store credit are **kept** unless you run `/reset wipe_shop_data:True`, which also deletes every order,
-product, review, ticket and customer record (they stay in the backup). Run `/setup` in 🛠・setup, then delete that
+discount codes, reviews and store credit are **kept** unless you run `/reset wipe_shop_data:True`, which also deletes
+every order, product, discount code, review, ticket and customer record (they stay in the backup). Run `/setup` in 🛠・setup, then delete that
 channel. `/setup` posts the staff cards of open orders again in the new #orders channel and gives customers the new
 Customer role; everyone else presses **Verify** again on the new welcome panel (Restock Alerts sign-ups start over).
 
@@ -146,8 +146,8 @@ Check: Server Settings → Roles shows the bot's role **above** Owner, Staff, Me
 **Who sees which slash command.** Discord lists a command only for members with its default permission: the staff
 commands (`/orders`, `/order`, `/stats`, `/ticket`, `/review`, `/announce`) need *Manage Messages*, which `/setup` gives the Staff
 role (`permissions = ["manage_messages"]` in `settings.toml`; it also lets staff delete and pin messages; `/setup`
-only adds it and keeps any other permissions the role already has). Admin commands need Administrator; `/product` needs Manage
-Server. To fine-tune, open **Server Settings → Integrations → (the bot) → Manage** and allow or deny each command for
+only adds it and keeps any other permissions the role already has). Admin commands need Administrator; `/product` and
+`/discount` need Manage Server. To fine-tune, open **Server Settings → Integrations → (the bot) → Manage** and allow or deny each command for
 roles, members or channels. For example, to let the Staff role manage products: allow `/product` for Staff there and
 add `"staff"` to `catalog.manager_roles` (do not give Staff Manage Server). These settings only change who *sees* a
 command; the bot checks the roles itself on every use.
@@ -246,11 +246,43 @@ Use a second (non-staff) Discord account as the "customer".
 - [ ] With a details or submission form: #orders shows no typed answers; the record's **Details** button and
       `/order view` show them privately to staff.
 
+**Discount codes**
+- [ ] `/discount create code:SAVE10 type:Percent off value:10` (as an admin or a catalog manager) → a private reply
+      with the terms; a plain Staff account or a customer is refused. `/discount list` shows it with "Orders: 0".
+- [ ] In an order ticket on the review step: **Add discount code** → type `save10` → the summary shows "Discount
+      (SAVE10) · -…" under the subtotal, the total drops, and **Remove discount** replaces the button. Type a code that
+      does not exist → a private "We couldn't find the code" reply; after 5 wrong codes → "please wait a few minutes".
+- [ ] `/discount create code:BOGO type:Buy one, get one free` → with two different items in the cart, the cheaper
+      one is free ("Buy one, get one free (BOGO) · -…"); with one item → the reply says it needs two items.
+- [ ] Confirm the order with a code: the order card, the #orders record and `/order view` show the discount line; the
+      gift card amount to pay is the total after the discount.
+- [ ] `/discount end code:SAVE10` → an unfinished order that applied it shows "has ended" in its summary, the order
+      already placed keeps its discount; `/discount list` lists it under "Ended or expired".
+
+**Warehouse sale announcement (`/announce preset:warehouse_sale`)**
+- [ ] `/announce preset:warehouse_sale` before the coupon exists → a private card says the coupon `BOGO` does not
+      exist, shows the command to create it and has no Post button.
+- [ ] `/discount create code:BOGO type:Buy one, get one free once_per_customer:false products:<ids of the old stock>`
+      (product numbers from `/product list`).
+- [ ] `/announce preset:warehouse_sale` (optionally `mention:`) → two private messages: the announcement exactly as
+      it will be posted (icons in the text, the banner at the bottom of the card, **Claim coupon** greyed out) and a
+      card with the channel, the mention and the coupon's terms; check the text on desktop and phone.
+- [ ] **Post announcement** → one post in #announcements with the green **Claim coupon** button (its gift icon in
+      front of the label); the card turns into "Announcement published" with a link. Press Post again → "already
+      posted"; run the preset again → "already announced" with the link.
+- [ ] As a customer press **Claim coupon** → a private "Coupon claimed" reply with the terms; order two old-stock
+      items → on the review step press **Use coupon BOGO** → the cheaper item is free; confirm → the receipt shows
+      the free item ("Buy one, get one free (BOGO) · -…").
+- [ ] `/discount end code:BOGO` → within a few seconds the announcement's button shows **Offer ended** (greyed out),
+      the text and the banner unchanged; pressing it does nothing.
+
 **Problems, staff, admin**
 - [ ] #place-order Report a Problem → choose order and type → form → private problem ticket; staff Resolve/Reject.
 - [ ] #staff-chat gets new-order / paid alerts (staff pinged) and reminders once thresholds are set; the Owner gets DMs.
-- [ ] `/announce` (staff) → embed in #announcements; a customer cannot use it.
-- [ ] `/orders`, `/order view`, `/stats`, `/status`, `/content show`, `/backup`, `/audit`; #bot-log shows the actions.
+- [ ] `/announce` (staff) → embed in #announcements; a customer cannot use it, nor see the presets in
+      `/announce preset:`.
+- [ ] `/orders`, `/order view`, `/stats`, `/discount list`, `/status`, `/content show`, `/backup`, `/audit`; #bot-log
+      shows the actions.
 - [ ] Restart the service (Railway → Restart) → every old button still works.
 
 Record what you tested and anything unexpected. Every failure answered with the generic error text (a crash, or
@@ -274,5 +306,6 @@ customers see it only if you include `{error_id}` in your `common.error.generic`
   upload of application emojis was tested against a stand-in for Discord only), in particular in field names and as
   button emojis (Discord's documentation does not say whether field names show custom emoji; titles do not, so the
   bot leaves icons out of titles), the welcome mention and its removal
-  after 30 seconds, and `/reset` on your real server (Discord's own refusals, e.g. for Onboarding channels, only show
-  up there; they are reported and skipped). Steps 9–12 are that verification.
+  after 30 seconds, `/reset` on your real server (Discord's own refusals, e.g. for Onboarding channels, only show
+  up there; they are reported and skipped), and that editing only the buttons of the warehouse sale announcement
+  (**Offer ended**) keeps its text and banner as posted. Steps 9–12 are that verification.

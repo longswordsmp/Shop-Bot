@@ -11,7 +11,9 @@ Package layout: ``content_keys`` (customer text + settings checks), ``models`` (
 ``commands`` (``/order``, ``/orders``), ``tasks`` (scheduled tasks, recovery, listeners), ``panel`` (shop panel),
 ``preview``. The staff side of orders (operations package): ``staff_views`` (the live order record in the staff
 channel, staff forms, staff-action notifications), ``staff_keys`` (its content keys), ``handling_repo`` (claims,
-notes, correction requests, tracking details, rejection reasons), ``staff_preview``.
+notes, correction requests, tracking details, rejection reasons), ``staff_preview``. Discount codes: ``discounts``
+(the pure rules and amounts), ``discount_repo`` (data), ``discount_codes`` (the review step, claimed coupons,
+``/discount``; its docstring lists the API other features use), ``discount_views``, ``discount_preview``.
 """
 
 from __future__ import annotations

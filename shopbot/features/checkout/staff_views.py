@@ -312,15 +312,18 @@ def _joined(parts: Sequence[str], limit: int = EMBED_FIELD_VALUE) -> list[str]:
 
 
 def amount_lines(ui: Ui, view: m.OrderView, fmt: views.Money) -> list[str]:
-    """Every amount of the order, one per line like the customer's summary ("Subtotal · $12.97", "Standard shipping ·
-    $5.00", the extras, the store credit applied, "**Total · $17.97**"), then what was refunded and what applied store
-    credit was given back, each on its own line (the live record and the full record)."""
+    """Every amount of the order, one per line like the customer's summary ("Subtotal · $12.97", the discount code's
+    "Discount (SAVE10) · -$1.30", "Standard shipping · $5.00", the extras, the store credit applied, "**Total ·
+    $17.97**"), then what was refunded and what applied store credit was given back, each on its own line (the live
+    record and the full record)."""
     order = view.order
 
     def line(label: str, minor: int) -> str:
         return _text(ui, k.SUMMARY_LINE, label=label, amount=fmt(minor))
 
     lines = [line(_text(ui, k.CART_SUBTOTAL_FIELD), order.subtotal_minor)]
+    if order.discount_minor > 0 and order.discount_code:
+        lines.append(views.discount_line(ui, order.discount_kind, order.discount_code, fmt(order.discount_minor)))
     option = order.fulfillment_option
     if order.fulfillment_fee_minor > 0:
         name = (_optional(ui, k.option_key(option, "label")) if option else None) or _optional(

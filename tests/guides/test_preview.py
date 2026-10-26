@@ -13,6 +13,7 @@ from shopbot.ui.spec import MessageSpec, PreviewState
 from tests.guides.util import guide_env
 from tests.helpers import TestEnv
 from tools.check_limits import unrouted_components
+from tools.offline import ROOT, build_offline_app
 
 
 def states_of(tenv: TestEnv) -> list[PreviewState]:
@@ -119,3 +120,15 @@ def test_modules_are_registered_with_their_prefixes() -> None:
     prefixes = {m.name: m.panel_prefixes for m in MODULES}
     assert prefixes == {"how_to_buy": ("how_to_buy:",), "faq": ("faq:",), "shipping": ("shipping:",)}
     assert all(m.publish is not None and m.preview is not None for m in MODULES)
+
+
+async def test_the_shipped_faq_is_one_card() -> None:
+    # The checkers allow a second embed, but the shipped FAQ must not spill its last questions (and the shop's footer)
+    # into one: a longer answer has to fit the 4096 characters of one card description.
+    app = await build_offline_app(ROOT / "config", content_mode="actual", all_features=True)
+    try:
+        state = next(s for s in faq.preview(app) if s.name == "faq")
+        assert isinstance(state.spec, MessageSpec)
+        assert len(state.spec.embeds) == 1, [len(e.description or "") for e in state.spec.embeds]
+    finally:
+        await app.db.close()

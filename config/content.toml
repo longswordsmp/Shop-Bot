@@ -463,7 +463,7 @@ how_to_buy.step.4.name = "{icon_step_4} Review and place your order"
 
 # Explanation of step 4 of 6 in the step-by-step guide posted in the how_to_buy channel. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-how_to_buy.step.4.value = "Check every line and the total, then press **Confirm order**."
+how_to_buy.step.4.value = "Check every line and the total, then press **Confirm order**. Have a coupon? Apply it here first with **Use coupon** or **Add discount code**."
 
 # Heading of step 5 of 6 in the step-by-step guide posted in the how_to_buy channel, shown in bold. Start it with a step-number icon if you want one shown, e.g. {icon_step_5} (channel links do not work in headings).
 # field_name · max 256 characters · required
@@ -527,45 +527,53 @@ faq.section.ordering.title = "{icon_cart} ORDERING"
 
 # --- FAQ section 'payment' ---
 
-# Answer to question 1 of 5 in the 'payment' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
+# Answer to question 1 of 6 in the 'payment' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
 faq.section.payment.q.1.answer = "Our regular payment options are credit and debit cards (Visa, Mastercard, American Express and Discover), Apple Pay, Google Pay, PayPal and Cash App. They are temporarily down right now, so for the moment you pay with a DoorDash eGift card."
 
-# Question 1 of 5 in the 'payment' section (channel links do not work in questions).
+# Question 1 of 6 in the 'payment' section (channel links do not work in questions).
 # field_name · max 256 characters · required
 faq.section.payment.q.1.question = "Which payment methods do you take?"
 
-# Answer to question 2 of 5 in the 'payment' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
+# Answer to question 2 of 6 in the 'payment' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-faq.section.payment.q.2.answer = "Our card payments and other regular payment options are temporarily down. They will be back as soon as possible; until then, DoorDash eGift cards are the only way to pay."
+faq.section.payment.q.2.answer = "Our other payment options will be back as soon as possible. Until then, DoorDash eGift cards are the only way to pay."
 
-# Question 2 of 5 in the 'payment' section (channel links do not work in questions).
+# Question 2 of 6 in the 'payment' section (channel links do not work in questions).
 # field_name · max 256 characters · required
 faq.section.payment.q.2.question = "Why only gift cards right now?"
 
-# Answer to question 3 of 5 in the 'payment' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
+# Answer to question 3 of 6 in the 'payment' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
 faq.section.payment.q.3.answer = "Buy a DoorDash eGift card for the exact order total, in US dollars. After you confirm your order, press **Submit gift card** in your order ticket and enter the code in the private form. Several cards that add up to the total are fine."
 
-# Question 3 of 5 in the 'payment' section (channel links do not work in questions).
+# Question 3 of 6 in the 'payment' section (channel links do not work in questions).
 # field_name · max 256 characters · required
 faq.section.payment.q.3.question = "How do I pay with a gift card?"
 
-# Answer to question 4 of 5 in the 'payment' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
+# Answer to question 4 of 6 in the 'payment' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
 faq.section.payment.q.4.answer = "Codes are entered only in a private form, stored encrypted, seen only by our payment team and deleted once your card is redeemed. Never post a gift card code, card number or password in a channel, and never send one by DM: our team will never ask you to."
 
-# Question 4 of 5 in the 'payment' section (channel links do not work in questions).
+# Question 4 of 6 in the 'payment' section (channel links do not work in questions).
 # field_name · max 256 characters · required
 faq.section.payment.q.4.question = "Is my payment safe?"
 
-# Answer to question 5 of 5 in the 'payment' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
+# Answer to question 5 of 6 in the 'payment' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
 faq.section.payment.q.5.answer = "As soon as our team has checked it. You get a message in your order ticket and by DM."
 
-# Question 5 of 5 in the 'payment' section (channel links do not work in questions).
+# Question 5 of 6 in the 'payment' section (channel links do not work in questions).
 # field_name · max 256 characters · required
 faq.section.payment.q.5.question = "When is my payment confirmed?"
+
+# Answer to question 6 of 6 in the 'payment' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
+# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+faq.section.payment.q.6.answer = "Sometimes: claim the coupon in {channel_announcements}, then press **Use coupon** when you review your order. One code per order."
+
+# Question 6 of 6 in the 'payment' section (channel links do not work in questions).
+# field_name · max 256 characters · required
+faq.section.payment.q.6.question = "Do you have discount codes?"
 
 # Heading of the 'payment' section of the FAQ posted in the faq channel, shown in bold (e.g. the topic: ordering, payment...). It may start with one of the bot's icons, e.g. {icon_cart}.
 # title · max 256 characters · required
@@ -1300,7 +1308,7 @@ checkout.button.apply_credits = "{icon_wallet} Use store credit"
 
 # Button in the review step that removes the applied store credit. Needed when credits are enabled and credits.allow_at_checkout = true.
 # button_label · max 80 characters · required
-checkout.button.remove_credits = "{icon_cross} Remove store credit"
+checkout.button.remove_credits = "{icon_minus} Remove store credit"
 
 # Button in the review step that submits the order.
 # button_label · max 80 characters · required
@@ -1588,6 +1596,142 @@ checkout.channel_prefix = "order"
 # Optional topic of each order channel. {user_name} is the customer's display name.
 # channel_topic · max 1024 characters · optional · placeholders: {user_name}
 checkout.channel_topic = "Private order ticket for {user_name}, visible only to them and our team."
+
+# --- Checkout: discount codes (review step) ---
+
+# Button on the review step that opens the private discount code form, e.g. '{icon_discount} Add discount code'. Shown while the shop has at least one discount code that can be used (/discount).
+# button_label · max 80 characters · required
+checkout.discount.button_add = "{icon_discount} Add discount code"
+
+# Button on the review step that takes the applied discount code off the order (it replaces the add and use buttons while a code is applied).
+# button_label · max 80 characters · required
+checkout.discount.button_remove = "{icon_minus} Remove discount"
+
+# Button on the review step for a coupon the customer claimed (at most two, newest first): pressing it applies the code, e.g. '{icon_gift} Use coupon {code}'. {code} is the code.
+# button_label · max 80 characters · required · placeholders: {code}
+checkout.discount.button_use = "{icon_gift} Use coupon {code}"
+
+# Private reply when the customer's discount code cannot be used because the code is once per customer and this customer already placed an order with it; also shown in the summary of the review step (checkout.summary.discount_note) when a code the customer applied stops applying. {code} is the code.
+# description · max 4096 characters · required · placeholders: {code}
+checkout.discount.error.already_used = "You already used the code **{code}** on an earlier order. Each customer can use it once."
+
+# Private reply when the customer's discount code cannot be used because staff ended the code (/discount end); also shown in the summary of the review step (checkout.summary.discount_note) when a code the customer applied stops applying. {code} is the code.
+# description · max 4096 characters · required · placeholders: {code}
+checkout.discount.error.ended = "The code **{code}** has ended, so it can't be used anymore."
+
+# Private reply when the customer's discount code cannot be used because the code's end date has passed; also shown in the summary of the review step (checkout.summary.discount_note) when a code the customer applied stops applying. {code} is the code.
+# description · max 4096 characters · required · placeholders: {code}
+checkout.discount.error.expired = "The code **{code}** has expired, so it can't be used anymore."
+
+# Private reply when the customer's discount code cannot be used because the items in the cart are worth less than the code's minimum ({minimum}); also shown in the summary of the review step (checkout.summary.discount_note) when a code the customer applied stops applying. {code} is the code.
+# description · max 4096 characters · required · placeholders: {code}, {minimum}
+checkout.discount.error.minimum = "The code **{code}** needs items worth at least **{minimum}** in your cart. Add more items to use it."
+
+# Private reply when the customer's discount code cannot be used because the code is buy one, get one free and fewer than two eligible items are in the cart; also shown in the summary of the review step (checkout.summary.discount_note) when a code the customer applied stops applying. {code} is the code.
+# description · max 4096 characters · required · placeholders: {code}
+checkout.discount.error.needs_two_items = "The code **{code}** is buy one, get one free: add at least two items from the offer to your cart to use it."
+
+# Private reply when the customer's discount code cannot be used because the code is limited to some items and none of them is in the cart; also shown in the summary of the review step (checkout.summary.discount_note) when a code the customer applied stops applying. {code} is the code.
+# description · max 4096 characters · required · placeholders: {code}
+checkout.discount.error.no_eligible_items = "The code **{code}** doesn't apply to the items in your cart. Add an item from the offer to use it."
+
+# Private reply after 5 codes that could not be used within 10 minutes (protection against guessing codes): the customer waits a few minutes before trying again.
+# description · max 4096 characters · required
+checkout.discount.error.too_many_tries = "You've tried several codes that didn't work. Please wait a few minutes, then try again."
+
+# Private reply when the customer's discount code cannot be used because the shop has no code with this name (or it uses characters codes never have); also shown in the summary of the review step (checkout.summary.discount_note) when a code the customer applied stops applying. {code} is the code.
+# description · max 4096 characters · required · placeholders: {code}
+checkout.discount.error.unknown = "We couldn't find the code **{code}**. Please check the spelling and try again."
+
+# Private reply when the customer's discount code cannot be used because the code was used as many times as it allows; also shown in the summary of the review step (checkout.summary.discount_note) when a code the customer applied stops applying. {code} is the code.
+# description · max 4096 characters · required · placeholders: {code}
+checkout.discount.error.used_up = "The code **{code}** has been used as many times as it allows, so it can't be used anymore."
+
+# Label of the code field in the form.
+# input_label · max 45 characters · required
+checkout.discount.input_label = "Discount code"
+
+# Optional greyed-out example inside the empty code field.
+# input_placeholder · max 100 characters · optional
+checkout.discount.input_placeholder = "For example: SAVE10"
+
+# Title of the discount code form.
+# modal_title · max 45 characters · required
+checkout.discount.modal_title = "Add a discount code"
+
+# How a buy one, get one free discount is written in the summary, e.g. 'Buy one, get one free ({code}) · -{amount}'. {code} is the code, {amount} the price of the free items.
+# format · max 100 characters · required · placeholders: {code}, {amount}
+checkout.summary.bogo_line = "Buy one, get one free ({code}) · -{amount}"
+
+# How a percent or amount discount is written in the summary, right under the subtotal (review step, order ticket, staff record), e.g. 'Discount ({code}) · -{amount}'. {code} is the code, {amount} the amount it takes off.
+# format · max 100 characters · required · placeholders: {code}, {amount}
+checkout.summary.discount_line = "Discount ({code}) · -{amount}"
+
+# Shown under the total of the review step when a code the customer applied stops applying, e.g. '{icon_alert} {reason} You can also press **Remove discount**.'. {reason} is the reason's text (checkout.discount.error.*).
+# field_value · max 1024 characters · required · placeholders: {reason}
+checkout.summary.discount_note = "{icon_alert} {reason} You can also press **Remove discount**."
+
+# Shown in the summary in the discount's place when a code the customer applied stops applying (the cart changed, the code expired, was used up or ended), e.g. 'Discount ({code}) · not applied'. The total is shown without the discount; the note under it says why (checkout.summary.discount_note).
+# format · max 100 characters · required · placeholders: {code}
+checkout.summary.discount_off_line = "Discount ({code}) · not applied"
+
+# --- Checkout: claimed coupons (private replies to an announcement's claim button) ---
+
+# First text of the private reply after a coupon was claimed (claiming it again shows the same reply). {code} is the code.
+# description · max 4096 characters · required · placeholders: {code}
+checkout.discount.claim.description = "Your coupon **{code}** is saved. It's ready for your next order."
+
+# Text of that reply.
+# description · max 4096 characters · required
+checkout.discount.claim.ended = "Sorry, this offer has ended, so its coupon can't be claimed anymore. Keep an eye on our announcements for the next one."
+
+# Title of the private reply to a claim button whose offer has ended (the code ended or expired, or discount codes are switched off).
+# title · max 256 characters · required
+checkout.discount.claim.ended_title = "Offer ended"
+
+# Heading of the coupon's terms in the claim reply, shown in bold, e.g. '{icon_gift} YOUR COUPON'. The terms follow, one per line (checkout.discount.terms.*).
+# title · max 256 characters · required
+checkout.discount.claim.heading = "{icon_gift} YOUR COUPON"
+
+# How to use the coupon (under checkout.discount.claim.howto_heading). {code} is the code; {channel_catalog} links the catalog channel.
+# description · max 4096 characters · required · placeholders: {code}, {channel_catalog}
+checkout.discount.claim.howto = "Add your items in {channel_catalog}. On the review step of your order, press **Use coupon {code}**."
+
+# Heading of how to use the coupon in the claim reply, shown in bold, e.g. '{icon_info} HOW TO USE IT'.
+# title · max 256 characters · required
+checkout.discount.claim.howto_heading = "{icon_list} HOW TO USE IT"
+
+# Title of the private reply after a coupon was claimed.
+# title · max 256 characters · required
+checkout.discount.claim.title = "Coupon claimed"
+
+# The terms of an amount coupon, e.g. '**{amount} off** your items'. {amount} is the amount.
+# field_value · max 1024 characters · required · placeholders: {amount}
+checkout.discount.terms.amount = "**{amount} off** your items"
+
+# The terms of a buy one, get one free coupon, e.g. '**Buy one, get one free:** the cheaper item of every pair is free'.
+# field_value · max 1024 characters · required
+checkout.discount.terms.bogo = "**Buy one, get one free:** the cheaper item of every pair is free"
+
+# Shown when the coupon has an end date: {date} is that date (each reader sees it in their own time zone).
+# field_value · max 1024 characters · required · placeholders: {date}
+checkout.discount.terms.expires = "Valid until {date}"
+
+# Shown when the coupon needs a minimum: {minimum} is the items subtotal the cart needs.
+# field_value · max 1024 characters · required · placeholders: {minimum}
+checkout.discount.terms.minimum = "For orders with at least {minimum} in items"
+
+# Shown when each customer can use the coupon once.
+# field_value · max 1024 characters · required
+checkout.discount.terms.once = "One use per customer"
+
+# The terms of a percent coupon, e.g. '**{percent}% off** your items'. {percent} is the percentage.
+# field_value · max 1024 characters · required · placeholders: {percent}
+checkout.discount.terms.percent = "**{percent}% off** your items"
+
+# Shown when the coupon counts only some items: {products} lists their names.
+# field_value · max 1024 characters · required · placeholders: {products}
+checkout.discount.terms.products = "Items in the offer: {products}"
 
 # --- Checkout: error messages (private) ---
 
@@ -2918,6 +3062,40 @@ reviews.rating.5.emoji = "{icon_star}"
 # Option label for rating 5 of 5 in the rating selection menu of the review request (options are listed from the highest rating to the lowest). Also shown on the published review when reviews.rating.5.display is empty.
 # option_label · max 100 characters · required
 reviews.rating.5.label = "5 stars - Excellent"
+
+# ==================================================================================================
+# Feature: announcements
+# ==================================================================================================
+
+# --- Announcements: presets (posted with /announce preset:) ---
+
+# Button under the 'warehouse_sale' preset announcement (/announce preset:warehouse_sale, staff name 'Warehouse sale: buy one, get one free') that claims the coupon BOGO (e.g. '{icon_gift} Claim coupon'). Pressing it answers privately with the coupon's terms (checkout.discount.claim.*).
+# button_label · max 80 characters · required
+announcements.preset.warehouse_sale.claim_button = "{icon_gift} Claim coupon"
+
+# Text of the 'warehouse_sale' preset announcement (/announce preset:warehouse_sale, staff name 'Warehouse sale: buy one, get one free'). Discord formatting, icons ({icon_gift}), section headings and channel links ({channel_catalog}) work here. {coupon} is the coupon's code (BOGO), e.g. 'press **Use coupon {coupon}** on the review step'.
+# description · max 4096 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}, {coupon}
+announcements.preset.warehouse_sale.description = '''
+Dear customers,
+
+{icon_heart} Thank you all so much for your support. Because of how much support we've been getting from you, we have been able to buy a brand-new warehouse!
+
+{icon_discount} As part of this, we need to clear out our old stock. So for a limited time, until our old stock is gone, we're running a **buy one, get one free** sale on it: the cheaper item of every pair is free.
+
+**{icon_list} HOW TO REDEEM**
+{icon_step_1} Press **Claim coupon** below this message. Your coupon lists the items in the offer.
+{icon_step_2} Add at least two of those items to your order from {channel_catalog}.
+{icon_step_3} At checkout, press **Use coupon {coupon}** on the review step.
+
+Thank you again, customers, for all your support!'''
+
+# Label the button under the 'warehouse_sale' preset announcement (/announce preset:warehouse_sale, staff name 'Warehouse sale: buy one, get one free') shows (disabled) once the coupon BOGO has ended or expired, e.g. 'Offer ended'.
+# button_label · max 80 characters · required
+announcements.preset.warehouse_sale.ended_button = "Offer ended"
+
+# Title of the 'warehouse_sale' preset announcement (/announce preset:warehouse_sale, staff name 'Warehouse sale: buy one, get one free'), posted in the 'announcements' channel. Plain text (no icons).
+# title · max 256 characters · required
+announcements.preset.warehouse_sale.title = "Buy one, get one free on our old stock"
 
 # ==================================================================================================
 # Feature: problems

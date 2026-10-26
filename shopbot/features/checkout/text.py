@@ -207,6 +207,62 @@ OPERATOR_TEXT: dict[str, str] = {
     "checkout.stats.line.best": "{rank}. {name} · {quantity} sold · {total}",
     "checkout.stats.line.none": "No paid orders in this period.",
     "checkout.stats.other_currency": "Not counted: orders in a currency other than {currency} ({count}).",
+    # /discount (catalog managers); the terms of a code in plain words, also used by the announcement preset
+    "checkout.discounts.off": (
+        "Discount codes are switched off ([checkout] discount_codes = false in settings.toml): customers cannot use "
+        "codes or claim coupons. Nothing was changed."
+    ),
+    "checkout.discounts.created": "Discount code {code} created",
+    "checkout.discounts.created_terms": "**Terms:** {terms}",
+    "checkout.discounts.created_hint": (
+        "Customers enter it with Add discount code on the review step of their order, or claim it from an "
+        "announcement (/announce preset:). End it with /discount end."
+    ),
+    "checkout.discounts.code_invalid": (
+        "A code has 3 to 32 characters: letters, digits, - and _ (no spaces). Nothing was created."
+    ),
+    "checkout.discounts.code_taken": (
+        "The code {code} exists and has not ended. End it first (/discount end) or choose another code. Nothing was "
+        "created."
+    ),
+    "checkout.discounts.value_missing": (
+        "Enter the value: a percent from 1 to 100, or an amount such as {example}. Nothing was created."
+    ),
+    "checkout.discounts.percent_invalid": "The percent must be a whole number from 1 to 100. Nothing was created.",
+    "checkout.discounts.amount_invalid": "Invalid amount: {reason}. Example: {example}. Nothing was created.",
+    "checkout.discounts.amount_zero": "The amount must be more than 0. Nothing was created.",
+    "checkout.discounts.minimum_invalid": "Invalid minimum: {reason}. Example: {example}. Nothing was created.",
+    "checkout.discounts.days_invalid": "The code can last 1 to {max} days. Nothing was created.",
+    "checkout.discounts.bogo_value": "Buy one, get one free takes no value: leave value empty. Nothing was created.",
+    "checkout.discounts.products_invalid": (
+        "List products by their numbers, separated by commas, e.g. 12, 15 (see /product list). Nothing was created."
+    ),
+    "checkout.discounts.products_unknown": "These products do not exist: {ids}. Nothing was created.",
+    "checkout.discounts.ended": (
+        "Discount code {code} ended. Orders placed with it keep their discount; an unfinished order that applied it "
+        "now shows that it ended."
+    ),
+    "checkout.discounts.not_found": "There is no active discount code {code}. Nothing was changed.",
+    "checkout.discounts.terms.percent": "{percent}% off",
+    "checkout.discounts.terms.amount": "{amount} off",
+    "checkout.discounts.terms.bogo": "buy one, get one free (the cheaper item of every pair is free)",
+    "checkout.discounts.terms.all_items": "every item",
+    "checkout.discounts.terms.products": "only {products}",
+    "checkout.discounts.terms.minimum": "minimum {minimum} in items",
+    "checkout.discounts.terms.max_uses": "at most {max} uses",
+    "checkout.discounts.terms.once": "once per customer",
+    "checkout.discounts.terms.expires": "until {date}",
+    "checkout.discounts.terms.expired": "expired {date}",
+    "checkout.discounts.terms.ended": "ended {date}",
+    "checkout.discounts.terms.no_expiry": "no end date",
+    "checkout.discounts.terms.join": " · ",
+    "checkout.discounts.list.title": "Discount codes",
+    "checkout.discounts.list.usable": "**Active ({count})**",
+    "checkout.discounts.list.ended": "**Ended or expired (latest {count})**",
+    "checkout.discounts.list.none": "None. Create one with /discount create.",
+    "checkout.discounts.list.line": "**{code}** · {terms}\n{uses} · Claimed: {claims}",
+    "checkout.discounts.list.uses": "Orders: {uses}",
+    "checkout.discounts.list.uses_max": "Orders: {uses} of {max}",
     # /order lookup
     "checkout.lookup.title": "Order #{number}",
     "checkout.lookup.record": "Order",
@@ -222,6 +278,7 @@ OPERATOR_TEXT: dict[str, str] = {
     "checkout.lookup.item": "{quantity} × {name} (product {product_id}) · {unit} each · {total}",
     "checkout.lookup.summary": "Summary",
     "checkout.lookup.subtotal": "Subtotal",
+    "checkout.lookup.discount": "Discount ({code})",
     "checkout.lookup.total": "Total",
     "checkout.lookup.refunded": "Refunded",
     "checkout.lookup.dates": "Dates",

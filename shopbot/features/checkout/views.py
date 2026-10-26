@@ -48,7 +48,7 @@ from shopbot.features.catalog import content_keys as catalog_keys
 from shopbot.features.catalog import views as catalog_views
 from shopbot.features.catalog.repo import Product
 from shopbot.features.checkout import content_keys as k
-from shopbot.features.checkout import flow, gift_card_store, payment_methods
+from shopbot.features.checkout import discounts, flow, gift_card_store, payment_methods
 from shopbot.features.checkout import models as m
 from shopbot.features.checkout import staff_keys as sk
 from shopbot.features.checkout.order_money import Money, order_money
@@ -90,6 +90,9 @@ ROUTE = k.ROUTE
 STAFF_ROUTE = k.STAFF_ROUTE
 QUANTITY_INPUT = "quantity"
 QUANTITY_MAX_DIGITS = 7
+DISCOUNT_INPUT = "code"
+# The code field takes a little more than the longest code, so surrounding spaces do not block the form.
+DISCOUNT_INPUT_MAX = 40
 REFUND_AMOUNT_INPUT = "amount"
 REFUND_REASON_INPUT = "reason"
 # Refund reasons are also stored as the store-credit note of a refund to credit.
@@ -215,6 +218,24 @@ def submission_form_id(session_id: int, total_minor: int, gross_minor: int) -> s
 
 def cancel_id(session_id: int) -> str:
     return cid(ROUTE, "cancel", session_id)
+
+
+def discount_open_id(session_id: int) -> str:
+    """Add discount code: opens the private code form (review step)."""
+    return cid(ROUTE, "dcode", session_id)
+
+
+def discount_form_id(session_id: int) -> str:
+    return cid(ROUTE, "dcform", session_id)
+
+
+def discount_use_id(session_id: int, code_id: int) -> str:
+    """Use coupon: applies a coupon the customer claimed (the handler checks the claim)."""
+    return cid(ROUTE, "dcuse", session_id, code_id)
+
+
+def discount_remove_id(session_id: int) -> str:
+    return cid(ROUTE, "dcremove", session_id)
 
 
 def cancel_yes_id(session_id: int) -> str:
@@ -747,6 +768,40 @@ def _delivery_line(ui: Ui, label: str | None, fee: str | None) -> str | None:
     return _amount_line(ui, name, fee) if name else None
 
 
+def discount_line(ui: Ui, kind: str | None, code: str, amount: str) -> str:
+    """The discount in a summary, right under the subtotal: "Discount (SAVE10) · -$2.00", or for buy one get one free
+    "Buy one, get one free (BOGO) · -$5.99". While those texts are not set (discount codes switched off since the
+    order was placed) the code is shown as the line's label, so the amounts still add up."""
+    key = k.SUMMARY_BOGO_LINE if kind == discounts.BOGO else k.SUMMARY_DISCOUNT_LINE
+    text = _optional(ui, key, code=escape(code), amount=amount)
+    return text or _amount_line(ui, escape(code), f"-{amount}")
+
+
+def discount_reason(ui: Ui, reason: str, code: str, minimum: str = "") -> str:
+    """Why a discount code does not apply, in the customer's words (``content_keys.discount_error_key``): the private
+    reply, and the note in the summary of an order whose code stopped applying."""
+    values: dict[str, str | int] = {"code": escape(code)}
+    if reason == discounts.MINIMUM:
+        values["minimum"] = minimum
+    return _text(ui, k.discount_error_key(reason), **values)
+
+
+def _discount_row(ui: Ui, discount: m.AppliedDiscount, write: Money) -> str | None:
+    """The applied code's line in the summary, or (a code that stopped applying) a one-line "not applied" in its
+    place; the note under the total says why (``_discount_note``)."""
+    if discount.applies:
+        return discount_line(ui, discount.kind, discount.code, write(discount.amount_minor))
+    return _optional(ui, k.SUMMARY_DISCOUNT_OFF_LINE, code=escape(discount.code))
+
+
+def _discount_note(ui: Ui, discount: m.AppliedDiscount, write: Money) -> str | None:
+    """Under the total, for a code that stopped applying: why, and that Remove discount takes it off."""
+    if discount.applies:
+        return None
+    reason = discount_reason(ui, discount.reason or discounts.UNKNOWN, discount.code, write(discount.minimum_minor))
+    return _optional(ui, k.SUMMARY_DISCOUNT_NOTE, reason=reason)
+
+
 def _credit_line(ui: Ui, amount: str) -> str | None:
     """The store credit applied (taken off the total); None when its texts are not set (credits switched off since
     the order was placed)."""
@@ -774,14 +829,18 @@ def summary_section(ui: Ui, subtotal: str, rows: Sequence[str], total: str, *, f
 def _workflow_summary(
     ui: Ui, settings: Settings, data: m.WorkflowData, *, final: bool = False, available: bool = False
 ) -> str | None:
-    """What the order costs so far (None while the cart is empty): the subtotal, the chosen delivery option and
-    extras with their prices, fees, the store credit applied and the total. ``available`` (review step): also the
-    store credit the customer could still apply."""
+    """What the order costs so far (None while the cart is empty): the subtotal, the discount code applied (or that
+    it is not applied, with the reason under the total), the chosen delivery option and extras with their prices, fees,
+    the store credit applied and the total. ``available`` (review step): also the store credit the customer could
+    still apply."""
     if not data.lines:
         return None
     totals = data.totals
     c = settings.checkout
     rows: list[str] = []
+    discount = _discount_row(ui, data.discount, lambda minor: money(ui, minor)) if data.discount else None
+    if discount:
+        rows.append(discount)
     chosen = c.fulfillment(data.session.fulfillment_option) if c.fulfillment_options else None
     if chosen is not None:
         fee = money(ui, totals.fulfillment_fee_minor) if totals.fulfillment_fee_minor > 0 else None
@@ -801,14 +860,19 @@ def _workflow_summary(
         label = _optional(ui, k.REVIEW_CREDITS_AVAILABLE_FIELD)
         if label:
             text += "\n" + _amount_line(ui, label, money(ui, data.credits_available_minor))
+    note = _discount_note(ui, data.discount, lambda minor: money(ui, minor)) if data.discount else None
+    if note:
+        text += "\n" + note
     return text
 
 
 def _order_summary(ui: Ui, view: m.OrderView, fmt: Money) -> str:
-    """The placed order's amounts as stored in the order (in its currency): subtotal, delivery, extras and fees,
-    store credit applied, total."""
+    """The placed order's amounts as stored in the order (in its currency): subtotal, the discount (when a code took
+    something off), delivery, extras and fees, store credit applied, total."""
     order = view.order
     rows: list[str] = []
+    if order.discount_minor > 0 and order.discount_code:
+        rows.append(discount_line(ui, order.discount_kind, order.discount_code, fmt(order.discount_minor)))
     fee = fmt(order.fulfillment_fee_minor) if order.fulfillment_fee_minor > 0 else None
     delivery = _delivery_line(ui, _option_label(ui, order.fulfillment_option), fee)
     if delivery:
@@ -1244,6 +1308,7 @@ def _review(ui: Ui, settings: Settings, data: m.WorkflowData, notice: str | None
             credit_buttons.append(_button(ui, k.BUTTON_REMOVE_CREDITS, credits_id(session.id, False)))
         elif data.credits_available_minor > 0:
             credit_buttons.append(_button(ui, k.BUTTON_APPLY_CREDITS, credits_id(session.id, True), style="success"))
+    discount_buttons = review_discount_buttons(ui, settings, data)
     navigation: list[ButtonSpec] = []
     previous = flow.previous_step(settings.checkout, session.fulfillment_option, m.REVIEW)
     if previous is not None:
@@ -1255,8 +1320,52 @@ def _review(ui: Ui, settings: Settings, data: m.WorkflowData, notice: str | None
     navigation.append(_button(ui, core.BUTTON_CANCEL, cancel_id(session.id), style="danger"))
     return MessageSpec(
         embeds=tuple(embeds),
-        rows=rows_of(*credit_buttons) + rows_of(*navigation),
+        # Store credit and discount buttons take money off: one row (at most 4), then Back, Confirm and Cancel.
+        rows=rows_of(*credit_buttons, *discount_buttons) + rows_of(*navigation),
         banner=ui.banner("review-and-summary"),
+    )
+
+
+def review_discount_buttons(ui: Ui, settings: Settings, data: m.WorkflowData) -> list[ButtonSpec]:
+    """The review step's discount buttons (secondary, in the store credit's row): Remove discount while a code is
+    applied (also one that stopped applying); otherwise one Use coupon button per claimed coupon (newest first) and
+    Add discount code while the shop has a code that can be used. None while discount codes are off."""
+    if not settings.checkout.discount_codes:
+        return []
+    session = data.session
+    if session.discount_code_id is not None:
+        return [_button(ui, k.DISCOUNT_BUTTON_REMOVE, discount_remove_id(session.id))]
+    buttons = [
+        _button_with(ui, k.DISCOUNT_BUTTON_USE, discount_use_id(session.id, code_id), code=code)
+        for code_id, code in data.offer.coupons
+    ]
+    if data.offer.codes:
+        buttons.append(_button(ui, k.DISCOUNT_BUTTON_ADD, discount_open_id(session.id)))
+    return buttons
+
+
+def _button_with(ui: Ui, key: str, custom_id: str, *, code: str) -> ButtonSpec:
+    button = ui.button(key, custom_id, style="secondary", values={"code": code})
+    if button is None:
+        raise MissingContent(key)
+    return button
+
+
+def discount_modal(ui: Ui, session_id: int) -> ModalSpec:
+    """The private discount code form of the review step."""
+    return ModalSpec(
+        custom_id=discount_form_id(session_id),
+        title=_text(ui, k.DISCOUNT_MODAL_TITLE),
+        inputs=(
+            TextInputSpec(
+                custom_id=DISCOUNT_INPUT,
+                label=_text(ui, k.DISCOUNT_INPUT_LABEL),
+                placeholder=ui.text(k.DISCOUNT_INPUT_PLACEHOLDER),
+                required=True,
+                min_length=discounts.CODE_MIN,
+                max_length=DISCOUNT_INPUT_MAX,
+            ),
+        ),
     )
 
 

@@ -52,13 +52,24 @@ def _before(conn: sqlite3.Connection) -> None:
 
 
 TABLES = ("orders", "order_items", "order_events", "order_handling", "reviews")
+# Columns added by this migration (the shipment) and by later ones (0013: the discount code of an order).
+ADDED_LATER = (
+    "carrier",
+    "tracking_number",
+    "tracking_url",
+    "shipped_at",
+    "discount_code_id",
+    "discount_code",
+    "discount_kind",
+    "discount_minor",
+)
 
 
 def _snapshot(conn: sqlite3.Connection) -> dict[str, list[tuple[object, ...]]]:
     out: dict[str, list[tuple[object, ...]]] = {}
     for table in TABLES:
         columns = [r[1] for r in conn.execute(f"PRAGMA table_info({table})")]
-        kept = [c for c in columns if c not in ("carrier", "tracking_number", "tracking_url", "shipped_at")]
+        kept = [c for c in columns if c not in ADDED_LATER]
         rows = conn.execute(f"SELECT {', '.join(kept)} FROM {table} ORDER BY rowid")
         out[table] = [tuple(r) for r in rows]
     return out
@@ -106,4 +117,4 @@ def test_the_shipment_columns_are_checked() -> None:
 
 def test_only_marked_migrations_run_with_foreign_keys_off() -> None:
     marked = [m.name for m in discover() if FOREIGN_KEYS_OFF in m.path.read_text(encoding="utf-8").splitlines()[:5]]
-    assert marked == ["order_shipping_statuses", "gift_cards"]
+    assert marked == ["order_shipping_statuses", "gift_cards", "discounts"]

@@ -68,7 +68,9 @@ async def test_extras_are_toggled_on_the_delivery_step_and_charged_as_fees(tmp_p
         assert flow.chosen_extras(tenv.app.settings.checkout, session.details)[0].id == "protection"
         assert _buttons(message)[protection].style.name == "success"  # added: green
         # The totals include it: 2 x 10.00 + 5.00 delivery + 3.00 protection.
-        data = await tenv.app.db.run(repo.load_workflow, GUILD_ID, session.id, tenv.app.settings, False)
+        data = await tenv.app.db.run(
+            repo.load_workflow, GUILD_ID, session.id, tenv.app.settings, False, tenv.clock.now()
+        )
         assert data is not None and data.totals.total_minor == 2000 + 500 + 300
         # Pressing again removes it.
         await press(tenv, user, message, protection)

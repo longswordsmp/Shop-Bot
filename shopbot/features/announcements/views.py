@@ -8,18 +8,34 @@
   so it stays attached to the message.
 - ``reply_spec`` and the ``*_reply`` helpers: the private operator replies (confirmation and errors), each with the
   banner of its outcome.
+- Presets (``/announce preset:<id>``): the same post built from the preset's configured texts, with the claim button
+  of its coupon (``claim_button``; disabled in the private preview) or, once the offer ended, the disabled "offer
+  ended" button (``ended_button``); the private preview card (``preset_preview_reply``: channel, mention, the coupon's
+  terms, Post announcement and Cancel) and its problem, error and cancelled variants.
 """
 
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from shopbot.config.banner_ids import BannerId
+from shopbot.config.content import MissingContent
+from shopbot.config.settings import AnnouncementPreset
+from shopbot.features.announcements.content_keys import (
+    COUPON_PLACEHOLDER,
+    PRESET_CLAIM_BUTTON,
+    PRESET_DESCRIPTION,
+    PRESET_ENDED_BUTTON,
+    PRESET_TITLE,
+    preset_key,
+)
+from shopbot.features.checkout import discount_views
 from shopbot.ui.custom_ids import cid
 from shopbot.ui.limits import EMBED_TITLE, INPUT_LABEL, INPUT_VALUE
 from shopbot.ui.spec import (
     ButtonSpec,
+    Component,
     EmbedField,
     FileSpec,
     InputStyle,
@@ -35,6 +51,8 @@ OperatorText = Callable[..., str]
 ROUTE = "an"
 SUBMIT_ACTION = "submit"
 RETRY_ACTION = "retry"
+POST_ACTION = "post"
+CANCEL_ACTION = "cancel"
 TITLE_INPUT = "title"
 MESSAGE_INPUT = "message"
 TITLE_MAX = EMBED_TITLE
@@ -52,6 +70,14 @@ def submit_custom_id(token: str) -> str:
 
 def retry_custom_id(token: str) -> str:
     return cid(ROUTE, RETRY_ACTION, token)
+
+
+def post_custom_id(token: str) -> str:
+    return cid(ROUTE, POST_ACTION, token)
+
+
+def cancel_custom_id(token: str) -> str:
+    return cid(ROUTE, CANCEL_ACTION, token)
 
 
 def attachment_url(filename: str) -> str:
@@ -140,23 +166,92 @@ def announcement_message(
     fields: Sequence[tuple[str, str]] = (),
     image: FileSpec | None = None,
     mention_role_id: int | None = None,
+    rows: tuple[tuple[Component, ...], ...] = (),
+    banner: BannerId = ANNOUNCEMENT_BANNER,
+    image_url: str | None = None,
 ) -> MessageSpec:
     """The post in the announcements channel. ``fields`` are (configured heading, staff value) pairs; empty values
-    are left out. Nothing is mentioned unless ``mention_role_id`` is given (then only that role)."""
+    are left out. Nothing is mentioned unless ``mention_role_id`` is given (then only that role). ``rows``: a
+    preset's claim button; ``banner``: a preset's banner picture; ``image_url``: the uploaded picture shown from its
+    link (a preset's private preview, before it is attached)."""
     embed = ui.embed(
         title=title,
         description=message,
         tone="primary",
         fields=tuple(EmbedField(name=name, value=value) for name, value in fields if value),
-        image_url=attachment_url(image.filename) if image is not None else None,
+        image_url=attachment_url(image.filename) if image is not None else image_url,
         panel=True,
         timestamp=True,
     )
     return MessageSpec(
         embeds=(embed,),
+        rows=rows,
         mention_role_ids=(mention_role_id,) if mention_role_id else (),
         files=(image,) if image is not None else None,
-        banner=ui.banner(ANNOUNCEMENT_BANNER),
+        banner=ui.banner(banner),
+    )
+
+
+def claim_button(ui: Ui, label_key: str, code_id: int, *, preview: bool = False) -> ButtonSpec:
+    """A preset's claim button (``checkout.discount_views.claim_button``: ``sb:dc:claim:<code_id>``, handled by the
+    checkout feature); disabled in the private preview. Raises ``MissingContent`` when its label is not set."""
+    button = discount_views.claim_button(ui, label_key, code_id)
+    return replace(button, disabled=True) if preview else button
+
+
+def ended_button(ui: Ui, label_key: str, code_id: int) -> ButtonSpec | None:
+    """The disabled button that replaces the claim button once the offer ended (None when its label is not set)."""
+    return ui.button(label_key, discount_views.claim_id(code_id), style="secondary", disabled=True)
+
+
+def _required(ui: Ui, key: str, **values: str | int) -> str:
+    text = ui.text(key, **values)
+    if not text:
+        raise MissingContent(key)
+    return text
+
+
+def preset_announcement(
+    ui: Ui,
+    preset: AnnouncementPreset,
+    *,
+    links: Mapping[str, str],
+    code_id: int | None,
+    preview: bool = False,
+    ended: bool = False,
+    image: FileSpec | None = None,
+    image_url: str | None = None,
+    mention_role_id: int | None = None,
+) -> MessageSpec:
+    """A preset's announcement: its configured title and text (``links``: the ``{channel_<key>}`` values; ``{coupon}``:
+    the coupon's code), its banner and, when it has a coupon, the claim button of the code ``code_id`` (disabled when
+    ``preview``; the disabled "offer ended" button when ``ended``). Raises ``MissingContent`` when a text it needs is
+    not set."""
+    title = _required(ui, preset_key(preset.id, PRESET_TITLE))
+    values: dict[str, str | int] = {**links, COUPON_PLACEHOLDER: preset.coupon} if preset.coupon else {**links}
+    description = _required(ui, preset_key(preset.id, PRESET_DESCRIPTION), **values)
+    rows: tuple[tuple[Component, ...], ...] = ()
+    if preset.coupon:
+        if code_id is None and not preview:
+            raise ValueError("a posted preset with a coupon needs its code")
+        code = code_id or 0  # the preview of a coupon that does not exist yet: the button is disabled anyway
+        if ended:
+            key = preset_key(preset.id, PRESET_ENDED_BUTTON)
+            button = ended_button(ui, key, code)
+            if button is None:
+                raise MissingContent(key)
+        else:
+            button = claim_button(ui, preset_key(preset.id, PRESET_CLAIM_BUTTON), code, preview=preview)
+        rows = ((button,),)
+    return announcement_message(
+        ui,
+        title=title,
+        message=description,
+        image=image,
+        image_url=image_url,
+        mention_role_id=mention_role_id,
+        rows=rows,
+        banner=preset.banner,
     )
 
 
@@ -174,6 +269,8 @@ class Reply:
     retry_token: str | None = None
     link_url: str | None = None
     banner: BannerId = "general-response"
+    post_token: str | None = None  # a preset's preview: "Post announcement"
+    cancel_token: str | None = None  # a preset's preview: "Cancel"
 
 
 def reply_spec(ui: Ui, op: OperatorText, reply: Reply) -> MessageSpec:
@@ -186,17 +283,38 @@ def reply_spec(ui: Ui, op: OperatorText, reply: Reply) -> MessageSpec:
         if reply.retry_token
         else None
     )
-    return MessageSpec(embeds=(embed,), rows=rows_of(link, retry), banner=ui.banner(reply.banner))
+    post = (
+        ButtonSpec(label=op("announcements.preset.post"), custom_id=post_custom_id(reply.post_token), style="primary")
+        if reply.post_token
+        else None
+    )
+    cancel = (
+        ButtonSpec(
+            label=op("announcements.preset.cancel"), custom_id=cancel_custom_id(reply.cancel_token), style="secondary"
+        )
+        if reply.cancel_token
+        else None
+    )
+    return MessageSpec(embeds=(embed,), rows=rows_of(link, retry, post, cancel), banner=ui.banner(reply.banner))
 
 
 def published_reply(
-    op: OperatorText, *, channel_id: int, url: str, mention_role_id: int | None, has_image: bool
+    op: OperatorText,
+    *,
+    channel_id: int,
+    url: str,
+    mention_role_id: int | None,
+    has_image: bool,
+    coupon: str | None = None,
 ) -> Reply:
+    """``coupon``: a preset's line about its claim button (``coupon_line``)."""
     lines = [op("announcements.done.description", channel=f"<#{channel_id}>", url=url)]
     if mention_role_id:
         lines.append(op("announcements.done.mention", role=f"<@&{mention_role_id}>"))
     if has_image:
         lines.append(op("announcements.done.image"))
+    if coupon:
+        lines.append(coupon)
     return Reply(
         op("announcements.done.title"), tuple(lines), tone="success", link_url=url, banner="successful-confirmation"
     )
@@ -251,6 +369,99 @@ def unknown_form_reply(op: OperatorText) -> Reply:
 def not_owner_reply(op: OperatorText) -> Reply:
     """A form opened by another staff member."""
     return notice_reply(op, op("announcements.error.not_owner"), banner="error", tone="danger")
+
+
+# -- presets (operator replies) -----------------------------------------------------------------------------------
+
+
+def coupon_line(op: OperatorText, code: str, terms: str) -> str:
+    """The coupon of a preset's claim button and its terms in plain words (``checkout.discount_codes.terms_text``)."""
+    return op("announcements.preset.done_coupon", code=code, terms=terms)
+
+
+def preset_facts(
+    op: OperatorText, *, channel: str, mention_role_id: int | None, has_image: bool, coupon: tuple[str, str] | None
+) -> list[str]:
+    """The preview's facts: channel, mention, image, and the coupon (code, terms) when the preset has one."""
+    lines = [op("announcements.preset.channel", channel=channel)]
+    if mention_role_id:
+        lines.append(op("announcements.preset.mention", role=f"<@&{mention_role_id}>"))
+    else:
+        lines.append(op("announcements.preset.mention_none"))
+    if has_image:
+        lines.append(op("announcements.preset.image"))
+    if coupon is not None:
+        lines.append(op("announcements.preset.coupon", code=coupon[0], terms=coupon[1]))
+    return lines
+
+
+def preset_preview_reply(op: OperatorText, *, name: str, facts: Sequence[str], token: str) -> Reply:
+    """The private card under a preset's preview: what will be posted where, with Post announcement and Cancel."""
+    return Reply(
+        op("announcements.preset.preview_title", name=name),
+        (op("announcements.preset.preview_intro"), "", *facts),
+        tone="info",
+        banner="general-response",
+        post_token=token,
+        cancel_token=token,
+    )
+
+
+def preset_problem_reply(
+    op: OperatorText,
+    *,
+    name: str,
+    preset_id: str,
+    facts: Sequence[str],
+    problems: Sequence[str],
+    link_url: str | None = None,
+) -> Reply:
+    """A preset that cannot be posted now (e.g. its coupon does not exist): the problems and how to fix them, no Post
+    button (nothing is stored). ``link_url``: the announcement a problem is about (Open announcement)."""
+    return Reply(
+        op("announcements.preset.problem_title", name=name),
+        (*facts, "", *problems, "", op("announcements.preset.problem_hint", preset=preset_id)),
+        tone="danger",
+        banner="error",
+        link_url=link_url,
+    )
+
+
+def preset_error_reply(
+    op: OperatorText, problems: Sequence[str], *, token: str | None, preset_id: str, link_url: str | None = None
+) -> Reply:
+    """Post announcement failed (nothing posted). With ``token`` the card keeps Post announcement (after fixing the
+    problem, e.g. a permission, staff press it again) and Cancel; without, staff run the preset again. ``link_url``:
+    the announcement a problem is about (Open announcement)."""
+    hint = (
+        op("announcements.preset.post_retry_hint")
+        if token
+        else op("announcements.preset.post_rerun_hint", preset=preset_id)
+    )
+    return Reply(
+        op("announcements.error.title"),
+        (*problems, "", hint),
+        tone="danger",
+        banner="error",
+        post_token=token,
+        cancel_token=token,
+        link_url=link_url,
+    )
+
+
+def cancelled_reply(op: OperatorText) -> Reply:
+    """A preset's preview after Cancel."""
+    return Reply(
+        op("announcements.preset.cancelled_title"),
+        (op("announcements.preset.cancelled"),),
+        tone="neutral",
+        banner="cancellation",
+    )
+
+
+def preset_notice_reply(op: OperatorText, line: str, *, banner: BannerId, tone: str = "warning") -> Reply:
+    """A reply about a preset's preview itself (in progress, expired, unknown...)."""
+    return Reply(op("announcements.preset.notice_title"), (line,), tone=tone, banner=banner)
 
 
 def feature_disabled_reply(op: OperatorText, *, feature: str) -> Reply:

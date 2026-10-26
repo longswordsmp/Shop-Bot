@@ -116,10 +116,10 @@ OPERATOR_TEXT: dict[str, str] = {
         "The progress and the result are sent to you by DM, because this channel is deleted too.\n\n"
         "To go ahead, press **Continue** and type ``{phrase}``."
     ),
-    "server.reset.data_kept": "Orders, products, reviews and store credit stay in the database.",
+    "server.reset.data_kept": "Orders, products, discount codes, reviews and store credit stay in the database.",
     "server.reset.data_wiped": (
-        "**The shop data is deleted too:** every order, product, review, ticket, store credit balance and customer "
-        "record (they stay in the backup)."
+        "**The shop data is deleted too:** every order, product, discount code, review, ticket, store credit balance "
+        "and customer record (they stay in the backup)."
     ),
     "server.reset.field.channels": "{icon_trash} Channels to delete ({count})",
     "server.reset.field.categories": "{icon_trash} Categories to delete ({count})",
@@ -193,7 +193,7 @@ OPERATOR_TEXT: dict[str, str] = {
     "server.reset.result_title_problems": "The server was reset, with problems",
     "server.reset.result_deleted": "Deleted: {channels} channels, {categories} categories and {roles} roles.",
     "server.reset.result_backup": "Backup made first: `{backup}` (in the `backups` folder next to the database).",
-    "server.reset.result_data_kept": "Orders, products, reviews and store credit were kept.",
+    "server.reset.result_data_kept": "Orders, products, discount codes, reviews and store credit were kept.",
     "server.reset.result_data_wiped": (
         "The shop data was deleted: {orders} orders, {products} products and {reviews} reviews (and everything that "
         "belonged to them)."

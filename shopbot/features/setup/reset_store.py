@@ -7,11 +7,12 @@ again. Records of objects that still exist (a channel Discord does not let anyon
 kept, so /setup keeps using them.
 
 The wipe (``/reset wipe_shop_data:True``) deletes every row of ``WIPED_TABLES`` in one transaction: orders and
-everything that belongs to them, products, reviews, tickets, store credit and customer records. ``KEPT_TABLES`` stay:
-texts, settings-related records, the audit log, announcements, counters (order and ticket numbers keep counting, so
-a number in an old message never points to a new order) and the id sequences (every id table uses AUTOINCREMENT, so
-ids are never reused either). Pending tasks of the wiped features are cancelled; ``KEPT_TASK_KINDS`` are system tasks
-that stay scheduled. The database belongs to the one server ``GUILD_ID`` names, so the wipe is not filtered by guild.
+everything that belongs to them, products, discount codes (with their products and claimed coupons), reviews, tickets,
+store credit and customer records. ``KEPT_TABLES`` stay: texts, settings-related records, the audit log, announcements,
+counters (order and ticket numbers keep counting, so a number in an old message never points to a new order) and the id
+sequences (every id table uses AUTOINCREMENT, so ids are never reused either). Pending tasks of the wiped features are
+cancelled; ``KEPT_TASK_KINDS`` are system tasks that stay scheduled. The database belongs to the one server ``GUILD_ID``
+names, so the wipe is not filtered by guild.
 """
 
 from __future__ import annotations
@@ -25,6 +26,8 @@ from shopbot.db.repos import state
 
 # Children before parents (foreign keys are checked at commit; the order keeps the intent readable).
 WIPED_TABLES: Final = (
+    "discount_claims",
+    "discount_code_products",
     "cart_items",
     "inventory_reservations",
     "order_items",
@@ -40,6 +43,7 @@ WIPED_TABLES: Final = (
     "problem_reports",
     "checkout_sessions",
     "orders",
+    "discount_codes",
     "new_arrival_announcements",
     "product_images",
     "products",

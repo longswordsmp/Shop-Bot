@@ -263,7 +263,7 @@ async def to_review(
         await set_qty(tenv, user, message, session_id, product_id, quantity)
     await go(tenv, user, message, session_id, m.CART)
     await go(tenv, user, message, session_id, m.REVIEW)
-    data = await tenv.app.db.run(repo.load_workflow, GUILD_ID, session_id, tenv.app.settings, True)
+    data = await tenv.app.db.run(repo.load_workflow, GUILD_ID, session_id, tenv.app.settings, True, tenv.clock.now())
     assert data is not None and data.session.step == m.REVIEW
     return data
 
@@ -275,7 +275,12 @@ async def submit(
     from shopbot.features.credits import service as credits_service
 
     data = await tenv.app.db.run(
-        repo.load_workflow, GUILD_ID, session_id, tenv.app.settings, credits_service.available_at_checkout(tenv.app)
+        repo.load_workflow,
+        GUILD_ID,
+        session_id,
+        tenv.app.settings,
+        credits_service.available_at_checkout(tenv.app),
+        tenv.clock.now(),
     )
     assert data is not None
     shown = data.totals.total_minor if total is None else total

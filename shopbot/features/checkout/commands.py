@@ -1,9 +1,12 @@
 """Staff order commands: ``/orders`` (browse orders, filter by status and member, paginated; open a record from the
-list), ``/order`` (lookup, view, list, status, refund, cancel, note) and ``/stats`` (sales and open orders).
+list), ``/order`` (lookup, view, list, status, refund, cancel, note), ``/stats`` (sales and open orders) and
+``/discount`` (create, list and end discount codes).
 
 Hidden from non-staff by default permissions (manage_messages); authorized by ``require_staff`` with the checkout
 staff roles on every invocation. Status changes, refunds and notes go through the same code path as the buttons of
-the live order record. Replies are private operator text.
+the live order record. ``/discount`` is for catalog managers, like ``/product``: hidden by manage_guild, authorized by
+``require_staff`` plus ``require_manager`` (admins, or members with a ``catalog.manager_roles`` role); its changes are
+audited. Replies are private operator text.
 """
 
 from __future__ import annotations
@@ -14,8 +17,11 @@ import discord
 from discord import app_commands
 
 from shopbot.commands import app_of, reply, require_staff
+from shopbot.features.catalog.commands import require_manager
+from shopbot.features.catalog.service import manager_role_keys
 from shopbot.features.checkout import content_keys as k
-from shopbot.features.checkout import gift_cards, service, staff, stats
+from shopbot.features.checkout import discount_codes, gift_cards, service, staff, stats
+from shopbot.features.checkout import discounts as d
 from shopbot.features.checkout import handling_repo as h
 from shopbot.features.checkout import models as m
 from shopbot.features.checkout.payments import gift_card
@@ -36,6 +42,11 @@ StatusChoice = Literal[
     "refunded",
 ]
 TargetChoice = Literal["paid", "processing", "fulfilled", "rejected", "cancelled"]
+DISCOUNT_TYPES = [
+    app_commands.Choice(name="Percent off", value=d.PERCENT),
+    app_commands.Choice(name="Amount off", value=d.AMOUNT),
+    app_commands.Choice(name="Buy one, get one free", value=d.BOGO),
+]
 OrderNumber = app_commands.Range[int, 1, 2_000_000_000]
 NOTE_MAX = h.NOTE_MAX
 
@@ -310,9 +321,131 @@ def build_group() -> app_commands.Group:
     return group
 
 
+async def discount_create(
+    interaction: discord.Interaction[Any],
+    *,
+    code: str,
+    kind: str,
+    value: str | None,
+    products: str | None,
+    min_subtotal: str | None,
+    max_uses: int | None,
+    expires_in_days: int | None,
+    once_per_customer: bool,
+) -> None:
+    app = await _ready_app(interaction)
+    if app is None:
+        return
+    await _defer(interaction)
+    try:
+        spec = await discount_codes.create(
+            app,
+            actor_id=interaction.user.id,
+            code=code,
+            kind=kind,
+            value=value,
+            products=products,
+            min_subtotal=min_subtotal,
+            max_uses=max_uses,
+            expires_in_days=expires_in_days,
+            once_per_customer=once_per_customer,
+        )
+    except discount_codes.Refused as exc:
+        await _send(interaction, app, staff.OpReply(exc.text, "warning"))
+        return
+    await reply(interaction, spec, ephemeral=True)
+
+
+async def discount_list(interaction: discord.Interaction[Any]) -> None:
+    app = await _ready_app(interaction)
+    if app is None:
+        return
+    await _defer(interaction)
+    try:
+        specs = await discount_codes.list_specs(app)
+    except discount_codes.Refused as exc:
+        await _send(interaction, app, staff.OpReply(exc.text, "warning"))
+        return
+    for spec in specs:
+        await reply(interaction, spec, ephemeral=True)
+
+
+async def discount_end(interaction: discord.Interaction[Any], code: str) -> None:
+    app = await _ready_app(interaction)
+    if app is None:
+        return
+    await _defer(interaction)
+    try:
+        result = await discount_codes.end(app, actor_id=interaction.user.id, code=code)
+    except discount_codes.Refused as exc:
+        result = staff.OpReply(exc.text, "warning")
+    await _send(interaction, app, result)
+
+
+def build_discount_group() -> app_commands.Group:
+    """A fresh ``/discount`` group (catalog managers and admins, like ``/product``)."""
+    group = app_commands.Group(name="discount", description="Discount codes customers use at checkout.")
+    app_commands.guild_only(group)
+    app_commands.default_permissions(manage_guild=True)(group)
+
+    @group.command(name="create", description="Create a discount code customers enter on the review step.")
+    @app_commands.rename(kind="type")
+    @app_commands.describe(
+        code="The code customers type, e.g. SAVE10 (3-32 letters, digits, - or _)",
+        kind="What the code gives",
+        value="Percent (1-100) or amount, e.g. 5.00; leave empty for buy one, get one free",
+        products="Only these product numbers, e.g. 12, 15 (empty: every item)",
+        min_subtotal="Minimum items subtotal, e.g. 25.00",
+        max_uses="How many orders can use it in total",
+        expires_in_days="Ends after this many days (1-365; empty: no end date)",
+        once_per_customer="Each customer can use it once (default: yes)",
+    )
+    @app_commands.choices(kind=DISCOUNT_TYPES)
+    @require_staff(manager_role_keys)
+    @require_manager()
+    async def create(
+        interaction: discord.Interaction[Any],
+        code: app_commands.Range[str, 1, 40],
+        kind: app_commands.Choice[str],
+        value: app_commands.Range[str, 1, 24] | None = None,
+        products: app_commands.Range[str, 1, 200] | None = None,
+        min_subtotal: app_commands.Range[str, 1, 24] | None = None,
+        max_uses: app_commands.Range[int, 1, 1_000_000] | None = None,
+        expires_in_days: app_commands.Range[int, 1, discount_codes.MAX_DAYS] | None = None,
+        once_per_customer: bool = True,
+    ) -> None:
+        await discount_create(
+            interaction,
+            code=code,
+            kind=kind.value,
+            value=value,
+            products=products,
+            min_subtotal=min_subtotal,
+            max_uses=max_uses,
+            expires_in_days=expires_in_days,
+            once_per_customer=once_per_customer,
+        )
+
+    @group.command(name="list", description="Show the active discount codes, then the latest ended ones.")
+    @require_staff(manager_role_keys)
+    @require_manager()
+    async def list_(interaction: discord.Interaction[Any]) -> None:
+        await discount_list(interaction)
+
+    @group.command(name="end", description="End a discount code (orders placed with it keep their discount).")
+    @app_commands.describe(code="The code to end")
+    @require_staff(manager_role_keys)
+    @require_manager()
+    async def end(interaction: discord.Interaction[Any], code: app_commands.Range[str, 1, 40]) -> None:
+        await discount_end(interaction, code)
+
+    return group
+
+
 def register(app: App) -> None:
     if app.bot is None:
         raise RuntimeError("register() requires app.bot")
     app.bot.tree.add_command(build_group(), guild=app.guild_object)
+    app.bot.tree.add_command(build_discount_group(), guild=app.guild_object)
     app.bot.tree.add_command(build_orders_command(), guild=app.guild_object)
     app.bot.tree.add_command(build_stats_command(), guild=app.guild_object)
