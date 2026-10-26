@@ -26,7 +26,7 @@ async def test_every_audit_entry_shows_the_activity_log_banner(tmp_path: Path) -
         posted = audit_channel(tenv).messages
         assert len(posted) == 2
         assert all(banner_names(message) == [banner.filename] for message in posted)
-        assert [message.embeds[0].title for message in posted] == ["checkout.order_paid", "operations.error"]
+        assert [message.embeds[0].title for message in posted] == ["Payment confirmed", "Error"]
     finally:
         await tenv.close()
 
@@ -38,6 +38,6 @@ async def test_the_audit_banner_can_be_switched_off_alone(tmp_path: Path) -> Non
         assert tenv.app.ui.banner("activity-log") is None and tenv.app.ui.banner("error") is not None
         await tenv.app.audit.record("setup.run", actor_id=1)
         [posted] = audit_channel(tenv).messages
-        assert banner_names(posted) == [] and posted.embeds[0].title == "setup.run"
+        assert banner_names(posted) == [] and posted.embeds[0].title == tenv.app.op("audit.action.setup.run")
     finally:
         await tenv.close()

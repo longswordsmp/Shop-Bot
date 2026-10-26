@@ -67,8 +67,11 @@ message even when `features.dm_notifications` is off (the setting asks for one e
 
 ### Audit-channel post
 
-Long details are split over up to 4 embed fields of 1000 characters (Discord: 1024 per field, 6000 per embed); the
-database keeps the full sanitized details (see `/audit`).
+One compact card per entry: a readable title (`operator.audit.action.<action>`, e.g. "Payment confirmed"; an
+action without one shows its identifier), one line with what it concerns, who did it and when ("Order #12 · by
+@staff · 20:41"; "automatic" for the bot itself), then the sanitized details. Long details are split over up to 4
+embed fields of 1000 characters (Discord: 1024 per field, 6000 per embed); the database keeps the full sanitized
+details (see `/audit`). A test fails when an action in the code has no title.
 
 ## #transcripts is staff-only
 

@@ -108,6 +108,28 @@ class AuditLog:
         await self._post(action, actor_id, target_type, target_id, details or {})
         return event_id
 
+    def title(self, action: str) -> str:
+        """The entry's title: its ``audit.action.<action>`` text, or the action identifier when it has none."""
+        key = f"audit.action.{action}"
+        if key in self.app.operator_defaults or self.app.content.operator_value(key):
+            return self.app.op(key)
+        return action
+
+    def summary(
+        self, target_type: str | None, target_id: str | int | None, actor_id: int | None, details: dict[str, Any]
+    ) -> str:
+        """One line: what it concerns (an order or ticket by its number), who did it, and when."""
+        op = self.app.op
+        parts: list[str] = []
+        number = details.get("number", details.get("order_number"))
+        if target_type in ("order", "ticket") and isinstance(number, (int, str)) and str(number):
+            parts.append(op(f"audit.target.{target_type}", number=number))
+        elif target_type is not None:
+            parts.append(op("audit.target.other", type=target_type, id="" if target_id is None else target_id))
+        parts.append(op("audit.by", actor=f"<@{actor_id}>") if actor_id is not None else op("audit.automatic"))
+        parts.append(f"<t:{self.app.clock.now()}:t>")
+        return " · ".join(parts)
+
     async def _post(
         self,
         action: str,
@@ -127,16 +149,13 @@ class AuditLog:
         channel = bot.get_channel(channel_id) if channel_id else None
         if not isinstance(channel, discord.TextChannel):
             return
-        fields = []
-        if actor_id is not None:
-            fields.append(EmbedField(self.app.op("audit.actor"), f"<@{actor_id}>", inline=True))
-        if target_type is not None:
-            fields.append(EmbedField(self.app.op("audit.target"), f"{target_type} {target_id}", inline=True))
+        fields: list[EmbedField] = []
         if details:
             name = self.app.op("audit.details")
             fields.extend(EmbedField(name, f"```{chunk}```") for chunk in detail_chunks(details))
+        summary = self.summary(target_type, target_id, actor_id, details)
         spec = MessageSpec(
-            embeds=(self.app.ui.operator_embed(action, tone="neutral", fields=fields),),
+            embeds=(self.app.ui.operator_embed(self.title(action), summary, tone="neutral", fields=fields),),
             banner=self.app.ui.banner(AUDIT_BANNER),
         )
         try:
