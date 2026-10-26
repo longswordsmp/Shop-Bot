@@ -192,7 +192,7 @@ OPERATOR_TEXT: dict[str, str] = {
     "checkout.stats.period.all": "all time",
     "checkout.stats.heading.sales": "SALES ({period})",
     "checkout.stats.heading.open": "NEEDS ATTENTION NOW",
-    "checkout.stats.heading.best": "BEST SELLERS ({period})",
+    "checkout.stats.heading.best": "BEST SELLERS ({period}, amounts before discounts)",
     "checkout.stats.line.placed": "Orders placed: **{count}**",
     "checkout.stats.line.sold": "Paid: **{count}** · Ended before payment: {ended}",
     "checkout.stats.line.revenue": "Revenue: **{revenue}** · Average order: {average}",

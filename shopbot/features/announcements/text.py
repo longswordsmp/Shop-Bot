@@ -124,6 +124,10 @@ OPERATOR_TEXT: dict[str, str] = {
         "The coupon `{code}` does not exist, or it has ended or expired, so its claim button would not work. Create "
         "it with this command:\n{command}"
     ),
+    "announcements.preset.coupon_expired": (
+        "The coupon `{code}` has expired, so its claim button would not work. End it with `/discount end "
+        "code:{code}`, then create it again with this command:\n{command}"
+    ),
     "announcements.preset.coupon_changed": (
         "The coupon `{code}` was ended and created again since this preview, so its terms may differ from what the "
         "preview showed."

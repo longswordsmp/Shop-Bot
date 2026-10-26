@@ -211,8 +211,8 @@ async def test_preview_refuses_a_coupon_that_cannot_be_claimed(env: AnnounceEnv,
         await discount_codes.end(env.app, actor_id=1, code="BOGO")
         expected = op(env, "announcements.preset.coupon_missing", code="BOGO", command=f"`{COMMAND}`")
     elif case == "expired":
-        env.tenv.clock.advance(DAY)
-        expected = op(env, "announcements.preset.coupon_missing", code="BOGO", command=f"`{COMMAND}`")
+        env.tenv.clock.advance(DAY)  # expired, not ended: /discount create would refuse it, so end it first
+        expected = op(env, "announcements.preset.coupon_expired", code="BOGO", command=f"`{COMMAND}`")
     elif case == "used_up":
         await env.app.db.run(
             lambda conn: conn.execute(

@@ -188,7 +188,8 @@ Staff-only forms and private replies to staff are operator text (`checkout.note.
   credit are shown on their own line and not taken off the revenue: the order the credit is later spent on adds
   nothing to the revenue, so taking it off as well would count it twice. **Needs attention now**: open orders of any
   age by what staff do next (waiting for payment, payment to check, to ship, shipped). **Best sellers** of the period
-  (top 5 by units) from paid orders that were neither cancelled nor refunded in full. Orders in another currency
+  (top 5 by units) from paid orders that were neither cancelled nor refunded in full; their amounts are at the item
+  prices before discount codes (a free buy-one-get-one-free item counts at its price). Orders in another currency
   (placed before `checkout.currency` changed) are noted, not added.
 - `/order note` now stores the note as staff activity (shown on the record).
 - `/ticket close` in an order ticket: closes the ticket of an order that was never submitted (the unfinished order is

@@ -180,6 +180,11 @@ async def usable_code(app: App, text: str) -> d.Code | None:
     return await app.db.run(discount_repo.usable_code, app.env.guild_id, text, app.clock.now())
 
 
+async def find_code(app: App, text: str) -> d.Code | None:
+    """The code with this name (normalized): the live one (also when expired), else the one that ended last."""
+    return await app.db.run(discount_repo.find_code, app.env.guild_id, d.normalize(text))
+
+
 async def terms_text(app: App, code: d.Code) -> str:
     """The code's terms in plain words for staff (operator text; products by name)."""
     names = await app.db.run(discount_repo.product_names, app.env.guild_id, code.product_ids)

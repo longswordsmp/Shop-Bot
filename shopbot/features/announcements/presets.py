@@ -138,8 +138,14 @@ async def coupon_check(app: App, preset: AnnouncementPreset) -> tuple[d.Code | N
         return None, [Problem(op("announcements.preset.checkout_off"), "checkout_off", retryable=False)]
     code = await discount_codes.usable_code(app, preset.coupon)
     if code is None:
-        text = op("announcements.preset.coupon_missing", code=preset.coupon, command=create_command(app, preset))
-        return None, [Problem(text, "coupon_missing", retryable=False)]
+        live = await discount_codes.find_code(app, preset.coupon)
+        if live is not None and not live.ended and live.expired(app.clock.now()):
+            # Still live by name: /discount create would refuse it until it is ended.
+            key, problem = "announcements.preset.coupon_expired", "coupon_expired"
+        else:
+            key, problem = "announcements.preset.coupon_missing", "coupon_missing"
+        text = op(key, code=preset.coupon, command=create_command(app, preset))
+        return None, [Problem(text, problem, retryable=False)]
     if code.max_uses is not None:
         usage = await app.db.run(discount_repo.usage, code.id, 0)
         if usage.uses >= code.max_uses:

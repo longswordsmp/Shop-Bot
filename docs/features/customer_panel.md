@@ -30,8 +30,8 @@ It always shows:
 |---|---|
 | Unique reference and current status | the key facts line: `checkout.ticket.draft_line` (ticket number, padded like the channel name, and `checkout.ticket.status_in_progress`) before submission, `checkout.ticket.order_line` (ticket number, order number and the stage name `checkout.ticket.stage.<status>`) afterwards |
 | Current step and progress | the step's title, and `common.progress_format` in the footer (now required for checkout) |
-| What was entered/selected | the items section (`checkout.cart.heading`, one `checkout.cart.line` per item) on every step (on later steps left out only when the card would not fit one message; a long card continues in a second one of the same colour), the summary section (`checkout.summary.*`: subtotal, the chosen delivery option and its fee, extras and fees, store credit, the total in bold), the details-form answers; the review lists everything incl. the answers |
-| Actions | Back on every step after the first, Continue/Submit, Cancel; after submission the customer's cancel button while unpaid |
+| What was entered/selected | the items section (`checkout.cart.heading`, one `checkout.cart.line` per item) on every step (on later steps left out only when the card would not fit one message; a long card continues in a second one of the same colour), the summary section (`checkout.summary.*`: subtotal, the discount when a code is applied (`Discount (CODE) · -$X`, or "not applied" with the reason under the total), the chosen delivery option and its fee, extras and fees, store credit, the total in bold), the details-form answers; the review lists everything incl. the answers |
+| Actions | Back on every step after the first, Continue/Submit, Cancel; on the review step also Use store credit, Add discount code (a private form), Use coupon CODE for coupons the customer claimed from an announcement, and Remove discount once one is applied (one code per order; see `docs/WORKFLOWS.md` and `docs/DECISIONS.md` §11e); after submission the customer's cancel button while unpaid |
 
 **Closed by staff.** Staff can close the ticket of an order that was never submitted with `/ticket close`: the
 unfinished order is cancelled and the panel shows `checkout.staff_closed.title` / `.description` (optional; empty =
@@ -129,7 +129,10 @@ and valid when the bot starts. Discord receives command descriptions when the co
 2. As a member, press Start in #purchase: the new ticket shows the introduction (ticket number, who can see it), then
    the panel with its key facts line (ticket number, status) and progress. Go through the steps: every step shows what you selected, Back and
    Cancel.
-3. On the review step, check the summary (cart, option, fees, your answers, total, status). Press Submit (with a
+3. On the review step, check the summary (cart, option, fees, your answers, total, status). With a code created by
+   `/discount create`, press Add discount code and enter it (a wrong code gives its reason privately), or press Claim
+   coupon on a preset announcement first and then Use coupon CODE: the discount line appears under the subtotal and
+   the total drops; Remove discount takes it off. Press Submit (with a
    `submission_form`, fill the form). You get the 'submission received' DM; the panel shows the order number, the
    stage and the progress section.
 4. As staff, mark the order paid / in progress / fulfilled: the panel's stage and progress update each time; a
