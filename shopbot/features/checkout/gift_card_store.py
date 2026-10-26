@@ -22,7 +22,9 @@ STATUSES: Final = (SUBMITTED, REDEEMED, REFUSED, WITHDRAWN)
 # Cards that count toward an order's payment (and whose fingerprint may not be submitted again).
 ACTIVE: Final = (SUBMITTED, REDEEMED)
 
-CODE_MIN: Final = 6
+# Gift card codes are long; a short minimum would make the last characters shown to tell cards apart a large part
+# of the code.
+CODE_MIN: Final = 10
 CODE_MAX: Final = 64
 PIN_MAX: Final = 16
 REASON_MAX: Final = 500

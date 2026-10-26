@@ -296,9 +296,7 @@ def _record_fields(ui: Ui, settings: Settings, view: m.OrderView, data: h.StaffD
     if handling.claimed_by is not None and handling.claimed_at is not None:
         claimed = f"{views.user_mention(handling.claimed_by)} {_relative(handling.claimed_at)}"
         fields.append(EmbedField(_text(ui, sk.CLAIMED_FIELD), claimed, inline=True))
-    payment = gift_card.record_field(ui, settings, order, data.gift_cards)
-    if payment is not None:
-        fields.append(payment)
+    fields += gift_card.record_fields(ui, settings, order, data.gift_cards)
     tracking_name = _optional(ui, sk.TRACKING_FIELD)
     if handling.tracking and tracking_name:
         fields += text_fields(tracking_name, handling.tracking)

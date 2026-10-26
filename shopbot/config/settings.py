@@ -504,6 +504,9 @@ class CheckoutSettings:
         return next((e for e in self.extras if e.id == extra_id), None)
 
 
+MAX_GIFT_CARDS = 5
+
+
 @dataclass(frozen=True)
 class GiftCardSettings:
     """``[payments.gift_card]``: customers pay with gift cards they submit in a private form (provider
@@ -514,7 +517,7 @@ class GiftCardSettings:
     buy_url: str = ""
     # Roles (keys) that may reveal codes and confirm or refuse gift card payments; owners and admins always may.
     staff_roles: tuple[str, ...] = ()
-    # Cards one order may be paid with.
+    # Cards one order may be paid with (at most MAX_GIFT_CARDS: the reveal reply has two buttons per card, five rows).
     max_cards: int = 5
     # Days a submitted code is kept before it is deleted unread.
     keep_days: int = 7
@@ -1104,7 +1107,7 @@ def parse_settings(data: dict[str, Any]) -> Settings:
     gift_card = GiftCardSettings(
         buy_url=gc.url_("buy_url"),
         staff_roles=gc.keys_("staff_roles"),
-        max_cards=gc.int_("max_cards", 5, min_=1, max_=10),
+        max_cards=gc.int_("max_cards", 5, min_=1, max_=MAX_GIFT_CARDS),
         keep_days=gc.int_("keep_days", 7, min_=1, max_=30),
         chat_guard=gc.bool_("chat_guard", True),
     )

@@ -178,6 +178,11 @@ class ShopBot(discord.Client):
             return
         await self._emit("message", message)
 
+    async def on_message_edit(self, before: discord.Message, after: discord.Message) -> None:
+        if after.guild is None or after.guild.id != self.app.env.guild_id:
+            return
+        await self._emit("message_edit", before, after)
+
     async def on_guild_channel_delete(self, channel: discord.abc.GuildChannel) -> None:
         if channel.guild.id == self.app.env.guild_id:
             await self._emit("guild_channel_delete", channel)

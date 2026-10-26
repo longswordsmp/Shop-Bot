@@ -66,6 +66,11 @@ def check_key(app: App) -> bool:
     return True
 
 
+def awaits_decision(order: m.Order) -> bool:
+    """A placed gift card order: it is paid (or waits for payment again) through the decision on its cards."""
+    return order.payment_provider == gift_card.PROVIDER_ID and order.status == m.PAYMENT_SUBMITTED
+
+
 def can_handle(app: App, member: discord.Member | None, user_id: int) -> bool:
     """Reveal codes and decide on cards: owners, admins and ``payments.gift_card.staff_roles``."""
     return app.perms.has_role(member, user_id, app.settings.payments.gift_card.staff_roles)
@@ -286,37 +291,55 @@ async def erase_task(app: App, task: Task) -> None:
 
 # -- chat guard --------------------------------------------------------------------------------------------------
 
-# A long run of letters and digits (optionally in dash-separated blocks), or blocks typed with single spaces.
+# Links, mentions, channel references, custom emojis and timestamps carry long numbers that are not codes.
+_IGNORED = re.compile(r"https?://\S+|<a?:\w+:\d+>|<[@#][!&]?\d+>|<t:\d+(?::\w)?>")
 _TOKEN = re.compile(r"[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*")
-_SPACED = re.compile(r"(?<![A-Za-z0-9])[A-Za-z0-9]{3,6}(?: [A-Za-z0-9]{3,6}){2,}(?![A-Za-z0-9])")
-_MIN_CHARS, _MAX_CHARS, _MIN_DIGITS = 12, 32, 4
+_UPS_TRACKING = re.compile(r"1Z[0-9A-Z]{16}")
+_PUNCTUATION = ".,!?;:()[]{}\"'"
+_MIN_CHARS, _MAX_CHARS, _MIN_DIGITS, _MIN_LETTERS = 12, 32, 4, 4
+# Card and gift card numbers have 13-19 digits; longer digit runs are tracking numbers.
+_CARD_NUMBER_DIGITS = range(13, 20)
 
 
 def looks_like_code(text: str) -> bool:
-    """Whether a chat message seems to contain a gift card code (or a card number): 12-32 letters and digits with at
-    least 4 digits, written as one upper-case/digit run, in dash-separated blocks, or in space-separated blocks that
-    are each upper case or digits. Ordinary sentences with an order number do not match."""
+    """Whether a chat message seems to contain a gift card code or a card number: 12-32 letters and digits, typed as
+    one run, in dash-separated blocks of 3 or more, or in space-separated blocks of one length (``ABCD EFGH 1234``);
+    with at least 4 letters and 4 digits, or 13-19 digits only. Links, mentions, dates, phone and tracking numbers and
+    ordinary sentences with an order number do not match."""
+    text = _IGNORED.sub(" ", text)
     for token in _TOKEN.findall(text):
-        if "-" in token and token.count("-") >= 2:
-            if _code_sized(token):
-                return True
-        elif _code_sized(token) and _shouts(token):
+        blocks = token.split("-")
+        if len(blocks) > 1 and any(len(block) < 3 for block in blocks):
+            continue  # a date or a phone number
+        if _code_like(normalize_code(token)):
             return True
-    for run in _SPACED.findall(text):
-        if all(block.isdigit() or block.isupper() for block in run.split(" ")) and _code_sized(run):
+    run: list[str] = []
+    for word in [w.strip(_PUNCTUATION) for w in text.split()] + [""]:
+        grouped = 3 <= len(word) <= 6 and word.isalnum()
+        if grouped and (not run or len(word) == len(run[0])):
+            run.append(word)
+            continue
+        if len(run) >= 3 and _code_like(normalize_code("".join(run))):
             return True
+        run = [word] if grouped else []
     return False
 
 
-def _code_sized(candidate: str) -> bool:
-    chars = normalize_code(candidate)
-    return _MIN_CHARS <= len(chars) <= _MAX_CHARS and sum(ch.isdigit() for ch in chars) >= _MIN_DIGITS
+def _code_like(chars: str) -> bool:
+    """``chars``: letters and digits only, upper case."""
+    if not _MIN_CHARS <= len(chars) <= _MAX_CHARS or _UPS_TRACKING.fullmatch(chars):
+        return False
+    digits = sum(ch.isdigit() for ch in chars)
+    if digits == len(chars):
+        return len(chars) in _CARD_NUMBER_DIGITS
+    return digits >= _MIN_DIGITS and len(chars) - digits >= _MIN_LETTERS
 
 
-def _shouts(token: str) -> bool:
-    """Upper case letters and digits only (codes are), or mostly digits."""
-    digits = sum(ch.isdigit() for ch in token)
-    return token.isupper() or token.isdigit() or digits * 10 >= len(token) * 6
+async def on_message_edit(app: App, before: discord.Message, after: discord.Message) -> None:
+    """A message edited to contain a code is removed like a new one."""
+    if before.content == after.content and before is not after:
+        return
+    await on_message(app, after)
 
 
 async def on_message(app: App, message: discord.Message) -> None:

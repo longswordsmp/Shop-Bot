@@ -475,9 +475,15 @@ async def on_staff_action(ctx: Ctx) -> None:
     if target == m.PAID and not _may_confirm_payment(ctx, order):
         await _staff_reply(ctx, staff.OpReply(ctx.app.op("checkout.gift.no_permission"), "warning"))
         return
-    # The status the button was rendered for; "" (never a status) for a button rendered before buttons carried it,
-    # so such a stale control refreshes the controls instead of acting.
     rendered = ctx.args[1] if len(ctx.args) > 1 else ""
+    if target == m.PAID and gift_cards.awaits_decision(order) and rendered == order.status:
+        # Payment confirmed: every waiting card was redeemed; the order is paid only if they cover the total.
+        await _staff_reply(
+            ctx, await gift_cards.decide(ctx.app, order, actor_id=ctx.user_id, redeemed=True, reason=None)
+        )
+        return
+    # ``rendered``: the status the button was rendered for; "" (never a status) for a button rendered before buttons
+    # carried it, so such a stale control refreshes the controls instead of acting.
     reply = await staff.change_status(ctx.app, order, target, actor_id=ctx.user_id, rendered_status=rendered)
     await _staff_reply(ctx, reply)
 

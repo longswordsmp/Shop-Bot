@@ -7,9 +7,11 @@ Order statuses and the only allowed transitions (``TRANSITIONS[to]`` lists the s
 from)::
 
     pending_payment   -> payment_submitted | paid | rejected | cancelled | expired
-    payment_submitted -> pending_payment | paid | rejected | cancelled
-                         (the customer submitted gift cards for the total; staff redeem them, or refuse a card and
-                         the order waits for payment again)
+    payment_submitted -> pending_payment | paid
+                         (the customer submitted gift cards for the total; it leaves only through a decision on its
+                         cards: redeemed cards covering the total make it paid, otherwise it waits for payment
+                         again. Staff may have redeemed a revealed card, so it is never rejected or cancelled with
+                         cards waiting: Card problem first.)
     paid              -> processing | shipped | fulfilled | cancelled | refunded
     processing        -> shipped | fulfilled | cancelled | refunded
     shipped           -> fulfilled | refunded                 (carrier and tracking number in order_handling)
@@ -90,8 +92,8 @@ TRANSITIONS: Final[dict[str, tuple[str, ...]]] = {
     PROCESSING: (PAID,),
     SHIPPED: (PAID, PROCESSING),
     FULFILLED: (PAID, PROCESSING, SHIPPED),
-    REJECTED: (PENDING, PAYMENT_SUBMITTED),
-    CANCELLED: (PENDING, PAYMENT_SUBMITTED, PAID, PROCESSING),
+    REJECTED: (PENDING,),
+    CANCELLED: (PENDING, PAID, PROCESSING),
     EXPIRED: (PENDING,),
     REFUNDED: (PAID, PROCESSING, SHIPPED, FULFILLED, CANCELLED),
 }

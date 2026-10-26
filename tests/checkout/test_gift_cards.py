@@ -13,8 +13,9 @@ from typing import Any
 import pytest
 
 from shopbot.features.checkout import gift_card_store as store
-from shopbot.features.checkout import gift_cards, staff_views, views
+from shopbot.features.checkout import gift_cards, handling_repo, staff_views, views
 from shopbot.features.checkout import models as m
+from shopbot.features.checkout import service as checkout_service
 from shopbot.features.checkout.payments import gift_card
 from shopbot.features.credits import repo as credits_repo
 from tests.checkout.util import (
@@ -38,6 +39,7 @@ GIFT_CARDS: dict[str, Any] = {
 }
 CODE = "ABCD-EFGH-1234-5678"
 OTHER = "WXYZ-9876-5432-QRST"
+THIRD = "LMNO-4455-6677-PQRS"
 
 
 @pytest.fixture
@@ -87,7 +89,7 @@ async def test_the_order_view_offers_the_private_form_and_the_buy_link(gc: TestE
     form = modal_of(opened)
     assert form is not None and form.custom_id == views.payment_form_submit_id(placed.id)
     amount = next(i for i in form.walk_children() if getattr(i, "custom_id", "") == gift_card.AMOUNT_INPUT)
-    assert amount.default == "10.00"  # prefilled with what is still to pay
+    assert amount.default is None  # the card's full value, never prefilled (a larger card would be under-declared)
     # Someone else cannot open it.
     stranger = gc.member(name="stranger")
     refused = await press(gc, stranger, message, views.payment_form_id(placed.id))
@@ -291,14 +293,129 @@ def _ticket_channel(conn: Any, ticket_id: int) -> int:
         ("ABCD-EFGH-1234-5678", True),
         ("abcd-efgh-1234-5678", True),
         ("ABCD EFGH 1234 5678", True),
+        ("abcd efgh 1234 5678", True),
+        ("abcd1234efgh5678", True),
+        ("AbCd1234EfGh5678", True),
         ("4111 1111 1111 1111", True),
+        ("4111111111111111", True),
         ("X9K2P7Q4M8N3", True),
         ("my order 1042 is late", False),
         ("the order 1234 was fine", False),
         ("call 555-123-4567", False),
         ("thanks!! 12345", False),
         ("https://example.com/item?id=1234", False),
+        ("my tracking 9400111899223456789012 has not moved", False),
+        ("UPS 1Z999AA10123456784", False),
+        ("order 2026-10-26-1530", False),
+        ("see https://discord.com/channels/123456789012345678/123456789012345679/123456789012345680", False),
+        ("ping <@123456789012345678> about <#123456789012345679>", False),
     ],
 )
 def test_looks_like_code(text: str, expected: bool) -> None:
     assert gift_cards.looks_like_code(text) is expected
+
+
+async def _owner_reveal(tenv: TestEnv, placed: m.Order) -> Any:
+    owner = tenv.member(name="owner", admin=True)
+    current = await order(tenv, placed.id)
+    await press(tenv, owner, staff_message(tenv, current), views.gift_card_reveal_id(placed.id))
+    return owner
+
+
+async def test_a_placed_order_leaves_payment_submitted_only_through_a_decision_on_its_cards(gc: TestEnv) -> None:
+    """The owner revealed (and may have redeemed) the card: nobody can reject or cancel the order and drop the card
+    unpaid. Card problem first; redeemed cards of an order cancelled afterwards become store credit."""
+    customer, placed, _ = await _placed(gc)
+    await _submit(gc, customer, placed)
+    owner = await _owner_reveal(gc, placed)
+    current = await order(gc, placed.id)
+    record = staff_message(gc, current)
+    assert views.staff_action_id(m.REJECTED, placed.id, m.PAYMENT_SUBMITTED) not in control_ids(record)
+    assert views.staff_action_id(m.CANCELLED, placed.id, m.PAYMENT_SUBMITTED) not in control_ids(record)
+    staffer = gc.member(name="staffer", staff=True)
+    await run_command(gc, "cancel", user=staffer, number=placed.number)
+    await run_command(gc, "status", user=owner, number=placed.number, new_status="rejected")
+    assert (await order(gc, placed.id)).status == m.PAYMENT_SUBMITTED
+    assert (await _raw_cards(gc, placed.id))[0]["status"] == store.SUBMITTED
+
+
+async def test_payment_confirmed_never_marks_an_underpaid_order_paid(gc: TestEnv) -> None:
+    customer, placed, _ = await _placed(gc)
+    await _submit(gc, customer, placed, amount="6.00")
+    await _submit(gc, customer, placed, code=OTHER, amount="6.00")
+    cards = await gc.app.db.run(store.cards, placed.id)
+    owner = await _owner_reveal(gc, placed)
+    await submit_modal(
+        gc.app,
+        user=owner,
+        custom_id=views.gift_card_problem_form_id(placed.id, cards[0].id),
+        fields={staff_views.REASON_INPUT: "Already used."},
+    )
+    current = await order(gc, placed.id)
+    assert current.status == m.PAYMENT_SUBMITTED  # card 2 still waits
+    await press(gc, owner, staff_message(gc, current), views.staff_action_id(m.PAID, placed.id, m.PAYMENT_SUBMITTED))
+    back = await order(gc, placed.id)
+    assert back.status == m.PENDING  # $6.00 redeemed of $10.00: the customer pays the rest
+    assert [c.status for c in await gc.app.db.run(store.cards, placed.id)] == [store.REFUSED, store.REDEEMED]
+    assert await gc.app.db.run(credits_repo.order_entry, GUILD_ID, placed.id, credits_repo.KIND_GIFT_CARD) is None
+
+
+async def test_mark_paid_on_a_pending_order_gives_up_its_unseen_cards(gc: TestEnv) -> None:
+    customer, placed, _ = await _placed(gc)
+    await _submit(gc, customer, placed, amount="4.00")
+    owner = gc.member(name="owner", admin=True)
+    current = await order(gc, placed.id)
+    await press(gc, owner, staff_message(gc, current), views.staff_action_id(m.PAID, placed.id, m.PENDING))
+    assert (await order(gc, placed.id)).status == m.PAID
+    (row,) = await _raw_cards(gc, placed.id)
+    assert row["status"] == store.WITHDRAWN and row["sealed"] is None  # never redeemed by anyone
+    assert await gc.app.db.run(credits_repo.order_entry, GUILD_ID, placed.id, credits_repo.KIND_GIFT_CARD) is None
+
+
+async def test_the_reveal_reply_and_the_record_stay_within_discord_limits(tmp_path: Path) -> None:
+    from shopbot.config.settings import SettingsError, parse_settings
+    from shopbot.ui.limits import validate_message
+    from tests.helpers import base_settings_dict, deep_merge
+
+    with pytest.raises(SettingsError):  # five waiting cards fit the reveal reply's five rows of buttons
+        parse_settings(deep_merge(base_settings_dict(), {"payments": {"gift_card": {"max_cards": 6}}}))
+    tenv = await make_env(
+        tmp_path, {**GIFT_CARDS, "payments": {**GIFT_CARDS["payments"], "gift_card": {"max_cards": 5}}}
+    )
+    try:
+        customer, placed, _ = await _placed(tenv, price=5000)
+        codes = [CODE, OTHER, THIRD, "TUVW-1122-3344-XYZA", "BCDE-5566-7788-FGHI"]
+        for code in codes:
+            await _submit(tenv, customer, placed, code=code, amount="10.00")
+        assert (await order(tenv, placed.id)).status == m.PAYMENT_SUBMITTED
+        owner = tenv.member(name="owner", admin=True)
+        current = await order(tenv, placed.id)
+        revealed = await press(tenv, owner, staff_message(tenv, current), views.gift_card_reveal_id(placed.id))
+        assert revealed.last_sent is not None and len(revealed.last_sent.custom_ids()) == 10
+        # Long refusal reasons on every card: the record's payment field is split, never over Discord's limits.
+        cards = await tenv.app.db.run(store.cards, placed.id)
+        for card in cards[:4]:
+            await submit_modal(
+                tenv.app,
+                user=owner,
+                custom_id=views.gift_card_problem_form_id(placed.id, card.id),
+                fields={staff_views.REASON_INPUT: "x" * store.REASON_MAX},
+            )
+        view = await checkout_service.order_view(tenv.app, placed.id)
+        data = await tenv.app.db.run(handling_repo.staff_data, placed.id)
+        assert view is not None
+        for spec in checkout_service.staff_specs(tenv.app, view, data):
+            assert validate_message(spec) == []
+        record = staff_message(tenv, await order(tenv, placed.id))
+        assert views.gift_card_reveal_id(placed.id) in control_ids(record)  # the record was refreshed
+    finally:
+        await tenv.close()
+
+
+async def test_an_edited_message_with_a_code_is_removed_too(gc: TestEnv) -> None:
+    customer, placed, _ = await _placed(gc)
+    ch = gc.guild.get_channel(int(await gc.app.db.run(_ticket_channel, placed.ticket_id or 0)))
+    message = ch.add_user_message(customer, "hello")  # type: ignore[union-attr]
+    message.content = f"oops {CODE}"
+    await gift_cards.on_message_edit(gc.app, message, message)
+    assert message.deleted

@@ -250,8 +250,10 @@ reminders, Owner alerts, Customer role) and `docs/features/catalog.md`.
   the payment instructions they press **Submit gift card** and enter the code, the PIN (if the card has one) and the
   card's amount in a private form; several cards may pay one order. Once the cards cover the total the order is
   placed (`payment_submitted`) and the payment staff press **Reveal gift card** on the record (a private reply with
-  the codes, spoiler-hidden), redeem the cards in the shop's account and press **Payment confirmed**, or **Card
-  problem** with the reason the customer is shown (the order then waits for payment again). Value beyond the total,
+  the codes, spoiler-hidden, and the values the customer declared), redeem the cards in the shop's account, check each
+  card's value and press **Payment confirmed**, or **Card problem** with the reason the customer is shown (the order
+  then waits for payment again). A placed order cannot be rejected or cancelled while its cards wait: decide on the
+  cards first. Value beyond the total,
   or cards redeemed for an order that is cancelled afterwards, becomes the customer's store credit.
 - `"manual"`: shows your configured payment instructions (`checkout.payment.manual.*`) and lets staff confirm
   payment.
@@ -265,7 +267,7 @@ details.
 |---|---|---|
 | `buy_url` | `https://www.doordash.com/gift-cards/` | The **Buy a gift card** link button under the instructions (empty: no button). |
 | `staff_roles` | `["owner"]` | Roles (keys) that may reveal codes and confirm or refuse gift card payments; owners and admins always may. Other staff see the cards on the record (amount, last characters, state) but never a code. |
-| `max_cards` | 5 | Cards one order may be paid with (1-10). |
+| `max_cards` | 5 | Cards one order may be paid with (1-5: the reveal reply has a redeemed and a problem button per card). |
 | `keep_days` | 7 | A code nobody decided on is deleted after this many days (the card stays listed; staff use Card problem). |
 | `chat_guard` | true | Delete a customer's message in their order ticket when it looks like a gift card code, and tell them privately to use the form (needs `bot.message_content_intent`). |
 

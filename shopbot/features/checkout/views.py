@@ -35,7 +35,6 @@ from discord.utils import escape_markdown
 from shopbot.config.banner_ids import BannerId
 from shopbot.config.content import MissingContent
 from shopbot.config.settings import Settings
-from shopbot.core.money import format_amount
 from shopbot.features import core_keys as core
 from shopbot.features.catalog import content_keys as catalog_keys
 from shopbot.features.catalog import views as catalog_views
@@ -43,7 +42,7 @@ from shopbot.features.catalog.repo import Product
 from shopbot.features.checkout import content_keys as k
 from shopbot.features.checkout import flow, gift_card_store
 from shopbot.features.checkout import models as m
-from shopbot.features.checkout.order_money import Money, currency_digits, order_money
+from shopbot.features.checkout.order_money import Money, order_money
 from shopbot.features.checkout.payments import PaymentInstructions, gift_card
 from shopbot.features.credits import repo as credits_repo
 from shopbot.features.tickets import views as tickets_views
@@ -1494,7 +1493,7 @@ def staff_buttons(ui: Ui, order: m.Order, *, staff_confirms_payment: bool, credi
         ]
     elif status in m.UNPAID_STATUSES and staff_confirms_payment:
         buttons.append(action(m.PAID, k.STAFF_BUTTON_MARK_PAID, "success"))
-    if status in m.UNPAID_STATUSES:
+    if status in m.TRANSITIONS[m.REJECTED]:
         buttons.append(action(m.REJECTED, k.STAFF_BUTTON_REJECT, "danger"))
     if status == m.PAID:
         buttons.append(action(m.PROCESSING, k.STAFF_BUTTON_PROCESSING, "primary"))
@@ -1598,12 +1597,9 @@ def status_notification(ui: Ui, settings: Settings, view: m.OrderView, status: s
 
 
 def gift_card_modal(ui: Ui, settings: Settings, order: m.Order, *, remaining_minor: int) -> ModalSpec:
-    """The private gift card form: the code, the PIN (optional) and the card's amount, prefilled with what is still
-    to pay (written without the currency so it can be read back)."""
-    c = settings.checkout
-    plain = format_amount(
-        remaining_minor, currency_digits(settings, order.currency), c.decimal_separator, c.thousands_separator
-    )
+    """The private gift card form: the code, the PIN (optional) and the card's full value. The value is never
+    prefilled: a customer with a larger card would declare less than it holds (the hint shows what is still to
+    pay)."""
     remaining = order_money(ui, settings, order.currency)(remaining_minor)
     return ModalSpec(
         custom_id=payment_form_submit_id(order.id),
@@ -1627,7 +1623,6 @@ def gift_card_modal(ui: Ui, settings: Settings, order: m.Order, *, remaining_min
                 custom_id=gift_card.AMOUNT_INPUT,
                 label=_text(ui, gift_card.AMOUNT_LABEL),
                 placeholder=_optional(ui, gift_card.AMOUNT_HINT, remaining=remaining),
-                default=plain if remaining_minor > 0 else None,
                 max_length=gift_card.AMOUNT_MAX_LENGTH,
             ),
         ),

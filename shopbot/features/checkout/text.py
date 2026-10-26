@@ -128,8 +128,10 @@ OPERATOR_TEXT: dict[str, str] = {
     # gift card payments (payments.provider = "gift_card"; staff with payments.gift_card.staff_roles only)
     "checkout.gift.reveal.title": "Gift cards · order #{number}",
     "checkout.gift.reveal.intro": (
-        "Redeem the cards now in the shop's account, then press **Payment confirmed** on the order record (or "
-        "**Card problem**). The codes are deleted as soon as you decide. Do not copy them anywhere else."
+        "Redeem the cards now in the shop's account and check that each card's value matches the amount shown (that "
+        "amount counts toward the order, and anything beyond the total becomes the customer's store credit). Then "
+        "press **Payment confirmed** on the order record, or **Card problem** for a card that is used, worth less "
+        "or not accepted. The codes are deleted as soon as you decide. Do not copy them anywhere else."
     ),
     "checkout.gift.reveal.card": "Card {index} · {amount} · ending {last4}",
     "checkout.gift.reveal.code": "Code: ||`{code}`||",

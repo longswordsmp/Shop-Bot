@@ -1844,11 +1844,11 @@ checkout.payment.gift_card.title = "{icon_gift} HOW TO PAY"
 
 # Label of the card amount input.
 # input_label · max 45 characters · required
-checkout.payment.gift_card.form.amount_label = "Card amount"
+checkout.payment.gift_card.form.amount_label = "Full value of the card"
 
 # Optional hint in the amount input; {remaining} is what is still to pay.
 # input_placeholder · max 100 characters · optional · placeholders: {remaining}
-checkout.payment.gift_card.form.amount_placeholder = "For example {remaining}"
+checkout.payment.gift_card.form.amount_placeholder = "The amount on the card, for example {remaining}"
 
 # Label of the gift card code input.
 # input_label · max 45 characters · required

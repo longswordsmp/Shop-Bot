@@ -1192,8 +1192,9 @@ def transition(
       cancelled;
     - paid/processing -> cancelled: nothing is restocked, refunded or returned automatically - neither money nor the
       applied store credit; staff decide with the refund controls (``record_refund``, ``return_order_credit``);
-    - gift cards: -> paid counts the cards still waiting as redeemed; an unpaid order that ends gives up its waiting
-      cards; either way the codes are deleted and redeemed value the order does not use becomes store credit;
+    - gift cards: an order paid another way, or ending unpaid, gives up the cards still waiting (codes deleted);
+      redeemed value the order does not use becomes store credit. payment_submitted -> paid is refused while cards
+      wait (``gift_card_repo.decide_cards`` decides on them first);
     - leaving pending_payment cancels the payment reminder/expiry tasks;
     - the follow-up task ``checkout.after_transition:<order_id>:<to>`` is scheduled (see the module docstring).
     """
@@ -1228,10 +1229,14 @@ def transition(
             "UPDATE payments SET status = 'succeeded', updated_at = ? WHERE order_id = ? AND status = 'pending'",
             (now, order_id),
         )
-        # Staff confirmed the payment: gift cards still waiting count as redeemed; value beyond the total is credit.
+        # A placed order is paid through the decision on its cards (gift_card_repo.decide_cards), never around it.
+        if before.status == m.PAYMENT_SUBMITTED and gift_cards.totals(conn, order_id).waiting:
+            raise ValueError(f"order {order_id}: decide on its waiting gift cards first")
+        # Paid another way while waiting for payment: cards nobody could reveal yet are not used (codes deleted).
         gift_cards.decide(
-            conn, order_id, card_ids=None, status=gift_cards.REDEEMED, reason=None, actor_id=actor_id, now=now
+            conn, order_id, card_ids=None, status=gift_cards.WITHDRAWN, reason=None, actor_id=actor_id, now=now
         )
+        # Redeemed value beyond the total becomes the customer's store credit.
         _credit_gift_cards(conn, before, gift_cards.totals(conn, order_id).redeemed_minor - before.total_minor, now)
     elif before.status in m.UNPAID_STATUSES and to in (m.REJECTED, m.CANCELLED, m.EXPIRED):
         _settle_reservations(conn, order_id, m.RESERVATION_RELEASED, now)

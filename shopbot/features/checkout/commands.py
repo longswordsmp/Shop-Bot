@@ -106,6 +106,11 @@ async def order_status(interaction: discord.Interaction[Any], number: int, new_s
     if new_status == m.PAID and gift_card_order and not gift_cards.can_handle(app, member, interaction.user.id):
         await _send(interaction, app, staff.OpReply(app.op("checkout.gift.no_permission"), "warning"))
         return
+    if new_status == m.PAID and gift_cards.awaits_decision(order):
+        # Like Payment confirmed: the waiting cards were redeemed; paid only if they cover the total.
+        reply = await gift_cards.decide(app, order, actor_id=interaction.user.id, redeemed=True, reason=None)
+        await _send(interaction, app, reply)
+        return
     await _send(interaction, app, await staff.change_status(app, order, new_status, actor_id=interaction.user.id))
 
 

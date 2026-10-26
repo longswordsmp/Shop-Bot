@@ -533,6 +533,8 @@ Feature `checkout` — enabled.
 | | Key | Where it appears | Kind (max chars) | Required | Placeholders |
 |---|---|---|---|---|---|
 | ✅ | `checkout.button.cancel_order` | Button under a submitted order that lets the customer cancel it while it is not paid yet. | button_label (80) | required |  |
+| ✅ | `checkout.button.cancel_yes` | Button of the cancel question (an unfinished order or an unpaid one) that cancels it. | button_label (80) | required |  |
+| ✅ | `checkout.button.keep_order` | Button of the cancel question that keeps the order and goes back to it. | button_label (80) | required |  |
 | ✅ | `checkout.cancel_confirm.description` | Question asking the customer to confirm cancelling an unfinished order (shared confirm/cancel buttons). | description (4096) | required |  |
 | ✅ | `checkout.cancel_confirm.title` | Optional title of the question asking the customer to confirm cancelling an unfinished order. | title (256) | optional |  |
 | ✅ | `checkout.cancelled.description` | Text of the workflow message after the customer cancelled an unfinished order. Also used after staff closed the ticket of an unfinished order (/ticket close) when checkout.staff_closed.description is empty. | description (4096) | required |  |
@@ -1189,7 +1191,7 @@ Feature `operations` — enabled.
 
 ## Summary
 
-- Required keys (for the listed features): 430
+- Required keys (for the listed features): 432
 - Required keys still missing: 0
 
 Legend: ✅ configured · ❌ required and missing · ▫️ optional and empty

@@ -78,8 +78,14 @@
   next to the database with owner-only permissions. A key file on the same volume as the database protects backups
   and database copies that leave the volume, not someone with access to the volume itself; set `GIFT_CARD_KEY` to
   keep them apart. `/backup` copies the database, never the key.
-- A customer's message in their order ticket that looks like a gift card code (or a card number) is deleted and the
-  customer is told privately to use the form (`chat_guard`); staff messages are never touched.
+- A customer's message in their order ticket that looks like a gift card code (or a card number), also after an
+  edit, is deleted and the customer is told privately to use the form (`chat_guard`); staff messages, links and
+  mentions are never treated as codes. It needs `bot.message_content_intent`.
+- To tell cards apart, the customer's ticket and the order record show a card's last 4 characters (codes have at
+  least 10 letters and digits).
+- Money is never lost to a decision: a placed order (`payment_submitted`) is never rejected or cancelled while its
+  cards wait (staff may have redeemed a revealed card), and redeemed cards of an order that ends unpaid become store
+  credit. The value counted is the one the customer declared; staff check it while redeeming.
 - Payment integrations are behind a provider interface; any future provider must use the provider's hosted
   checkout or payment links and verify payment server-side (e.g. signed webhooks), never trust a user's claim.
 

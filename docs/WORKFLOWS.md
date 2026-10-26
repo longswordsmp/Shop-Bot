@@ -87,8 +87,10 @@ After submit: the customer sees your payment instructions; staff get a control m
 
 ```
 pending_payment   -> payment_submitted | paid | rejected | cancelled | expired
-payment_submitted -> pending_payment | paid | rejected | cancelled
-                     (gift cards cover the total; staff redeem them, or refuse a card and the order waits again)
+payment_submitted -> pending_payment | paid
+                     (gift cards cover the total; it leaves only through a decision on its cards: redeemed cards
+                     covering the total make it paid, otherwise it waits for payment again. It is never rejected or
+                     cancelled while cards wait, because staff may have redeemed a revealed card: Card problem first)
 paid              -> processing | shipped | fulfilled | cancelled | refunded
 processing        -> shipped | fulfilled | cancelled | refunded
 shipped           -> fulfilled | refunded                (carrier and tracking number recorded)
@@ -133,9 +135,11 @@ form: code, optional PIN, the card's amount, prefilled with what is still to pay
 is sealed before it is stored; the order view lists the cards received and what is still to pay. When the cards
 cover the total the order becomes `payment_submitted`: the customer gets "Order placed" (ticket and DM), the payment
 staff get an alert, and the record shows **Reveal gift card**, **Payment confirmed** and **Card problem**. Reveal is
-a private reply with the waiting codes (with several cards: a redeemed / problem button per card). Payment confirmed
-makes the order paid; Card problem asks for the reason, which the customer is shown, and the order waits for payment
-again (its payment expiry, when on, starts again). Codes are deleted on every decision, when the order ends unpaid,
+a private reply with the waiting codes and their declared values, which staff check while redeeming (with several
+cards: a redeemed / problem button per card). Payment confirmed marks the waiting cards redeemed: the order is paid
+when the redeemed cards cover the total, otherwise it waits for the rest. Card problem asks for the reason, which the
+customer is shown, and the order waits for payment again (its payment expiry, when on, starts again). An order
+staff mark paid while it still waits for payment (paid another way) gives up the cards nobody could reveal yet. Codes are deleted on every decision, when the order ends unpaid,
 and after `keep_days`. Value beyond the total, or cards redeemed for an order cancelled afterwards, becomes store
 credit.
 

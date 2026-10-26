@@ -327,3 +327,4 @@ def register(app: App) -> None:
     app.scheduler.register(gift_cards.TASK_ERASE, gift_cards.erase_task)
     app.bot.add_listener("guild_channel_delete", partial(on_channel_delete, app))
     app.bot.add_listener("message", partial(gift_cards.on_message, app))
+    app.bot.add_listener("message_edit", partial(gift_cards.on_message_edit, app))

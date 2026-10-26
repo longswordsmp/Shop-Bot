@@ -460,11 +460,12 @@ def _chunks(lines: list[str], limit: int = 1024) -> list[str]:
 # -- rendering (staff side: the order record; never a code) -------------------------------------------------------
 
 
-def record_field(ui: Ui, settings: Settings, order: Order, cards: tuple[store.GiftCard, ...]) -> EmbedField | None:
-    """The cards on the order record (None while there is none, or when the gift card texts are not registered)."""
+def record_fields(ui: Ui, settings: Settings, order: Order, cards: tuple[store.GiftCard, ...]) -> list[EmbedField]:
+    """The cards on the order record, split into fields of at most 1024 characters (refusal reasons can be long);
+    empty while there is none, or when the gift card texts are not registered."""
     name = ui.text(RECORD_FIELD) if RECORD_FIELD in ui.content.registry else None
     if not cards or not name:
-        return None
+        return []
     fmt = order_money(ui, settings, order.currency)
     lines = []
     for index, card in enumerate(cards, start=1):
@@ -478,7 +479,7 @@ def record_field(ui: Ui, settings: Settings, order: Order, cards: tuple[store.Gi
     total = ui.text(RECORD_TOTAL, covered=fmt(covered), total=fmt(order.total_minor))
     if total:
         lines.append(total)
-    return EmbedField(name, "\n".join(lines)) if lines else None
+    return [EmbedField(name, chunk) for chunk in _chunks(lines)]
 
 
 def _record_state(ui: Ui, card: store.GiftCard) -> str:
