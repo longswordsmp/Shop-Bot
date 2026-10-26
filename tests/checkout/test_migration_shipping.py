@@ -52,25 +52,18 @@ def _before(conn: sqlite3.Connection) -> None:
 
 
 TABLES = ("orders", "order_items", "order_events", "order_handling", "reviews")
-# Columns added by this migration (the shipment) and by later ones (0013: the discount code of an order).
-ADDED_LATER = (
-    "carrier",
-    "tracking_number",
-    "tracking_url",
-    "shipped_at",
-    "discount_code_id",
-    "discount_code",
-    "discount_kind",
-    "discount_minor",
-)
 
 
-def _snapshot(conn: sqlite3.Connection) -> dict[str, list[tuple[object, ...]]]:
+def _columns(conn: sqlite3.Connection) -> dict[str, list[str]]:
+    """The columns of each table now: the snapshot after the migrations compares only these (this migration and later
+    ones add columns, e.g. the shipment, the discount code and the tip of an order)."""
+    return {table: [r[1] for r in conn.execute(f"PRAGMA table_info({table})")] for table in TABLES}
+
+
+def _snapshot(conn: sqlite3.Connection, columns: dict[str, list[str]]) -> dict[str, list[tuple[object, ...]]]:
     out: dict[str, list[tuple[object, ...]]] = {}
     for table in TABLES:
-        columns = [r[1] for r in conn.execute(f"PRAGMA table_info({table})")]
-        kept = [c for c in columns if c not in ADDED_LATER]
-        rows = conn.execute(f"SELECT {', '.join(kept)} FROM {table} ORDER BY rowid")
+        rows = conn.execute(f"SELECT {', '.join(columns[table])} FROM {table} ORDER BY rowid")
         out[table] = [tuple(r) for r in rows]
     return out
 
@@ -78,10 +71,11 @@ def _snapshot(conn: sqlite3.Connection) -> dict[str, list[tuple[object, ...]]]:
 def test_the_rebuild_keeps_every_order_and_every_row_that_refers_to_one() -> None:
     conn = _connect()
     _before(conn)
-    before = _snapshot(conn)
+    columns = _columns(conn)
+    before = _snapshot(conn, columns)
     assert all(before[table] for table in TABLES)
     apply_migrations(conn, migrations=discover())
-    assert _snapshot(conn) == before  # nothing lost, nothing changed, nothing cascaded
+    assert _snapshot(conn, columns) == before  # nothing lost, nothing changed, nothing cascaded
     assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
     assert conn.execute("PRAGMA foreign_keys").fetchone()[0] == 1  # switched back on
     # The new statuses are accepted, an unknown one still is not.
@@ -117,4 +111,5 @@ def test_the_shipment_columns_are_checked() -> None:
 
 def test_only_marked_migrations_run_with_foreign_keys_off() -> None:
     marked = [m.name for m in discover() if FOREIGN_KEYS_OFF in m.path.read_text(encoding="utf-8").splitlines()[:5]]
-    assert marked == ["order_shipping_statuses", "gift_cards", "discounts"]
+    # 0015 rebuilds the reviews table (/review writes reviews without an order); 0014 (tips) only adds columns.
+    assert marked == ["order_shipping_statuses", "gift_cards", "discounts", "reviews_command"]

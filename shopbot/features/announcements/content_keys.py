@@ -4,8 +4,10 @@ An announcement's title, message and field values are typed by staff when they p
 configuration). The configured wording is the heading of each configured extra field, ``announcements.field.<id>.name``
 (required for every ``[[announcements.fields]]`` entry), the texts of each preset (``announcements.preset.<id>.*``,
 required for every ``[[announcements.presets]]`` entry: title and description, plus the claim button's label and its
-"offer ended" label when the preset has a coupon), and the shared branding footer/author line. Everything staff see
-while publishing (the form, the preset preview, confirmations, errors) is operator text.
+"offer ended" label when the preset has a coupon), and the shared branding footer/author line. A preset's title and
+description may use ``{excluded_areas}``, the areas we do not ship to (``[shipping.excluded_areas]``, written as
+#shipping writes them). Everything staff see while publishing (the form, the preset preview, confirmations, errors) is
+operator text.
 """
 
 from __future__ import annotations
@@ -20,6 +22,12 @@ PRESET_DESCRIPTION = "description"
 PRESET_CLAIM_BUTTON = "claim_button"
 PRESET_ENDED_BUTTON = "ended_button"
 COUPON_PLACEHOLDER = "coupon"  # a preset's description: the code of its coupon
+# A preset's title and description: the areas we do not ship to ("Alaska and North Dakota"; ``presets.area_text``).
+EXCLUDED_AREAS_PLACEHOLDER = "excluded_areas"
+AREAS_DOC = (
+    "{excluded_areas} is the list of areas we do not ship to right now, from [shipping.excluded_areas] and written as "
+    "#shipping writes them (e.g. 'Alaska and North Dakota')."
+)
 
 
 def field_name_key(field_id: str) -> str:
@@ -41,7 +49,9 @@ def preset_keys(settings: Settings, preset: AnnouncementPreset) -> list[ContentK
             Kind.TITLE,
             ANNOUNCEMENTS,
             group,
-            f"Title of {where}, posted in the '{settings.announcements.channel}' channel. Plain text (no icons).",
+            f"Title of {where}, posted in the '{settings.announcements.channel}' channel. Plain text (no icons). "
+            + AREAS_DOC,
+            placeholders=(EXCLUDED_AREAS_PLACEHOLDER,),
         ),
         ck(
             preset_key(preset.id, PRESET_DESCRIPTION),
@@ -55,8 +65,11 @@ def preset_keys(settings: Settings, preset: AnnouncementPreset) -> list[ContentK
                 "review step'."
                 if preset.coupon
                 else ""
-            ),
-            placeholders=channel_placeholders(settings) + ((COUPON_PLACEHOLDER,) if preset.coupon else ()),
+            )
+            + f" {AREAS_DOC}",
+            placeholders=channel_placeholders(settings)
+            + ((COUPON_PLACEHOLDER,) if preset.coupon else ())
+            + (EXCLUDED_AREAS_PLACEHOLDER,),
         ),
     ]
     if preset.coupon:

@@ -171,6 +171,11 @@ def test_preset_content_keys() -> None:
     assert keys[preset_key("sale", "ended_button")].kind is Kind.BUTTON_LABEL
     description = keys[preset_key("sale", "description")]
     assert description.kind is Kind.DESCRIPTION and "channel_catalog" in description.placeholders
+    # Every preset's title and text may name the areas we do not ship to; only a coupon's preset has {coupon}.
+    assert keys[preset_key("news", "title")].placeholders == ("excluded_areas",)
+    assert {"coupon", "excluded_areas"} <= set(description.placeholders)
+    news = keys[preset_key("news", "description")].placeholders
+    assert "excluded_areas" in news and "coupon" not in news
 
 
 def test_settings_problems_check_references() -> None:

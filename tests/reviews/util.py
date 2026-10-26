@@ -193,8 +193,9 @@ def is_ephemeral(interaction: FakeInteraction) -> bool:
 
 
 def review_command(app: App, name: str) -> Any:
+    """A subcommand of the staff group /reviews."""
     assert app.bot is not None
-    group = app.bot.tree.get_command("review", guild=app.guild_object)
+    group = app.bot.tree.get_command("reviews", guild=app.guild_object)
     assert isinstance(group, discord.app_commands.Group)
     command = group.get_command(name)
     assert isinstance(command, discord.app_commands.Command)
@@ -204,7 +205,7 @@ def review_command(app: App, name: str) -> Any:
 async def invoke(
     tenv: TestEnv, user: FakeMember, name: str, *, app: App | None = None, **kwargs: Any
 ) -> FakeInteraction:
-    """Run /review <name> like Discord would: checks first (errors go to the tree handler), then the callback."""
+    """Run /reviews <name> like Discord would: checks first (errors go to the tree handler), then the callback."""
     app = app or tenv.app
     command = review_command(app, name)
     interaction = FakeInteraction(
@@ -251,5 +252,11 @@ async def restarted_app(tenv: TestEnv) -> App:
     return app
 
 
-def published_title(tenv: TestEnv, *, rating: int, user_name: str, number: int) -> str:
-    return rendered(tenv, k.PUBLISHED_TITLE, rating=rating, user_name=user_name, order_number=number_text(tenv, number))
+def published_title(tenv: TestEnv, *, rating: int, scale: int = 5) -> str:
+    """The published title of a review with ``rating`` (it never names the member)."""
+    return rendered(tenv, k.PUBLISHED_TITLE, stars="★" * rating + "☆" * (scale - rating), rating=rating, scale=scale)
+
+
+def label(tenv: TestEnv, review: repo.Review) -> str:
+    """How staff replies name ``review`` (operator text)."""
+    return service.review_label(tenv.app, review)

@@ -4,7 +4,9 @@
 Flow:
 
 1. ``open_preview`` (the slash command with ``preset``): checks the options (image, mention), the channel, the
-   preset's texts and channel links and, for a preset with a coupon, that the coupon can be claimed now (discount codes
+   preset's texts and channel links, that something is excluded when its texts show ``{excluded_areas}`` (the areas
+   we do not ship to, read from ``[shipping.excluded_areas]`` at every preview and Post: ``area_text``) and, for a
+   preset with a coupon, that the coupon can be claimed now (discount codes
    on, the code exists and is not ended, expired or used up, and this preset did not announce it already). The staff
    member gets two private messages: the announcement exactly as it will be posted (its claim button disabled) and a
    card with the channel, the mention and the coupon's terms in plain words. With a problem the card says what to fix
@@ -46,14 +48,17 @@ from shopbot.core.scheduler import PermanentTaskError
 from shopbot.db.repos.tasks import Task
 from shopbot.features.announcements import repo, service, views
 from shopbot.features.announcements.content_keys import (
+    EXCLUDED_AREAS_PLACEHOLDER,
     PRESET_DESCRIPTION,
     PRESET_ENDED_BUTTON,
+    PRESET_TITLE,
     preset_key,
 )
 from shopbot.features.announcements.repo import Announcement, ImageRef
 from shopbot.features.announcements.service import AttachmentLike, Problem
 from shopbot.features.checkout import discount_codes, discount_repo
 from shopbot.features.checkout import discounts as d
+from shopbot.features.guides import common, shipping
 from shopbot.features.server_keys import channel_placeholder
 from shopbot.logging_setup import log_event
 from shopbot.ui.discord_render import to_view
@@ -66,6 +71,7 @@ log = logging.getLogger(__name__)
 
 OFFER_ENDED_TASK = "announcements.offer_ended"
 CHECKOUT = "checkout"
+NOTHING_EXCLUDED = "nothing_excluded"  # the problem of a preset showing {excluded_areas} while nothing is excluded
 _CHANNEL_LINK = re.compile(r"\{(channel_[a-z0-9_]+)\}")
 CHOICES_MAX = 25
 
@@ -108,15 +114,33 @@ def links(app: App) -> dict[str, str]:
     return values
 
 
+def area_text(app: App) -> str:
+    """``{excluded_areas}``: the areas we do not ship to, read from ``[shipping.excluded_areas]`` and written as
+    #shipping writes them ("Alaska and North Dakota"), so the announcement always matches #shipping and the address
+    step. "" when nothing is excluded. Raises ``MissingContent`` when the joining text #shipping uses is not set."""
+    return shipping.excluded_areas_text(common.Texts(app.content, {}), app.settings.shipping)
+
+
+def uses_areas(app: App, preset: AnnouncementPreset) -> bool:
+    """Whether the preset's title or text shows ``{excluded_areas}``."""
+    placeholder = "{" + EXCLUDED_AREAS_PLACEHOLDER + "}"
+    keys = (preset_key(preset.id, PRESET_TITLE), preset_key(preset.id, PRESET_DESCRIPTION))
+    return any(placeholder in (app.content.get(key) or "") for key in keys)
+
+
 def text_problems(app: App, preset: AnnouncementPreset, values: dict[str, str]) -> list[Problem]:
-    """The preset's channel links whose channel does not exist (the text would show a blank instead of a link)."""
+    """The preset's channel links whose channel does not exist (the text would show a blank instead of a link), and
+    ``{excluded_areas}`` while nothing is excluded (the announcement would be about nothing)."""
     known = {channel_placeholder(channel.key) for channel in app.settings.server.channels}
     template = app.content.get(preset_key(preset.id, PRESET_DESCRIPTION)) or ""
     missing = sorted({name for name in _CHANNEL_LINK.findall(template) if name in known and name not in values})
-    return [
+    problems = [
         Problem(app.op("announcements.preset.link_missing", channel=name.removeprefix("channel_")), "link_missing")
         for name in missing
     ]
+    if uses_areas(app, preset) and not any(app.settings.shipping.excluded_areas.values()):
+        problems.append(Problem(app.op("announcements.preset.nothing_excluded"), NOTHING_EXCLUDED, retryable=False))
+    return problems
 
 
 def create_command(app: App, preset: AnnouncementPreset) -> str:
@@ -207,6 +231,7 @@ def _announcement(
             preset,
             links=values,
             code_id=code.id if code is not None else None,
+            excluded_areas=area_text(app),
             preview=preview,
             image=image,
             image_url=image_url,
@@ -279,7 +304,9 @@ async def open_preview(
     else:
         too_long = service.limit_problems(app, copy)
         problems += too_long
-        shown = None if too_long else copy
+        # With nothing excluded the copy would name no area: only the card is shown.
+        empty = any(p.code == NOTHING_EXCLUDED for p in problems)
+        shown = None if too_long or empty else copy
     terms = await discount_codes.terms_text(app, code) if code is not None else None
     facts = views.preset_facts(
         op,
@@ -303,7 +330,8 @@ async def open_preview(
     await app.db.transaction(
         _tx_create, app.env.guild_id, token, actor_id, mention_key, image_ref, chosen.id, code_id, app.clock.now()
     )
-    return Preview(shown, views.preset_preview_reply(op, name=chosen.name, facts=facts, token=token))
+    card = views.preset_preview_reply(op, name=chosen.name, facts=facts, token=token, has_button=bool(chosen.coupon))
+    return Preview(shown, card)
 
 
 def _tx_create(
@@ -395,11 +423,13 @@ async def _post(
         problems.append(texts)
 
     def build(image: FileSpec | None, role_id: int | None) -> MessageSpec:
+        # Only called once the texts above were built, so the areas' text is set.
         return views.preset_announcement(
             app.ui,
             preset,
             links=values,
             code_id=code.id if code is not None else None,
+            excluded_areas=area_text(app),
             image=image,
             mention_role_id=role_id,
         )

@@ -220,7 +220,9 @@ class FakeAttachment:
         self.id = next_id()
         self.filename = filename
         self.url = url
-        self.size = 1
+        # An uploaded file's attachment has its size in bytes (as Discord reports it); others a placeholder size.
+        data = getattr(file.fp, "getvalue", None) if file is not None else None
+        self.size = len(data()) if callable(data) else 1
         self.content_type = None
         self.file = file  # the uploaded file this attachment came from (bot messages)
 
@@ -990,16 +992,33 @@ async def submit_modal(
     channel: Any = None,
     guild: FakeGuild | None = None,
     dm: bool = False,
+    uploads: dict[str, Iterable[Any]] | None = None,
 ) -> FakeInteraction:
-    """Simulate a form submission routed like production (on_interaction → Router.dispatch)."""
-    from shopbot.ui.routing import parse_modal_fields
+    """Simulate a form submission routed like production (on_interaction → Router.dispatch). ``uploads``: the files of
+    each file upload field (objects with ``filename``, ``url``, ``size`` and ``content_type``), sent like Discord sends
+    them (attachment ids in the field, the files in ``resolved.attachments``)."""
+    from shopbot.ui.routing import parse_modal_fields, parse_modal_uploads
 
-    data = {
-        "custom_id": custom_id,
-        "components": [
-            {"type": 18, "component": {"type": 4, "custom_id": key, "value": value}} for key, value in fields.items()
-        ],
-    }
+    components: list[dict[str, Any]] = [
+        {"type": 18, "component": {"type": 4, "custom_id": key, "value": value}} for key, value in fields.items()
+    ]
+    attachments: dict[str, dict[str, Any]] = {}
+    for key, files in (uploads or {}).items():
+        ids: list[str] = []
+        for file in files:
+            file_id = str(next_id())
+            attachments[file_id] = {
+                "id": file_id,
+                "filename": file.filename,
+                "url": file.url,
+                "size": file.size,
+                "content_type": file.content_type,
+            }
+            ids.append(file_id)
+        components.append({"type": 18, "component": {"type": 19, "custom_id": key, "values": ids}})
+    data: dict[str, Any] = {"custom_id": custom_id, "components": components}
+    if attachments:
+        data["resolved"] = {"attachments": attachments}
     bot = app.bot
     interaction = FakeInteraction(
         client=bot,
@@ -1010,7 +1029,9 @@ async def submit_modal(
         type=discord.InteractionType.modal_submit,
         data=data,
     )
-    await app.router.dispatch(interaction, custom_id, kind="modal", fields=parse_modal_fields(data))
+    await app.router.dispatch(
+        interaction, custom_id, kind="modal", fields=parse_modal_fields(data), uploads=parse_modal_uploads(data)
+    )
     return interaction
 
 

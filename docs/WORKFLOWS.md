@@ -69,7 +69,7 @@ workflow message that is edited in place for every step.
 
 **Steps:** browse (paginated product menu → quantity form) → cart (edit quantities, minimum order) → fulfillment
 (only if options are configured) → details (only if forms are configured; split over two forms when more than five
-fields) → review (items, discount code, fees, fulfillment fee, store credit, total) → submit. Back/Continue/Cancel
+fields) → review (items, discount code, fees, fulfillment fee, tip, store credit, total) → submit. Back/Continue/Cancel
 move between steps; Continue is disabled until the step is complete.
 
 **Discount codes** (review step, `checkout.discount_codes`; codes are made with `/discount`): **Add discount code**
@@ -84,14 +84,20 @@ A code that stops applying while the order is put together (the cart changed, it
 applied" in the summary and its reason under the total, and the total is without it. The rules (buy one get one free
 pairs, product limits, how uses are counted) are in `docs/DECISIONS.md` §11e.
 
+**Tips** (review step, `[checkout.tips]`): a menu on its own row after the store credit and discount buttons, above
+Back / Confirm order / Cancel ("Add a tip for our team (optional)": No tip, the listed amounts, Other amount, which
+opens a private form for an amount from $1.00 up to `max_minor`). The chosen tip shows as selected and as "Tip for our
+team · $X" in the summary after the extras and fees; the card's last line says tips are optional and 100% of every tip
+goes to our team. The tip is paid with the order (`docs/DECISIONS.md` §11g).
+
 **Totals** (one function for display and charging): subtotal = Σ unit price × quantity; discount (from the discount
 code, at most the items); fulfillment fee; each fee (flat, or percent of the items after the discount, rounded half
-up); credits = min(balance, total) when applied; total = subtotal − discount + fees − credits. Integer minor units
-throughout.
+up); tip (never discounted, no percent fee on it); credits = min(balance, total) when applied; total = subtotal −
+discount + fees + tip − credits. Integer minor units throughout.
 
 **Submit** (one atomic transaction): the total in the button must match a fresh recomputation (else the review is
-shown again with your price-changed text; a discount code that expired, ended or was used up since the review changes
-the total this way); every product must still be available; stock is reserved for every line (all or nothing —
+shown again with your price-changed text; a discount code that expired, ended or was used up since the review, or a
+tip that is no longer offered, changes the total this way); every product must still be available; stock is reserved for every line (all or nothing —
 concurrent customers cannot oversell); credits are debited; the order (number, items, fees, discount code and amount,
 reservations, payment record, history) is written. A duplicate submit returns the same order.
 
@@ -174,7 +180,13 @@ enforced unique per order by the database.
 After an order is fulfilled (and after `reviews.prompt_delay_minutes`), the customer receives a prompt (DM, order
 channel, or DM with channel fallback) with a rating menu and a decline button. Choosing a rating opens a comment
 form when comments are allowed; the review is then posted in `reviews.channel`. One review per order; failed
-publications are retried until they succeed. Staff can list, remove, or resend with `/review`.
+publications are retried until they succeed. Any member can also write one with the **Write a review** button of the
+#reviews intro panel (a private stars menu, then a private form for the description and an optional photo upload) or
+with `/review` where they can type (stars, an optional photo, then the form): it reviews their newest delivered order without a finished review, or else is
+an unverified review (no order; `reviews.allow_unverified`) that always waits for staff approval, at most one per
+`reviews.unverified_cooldown_days`; a review with a photo waits for approval too (`reviews.photo_requires_approval`).
+Published reviews never show the member's name. `/setup` keeps an intro panel at
+the top of #reviews. Staff list, remove, resend, approve or reject with `/reviews` (see `docs/features/reviews.md`).
 
 ## Information panels
 

@@ -200,6 +200,7 @@ OPERATOR_TEXT: dict[str, str] = {
     "checkout.stats.line.credit_refunded": (
         "Refunded as store credit: {amount} (not taken off: orders paid with store credit add nothing to the revenue)"
     ),
+    "checkout.stats.line.tips": "Tips for the team: {amount} (not in the revenue)",
     "checkout.stats.line.pending": "Waiting for payment: **{count}**",
     "checkout.stats.line.submitted": "Payment to check: **{count}**",
     "checkout.stats.line.to_ship": "To ship (paid or being prepared): **{count}**",
@@ -279,6 +280,7 @@ OPERATOR_TEXT: dict[str, str] = {
     "checkout.lookup.summary": "Summary",
     "checkout.lookup.subtotal": "Subtotal",
     "checkout.lookup.discount": "Discount ({code})",
+    "checkout.lookup.tip": "Tip for the team",
     "checkout.lookup.total": "Total",
     "checkout.lookup.refunded": "Refunded",
     "checkout.lookup.dates": "Dates",

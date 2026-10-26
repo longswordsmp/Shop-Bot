@@ -28,7 +28,9 @@ a bold heading (usually starting with one of the bot's icons, e.g. `{icon_truck}
   standard English names; the address step uses the same countries. For each country in `list_areas` (shipped:
   the US) a second card follows: "Shipping in the United States" lists all 50 states and DC one by one,
   alphabetically, in three columns, each after its dot (`{icon_dot_grey}` for the `excluded_areas`, e.g. Alaska and
-  North Dakota). Text: `shipping.areas.title` (`{country}`) and the optional `shipping.areas.introduction`.
+  North Dakota). Text: `shipping.areas.title` (`{country}`) and the optional `shipping.areas.introduction`. The
+  `shipping_areas` announcement (`/announce preset:shipping_areas`, see `announcements.md`) names the same
+  `excluded_areas` with the same names and `shipping.format.last_area`.
 
 **Clickable channel links:** introductions, step texts, answers, the closing line and information texts may
 contain `{channel_<key>}` (for example `{channel_catalog}`), which becomes a clickable `#channel` link to the

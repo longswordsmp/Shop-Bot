@@ -133,18 +133,20 @@ async def test_restart_requeues_pending_publications(rv: TestEnv) -> None:
 
 async def test_setup_publish_hook_requeues(rv: TestEnv) -> None:
     assert MODULE.publish is not None
-    assert await MODULE.publish(rv.app) == []
+    channel = reviews_channel(rv)
+    # /setup also keeps the intro panel at the top of the reviews channel (tests/reviews/test_intro.py)
+    assert await MODULE.publish(rv.app) == [rv.app.op("reviews.intro.created", channel=channel.mention)]
+    unchanged = rv.app.op("reviews.intro.unchanged", channel=channel.mention)
     customer = rv.member()
     _order, review, dm = await prompted(rv, customer)
-    channel = reviews_channel(rv)
     channel.fail_send = http_error(discord.Forbidden, 403, 50001, "Missing Access")
     await _submit(rv, customer, review, dm)
     channel.fail_send = None
     lines = await MODULE.publish(rv.app)
-    assert lines == [rv.app.op("reviews.setup.requeued", count=1)]
+    assert lines == [unchanged, rv.app.op("reviews.setup.requeued", count=1)]
     await rv.app.scheduler.run_due()
-    assert len(channel.messages) == 1
-    assert await MODULE.publish(rv.app) == []
+    assert len(channel.messages) == 2  # the intro panel, then the review
+    assert await MODULE.publish(rv.app) == [unchanged]
 
 
 async def test_concurrent_publication_posts_once(rv: TestEnv) -> None:
@@ -171,18 +173,24 @@ async def test_publish_skips_unsubmitted_reviews(rv: TestEnv) -> None:
     assert reviews_channel(rv).messages == []
 
 
-async def test_reviewer_who_left_is_named_by_their_account(rv: TestEnv) -> None:
-    user = FakeUser(name="gone_user")
-    rv.bot.extra_users[user.id] = user
-    order = await make_order(rv, user)
-    await prompt_now(rv, order)
-    (dm,) = user.dms
-    review = await review_of(rv, order)
-    await _submit(rv, user, review, dm, rating="5")
-    (post,) = reviews_channel(rv).messages
-    assert only_embed(post).title == rendered(
-        rv, k.PUBLISHED_TITLE, rating=5, user_name="gone\\_user", order_number=number_text(rv, order.number)
-    )
+async def test_published_review_never_names_the_reviewer(rv: TestEnv) -> None:
+    """Neither a member nor someone who left is named, mentioned or shown on their published review."""
+    member = rv.guild.add_member(name="ada_lovelace")
+    gone = FakeUser(name="gone_user")
+    rv.bot.extra_users[gone.id] = gone
+    for user in (member, gone):
+        order = await make_order(rv, user)
+        await prompt_now(rv, order)
+        review = await review_of(rv, order)
+        await _submit(rv, user, review, user.dms[-1], rating="5")
+        post = reviews_channel(rv).messages[-1]
+        card = only_embed(post)
+        assert card.title == rendered(rv, k.PUBLISHED_TITLE, stars="★★★★★", rating=5, scale=5)
+        shown = post.text() + post.content
+        for name in (user.name, user.display_name, str(user.id)):
+            assert name not in shown and name.replace("_", "\\_") not in shown
+        assert card.author.icon_url is None or str(user.id) not in card.author.icon_url
+        assert post.allowed_mentions is not None and post.allowed_mentions.users is False
 
 
 async def test_invalid_task_payloads_fail_permanently(rv: TestEnv) -> None:
@@ -371,6 +379,6 @@ async def test_removing_a_claimed_review_clears_its_claim(rv: TestEnv) -> None:
     _lose_answers(reviews_channel(rv), post=False)
     await _submit(rv, customer, review, dm)
     assert await _claim(rv, review.id) is not None
-    await service.remove_review(rv.app, order.number, actor_id=rv.member(staff=True).id)
+    await service.remove_review(rv.app, service.Target(order_number=order.number), actor_id=rv.member(staff=True).id)
     assert await _claim(rv, review.id) is None
     assert (await review_of(rv, order)).status == repo.DECLINED

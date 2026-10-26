@@ -55,11 +55,18 @@ PRESETS: dict[str, Any] = {
     }
 }
 DESCRIPTION = "[Dear customers] {icon_gift} [claim it below] {channel_catalog}"
+# The presets' texts, without {excluded_areas} (the shipping_areas tests cover it; nothing is excluded here).
+CONTENT = {
+    preset_key(PRESET_ID, PRESET_TITLE): "[Warehouse sale title]",
+    preset_key(PRESET_ID, PRESET_DESCRIPTION): DESCRIPTION,
+    preset_key("closed", PRESET_TITLE): "[Closed title]",
+    preset_key("closed", PRESET_DESCRIPTION): "[Closed for the holidays] {channel_catalog}",
+}
 
 
 @pytest.fixture
 async def env(tmp_path: Path) -> AsyncIterator[AnnounceEnv]:
-    announce = await announce_env(tmp_path, PRESETS, content={preset_key(PRESET_ID, PRESET_DESCRIPTION): DESCRIPTION})
+    announce = await announce_env(tmp_path, PRESETS, content=CONTENT)
     try:
         yield announce
     finally:
@@ -181,6 +188,7 @@ async def test_preview_with_a_usable_coupon(env: AnnounceEnv) -> None:
     # The card: the channel, the mention, the coupon's terms in plain words; Post announcement and Cancel.
     text = card.text()
     assert card.embeds[0].title == op(env, "announcements.preset.preview_title", name=PRESET_NAME)
+    assert op(env, "announcements.preset.preview_intro") in text  # it mentions the claim button
     assert env.channel.mention in text and f"<@&{env.alerts_role.id}>" in text
     terms = await discount_codes.terms_text(env.app, code)
     assert op(env, "announcements.preset.coupon", code="BOGO", terms=terms) in text
@@ -613,9 +621,7 @@ PRESET_BANNERS = {
 
 
 async def test_preview_states_of_the_presets(tmp_path: Path) -> None:
-    env = await announce_env(
-        tmp_path, PRESETS, content={preset_key(PRESET_ID, PRESET_DESCRIPTION): DESCRIPTION}, banners=True
-    )
+    env = await announce_env(tmp_path, PRESETS, content=CONTENT, banners=True)
     try:
         assert MODULE.preview is not None
         states = {state.name: state for state in MODULE.preview(env.app)}

@@ -50,8 +50,9 @@ specification feature lives in `docs/features/`.
   so the bot can tell an administrator what is missing *before* any content exists.
 - **Slash commands** keep the names the specification gives (`/setup`, `/announce`, `/orders`, `/order view`,
   `/myorders`, `/product ...`). Staff/admin command descriptions and option texts are technical English (Discord
-  requires them at registration, before any content can be read). The only customer command, `/myorders`, takes its
-  description from content (`my_orders.command.description`) and is not registered until it is set.
+  requires them at registration, before any content can be read). The customer commands, `/myorders` and `/review`,
+  take their descriptions from content (`my_orders.command.description`, `reviews.command.*`) and are not registered
+  until they are set.
 - **Staff-facing business messages** that are part of operations (staff alerts, the staff order control message)
   are content keys, because they are notifications the owner should word.
 - **Test fixtures** (`[t17]`-style tokens) are generated at test time and never exist in configuration files.
@@ -169,7 +170,7 @@ how you want to operate** (each is one line in `config/settings.toml`).
 | START HERE `public_readonly`; CATALOG/PURCHASE `members_readonly`; STAFF `staff` | – | Unverified users see only START HERE |
 | `permissions.admin_roles` / `owner_role` | `["owner"]` / `owner` | The Owner role is admin; `/setup` gives it to `OWNER_ID` |
 | Staff role `mentionable` / Restock Alerts `mentionable` | true / true | Alerts and #new-arrivals updates can notify those roles |
-| Staff role `permissions` | `["manage_messages"]` | Staff see the staff slash commands (`/orders`, `/order`, `/stats`, `/ticket`, `/review`, `/announce`) in Discord's picker; it also lets them delete/pin messages. `/setup` adds it and keeps the role's other permissions (`permissions_mode = "add"`). Fine-tune per command under Server Settings → Integrations; the bot's staff checks stay authoritative |
+| Staff role `permissions` | `["manage_messages"]` | Staff see the staff slash commands (`/orders`, `/order`, `/stats`, `/ticket`, `/reviews`, `/announce`) in Discord's picker; it also lets them delete/pin messages. `/setup` adds it and keeps the role's other permissions (`permissions_mode = "add"`). Fine-tune per command under Server Settings → Integrations; the bot's staff checks stay authoritative |
 | `verification.rules` | 6 | Six general community rules on #welcome (text in content.toml) |
 | `verification.dm_confirmation` | false | Confirmation only privately in Discord, no DM |
 | `verification.welcome_mention_seconds` | 30 | A new member is mentioned in #welcome and the mention is deleted 30 s later |
@@ -385,6 +386,94 @@ and deletion timers, and of course the products themselves (`/product add`).
   watched. Used up does not switch it (a use comes back when an unpaid order is cancelled). The claim button itself
   belongs to checkout (`sb:dc:claim:<id>`, part of 11e), so claiming works the same under any post.
 
+## 11g. Tips for our team at checkout
+
+- **What the owner asked for.** "Make it so you can tip our support team and that 100% of all tips go to our team."
+  The review step has a tip menu (`[checkout.tips]`: No tip, $2.00, $5.00, $10.00, Other amount from $1.00 to
+  $100.00 in a private form) and, as the card's last line, that tips are optional and "100% of every tip goes to our
+  team." The menu comes after the buttons that take money off (store credit, coupons) and says "(optional)", so the
+  step never pushes a tip.
+- **Paid with the order.** Payments are DoorDash eGift cards checked by staff per order, so a tip is added to the order
+  and paid with it: the gift card amount to pay is the total, tip included. A tip on its own, without an order, is not
+  offered yet (`docs/NEXT_STEPS.md`).
+- **The rules.** The tip is added after the extras and fees (`checkout/tips.py`, `totals.compute_totals`): a discount
+  code never applies to it, percent fees are not charged on it, and store credit may cover it like the rest. It is
+  checked again inside the transaction that creates the order: a tip that is no longer offered (tips switched off, the
+  amount no longer listed or above the maximum) counts as none, and the Confirm order button, which carries the totals
+  the customer saw, gives the existing "the total changed" review instead of an order at a price nobody saw.
+- **Stored inside the fees.** Migration 0014 adds `tip_minor` to unfinished orders and orders. An order counts its tip
+  inside `fees_minor` (`tip_minor` is its part of them, a CHECK keeps it so), so the total CHECK of 0013 holds without
+  rebuilding the orders table. Every display lists the tip on its own line ("Tip for our team"), never as a fee or an
+  extra: the review step, the order card, the live record and the full record.
+- **Refunds and /stats.** The tip was paid, so it is refunded like the rest of the order. Tips go 100% to the team, so
+  `/stats` shows them on their own line ("Tips for the team") and leaves them out of the revenue: revenue = paid
+  totals - money refunds - kept tips. A paid order keeps its tip while it still holds at least that much (paid with
+  money and store credit, minus every refund and the credit given back), else only what it holds: a refund counts
+  against the items first, never takes an order's revenue below zero, and a full refund keeps no tip. A refund of the
+  tip alone cannot be told apart from an item's (marking a refund as the tip is not offered yet). A tip paid with
+  store credit is still paid to the team, so it is taken off the revenue too (a period's revenue can then be below
+  zero).
+
+## 11h. /review for every member, anonymous reviews with a photo, and the #reviews intro
+
+- **What the owner asked for.** "Submit a review by doing /review ... it doesn't show their name but they can put in an
+  image ... their description and the amount of stars", and at the top of #reviews: since the server was redone the
+  older reviews are gone, they should come back in time, and a welcome to new customers.
+- **Two commands.** `/review` (stars, an optional photo, then a private form for the description) is now the members'
+  command; the staff tools moved to `/reviews` (same subcommands and checks). `remove`, `approve` and `reject` also
+  take a review number, because a review written without an order has no order number.
+- **Which review.** The member's newest delivered order without a finished review is reviewed (a verified review,
+  one per order, as before). Without one, an unverified review (no "Verified purchase" marker) lets returning customers
+  review again after the rebuild (`reviews.allow_unverified`, shipped on): it always waits for staff approval, even with
+  `require_approval` off, and a member writes at most one every `unverified_cooldown_days` (shipped 30; every one
+  counts, also a rejected one, so a refused review is not simply sent again).
+- **A photo is checked first.** A review sent with a photo waits for staff approval too, also a verified one with
+  `require_approval` off (`reviews.photo_requires_approval`, shipped on): any picture would otherwise appear in a
+  public channel unchecked. The option is called `photo` in Discord, as every customer text calls it, and only PNG,
+  JPEG, GIF and WebP are accepted before the form opens (the bytes are checked again when the review is sent).
+- **Anonymous.** Published reviews show the stars, the text, the photo and, for a verified review, "Verified purchase
+  / Order #N" (an order number identifies nobody to other members). `{user_name}` is no longer offered to published
+  texts: the title and the verified text, which have placeholders, refuse it in the content check; the other public
+  texts have none, so a `{user_name}` typed there would be shown as written, never filled in. The decision notices no
+  longer offer `{order_number}` (a review may have none). Staff still see who wrote a review on the staff-only
+  approval message (its order field reads "#12", so it is not mixed up with the review number in its title).
+- **The photo is stored.** Approval can take days and Discord's attachment links expire, so the picture is downloaded
+  when the review is sent and kept in the database (`review_images`, like product images: one file to back up, written
+  in the review's transaction, wiped by `/reset` with the reviews), then attached to the approval message and the
+  published review. The bytes are released once the review is published, rejected or removed (the published message
+  carries the photo from then on), and only after the decision's durable follow-up has run, so an approval message
+  updated after a restart still shows it; SQLite overwrites them in the file (`secure_delete`), backups taken earlier
+  keep them. `/reviews resend` only re-sends review requests, so it never needs them. /setup edits pending approval
+  messages and keeps the photo they show instead of uploading it again.
+- **The intro panel** is a normal /setup panel (`reviews:intro`, edited in place, never duplicated, not pinned: the
+  panel system does not pin). Its last line is chosen from the settings so "our team checks reviews" is always true.
+  A panel withdrawn while reviews are not ready (e.g. a missing text) is posted again by the next /setup at the
+  bottom of #reviews, below the reviews published meanwhile.
+- **A Write a review button as well.** Every channel a member sees is read-only for them (#reviews too), a delivered
+  order's ticket is locked, and Discord disables the message box, and with it slash commands, where a member cannot
+  send messages. So a returning customer without an order, or one whose order was delivered, would have nowhere to
+  type `/review`. The intro panel therefore has a **Write a review** button: a private stars menu, then the same form
+  and the same rules as `/review`. Its photo is uploaded in the form itself (Discord's file upload field for forms,
+  `ui.spec.FileUploadSpec`); Discord lets members pick any file there and the bot is told only when the form is sent,
+  so the photo is checked then, and a refused one answers with the member's text so nothing typed is lost. `/review`
+  stays for members who can type (an open ticket); its form asks for the photo only when the option was left out.
+  Reviews written either way are `source = 'command'` (one step, the same writer), so migration 0015 is unchanged.
+
+## 11i. The shipping areas announcement
+
+- **What the owner asked for.** "An announcement that we are sorry that we aren't able to ship to Alaska [and]
+  South Dakota at the moment, just make up a reason." It is the `shipping_areas` preset (`/announce
+  preset:shipping_areas`, no coupon, the shipping banner): an apology, a reason, everywhere else is not affected (with
+  a #shipping link), we will announce it when we ship there again, thanks.
+- **Which Dakota.** The shipped `[shipping.excluded_areas]` is Alaska and North Dakota (the owner's earlier choice),
+  while the message says South Dakota; the owner is being asked. The text therefore never names the areas itself:
+  `{excluded_areas}` reads them from the settings at every preview and Post, with the names and joining text #shipping
+  uses, so the announcement, #shipping and the address step can never disagree. While nothing is excluded the
+  preview says so and has no Post button.
+- **The reason.** Made up, as asked, and kept plain: our shipping partners can't currently deliver there within the
+  delivery times and prices we promise, so rather than send slow or costly parcels we paused it. It blames no one by
+  name, does not alarm, and promises only what the bot does (an announcement once we ship there again), not a date.
+
 ## 12. Assumptions
 
 - One Discord server per bot instance (`GUILD_ID`).
@@ -392,8 +481,8 @@ and deletion timers, and of course the products themselves (`/product add`).
   `operator.<key>` in content.toml).
 - Staff confirm manual payments themselves; the bot does not verify bank transfers or other external payments.
 - Product images are either `https://` links or uploads stored in the database and attached to every message.
-- Slash-command names are the ones in the specification; `/myorders` (the only customer command) takes its
-  description from content (`my_orders.command.description`) and is registered at startup only when it is set.
+- Slash-command names are the ones in the specification; the customer commands (`/myorders`, `/review`) take their
+  descriptions from content and are registered at startup only when they are set.
 
 ## 13. Known limitations
 
@@ -409,7 +498,7 @@ and deletion timers, and of course the products themselves (`/product add`).
   Discord's upload size (the transcript is then retried and reported; deletion waits for it). Attachment links in
   transcripts are Discord CDN links, which Discord expires after some time.
 - `/content set` accepts up to 4000 characters (Discord form limit); longer descriptions must be set in content.toml.
-- `/reload` does not re-sync slash-command descriptions (`/myorders`); restart the bot after changing it.
+- `/reload` does not re-sync slash-command descriptions (`/myorders`, `/review`); restart the bot after changing them.
 - Panels change appearance only when `/setup` republishes them (e.g. the #purchase Report a Problem button and the
   #catalog Buy buttons appear after the features become ready and `/setup` runs). A button that was posted before
   its feature stopped being ready answers with the configured "unavailable" text.

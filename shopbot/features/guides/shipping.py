@@ -314,6 +314,18 @@ def country_label(texts: common.Texts, s: ShippingSettings, code: str) -> str:
     return texts.required(FORMAT_EXCLUDED, country=name, areas=_areas(texts, names))
 
 
+def excluded_areas_text(texts: common.Texts, s: ShippingSettings) -> str:
+    """Every area we do not ship to, written as #shipping writes them: "Alaska and North Dakota" ("A, B and C" for
+    three). When areas of more than one country are excluded, each country's areas are followed by its name, in the
+    order #shipping lists the countries: "Alaska and North Dakota (United States) and Yukon (Canada)". "" when nothing
+    is excluded. Used by the announcement presets' ``{excluded_areas}``."""
+    codes = [code for code in s.countries if s.excluded_areas.get(code)]
+    phrases = [_areas(texts, [area_display_name(code, area) for area in s.excluded_areas[code]]) for code in codes]
+    if len(phrases) > 1:
+        phrases = [f"{phrase} ({s.country_name(code)})" for phrase, code in zip(phrases, codes, strict=True)]
+    return _areas(texts, phrases) if phrases else ""
+
+
 def group_section(texts: common.Texts, s: ShippingSettings, group: ShippingGroup) -> Section:
     full = [code for code in group.countries if code not in s.excluded_areas]
     partial = [code for code in group.countries if code in s.excluded_areas]

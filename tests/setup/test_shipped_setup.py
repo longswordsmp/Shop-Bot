@@ -23,6 +23,7 @@ PANEL_CHANNELS = {  # channel name (as /setup creates it) -> banner id its panel
     "📦・catalog": "catalog",
     "✨・new-arrivals": "new-arrivals",
     "🛒・place-order": "purchase-panel",
+    "⭐・reviews": "reviews",  # the intro panel at the top of the reviews channel
 }
 
 

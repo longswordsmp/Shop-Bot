@@ -39,17 +39,22 @@ Roles: **Owner** (given to `OWNER_ID`), **Staff**, **Member** (the #welcome "I a
   options and prices.
 - **#announcements** — `/announce` (staff) with title, message, configured fields, image and optional role ping;
   `/announce preset:` posts a ready-made announcement after a private preview, e.g. the warehouse sale with its
-  **Claim coupon** button (buy one, get one free), which shows **Offer ended** once the coupon ends.
+  **Claim coupon** button (buy one, get one free), which shows **Offer ended** once the coupon ends, or our apology
+  for the areas we can't ship to right now (named from `[shipping.excluded_areas]`, like #shipping).
 - **#catalog** — one live embed per item with a Buy button (disabled when sold out), availability colors, uploaded
   images that stay attached; `/product add|edit|remove|list|...`.
 - **#new-arrivals** — Restock Alerts opt-in button and automatic new-item / back-in-stock posts (each once).
+- **#reviews** — an intro panel at the top with a **Write a review** button (every member: stars, a description and
+  an optional photo; `/review` does the same where they can type) and the review request after delivery; published without the member's name, "Verified purchase" for a delivered order;
+  reviews without an order or with a photo wait for staff approval; `/reviews list|remove|resend|approve|reject`
+  (staff).
 - **#purchase** — Start (private order ticket: one live panel with reference, steps, status, timeline) and Report a
   Problem (private problem ticket with staff Resolve/Reject).
 - **#orders** — one live record per order: Claim, in progress, completed, tracking, notes, correction requests,
   reject with reason, cancel, details; **#staff-chat** alerts and reminders; **#bot-log** audit; **#transcripts**.
 - **Discount codes** — `/discount create|list|end` (percent off, amount off, buy one get one free); customers type a
   code or press **Use coupon** for a coupon they claimed, on the review step of their order.
-- **Customers** — `/myorders`, DMs for every status change (with channel fallback), reviews after completion.
+- **Customers** — `/myorders`, `/review`, DMs for every status change (with channel fallback), reviews after completion.
 - **Admin tools** — `/status`, `/content`, `/reload`, `/backup`, `/audit`, `/tasks`, `/orders`, `/order view`, `/stats`.
 
 ## Quick start (local)

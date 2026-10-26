@@ -156,17 +156,27 @@ Default visibility: administrator
 
 ## /review
 
+Share a review: your stars, a few words and an optional photo
+
+Default visibility: everyone
+
+| Command | Access | Description | Options |
+|---|---|---|---|
+| `/review` | - | Share a review: your stars, a few words and an optional photo | `stars`: How many stars you give us; `photo` (optional): Optional photo (PNG, JPG, GIF or WebP) |
+
+## /reviews
+
 Customer review tools for staff.
 
 Default visibility: manage_messages
 
 | Command | Access | Description | Options |
 |---|---|---|---|
-| `/review list` | staff | List recent reviews (max 25). | `status` (optional): Only reviews with this status |
-| `/review remove` | staff | Delete a published review and close it. | `order_number`: Number of the reviewed order |
-| `/review resend` | staff | Send an unanswered review request again. | `order_number`: Number of the order |
-| `/review approve` | staff | Approve a review that waits for approval and publish it. | `order_number`: Number of the reviewed order |
-| `/review reject` | staff | Reject a review that waits for approval (it is not published). | `order_number`: Number of the reviewed order; `reason` (optional): Optional reason (max 500 characters) |
+| `/reviews list` | staff | List recent reviews (max 25). | `status` (optional): Only reviews with this status |
+| `/reviews remove` | staff | Delete a published review and close it. | `order_number` (optional): Number of the reviewed order; `review` (optional): Review number (for a review without an order) |
+| `/reviews resend` | staff | Send an unanswered review request again. | `order_number`: Number of the order |
+| `/reviews approve` | staff | Approve a review that waits for approval and publish it. | `order_number` (optional): Number of the reviewed order; `review` (optional): Review number (for a review without an order) |
+| `/reviews reject` | staff | Reject a review that waits for approval (it is not published). | `order_number` (optional): Number of the reviewed order; `review` (optional): Review number (for a review without an order); `reason` (optional): Optional reason (max 500 characters) |
 
 ## /setup
 

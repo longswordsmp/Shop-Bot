@@ -708,6 +708,7 @@ def _amount_lines(app: App, view: m.OrderView) -> list[str]:
         amounts = (
             ("checkout.lookup.subtotal", order.subtotal_minor),
             ("checkout.lookup.discount", order.discount_minor),
+            ("checkout.lookup.tip", order.tip_minor),
             ("checkout.lookup.total", order.total_minor),
             ("checkout.lookup.refunded", order.refunded_minor),
         )
@@ -719,5 +720,5 @@ def _amount_lines(app: App, view: m.OrderView) -> list[str]:
                 value=("-" if key == "checkout.lookup.discount" else "") + amount(app, minor, order.currency),
             )
             for key, minor in amounts
-            if minor > 0 or key != "checkout.lookup.discount"
+            if minor > 0 or key not in ("checkout.lookup.discount", "checkout.lookup.tip")
         ]

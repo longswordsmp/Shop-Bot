@@ -83,6 +83,10 @@ OPERATOR_TEXT: dict[str, str] = {
         "The announcement above is what will be posted (its button works once it is posted; the mention is listed "
         "below). Check it, then press **Post announcement**."
     ),
+    "announcements.preset.preview_intro_plain": (
+        "The announcement above is what will be posted (the mention is listed below). Check it, then press **Post "
+        "announcement**."
+    ),
     "announcements.preset.channel": "**Channel:** {channel}",
     "announcements.preset.mention": "**Mention:** {role}",
     "announcements.preset.mention_none": "**Mention:** nobody",
@@ -119,6 +123,10 @@ OPERATOR_TEXT: dict[str, str] = {
     ),
     "announcements.preset.link_missing": (
         "The text links the channel `{channel}`, which does not exist yet. Run /setup first."
+    ),
+    "announcements.preset.nothing_excluded": (
+        "Nothing is excluded in `[shipping.excluded_areas]` (settings.toml); this announcement would be empty. Add the "
+        "areas we do not ship to there and run /reload first."
     ),
     "announcements.preset.coupon_missing": (
         "The coupon `{code}` does not exist, or it has ended or expired, so its claim button would not work. Create "

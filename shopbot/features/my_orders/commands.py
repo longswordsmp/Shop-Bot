@@ -1,4 +1,5 @@
-"""``/myorders``: the only customer command. Any member of the server can use it; it shows only their own orders.
+"""``/myorders``: a customer command (like ``/review``). Any member of the server can use it; it shows only their
+own orders.
 
 The command's description is customer-facing text (``my_orders.command.description``, required). Discord needs it
 when the command is registered, so the command is added to the command tree only when ``features.my_orders`` is on

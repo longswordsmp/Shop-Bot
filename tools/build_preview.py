@@ -247,10 +247,16 @@ def render_components(spec: MessageSpec, router: Router) -> str:
                     for o in map(split_option, component.options)
                 )
                 title = html.escape(_route_title(component.custom_id, "component", router))
-                placeholder = plain(component.placeholder) or "&nbsp;"
+                # Like Discord: a closed menu shows its selected option (emoji and label), else its placeholder.
+                chosen = next((o for o in map(split_option, component.options) if o.default), None)
+                if chosen is not None:
+                    emoji = f"<span class=emoji>{emoji_html(chosen.emoji)}</span>" if chosen.emoji else ""
+                    shown = f"<span class=chosen>{emoji}{plain(chosen.label)}</span>"
+                else:
+                    shown = plain(component.placeholder) or "&nbsp;"
                 items.append(
                     f'<details class="select" title="{title}"><summary data-route="{title}">'
-                    f'<span>{placeholder}</span><span class="chev">⌄</span></summary>'
+                    f'<span>{shown}</span><span class="chev">⌄</span></summary>'
                     f'<div class="options">{options}</div></details>'
                 )
         rows.append(f'<div class="row">{"".join(items)}</div>')
@@ -324,6 +330,15 @@ def render_modal(spec: ModalSpec, router: Router) -> str:
         inputs.append(
             f'<label class="input"><div class="input-label">{plain(item.label)}{required}</div>{description}{control}{hint}</label>'
         )
+    for upload in spec.uploads:
+        required = '<span class="req">*</span>' if upload.required else ""
+        description = f'<div class="input-desc">{plain(upload.description)}</div>' if upload.description else ""
+        files = "1 file" if upload.max_files == 1 else f"up to {upload.max_files} files"
+        inputs.append(
+            f'<label class="input"><div class="input-label">{plain(upload.label)}{required}</div>{description}'
+            '<div class="upload"><span class="modal-chrome">Discord-provided:</span> Drag a file here or click to '
+            f'browse</div><div class="input-hint">{files}, any type (the bot checks it)</div></label>'
+        )
     title = html.escape(_route_title(spec.custom_id, "modal", router))
     return (
         f'<div class="modal-backdrop"><div class="modal" title="{title}">'
@@ -353,7 +368,11 @@ def render_state(index: int, state: PreviewState, router: Router) -> RenderedSta
         violations = [str(v) for v in validate_modal(state.spec)]
         kind = "form"
         text_blob = json.dumps(
-            [state.spec.title, *[(i.label, i.description, i.placeholder) for i in state.spec.inputs]]
+            [
+                state.spec.title,
+                *[(i.label, i.description, i.placeholder) for i in state.spec.inputs],
+                *[(u.label, u.description) for u in state.spec.uploads],
+            ]
         )
     else:
         body = render_message(state.spec, router)
@@ -436,7 +455,7 @@ color:#fff;display:grid;place-items:center;font-weight:700;flex:none}.msg-main{m
 .btn.danger{background:var(--red)}.btn.disabled{opacity:.5;cursor:not-allowed}.btn .ext{font-size:12px}
 details.select{background:var(--bg3);border-radius:4px;width:100%;max-width:520px}
 details.select summary{list-style:none;display:flex;justify-content:space-between;padding:10px 12px;cursor:pointer;color:var(--muted)}
-details.select summary::-webkit-details-marker{display:none}
+details.select summary::-webkit-details-marker{display:none}details.select summary .chosen{color:var(--text);display:inline-flex;align-items:center;gap:8px}
 .options{border-top:1px solid #111214;max-height:280px;overflow:auto}.opt{display:flex;gap:8px;padding:8px 12px}
 .opt:hover{background:#35373c}.opt.default{background:#404249}.opt-label{color:var(--text)}.opt-desc{color:var(--muted);font-size:13px}
 .modal-backdrop{background:rgba(0,0,0,.55);padding:24px;border-radius:8px;max-width:820px}
@@ -445,6 +464,7 @@ details.select summary::-webkit-details-marker{display:none}
 .input{display:block;margin-bottom:14px}.input-label{font-size:13px;font-weight:600;color:var(--head);margin-bottom:4px}
 .req{color:var(--red);margin-left:3px}.input-desc{font-size:12px;color:var(--muted);margin-bottom:6px}
 .input-hint{font-size:11px;color:var(--muted);margin-top:4px}
+.upload{border:1px dashed var(--muted);border-radius:4px;padding:14px;text-align:center;color:var(--text);font-size:13px}
 .input input,.input textarea{width:100%;background:var(--bg3);border:0;border-radius:4px;color:var(--text);padding:10px;font:inherit;resize:vertical}
 .modal-actions{display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-top:8px}
 .modal-chrome{color:var(--muted);font-size:11px;margin-right:auto}

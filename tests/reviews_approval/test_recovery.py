@@ -1,6 +1,6 @@
 """Approval messages and decisions across failures and restarts: Discord errors while posting or editing, the
 durable tasks ``reviews.approval`` and ``reviews.decided``, adoption of an unrecorded post, the /setup hook,
-``/review approve|reject|remove`` and restart persistence of the staff buttons."""
+``/reviews approve|reject|remove`` and restart persistence of the staff buttons."""
 
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ from tests.helpers import TestEnv, provision_channels
 from tests.reviews.util import (
     audit_actions,
     invoke,
-    number_text,
+    label,
     only_embed,
     prompted,
     restarted_app,
@@ -148,7 +148,8 @@ async def test_buttons_work_after_a_restart(ap: TestEnv) -> None:
     order, review, message = await pending_review(ap, customer)
     app = await restarted_app(ap)
     interaction = await approve(ap, staff, review, message, app=app)
-    assert "approved" in (staff_reply(interaction).description or "")
+    approved = app.op("reviews.decision.approved", review=label(ap, review))
+    assert approved in (staff_reply(interaction).description or "")
     assert (await review_of(ap, order, app)).status == repo.PUBLISHED
     assert len(reviews_channel(ap).messages) == 1
     # a second pending review rejected through the restarted app's form route
@@ -260,11 +261,11 @@ async def test_setup_reposts_deleted_and_edits_existing_approval_messages(ap: Te
     order, _review, message = await pending_review(ap, customer)
     order2, review2, message2 = await pending_review(ap, other)
     await message.delete()  # someone deleted the first approval message
-    ap.app.content.replace(file_values={**ap.content, k.APPROVAL_TITLE: "[new title] {order_number}"})
+    ap.app.content.replace(file_values={**ap.content, k.APPROVAL_TITLE: "[new title] {review_number}"})
     lines = await MODULE.publish(ap.app)
     assert ap.app.op("reviews.setup.approvals_refreshed", count=1) in lines
     assert ap.app.op("reviews.setup.approvals_queued", count=1) in lines
-    assert only_embed(message2).title == f"[new title] {number_text(ap, order2.number)}"  # edited in place
+    assert only_embed(message2).title == f"[new title] {review2.id}"  # edited in place
     await ap.app.scheduler.run_due()
     channel = approval_channel(ap)
     assert len(channel.messages) == 2
@@ -272,7 +273,8 @@ async def test_setup_reposts_deleted_and_edits_existing_approval_messages(ap: Te
     assert reposted.approval_message_id not in (None, message.id)
     # idempotent: a second /setup only edits
     lines = await MODULE.publish(ap.app)
-    assert lines == [ap.app.op("reviews.setup.approvals_refreshed", count=2)]
+    intro = ap.app.op("reviews.intro.unchanged", channel=reviews_channel(ap).mention)
+    assert lines == [intro, ap.app.op("reviews.setup.approvals_refreshed", count=2)]
     await ap.app.scheduler.run_due()
     assert len(channel.messages) == 2
     assert (await review_of(ap, order2)).approval_message_id == review2.approval_message_id == message2.id
@@ -288,23 +290,28 @@ async def test_review_approve_and_reject_commands(ap: TestEnv) -> None:
     other = ap.member(name="other")
     staff = ap.member(name="mod", staff=True)
     order, _review, message = await pending_review(ap, customer)
-    order2, _review2, message2 = await pending_review(ap, other)
+    order2, review2, message2 = await pending_review(ap, other)
     approved = await invoke(ap, staff, "approve", order_number=order.number)
-    number = number_text(ap, order.number)
-    assert ap.app.op("reviews.decision.approved", order_number=number) in (
+    assert ap.app.op("reviews.decision.approved", review=label(ap, _review)) in (
         approved.last_sent.embeds[0].description or ""  # type: ignore[union-attr]
     )
     assert (await review_of(ap, order)).status == repo.PUBLISHED
     assert message.custom_ids() == []  # the recorded approval message shows the decision
-    rejected = await invoke(ap, staff, "reject", order_number=order2.number, reason="  [cmd reason] ")
+    rejected = await invoke(ap, staff, "reject", review=review2.id, reason="  [cmd reason] ")  # by its number
     assert (await review_of(ap, order2)).decision_reason == "[cmd reason]"
     assert field_pairs(only_embed(message2))[-1] == (ap.text(k.APPROVAL_REASON_FIELD), "[cmd reason]")
     assert rejected.last_sent is not None and getattr(rejected.last_sent, "ephemeral", False)
     again = await invoke(ap, staff, "approve", order_number=order2.number)
     assert "no longer waits" in (again.last_sent.embeds[0].description or "")  # type: ignore[union-attr]
     unknown = await invoke(ap, staff, "reject", order_number=99_999)
-    assert ap.app.op("reviews.decision.not_found", order_number="99999") in (
+    target = ap.app.op("reviews.target.order", order_number="99999")
+    assert ap.app.op("reviews.decision.not_found", target=target) in (
         unknown.last_sent.embeds[0].description or ""  # type: ignore[union-attr]
+    )
+    unknown_review = await invoke(ap, staff, "approve", review=99_999)
+    target = ap.app.op("reviews.target.review", review_number=99_999)
+    assert ap.app.op("reviews.decision.not_found", target=target) in (
+        unknown_review.last_sent.embeds[0].description or ""  # type: ignore[union-attr]
     )
 
 

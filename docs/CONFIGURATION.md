@@ -52,7 +52,7 @@ valid, its dependencies are ready, and all of its required content keys are conf
 | `catalog` | Product records, live listing, browsing | `checkout.currency` |
 | `checkout` | Cart, orders, payment, staff order controls | catalog |
 | `credits` | Store credit balances, applying credit at checkout | checkout |
-| `reviews` | Review prompts after fulfillment | checkout |
+| `reviews` | Review prompts after fulfillment, `/review`, the #reviews intro panel | checkout |
 | `dm_notifications` | Notify customers by DM (falls back to their ticket/order channel when DMs are closed) | – |
 
 ## `[bot]` (technical defaults)
@@ -103,9 +103,9 @@ not switched on is left out (the bot starts without it instead of being refused 
 | `off` | `[]` | Banner ids not to show, e.g. `["activity-log"]` (the #bot-log entries). |
 
 Banner ids (the kind of message each is used for): `welcome` (#welcome rules), `how-it-works` (#how-to-buy), `faq`,
-`shipping`, `announcements`, `catalog` (first #catalog message), `new-arrivals`, `reviews` (review request and
-published reviews), `purchase-panel` (#purchase), `ticket-created` (ticket opened / introduction), `selection-and-cart`,
-`details-and-options` (details step; correction requests), `review-and-summary` (order review step),
+`shipping`, `announcements`, `catalog` (first #catalog message), `new-arrivals`, `reviews` (review request,
+published reviews and the #reviews intro panel), `purchase-panel` (#purchase), `ticket-created` (ticket opened /
+introduction), `selection-and-cart`, `details-and-options` (details step; correction requests), `review-and-summary` (order review step),
 `submission-and-processing` (processing), `successful-confirmation` (confirmed / paid / saved), `pending-review`
 (submitted, awaiting payment or approval), `rejected-or-unsuccessful-submission`, `order-status` (tracking and other
 status updates), `completed-or-dispatched`, `staff-dashboard` (staff lists, records and /status), `staff-notifications`
@@ -274,6 +274,20 @@ stored with the order and shown to staff). Fulfillment options: `id`, `fee_minor
 `percent` (`basis_points`, 100 = 1%; rounded half up; charged on the items after a discount code). Details form: up to
 5 fields like ticket forms.
 
+### `[checkout.tips]`
+
+Tips for our team: a menu on the review step (No tip, the listed amounts, Other amount). The tip is added to the order
+and paid with it; 100% of it goes to the team. A discount code never applies to it, percent fees are not charged on it,
+store credit may cover it, and `/stats` shows tips on their own line, not in the revenue. Texts: `checkout.tip.*` and
+`checkout.summary.tip_line`. Amounts are in minor units (cents).
+
+| Key | Default | Meaning |
+|---|---|---|
+| `enabled` | false (shipped: true) | The tip menu on the review step. `false` = no menu, and a tip chosen for an unfinished order no longer counts (its Confirm order gives the "total changed" review; the unfinished order keeps the amount, so it counts again if tips are switched back on before it is confirmed). Orders placed with a tip keep showing it, so `checkout.summary.tip_line` stays required. |
+| `amounts` | `[200, 500, 1000]` | The menu's amounts: 1 to 5 different amounts, each from 1 up to `max_minor`. |
+| `allow_custom` | true | **Other amount**: the customer types an amount in a private form, from 1.00 of the shop currency up to `max_minor` (only the shop currency's sign or code may surround it: `$7.50`, `7.50 USD`; `€5` is refused). |
+| `max_minor` | 10000 | The largest tip ($100.00). The listed amounts must not be more; with `allow_custom` it must be at least 1.00. |
+
 ## Specification features (`[verification]`, `[how_to_buy]`, `[faq]`, `[shipping]`, `[announcements]`, `[new_arrivals]`, `[problems]`, `[my_orders]`, `[operations]`)
 
 Each section is documented, key by key, in its own page and in the comments of `config/settings.toml`:
@@ -282,14 +296,19 @@ Each section is documented, key by key, in its own page and in the comments of `
 `docs/features/customer_panel.md` (my_orders and the order ticket), `docs/features/operations.md` (staff alerts,
 reminders, Owner alerts, Customer role) and `docs/features/catalog.md`.
 
-`[[announcements.presets]]` (shipped: `warehouse_sale`, coupon `BOGO`): ready-made announcements staff post with
+`[[announcements.presets]]` (shipped: `warehouse_sale`, coupon `BOGO`; `shipping_areas`, no coupon, banner
+`shipping`): ready-made announcements staff post with
 `/announce preset:<id>` after a private preview. Each entry: `id` (a-z, 0-9, `_`, 1-32 characters, unique; also used
 in its content keys `announcements.preset.<id>.title` / `.description`, plus `.claim_button` / `.ended_button` with a
 coupon), `name` (what staff pick in the command, at most 100 characters), `coupon` (optional discount code made with
 `/discount create`, 3 to 14 characters so the customer's "Use coupon <code>" button stays short; the post gets its
 claim button, which shows the ended label once the code ends or expires; `{coupon}` in the preset's text is the code),
 `coupon_command` (optional; the `/discount create code:<coupon> ...` command shown to staff while the coupon does not
-exist) and `banner` (optional banner id, default `announcements`). At most 25. See `docs/features/announcements.md`.
+exist) and `banner` (optional banner id, default `announcements`). At most 25. In any preset's title and text,
+`{excluded_areas}` is the list of areas in `[shipping.excluded_areas]`, written as `#shipping` writes them ("Alaska
+and North Dakota"); the shipped `shipping_areas` preset uses it, so changing the excluded areas (and `/reload`)
+changes #shipping, the address step and that announcement together, and while nothing is excluded its preview offers
+no Post button. See `docs/features/announcements.md`.
 
 `operations.answers_in_orders_channel` (shipped false): post the customer's form answers under the order record in #orders; when false they appear only in the private Details view and `/order view`.
 
@@ -361,15 +380,21 @@ page with a verified webhook) is added as a payment provider (`shopbot/features/
 
 | Key | Default | Meaning |
 |---|---|---|
-| `channel` | `reviews` | Where published reviews are posted. |
+| `channel` | `reviews` | Where published reviews (and the intro panel /setup keeps at the top) are posted. |
 | `prompt_delay_minutes` | -1 | **Business decision**: minutes after fulfillment (0 = immediately). |
 | `rating_scale` | 0 | **Business decision**: 1–10 rating options. |
-| `allow_comment`, `comment_required`, `comment_max_length` | true, false, 1000 | Comment form. |
+| `allow_comment`, `comment_required`, `comment_max_length` | true, false, 1000 | Comment form; `comment_max_length` also limits the `/review` description. |
 | `prompt_via` | `dm_then_channel` | `dm`, `channel` (order channel), or DM with channel fallback. |
 | `require_approval` | false | `true`: a submitted review is posted with Approve / Reject buttons in `approval_channel` and published only after a staff member approves it (the `reviews.approval.*` texts are then required). `false`: published right away (approved automatically). |
-| `approval_channel` | `staff_chat` (shipped) | Staff or admin channel key for approval messages; checked only when `require_approval = true`. |
+| `approval_channel` | `staff_chat` (shipped) | Staff or admin channel key for approval messages; checked only when `require_approval`, `allow_unverified` or `photo_requires_approval` is on. |
+| `allow_unverified` | false (shipped: true) | `/review` or Write a review from a member without a delivered order to review writes an unverified review (no "Verified purchase" marker), which always waits for a staff decision in `approval_channel`. `false`: such members are told that reviews are for delivered orders. |
+| `unverified_cooldown_days` | 30 | A member writes at most one unverified review in this many days (every one counts, also rejected ones); 0 = only one, ever (0–3650). |
+| `photo_requires_approval` | false (shipped: true) | `true`: a review sent with a photo (`/review` or Write a review) always waits for a staff decision in `approval_channel`, also a verified one while `require_approval` is off, so no picture appears in #reviews unchecked. `false`: a photo changes nothing. The #reviews intro's last line follows these settings (`reviews.intro.checked_*`). |
 
-Staff for the Approve / Reject buttons and `/review approve|reject`: `permissions.staff_roles`, admins and
+`/review` is every member's command (stars, an optional photo, a description), and the **Write a review** button of the
+#reviews intro panel does the same in the read-only channel (a stars menu, then the form with a photo upload); it
+reviews the member's newest delivered order without a finished review, or else writes an unverified review. Published reviews never show the member's name.
+Staff for the Approve / Reject buttons and `/reviews`: `permissions.staff_roles`, admins and
 `checkout.staff_roles`. The customer's optional decision notices (`reviews.notice.*`) and the optional verification
 marker on published reviews (`reviews.published.verified_field` + `verified_value`) are content keys; see
 `docs/features/reviews.md`.

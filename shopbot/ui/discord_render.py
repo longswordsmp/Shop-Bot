@@ -155,6 +155,14 @@ def to_modal(spec: ModalSpec) -> discord.ui.Modal:
             max_length=item.max_length,
         )
         modal.add_item(discord.ui.Label(text=item.label, description=item.description, component=text_input))
+    for upload in spec.uploads:
+        file_upload: discord.ui.FileUpload[Any] = discord.ui.FileUpload(
+            custom_id=upload.custom_id,
+            required=upload.required,
+            min_values=1 if upload.required else 0,
+            max_values=upload.max_files,
+        )
+        modal.add_item(discord.ui.Label(text=upload.label, description=upload.description, component=file_upload))
     return modal
 
 

@@ -28,6 +28,7 @@ from shopbot.features.checkout import (
     staff,
     staff_preview,
     stats,
+    tip_preview,
     views,
 )
 from shopbot.features.checkout import models as m
@@ -148,12 +149,14 @@ def _data(
     code: discounts.Code | None = None,
     reason: str | None = None,
     offer: m.DiscountOffer | None = None,
+    tip: int = 0,
 ) -> m.WorkflowData:
     """``code``: the discount code the session applied (``reason``: why it no longer applies); ``offer``: the
-    discount buttons of the review step."""
+    discount buttons of the review step; ``tip``: the tip for our team the customer chose."""
     c = settings.checkout
     option = c.fulfillment(session.fulfillment_option)
     available = SAMPLE_CREDITS_MINOR if credits_enabled else 0
+    session = replace(session, tip_minor=tip)
     discount: m.AppliedDiscount | None = None
     if code is not None:
         session = replace(session, discount_code_id=code.id)
@@ -166,6 +169,7 @@ def _data(
         credits_available_minor=available,
         apply_credits=session.apply_credits and credits_enabled,
         discount_minor=discount.amount_minor if discount is not None else 0,
+        tip_minor=tip,
     )
     return m.WorkflowData(
         session=session,
@@ -207,8 +211,9 @@ def _order(
     refunded: int | None = None,
     credits: int = 0,
     code: discounts.Code | None = None,
+    tip: int = 0,
 ) -> m.OrderView:
-    """A sample order in ``status``; ``code``: the discount code it was placed with."""
+    """A sample order in ``status``; ``code``: the discount code it was placed with; ``tip``: its tip for our team."""
     c = settings.checkout
     option = _sample_option(settings)
     details: dict[str, str] = {flow.extra_key(extra.id): "1" for extra in c.extras}  # every extra chosen
@@ -223,6 +228,7 @@ def _order(
         credits_available_minor=credits,
         apply_credits=credits > 0,
         discount_minor=discount,
+        tip_minor=tip,
     )
     inputs = flow.form_inputs(c, option.id if option is not None else None) + flow.submission_inputs(c)
     for index, item in enumerate(inputs, start=1):
@@ -239,7 +245,7 @@ def _order(
         currency=c.currency or "XXX",
         subtotal_minor=totals.subtotal_minor,
         fulfillment_fee_minor=totals.fulfillment_fee_minor,
-        fees_minor=totals.fees_minor,
+        fees_minor=totals.stored_fees_minor,
         credits_applied_minor=totals.credits_applied_minor,
         total_minor=totals.total_minor,
         refunded_minor=(totals.total_minor if status == m.REFUNDED else 0) if refunded is None else refunded,
@@ -259,6 +265,7 @@ def _order(
         discount_code=code.code if code is not None else None,
         discount_kind=code.kind if code is not None else None,
         discount_minor=discount,
+        tip_minor=totals.tip_minor,
     )
     items = tuple(
         m.OrderItem(
@@ -681,6 +688,17 @@ def preview(app: App) -> list[PreviewState]:
             instructions=instructions,
             links=links,
         )
+    if c.tips.enabled:
+        tip_preview.add_states(
+            app,
+            add,
+            partial(_data, settings, credits_enabled=credits),
+            partial(_order, settings),
+            review=review,
+            lines=lines,
+            instructions=instructions,
+            links=links,
+        )
     payment_methods_preview.add_states(app, add, pending, instructions)
 
     # -- errors (private) -------------------------------------------------------------------------------------------
@@ -777,6 +795,7 @@ def preview(app: App) -> list[PreviewState]:
         ended_unsold=5,
         revenue_minor=184_250,
         refunded_minor=2_000,
+        tips_minor=9_500 if c.tips.enabled else 0,
         open_counts={"pending": 2, "submitted": 1, "to_ship": 4, "shipped": 6},
         best=tuple(stats.BestSeller(f"[sample product {i}]", 20 - 3 * i, (20 - 3 * i) * 1_299) for i in range(1, 6)),
         other_currency=1,
@@ -784,7 +803,8 @@ def preview(app: App) -> list[PreviewState]:
     stats_money = order_money(ui, settings, sample_stats.currency)
     add(
         "staff_stats",
-        "Staff only (/stats): sales of the last 7 days, the orders that need staff now, best sellers (sample numbers).",
+        "Staff only (/stats): sales of the last 7 days (tips for the team on their own line, not in the revenue), the "
+        "orders that need staff now, best sellers (sample numbers).",
         lambda: stats.stats_message(ui, op, stats_money, sample_stats, "7d"),
     )
     add(

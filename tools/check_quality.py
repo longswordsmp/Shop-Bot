@@ -198,6 +198,8 @@ def check_modal(spec: ModalSpec) -> list[tuple[str, str, str]]:
     for item in spec.inputs:
         texts += [("input label", item.label), ("input description", item.description or "")]
         texts += [("input placeholder", item.placeholder or "")]
+    for upload in spec.uploads:
+        texts += [("upload label", upload.label), ("upload description", upload.description or "")]
     for where, text in texts:
         if CUSTOM_EMOJI.search(text) or ICON_PLACEHOLDER.search(text):
             out.append(("I1", where, f"icon in a form (Discord cannot show it there): {text!r}"))

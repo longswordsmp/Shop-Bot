@@ -204,7 +204,7 @@ server.channel.purchase.topic = "Start an order or report a problem. Both open a
 
 # Optional topic (description) of the 'reviews' channel.
 # channel_topic · max 1024 characters · optional
-server.channel.reviews.topic = "Verified reviews from customers who received their order."
+server.channel.reviews.topic = "Reviews from our customers. Press Write a review to share yours: your name is never shown."
 
 # Optional topic (description) of the 'shipping' channel.
 # channel_topic · max 1024 characters · optional
@@ -2657,6 +2657,64 @@ checkout.submitted.description = "Your items are reserved for you. Choose how to
 # title · max 256 characters · required · placeholders: {order_number}, {total}
 checkout.submitted.title = "Pay for order #{order_number}"
 
+# --- Checkout: tips for our team (review step, [checkout.tips]) ---
+
+# How the tip is written in the summary, after the extras and fees and before the store credit and the total (review step, order ticket, staff record), e.g. 'Tip for our team · {amount}'. {amount} is the tip. Required also while tips are off: orders placed with a tip keep showing it.
+# format · max 100 characters · required · placeholders: {amount}
+checkout.summary.tip_line = "Tip for our team · {amount}"
+
+# Private reply when what the customer typed in the tip form is not an amount, or less than {minimum} (one whole unit of the currency). {minimum} and {maximum} are the smallest and largest amount they may type.
+# description · max 4096 characters · required · placeholders: {minimum}, {maximum}
+checkout.tip.error.invalid = "We couldn't read that amount. Pick **Other amount** in the tip menu again and type an amount from **{minimum}** to **{maximum}**, for example 7.50."
+
+# Private reply when the amount typed in the tip form is more than the largest tip (checkout.tips.max_minor). {maximum} is that amount.
+# description · max 4096 characters · required · placeholders: {maximum}
+checkout.tip.error.too_high = "Thank you for being so generous! The largest tip for one order is **{maximum}**. Pick **Other amount** in the tip menu again to type a smaller amount."
+
+# Label of the form's amount field.
+# input_label · max 45 characters · required
+checkout.tip.input_label = "Tip amount"
+
+# Optional greyed-out example inside the empty amount field, e.g. 'For example: 7.50'. {minimum} and {maximum} are the smallest and largest amount a customer may type.
+# input_placeholder · max 100 characters · optional · placeholders: {minimum}, {maximum}
+checkout.tip.input_placeholder = "For example: 7.50"
+
+# Title of the private form that Other amount opens.
+# modal_title · max 45 characters · required
+checkout.tip.modal_title = "Tip our team"
+
+# Last line of the review step while no tip is chosen: that a tip is optional and who it is for, e.g. '{icon_heart} Tips are optional. If you'd like to thank our support team, pick an amount in the menu below. 100% of every tip goes to our team.'.
+# field_value · max 1024 characters · required
+checkout.tip.note = "{icon_heart} Tips are optional. If you'd like to thank our support team, pick an amount in the menu below. 100% of every tip goes to our team."
+
+# Last line of the review step once a tip is chosen, e.g. '{icon_heart} Thank you! 100% of every tip goes to our team.'.
+# field_value · max 1024 characters · required
+checkout.tip.note_thanks = "{icon_heart} Thank you for your tip! 100% of every tip goes to our team."
+
+# One option of the tip menu per amount in checkout.tips.amounts (and the customer's own amount while one is chosen), e.g. '{icon_heart} {amount} tip'. {amount} is the amount.
+# option_label · max 100 characters · required · placeholders: {amount}
+checkout.tip.option_amount = "{icon_heart} {amount} tip"
+
+# Last option of the tip menu: it opens a private form to type an amount (checkout.tips.allow_custom), e.g. '{icon_edit} Other amount'.
+# option_label · max 100 characters · required
+checkout.tip.option_custom = "{icon_edit} Other amount"
+
+# Optional small text under Other amount, e.g. 'Type your own amount, up to {maximum}'. {minimum} and {maximum} are the smallest and largest amount a customer may type.
+# option_description · max 100 characters · optional · placeholders: {minimum}, {maximum}
+checkout.tip.option_custom_description = "Type your own amount, from {minimum} to {maximum}"
+
+# First option of the tip menu: no tip (it takes a chosen tip off), e.g. '{icon_minus} No tip'.
+# option_label · max 100 characters · required
+checkout.tip.option_none = "{icon_minus} No tip"
+
+# Optional small text under the customer's own amount in the tip menu (an amount they typed with Other amount, or one that is no longer listed), e.g. 'Your current tip'.
+# option_description · max 100 characters · optional
+checkout.tip.option_yours = "Your current tip"
+
+# Greyed-out text of the tip menu on the review step while no tip is chosen, e.g. 'Add a tip for our team (optional)'.
+# select_placeholder · max 150 characters · required
+checkout.tip.select_placeholder = "Add a tip for our team (optional)"
+
 # --- Checkout: order ticket (introduction, and the ticket, order number and status on the live panel) ---
 
 # First line of every step of the live panel while the customer puts the order together, e.g. '{icon_ticket} Ticket **#{ticket_number}** · {status}'. {ticket_number} is the ticket number, {status} checkout.ticket.status_in_progress.
@@ -2841,53 +2899,57 @@ reviews.thanks_pending.description = '''
 
 # --- Reviews: approval request (staff only, posted in reviews.approval_channel) ---
 
-# Label of the Approve button on the approval message (staff only; publishes the review in the reviews channel). Required when reviews.require_approval is on.
-# button_label · max 80 characters · optional
+# Label of the Approve button on the approval message (staff only; publishes the review in the reviews channel). Required when a review can wait for approval (reviews.require_approval, reviews.allow_unverified or reviews.photo_requires_approval is on).
+# button_label · max 80 characters · required
 reviews.approval.button.approve = "{icon_thumb_up} Approve"
 
-# Label of the Reject button on the approval message (staff only; opens a form for an optional reason; the review is not published). Required when reviews.require_approval is on.
-# button_label · max 80 characters · optional
+# Label of the Reject button on the approval message (staff only; opens a form for an optional reason; the review is not published). Required when a review can wait for approval (reviews.require_approval, reviews.allow_unverified or reviews.photo_requires_approval is on).
+# button_label · max 80 characters · required
 reviews.approval.button.reject = "{icon_thumb_down} Reject"
 
-# Heading of the reviewer (a mention of the customer) on the approval message. Required when reviews.require_approval is on.
-# field_name · max 256 characters · optional
+# Heading of the reviewer (a mention of the customer) on the approval message. Required when a review can wait for approval (reviews.require_approval, reviews.allow_unverified or reviews.photo_requires_approval is on).
+# field_name · max 256 characters · required
 reviews.approval.customer_field = "{icon_user} Customer"
 
-# Heading of the reviewed order's number on the approval message. Required when reviews.require_approval is on.
-# field_name · max 256 characters · optional
+# Shown under the order heading of the approval message of an unverified review (written with /review by a member without a delivered order to review; it is published without a verification marker). Required when a review can wait for approval (reviews.require_approval, reviews.allow_unverified or reviews.photo_requires_approval is on).
+# field_value · max 1024 characters · required
+reviews.approval.no_order = "{icon_alert} No delivered order: unverified review"
+
+# Heading of the reviewed order's number on the approval message (or of reviews.approval.no_order). Required when a review can wait for approval (reviews.require_approval, reviews.allow_unverified or reviews.photo_requires_approval is on).
+# field_name · max 256 characters · required
 reviews.approval.order_field = "{icon_receipt} Order"
 
-# Heading of the rating on the approval message (the rating is shown with reviews.rating.<n>.display or the rating's option label). Required when reviews.require_approval is on.
-# field_name · max 256 characters · optional
+# Heading of the rating on the approval message (the rating is shown with reviews.rating.<n>.display or the rating's option label). Required when a review can wait for approval (reviews.require_approval, reviews.allow_unverified or reviews.photo_requires_approval is on).
+# field_name · max 256 characters · required
 reviews.approval.rating_field = "{icon_star} Rating"
 
 # Optional heading of the rejection reason on the approval message (the reason is shown exactly as the staff member wrote it in the reject form). If empty, the reason is not shown there.
 # field_name · max 256 characters · optional
 reviews.approval.reason_field = "{icon_info} Reason"
 
-# Approval status shown on the approval message when a staff member approved the review (it is then published in the reviews channel). {staff_mention} mentions the staff member who approved it. Required when reviews.require_approval is on.
-# field_value · max 1024 characters · optional · placeholders: {staff_mention}
+# Approval status shown on the approval message when a staff member approved the review (it is then published in the reviews channel). {staff_mention} mentions the staff member who approved it. Required when a review can wait for approval (reviews.require_approval, reviews.allow_unverified or reviews.photo_requires_approval is on).
+# field_value · max 1024 characters · required · placeholders: {staff_mention}
 reviews.approval.status.approved = "{icon_thumb_up} Approved by {staff_mention} and published in the reviews channel."
 
-# Approval status shown on the approval message when the review waits for a staff decision (the Approve and Reject buttons are shown). Required when reviews.require_approval is on.
-# field_value · max 1024 characters · optional
+# Approval status shown on the approval message when the review waits for a staff decision (the Approve and Reject buttons are shown). Required when a review can wait for approval (reviews.require_approval, reviews.allow_unverified or reviews.photo_requires_approval is on).
+# field_value · max 1024 characters · required
 reviews.approval.status.pending = "{icon_hourglass} Waiting for approval. **Approve** publishes it in the reviews channel; **Reject** keeps it unpublished."
 
-# Approval status shown on the approval message when a staff member rejected the review (it is not published). {staff_mention} mentions the staff member who rejected it. Required when reviews.require_approval is on.
-# field_value · max 1024 characters · optional · placeholders: {staff_mention}
+# Approval status shown on the approval message when a staff member rejected the review (it is not published). {staff_mention} mentions the staff member who rejected it. Required when a review can wait for approval (reviews.require_approval, reviews.allow_unverified or reviews.photo_requires_approval is on).
+# field_value · max 1024 characters · required · placeholders: {staff_mention}
 reviews.approval.status.rejected = "{icon_thumb_down} Rejected by {staff_mention}. It was not published."
 
-# Approval status shown on the approval message when the review was removed with /review remove (it is not or no longer published). Required when reviews.require_approval is on.
-# field_value · max 1024 characters · optional
-reviews.approval.status.removed = "{icon_trash} Removed by staff with /review remove. It is not shown in the reviews channel."
+# Approval status shown on the approval message when the review was removed with /reviews remove (it is not or no longer published). Required when a review can wait for approval (reviews.require_approval, reviews.allow_unverified or reviews.photo_requires_approval is on).
+# field_value · max 1024 characters · required
+reviews.approval.status.removed = "{icon_trash} Removed by staff with /reviews remove. It is not shown in the reviews channel."
 
-# Heading of the approval status on the approval message (its value is one of reviews.approval.status.*). Required when reviews.require_approval is on.
-# field_name · max 256 characters · optional
+# Heading of the approval status on the approval message (its value is one of reviews.approval.status.*). Required when a review can wait for approval (reviews.require_approval, reviews.allow_unverified or reviews.photo_requires_approval is on).
+# field_name · max 256 characters · required
 reviews.approval.status_field = "{icon_info} Status"
 
-# Title of the message that asks staff to approve or reject a submitted review (posted in the staff channel reviews.approval_channel; the customer's comment is shown below it exactly as written). {rating} is the chosen rating as a number, {user_name} the reviewer's display name, {order_number} the number of the reviewed order. Required when reviews.require_approval is on.
-# title · max 256 characters · optional · placeholders: {rating}, {user_name}, {order_number}
-reviews.approval.title = "Review by {user_name} ({rating}/5)"
+# Title of the message that asks staff to approve or reject a submitted review (posted in the staff channel reviews.approval_channel; the customer's comment is shown below it exactly as written, and the photo sent with /review below it). {stars} is the rating as a row of stars (e.g. ★★★★☆), {rating} the chosen rating as a number and {scale} the highest rating (reviews.rating_scale). {user_name} is the reviewer's display name (staff only; published reviews never show it), {review_number} the review's number (for /reviews approve and reject). Required when a review can wait for approval (reviews.require_approval, reviews.allow_unverified or reviews.photo_requires_approval is on).
+# title · max 256 characters · required · placeholders: {stars}, {rating}, {scale}, {user_name}, {review_number}
+reviews.approval.title = "Review #{review_number} by {user_name} ({rating}/{scale})"
 
 # --- Reviews: rating request (sent to the customer after an order is fulfilled) ---
 
@@ -2905,7 +2967,8 @@ Thank you for shopping with AmazonYaarts. We would like to hear how your order w
 {icon_step_2} Add a comment in the short form that opens, if you like
 {icon_step_3} Press **Submit** in the form to post your review
 
-{icon_verified} Your review appears in our reviews channel with your display name and a verified-purchase marker.
+{icon_verified} Your review appears in our reviews channel with a verified-purchase marker. Your name is never shown.
+{icon_photo} Want to add a photo? Press **Write a review** in our reviews channel instead and add it in the form (it reviews your most recent delivered order).
 
 Prefer not to review this order? Press **No thanks**.'''
 
@@ -2916,6 +2979,99 @@ reviews.prompt.select_placeholder = "Choose a rating from 1 to 5 stars"
 # Optional title of the review request sent to the customer (by direct message or in the order channel, see reviews.prompt_via) after their order was fulfilled. {order_number} is the number of the reviewed order.
 # title · max 256 characters · optional · placeholders: {order_number}
 reviews.prompt.title = "How was order #{order_number}?"
+
+# --- Reviews: /review and the Write a review button (the stars menu, the form and the private replies) ---
+
+# Description of the /review command shown in Discord's command list (every member can use it). The command is registered only when this text, the two option texts below and the rating labels are set. Discord receives it when the bot starts (a change needs a restart: /reload does not update the command).
+# command_description · max 100 characters · required
+reviews.command.description = "Share a review: your stars, a few words and an optional photo"
+
+# Description of the optional 'photo' option of /review (a PNG, JPG, GIF or WebP picture). Discord receives it when the bot starts (a change needs a restart: /reload does not update the command).
+# command_description · max 100 characters · required
+reviews.command.image = "Optional photo (PNG, JPG, GIF or WebP)"
+
+# Description of the required 'stars' option of /review (its choices are the rating labels reviews.rating.<n>.label with a row of stars, highest first). Discord receives it when the bot starts (a change needs a restart: /reload does not update the command).
+# command_description · max 100 characters · required
+reviews.command.stars = "How many stars you give us"
+
+# Private reply when a member without a delivered order to review already wrote an unverified review in the last reviews.unverified_cooldown_days days. {date} is the day they can write another one (shown in the member's own time zone). Required when reviews.allow_unverified is on and the cooldown is not 0.
+# description · max 4096 characters · required · placeholders: {date}
+reviews.cooldown.description = '''
+{icon_clock} You shared a review with us recently. You can share another one from {date}.
+{icon_info} Once your next order is delivered, you can review it right away.'''
+
+# Private reply when a review form is sent after it expired (6 hours after it opened) or was already sent.
+# description · max 4096 characters · required
+reviews.form_expired.description = "{icon_clock} This review form is no longer open. Please start again with **Write a review** in our reviews channel."
+
+# Private reply when the photo of a review cannot be used (not a PNG, JPG, GIF or WebP picture, too large, or Discord did not deliver it). {limit} is the largest size in MB (e.g. 9.5). A photo added with /review is refused before the form opens; one uploaded in the form only when the form is sent.
+# description · max 4096 characters · required · placeholders: {limit}
+reviews.image_problem.description = "{icon_alert} We could not use this photo. Please start your review again with a PNG, JPG, GIF or WebP picture of up to {limit} MB, or leave the photo out."
+
+# Optional heading over the member's own description, shown with reviews.image_problem.description when the photo is refused after the form was sent (a photo uploaded in the form, or one added with /review that could not be downloaded), so the text they wrote is not lost. If empty, the description is not shown.
+# field_name · max 256 characters · optional
+reviews.image_problem.text_field = "{icon_edit} Your review text"
+
+# Private reply when a member without a delivered order to review already wrote their one unverified review (reviews.unverified_cooldown_days = 0). Required when reviews.allow_unverified is on and the cooldown is 0.
+# description · max 4096 characters · optional
+reviews.limit.description = '''
+{icon_heart} You have already shared a review with us. Thank you!
+{icon_info} Once your next order is delivered, you can review it with **Write a review** in our reviews channel.'''
+
+# Private reply to /review or Write a review from a member who has no delivered order to review while reviews.allow_unverified is off. Required when reviews.allow_unverified is off.
+# description · max 4096 characters · optional
+reviews.no_order.description = "{icon_info} Reviews are for delivered orders. Once your order has been delivered, press **Write a review** in our reviews channel to share your experience."
+
+# Private message shown when a member presses Write a review on the intro panel of the reviews channel (it works where members cannot type, unlike /review): the stars menu below it opens the review form.
+# description · max 4096 characters · required
+reviews.pick.description = '''
+{icon_star} How many stars do you give us? Choose them in the menu below.
+{icon_photo} In the form that opens, write a few words and add a photo, if you like.
+{icon_lock} Your name is never shown on a review.'''
+
+# Placeholder of the stars menu shown after Write a review (its options are the rating labels reviews.rating.<n>.*, highest first).
+# select_placeholder · max 150 characters · required
+reviews.pick.placeholder = "Choose your stars"
+
+# Private reply when the description cannot be shown within Discord's limits (it can only happen with a large reviews.comment_max_length). {max} is reviews.comment_max_length.
+# description · max 4096 characters · required · placeholders: {max}
+reviews.too_long.description = "{icon_alert} Your review is too long for us to show. Please start again with a shorter description (at most {max} characters)."
+
+# Optional help text under the label of the description box (at most reviews.comment_max_length characters can be typed).
+# input_description · max 100 characters · optional
+reviews.write.description = "Up to 1000 characters. Your name is never shown with your review."
+
+# Label of the description box in the review form.
+# input_label · max 45 characters · required
+reviews.write.label = "Tell us about your experience"
+
+# Optional help text under the label of the photo upload (a PNG, JPG, GIF or WebP picture; Discord lets members pick any file, and the bot refuses other files when the form is sent).
+# input_description · max 100 characters · optional
+reviews.write.photo_description = "One PNG, JPG, GIF or WebP picture, if you like."
+
+# Label of the optional photo upload in the review form (shown unless the photo was already added with the photo option of /review).
+# input_label · max 45 characters · required
+reviews.write.photo_label = "Photo (optional)"
+
+# Optional greyed-out example text inside the empty description box.
+# input_placeholder · max 100 characters · optional
+reviews.write.placeholder = "What did you like? Is there anything we could do better?"
+
+# Title of the private review form (opened by /review, or by the stars menu after Write a review).
+# modal_title · max 45 characters · required
+reviews.write.title = "Your review"
+
+# Private reply after a review form was sent and the review is published in the reviews channel right away (a review of a delivered order while reviews.require_approval is off).
+# description · max 4096 characters · required
+reviews.written.description = '''
+{icon_heart} Thank you for your review.
+{icon_star} It will appear in our reviews channel in a moment. Your name is not shown.'''
+
+# Private reply after a review form was sent and the review waits for our team's check before it is published (every unverified review, and every review while reviews.require_approval is on).
+# description · max 4096 characters · required
+reviews.written_pending.description = '''
+{icon_heart} Thank you for your review.
+{icon_hourglass} Our team checks it before it appears in our reviews channel. Your name is not shown.'''
 
 # --- Reviews: comment form (opens after the customer picks a rating) ---
 
@@ -2935,49 +3091,94 @@ reviews.comment.placeholder = "What did you like? Is there anything we could do 
 # modal_title · max 45 characters · required
 reviews.comment.title = "Your review"
 
-# --- Reviews: decision notices (private, to the customer, when reviews.require_approval is on) ---
+# --- Reviews: the intro panel (posted by /setup at the top of the reviews channel) ---
 
-# Optional text of the private message telling the customer their review was approved; it is sent once the review is published in the reviews channel. Sent by direct message when features.dm_notifications is on, otherwise (or when direct messages are closed) in the order channel with a mention (notifications.fallback_to_channel). If empty, no message is sent. {order_number} is the number of the reviewed order. {review_link} is a link to the published review.
-# description · max 4096 characters · optional · placeholders: {order_number}, {review_link}
+# Label of the button on the intro panel that starts a review: it answers privately with the stars menu (reviews.pick.*), then opens the review form. It works in the read-only reviews channel, where members cannot type /review.
+# button_label · max 80 characters · required
+reviews.intro.button = "{icon_star} Write a review"
+
+# Last line of the intro panel while reviews.require_approval is on (our team checks every review before it appears). Required then.
+# description · max 4096 characters · optional
+reviews.intro.checked_all = "{icon_hourglass} Our team checks every review before it appears here."
+
+# Last line of the intro panel while reviews.photo_requires_approval is the only check that applies (reviews with a photo appear once our team checked them, the others right away). Required then.
+# description · max 4096 characters · optional
+reviews.intro.checked_photos = "{icon_hourglass} Reviews with a photo appear after a quick check by our team; the others appear right away."
+
+# Last line of the intro panel while reviews.require_approval is off and both reviews.allow_unverified and reviews.photo_requires_approval are on (a review of a delivered order without a photo appears right away; reviews with a photo and reviews without a delivered order once our team checked them). Required then.
+# description · max 4096 characters · required
+reviews.intro.checked_photos_unverified = "{icon_hourglass} A review of a delivered order without a photo appears right away. Reviews with a photo and reviews without a delivered order appear after a quick check by our team."
+
+# Last line of the intro panel while reviews.require_approval and reviews.photo_requires_approval are off and reviews.allow_unverified is on (reviews of a delivered order appear right away, other reviews once our team checked them). Required then.
+# description · max 4096 characters · optional
+reviews.intro.checked_unverified = "{icon_hourglass} Reviews of a delivered order appear right away; any other review appears after a quick check by our team."
+
+# Text of the intro panel: what the reviews channel is and how to leave a review with the Write a review button below it or /review (stars, a description and an optional photo; the member's name is never shown). The line about our team's check follows it (reviews.intro.checked_*), chosen from the settings so it is always true.
+# description · max 4096 characters · required
+reviews.intro.description = '''
+This is where our customers share how their orders went.
+
+**{icon_info} A FRESH START**
+We recently rebuilt our server, and our older reviews didn't make the move. They'll be back in time as customers share their experiences again. Ordered from us before? We'd love to hear from you again.
+
+**{icon_sparkles} NEW HERE?**
+A warm welcome! We're glad you found us. Take your time to look around, and our team is happy to answer any questions.
+
+**{icon_star} LEAVE A REVIEW**
+{icon_step_1} Press **Write a review** below and choose your stars
+{icon_step_2} Write a few words about your experience and add a photo, if you like
+{icon_step_3} Press **Submit** to send your review
+{icon_info} In an open ticket, you can also type **/review**.
+
+{icon_lock} Your name is never shown on a review.'''
+
+# Title of the intro panel at the top of the reviews channel.
+# title · max 256 characters · required
+reviews.intro.title = "Customer reviews"
+
+# --- Reviews: decision notices (private, to the customer, after a staff decision) ---
+
+# Optional text of the private message telling the customer their review was approved; it is sent once the review is published in the reviews channel. Sent by direct message when features.dm_notifications is on, otherwise (or when direct messages are closed) in the order channel with a mention (notifications.fallback_to_channel; a review without an order has no order channel). If empty, no message is sent. {review_link} is a link to the published review.
+# description · max 4096 characters · optional · placeholders: {review_link}
 reviews.notice.approved.description = '''
 Thank you. Our team approved your review, and it is now published in our reviews channel.
 
 {icon_eye} [View your review]({review_link})'''
 
-# Optional title of the private message telling the customer their review was approved and published. Needs reviews.notice.approved.description. {order_number} is the number of the reviewed order.
-# title · max 256 characters · optional · placeholders: {order_number}
-reviews.notice.approved.title = "Your review of order #{order_number} is published"
+# Optional title of the private message telling the customer their review was approved and published. Needs reviews.notice.approved.description.
+# title · max 256 characters · optional
+reviews.notice.approved.title = "Your review is published"
 
-# Optional text of the private message telling the customer their review was not approved (it is not published). Sent by direct message when features.dm_notifications is on, otherwise (or when direct messages are closed) in the order channel with a mention (notifications.fallback_to_channel). If empty, no message is sent. {order_number} is the number of the reviewed order.
-# description · max 4096 characters · optional · placeholders: {order_number}
+# Optional text of the private message telling the customer their review was not approved (it is not published). Sent by direct message when features.dm_notifications is on, otherwise (or when direct messages are closed) in the order channel with a mention (notifications.fallback_to_channel; a review without an order has no order channel). If empty, no message is sent.
+# description · max 4096 characters · optional
 reviews.notice.rejected.description = '''
-Thank you for your feedback on order #{order_number}. Our team decided not to publish this review.
+Thank you for your feedback. Our team decided not to publish this review.
 
-{icon_flag} If something is wrong with your order, press **Report a problem** in the place-order channel and our team will help.'''
+{icon_flag} If something went wrong with an order, press **Report a problem** in the place-order channel and our team will help.'''
 
 # Optional heading under which the reason the staff member gave in the reject form is shown in that message (exactly as written). If empty, or when no reason was given, the reason is not shown to the customer.
 # field_name · max 256 characters · optional
 reviews.notice.rejected.reason_field = "{icon_info} Reason"
 
-# Optional title of the private message telling the customer their review was not approved. Needs reviews.notice.rejected.description. {order_number} is the number of the reviewed order.
-# title · max 256 characters · optional · placeholders: {order_number}
-reviews.notice.rejected.title = "Your review of order #{order_number} was not published"
+# Optional title of the private message telling the customer their review was not approved. Needs reviews.notice.rejected.description.
+# title · max 256 characters · optional
+reviews.notice.rejected.title = "Your review was not published"
 
 # --- Reviews: published review (posted in the reviews channel) ---
 
-# Heading of the rating on a published review; the rating itself is shown with reviews.rating.<n>.display (or the rating's option label).
-# field_name · max 256 characters · required
-reviews.published.rating_field = "{icon_star} Rating"
+# Optional heading of the rating on a published review; the rating itself is shown with reviews.rating.<n>.display (or the rating's option label). If empty, no rating field is shown (for example when the title shows the stars).
+# field_name · max 256 characters · optional
+reviews.published.rating_field = ""
 
-# Title of a review posted in the reviews channel. {rating} is the chosen rating as a number (1 to reviews.rating_scale), {user_name} the reviewer's display name, {order_number} the number of the reviewed order. The customer's comment (if any) is shown below the title exactly as written.
-# title · max 256 characters · required · placeholders: {rating}, {user_name}, {order_number}
-reviews.published.title = "Review by {user_name}"
+# Title of a review posted in the reviews channel. {stars} is the rating as a row of stars (e.g. ★★★★☆), {rating} the chosen rating as a number and {scale} the highest rating (reviews.rating_scale). The customer's comment or description (if any) is shown below the title exactly as written, and the photo sent with /review below it. Published reviews never show the member's name, so no placeholder names them.
+# title · max 256 characters · required · placeholders: {stars}, {rating}, {scale}
+reviews.published.title = "{stars} {rating}/{scale}"
 
-# Optional heading of the verification marker shown on every published review (every review comes from a completed order, so every published review is a verified purchase). Set it together with reviews.published.verified_value, or leave both empty to show no marker.
+# Optional heading of the verification marker shown on a published review of a delivered order (a verified purchase). An unverified review written with /review without an order shows no marker. Set it together with reviews.published.verified_value, or leave both empty to show no marker.
 # field_name · max 256 characters · optional
 reviews.published.verified_field = "{icon_verified} Verified purchase"
 
-# Optional verification marker text shown under reviews.published.verified_field on every published review (for example that the reviewer bought the order). Set it together with reviews.published.verified_field. {order_number} is the number of the reviewed order.
+# Optional verification marker text shown under reviews.published.verified_field on a published review of a delivered order (for example that the reviewer bought the order). Set it together with reviews.published.verified_field. {order_number} is the number of the reviewed order.
 # field_value · max 1024 characters · optional · placeholders: {order_number}
 reviews.published.verified_value = "Order #{order_number}"
 
@@ -3069,12 +3270,31 @@ reviews.rating.5.label = "5 stars - Excellent"
 
 # --- Announcements: presets (posted with /announce preset:) ---
 
+# Text of the 'shipping_areas' preset announcement (/announce preset:shipping_areas, staff name 'Shipping update: areas we can't ship to right now'). Discord formatting, icons ({icon_gift}), section headings and channel links ({channel_catalog}) work here. {excluded_areas} is the list of areas we do not ship to right now, from [shipping.excluded_areas] and written as #shipping writes them (e.g. 'Alaska and North Dakota').
+# description · max 4096 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}, {excluded_areas}
+announcements.preset.shipping_areas.description = '''
+Dear customers,
+
+{icon_location} We're sorry, but at the moment we can't ship to **{excluded_areas}**.
+
+**{icon_info} WHY**
+Our shipping partners can't currently deliver there within the delivery times and prices we promise. Rather than send you slow or costly parcels, we've paused shipping there for now.
+
+**{icon_truck} EVERYWHERE ELSE**
+Orders to every other state and country we ship to are not affected. {channel_shipping} lists where we ship and what delivery costs.
+
+{icon_heart} We'll announce it here as soon as we ship there again. Thank you for your understanding.'''
+
+# Title of the 'shipping_areas' preset announcement (/announce preset:shipping_areas, staff name 'Shipping update: areas we can't ship to right now'), posted in the 'announcements' channel. Plain text (no icons). {excluded_areas} is the list of areas we do not ship to right now, from [shipping.excluded_areas] and written as #shipping writes them (e.g. 'Alaska and North Dakota').
+# title · max 256 characters · required · placeholders: {excluded_areas}
+announcements.preset.shipping_areas.title = "An update on shipping to {excluded_areas}"
+
 # Button under the 'warehouse_sale' preset announcement (/announce preset:warehouse_sale, staff name 'Warehouse sale: buy one, get one free') that claims the coupon BOGO (e.g. '{icon_gift} Claim coupon'). Pressing it answers privately with the coupon's terms (checkout.discount.claim.*).
 # button_label · max 80 characters · required
 announcements.preset.warehouse_sale.claim_button = "{icon_gift} Claim coupon"
 
-# Text of the 'warehouse_sale' preset announcement (/announce preset:warehouse_sale, staff name 'Warehouse sale: buy one, get one free'). Discord formatting, icons ({icon_gift}), section headings and channel links ({channel_catalog}) work here. {coupon} is the coupon's code (BOGO), e.g. 'press **Use coupon {coupon}** on the review step'.
-# description · max 4096 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}, {coupon}
+# Text of the 'warehouse_sale' preset announcement (/announce preset:warehouse_sale, staff name 'Warehouse sale: buy one, get one free'). Discord formatting, icons ({icon_gift}), section headings and channel links ({channel_catalog}) work here. {coupon} is the coupon's code (BOGO), e.g. 'press **Use coupon {coupon}** on the review step'. {excluded_areas} is the list of areas we do not ship to right now, from [shipping.excluded_areas] and written as #shipping writes them (e.g. 'Alaska and North Dakota').
+# description · max 4096 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}, {coupon}, {excluded_areas}
 announcements.preset.warehouse_sale.description = '''
 Dear customers,
 
@@ -3093,8 +3313,8 @@ Thank you again, customers, for all your support!'''
 # button_label · max 80 characters · required
 announcements.preset.warehouse_sale.ended_button = "Offer ended"
 
-# Title of the 'warehouse_sale' preset announcement (/announce preset:warehouse_sale, staff name 'Warehouse sale: buy one, get one free'), posted in the 'announcements' channel. Plain text (no icons).
-# title · max 256 characters · required
+# Title of the 'warehouse_sale' preset announcement (/announce preset:warehouse_sale, staff name 'Warehouse sale: buy one, get one free'), posted in the 'announcements' channel. Plain text (no icons). {excluded_areas} is the list of areas we do not ship to right now, from [shipping.excluded_areas] and written as #shipping writes them (e.g. 'Alaska and North Dakota').
+# title · max 256 characters · required · placeholders: {excluded_areas}
 announcements.preset.warehouse_sale.title = "Buy one, get one free on our old stock"
 
 # ==================================================================================================

@@ -135,8 +135,8 @@ instead of duplicated.
 
 Then **`/setup`**. It creates or repairs roles, categories, channels and permissions, gives the Owner role to
 `OWNER_ID`, and posts every panel: 📜・welcome (rules + Verify), 🧭・how-to-order, ❔・faq, 🚚・shipping, 📦・catalog,
-✨・new-arrivals and 🛒・place-order (Start + Report a Problem), each with its banner picture at the bottom of its
-card. It is safe to run again any time; it never duplicates or deletes anything except withdrawing panels of features
+✨・new-arrivals, 🛒・place-order (Start + Report a Problem) and the intro at the top of ⭐・reviews, each with its
+banner picture at the bottom of its card. It is safe to run again any time; it never duplicates or deletes anything except withdrawing panels of features
 that are not ready.
 `/status` should show every enabled feature as **ready**.
 
@@ -144,7 +144,7 @@ Check: Server Settings → Roles shows the bot's role **above** Owner, Staff, Me
 (Discord only lets the bot give roles below its own). Give your staff the Staff role.
 
 **Who sees which slash command.** Discord lists a command only for members with its default permission: the staff
-commands (`/orders`, `/order`, `/stats`, `/ticket`, `/review`, `/announce`) need *Manage Messages*, which `/setup` gives the Staff
+commands (`/orders`, `/order`, `/stats`, `/ticket`, `/reviews`, `/announce`) need *Manage Messages*, which `/setup` gives the Staff
 role (`permissions = ["manage_messages"]` in `settings.toml`; it also lets staff delete and pin messages; `/setup`
 only adds it and keeps any other permissions the role already has). Admin commands need Administrator; `/product` and
 `/discount` need Manage Server. To fine-tune, open **Server Settings → Integrations → (the bot) → Manage** and allow or deny each command for
@@ -258,6 +258,49 @@ Use a second (non-staff) Discord account as the "customer".
       gift card amount to pay is the total after the discount.
 - [ ] `/discount end code:SAVE10` → an unfinished order that applied it shows "has ended" in its summary, the order
       already placed keeps its discount; `/discount list` lists it under "Ended or expired".
+- [ ] Tips: on the review step the menu above Back / Confirm order reads "Add a tip for our team (optional)" (after
+      the store credit and coupon buttons) and the card's last line says tips are optional and "100% of every tip
+      goes to our team". Pick **$5.00 tip** → the closed menu shows "$5.00 tip" selected, the summary shows "Tip for
+      our team · $5.00" after the extras and the total grows by $5.00. Pick **Other amount**, close the form without
+      sending, then pick Other amount again (the form opens again); type 7.50 → "$7.50 tip" is selected; type €5 or
+      500 → a private reply says why. With a discount code applied, the discount does not change with the tip.
+      Confirm the order: the order card, the #orders record and `/order view` show the tip on its own line, and the
+      gift card amount to pay includes it. Once staff mark it paid, `/stats` shows "Tips for the team: $7.50" and the
+      revenue without it.
+
+**Reviews (Write a review, `/review`, #reviews)**
+- [ ] ⭐・reviews starts with the intro panel (the server was rebuilt, older reviews will come back, a welcome, how to
+      leave a review with **Write a review**, "your name is never shown") with the reviews banner at the bottom and the
+      **Write a review** button (star icon) under it; check it on desktop and phone. In a #reviews that already showed
+      reviews it comes after them.
+- [ ] **Write a review as a member.** With an account that has only the Member role (no order, no ticket), open
+      #reviews and press **Write a review** → a private card "How many stars do you give us?" with a stars menu → pick
+      5 → the form "Your review" shows the description box and a **Photo (optional)** upload field → write a
+      description, add a photo, Submit → "Our team checks it ...". #staff-chat shows the approval message with the
+      photo → Approve → #reviews shows the stars, the text and the photo without the name. Press Write a review again
+      → a private reply with the date you can share another one (no menu). Upload a PDF in the form instead of a photo
+      → "We could not use this photo" with your text shown under "Your review text", nothing written.
+- [ ] As a member without a delivered order: `/review` lists the stars as "5 stars - Excellent ★★★★★" ...; run
+      `/review stars:5 photo:<a photo>` → the form "Your review" opens → write a description → private reply "Our team
+      checks it ...". #staff-chat shows the approval message with your name, "No delivered order: unverified review"
+      and the photo. Press **Approve** → #reviews shows "★★★★★ 5/5", the description and the photo, with **no name, no
+      mention and no avatar**, and no "Verified purchase"; you get "Your review is published" by DM. Run `/review`
+      again → a private reply with the date you can share another one.
+- [ ] With a delivered order (staff: Mark delivered): `/review stars:4` → "It will appear in our reviews channel" →
+      #reviews shows the review with "Verified purchase / Order #N" and still no name. The order's review request, if
+      it came, answers "already reviewed". With a second delivered order, `/review stars:5 photo:<a photo>` → "Our
+      team checks it ..." (a photo is always checked first) → the approval message shows "#N" under Order → Approve.
+- [ ] `/review photo:` with a photo that is not a picture (e.g. a PDF) or an iPhone HEIC photo → a private "We could
+      not use this photo" reply ("up to 9 MB" or the server's limit), no form.
+- [ ] **Where members can type `/review`.** With the Member-only account, open #reviews and type `/review`. Expected:
+      the message box is locked ("You do not have permission to send messages"), which is why the panel has the
+      button; if Discord does offer the command there, it works too. In an open order or support ticket `/review`
+      works (the intro says so).
+- [ ] After the upgrade, **Server Settings → Integrations → (the bot)**: `/review` has no leftover permission override
+      (overrides set for the old staff `/review` command may stay on the members' `/review`, which keeps its command
+      id, and hide it from members); the staff tools are now `/reviews`.
+- [ ] `/reviews list` shows the review numbers; `/reviews remove review:<n>` deletes a published review; a member
+      cannot use `/reviews`. Restart the bot with a `/review` form open, then send it → it still works.
 
 **Warehouse sale announcement (`/announce preset:warehouse_sale`)**
 - [ ] `/announce preset:warehouse_sale` before the coupon exists → a private card says the coupon `BOGO` does not
@@ -275,6 +318,18 @@ Use a second (non-staff) Discord account as the "customer".
       the free item ("Buy one, get one free (BOGO) · -…").
 - [ ] `/discount end code:BOGO` → within a few seconds the announcement's button shows **Offer ended** (greyed out),
       the text and the banner unchanged; pressing it does nothing.
+
+**Shipping areas announcement (`/announce preset:shipping_areas`)**
+- [ ] First confirm with the owner which areas are right: the shipped `[shipping.excluded_areas]` is
+      `US = ["AK", "ND"]` (Alaska and North Dakota); the owner's message said "South Dakota" (`SD`). Change it in
+      `config/settings.toml` if needed and `/reload`; #shipping (after `/setup`), the address step and this
+      announcement all follow it.
+- [ ] `/announce preset:shipping_areas` → the private copy reads "An update on shipping to Alaska and North Dakota"
+      (the same names #shipping shows), the areas in bold in the first line, icons before each heading, a working
+      #shipping link and the shipping banner at the bottom; no button. The card has **Post announcement**; check the
+      text on desktop and phone, then post it → one post in #announcements.
+- [ ] With `[shipping.excluded_areas]` emptied and `/reload` (put it back afterwards), the preset answers with only a
+      card saying nothing is excluded and no Post button.
 
 **Problems, staff, admin**
 - [ ] #place-order Report a Problem → choose order and type → form → private problem ticket; staff Resolve/Reject.

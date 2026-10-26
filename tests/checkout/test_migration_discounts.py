@@ -11,7 +11,6 @@ import pytest
 
 from shopbot.db.migrate import apply_migrations, discover
 
-NEW_ORDER_COLUMNS = ("discount_code_id", "discount_code", "discount_kind", "discount_minor")
 # Every table that refers to an order (and the order itself), compared row by row before and after.
 TABLES = (
     "orders",
@@ -168,22 +167,27 @@ def _before(conn: sqlite3.Connection) -> dict[str, int]:
     return ids
 
 
-def _snapshot(conn: sqlite3.Connection) -> dict[str, list[tuple[object, ...]]]:
+def _columns(conn: sqlite3.Connection) -> dict[str, list[str]]:
+    """The columns of each table now: the snapshot after the migrations compares only these (this migration and later
+    ones add columns, e.g. the discount code and the tip of an order)."""
+    return {table: [r[1] for r in conn.execute(f"PRAGMA table_info({table})")] for table in TABLES}
+
+
+def _snapshot(conn: sqlite3.Connection, columns: dict[str, list[str]]) -> dict[str, list[tuple[object, ...]]]:
     out: dict[str, list[tuple[object, ...]]] = {}
     for table in TABLES:
-        columns = [r[1] for r in conn.execute(f"PRAGMA table_info({table})")]
-        kept = [c for c in columns if c not in (*NEW_ORDER_COLUMNS, "discount_code_id")]
-        out[table] = [tuple(r) for r in conn.execute(f"SELECT {', '.join(kept)} FROM {table} ORDER BY rowid")]
+        out[table] = [tuple(r) for r in conn.execute(f"SELECT {', '.join(columns[table])} FROM {table} ORDER BY rowid")]
     return out
 
 
 def test_every_order_and_every_row_that_refers_to_one_is_kept() -> None:
     conn = _connect()
     ids = _before(conn)
-    before = _snapshot(conn)
+    columns = _columns(conn)
+    before = _snapshot(conn, columns)
     assert all(before[table] for table in TABLES)
     apply_migrations(conn, migrations=discover())
-    assert _snapshot(conn) == before  # nothing lost, nothing changed, nothing cascaded
+    assert _snapshot(conn, columns) == before  # nothing lost, nothing changed, nothing cascaded
     assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
     assert conn.execute("PRAGMA foreign_keys").fetchone()[0] == 1
     # Existing orders used no code; their totals satisfy the new CHECK (it now subtracts the discount).

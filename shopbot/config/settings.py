@@ -23,6 +23,7 @@ from typing import Any, TypeVar, cast
 
 from shopbot.config.banner_ids import BANNER_IDS, BannerId
 from shopbot.core.countries import AREA_CODES, COUNTRIES, LISTED_AREAS
+from shopbot.core.money import currency_exponent
 
 T = TypeVar("T")
 
@@ -457,6 +458,19 @@ class ExtraDef:
 
 
 MAX_EXTRAS = 4  # one row of toggle buttons next to the step's navigation
+MAX_TIP_AMOUNTS = 5  # the tip menu: No tip, these amounts, the customer's own amount and Other amount
+
+
+@dataclass(frozen=True)
+class TipSettings:
+    """``[checkout.tips]``: a tip for our team, chosen on the review step and paid with the order (100% goes to the
+    team). ``amounts``: the amounts the tip menu offers (minor units); ``allow_custom``: Other amount, a typed amount
+    from one whole unit of the currency (1.00) up to ``max_minor``, the largest tip (listed amounts included)."""
+
+    enabled: bool = False
+    amounts: tuple[int, ...] = (200, 500, 1000)
+    allow_custom: bool = True
+    max_minor: int = 10_000
 
 
 @dataclass(frozen=True)
@@ -500,6 +514,9 @@ class CheckoutSettings:
     # discount buttons, a code already applied to an unfinished order is ignored, and claim buttons answer that the
     # offer is not available.
     discount_codes: bool = True
+    # Tips for our team on the review step ([checkout.tips]). Off: no tip menu, and a tip chosen for an unfinished
+    # order no longer counts.
+    tips: TipSettings = TipSettings()
 
     def fulfillment(self, option_id: str | None) -> FulfillmentOption | None:
         return next((o for o in self.fulfillment_options if o.id == option_id), None)
@@ -582,6 +599,14 @@ class ReviewSettings:
     # Approve/Reject decision instead of being published right away.
     require_approval: bool = False
     approval_channel: str = ""
+    # /review without a delivered order to review (an unverified review, e.g. a returning customer after the server
+    # was rebuilt): allowed when on, always after a staff decision in ``approval_channel``, at most one per member every
+    # ``unverified_cooldown_days`` days (0 = one per member, ever).
+    allow_unverified: bool = False
+    unverified_cooldown_days: int = 30
+    # A review sent with a photo (/review) waits for a staff decision in ``approval_channel`` even while
+    # ``require_approval`` is off: the picture is checked before it appears in a public channel.
+    photo_requires_approval: bool = False
 
 
 @dataclass(frozen=True)
@@ -1157,8 +1182,15 @@ def parse_settings(data: dict[str, Any]) -> Settings:
         customer_role_on=co.str_("customer_role_on", "fulfilled", choices=CUSTOMER_ROLE_TRIGGERS),
         customer_role_remove_on_refund=co.bool_("customer_role_remove_on_refund", True),
         discount_codes=co.bool_("discount_codes", True),
+        tips=_parse_tips(co.table("tips")),
     )
     co.finish()
+    tip_minimum = 10 ** currency_exponent(checkout.currency, checkout.currency_exponent)
+    if checkout.tips.allow_custom and checkout.tips.max_minor < tip_minimum:
+        errors.append(
+            f"checkout.tips.max_minor: must be at least {tip_minimum} (1.00 in the shop currency) while allow_custom "
+            "= true (Other amount takes 1.00 up to max_minor)"
+        )
     _unique(checkout.fulfillment_options, lambda x: x.id, "checkout.fulfillment_options", errors)
     _unique(checkout.fees, lambda x: x.id, "checkout.fees", errors)
     _unique(checkout.extras, lambda x: x.id, "checkout.extras", errors)
@@ -1232,6 +1264,9 @@ def parse_settings(data: dict[str, Any]) -> Settings:
         prompt_via=rv.str_("prompt_via", "dm_then_channel", choices=("dm", "channel", "dm_then_channel")),
         require_approval=rv.bool_("require_approval", False),
         approval_channel=rv.str_("approval_channel", "", pattern=KEY_PATTERN),
+        allow_unverified=rv.bool_("allow_unverified", False),
+        unverified_cooldown_days=rv.int_("unverified_cooldown_days", 30, min_=0, max_=3650),
+        photo_requires_approval=rv.bool_("photo_requires_approval", False),
     )
     rv.finish()
 
@@ -1542,6 +1577,32 @@ def _parse_problems(r: _Reader) -> ProblemSettings:
             types=tuple(types),
         ),
     )
+
+
+def _parse_tips(r: _Reader) -> TipSettings:
+    """``[checkout.tips]``: 1 to ``MAX_TIP_AMOUNTS`` different amounts (minor units), each 1 up to ``max_minor``."""
+    defaults = TipSettings()
+    max_minor = r.int_("max_minor", defaults.max_minor, min_=1, max_=10**9)
+    amounts = defaults.amounts
+    raw = r._get("amounts")
+    if raw is not None:
+        if not isinstance(raw, list) or not all(isinstance(v, int) and not isinstance(v, bool) for v in raw):
+            r.error("amounts", "expected a list of whole numbers in minor units, e.g. [200, 500, 1000] for $2, $5, $10")
+        elif not 1 <= len(raw) <= MAX_TIP_AMOUNTS:
+            r.error("amounts", f"list 1 to {MAX_TIP_AMOUNTS} amounts")
+        elif len(set(raw)) != len(raw):
+            r.error("amounts", "contains duplicates")
+        else:
+            amounts = tuple(raw)
+    if any(not 1 <= amount <= max_minor for amount in amounts):
+        r.error("amounts", f"every amount must be between 1 and max_minor ({max_minor})")
+    tips = TipSettings(
+        enabled=r.bool_("enabled", defaults.enabled),
+        amounts=amounts,
+        allow_custom=r.bool_("allow_custom", defaults.allow_custom),
+        max_minor=max_minor,
+    )
+    return _finish(r, tips)
 
 
 def _parse_my_orders(r: _Reader) -> MyOrdersSettings:

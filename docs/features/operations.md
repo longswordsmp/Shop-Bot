@@ -184,9 +184,18 @@ Staff-only forms and private replies to staff are operator text (`checkout.note.
 - `/stats [period]`: staff; a private overview. **Sales** of the period (last 24 hours, 7 days (default), 30 days or
   all time, by when the order was placed): orders placed; orders **paid** (their payment was confirmed, whatever
   happened next, except orders refunded in full) and orders that ended before payment; **revenue** (what customers
-  paid for those orders minus the money refunded to them) and the average order; refunds. Refunds given as store
-  credit are shown on their own line and not taken off the revenue: the order the credit is later spent on adds
-  nothing to the revenue, so taking it off as well would count it twice. **Needs attention now**: open orders of any
+  paid for those orders minus the money refunded to them, minus the tips kept for the team) and the average order;
+  refunds. Refunds given as store credit are shown on their own line and not taken off the revenue: the order the
+  credit is later spent on adds nothing to the revenue, so taking it off as well would count it twice. **Tips for the
+  team** (`[checkout.tips]`) go 100% to the team, so they are shown on their own line and are not revenue. A paid order
+  keeps its tip while it still holds at least that much (what was paid for it with money and store credit, minus every
+  refund and the store credit given back); below that it keeps only what it still holds. So a refund counts against
+  the items first, a refund never takes an order's revenue below zero, and an order refunded in full keeps no tip. A
+  refund of the tip alone cannot be told apart from a refund of an item: the tip still shows as kept (note it when you
+  pay the team). A tip paid with store credit is a tip too and is taken off the revenue (the shop pays it to the
+  team), so the revenue of a period can be below zero when store credit paid for tips. A full refund given as store
+  credit keeps no tip, but like every credit refund it is not taken off the revenue until the credit is spent. So
+  revenue = paid totals - money refunds - kept tips. **Needs attention now**: open orders of any
   age by what staff do next (waiting for payment, payment to check, to ship, shipped). **Best sellers** of the period
   (top 5 by units) from paid orders that were neither cancelled nor refunded in full; their amounts are at the item
   prices before discount codes (a free buy-one-get-one-free item counts at its price). Orders in another currency

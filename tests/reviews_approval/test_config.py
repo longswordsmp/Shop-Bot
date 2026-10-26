@@ -26,6 +26,7 @@ APPROVAL_KEYS = {
     k.APPROVAL_TITLE,
     k.APPROVAL_RATING_FIELD,
     k.APPROVAL_ORDER_FIELD,
+    k.APPROVAL_NO_ORDER,
     k.APPROVAL_CUSTOMER_FIELD,
     k.APPROVAL_STATUS_FIELD,
     k.APPROVAL_BUTTON_APPROVE,
@@ -116,15 +117,19 @@ def test_kinds_and_placeholders() -> None:
         k.PUBLISHED_VERIFIED_FIELD: (Kind.FIELD_NAME, ()),
         k.PUBLISHED_VERIFIED_VALUE: (Kind.FIELD_VALUE, ("order_number",)),
         k.THANKS_PENDING: (Kind.DESCRIPTION, ("order_number",)),
-        k.APPROVAL_TITLE: (Kind.TITLE, ("rating", "user_name", "order_number")),
+        k.APPROVAL_TITLE: (Kind.TITLE, ("stars", "rating", "scale", "user_name", "review_number")),
+        k.APPROVAL_NO_ORDER: (Kind.FIELD_VALUE, ()),
         k.APPROVAL_STATUS_FIELD: (Kind.FIELD_NAME, ()),
         k.approval_status_key(k.STATE_PENDING): (Kind.FIELD_VALUE, ()),
         k.approval_status_key(k.STATE_APPROVED): (Kind.FIELD_VALUE, ("staff_mention",)),
         k.approval_status_key(k.STATE_REJECTED): (Kind.FIELD_VALUE, ("staff_mention",)),
         k.approval_status_key(k.STATE_REMOVED): (Kind.FIELD_VALUE, ()),
         k.APPROVAL_BUTTON_APPROVE: (Kind.BUTTON_LABEL, ()),
-        k.notice_key("approved", "description"): (Kind.DESCRIPTION, ("order_number", "review_link")),
-        k.notice_key("rejected", "description"): (Kind.DESCRIPTION, ("order_number",)),
+        # a review written with /review may have no order: notices never name one
+        k.notice_key("approved", "title"): (Kind.TITLE, ()),
+        k.notice_key("approved", "description"): (Kind.DESCRIPTION, ("review_link",)),
+        k.notice_key("rejected", "title"): (Kind.TITLE, ()),
+        k.notice_key("rejected", "description"): (Kind.DESCRIPTION, ()),
         k.NOTICE_REJECTED_REASON_FIELD: (Kind.FIELD_NAME, ()),
     }
     for key, (kind, placeholders) in expect.items():
@@ -339,7 +344,10 @@ async def test_approval_preview_states(ap: TestEnv) -> None:
     assert [b.custom_id for b in buttons] == [views.approve_id(1), views.reject_id(1)]  # type: ignore[union-attr]
     assert [b.style for b in buttons] == ["success", "danger"]  # type: ignore[union-attr]
     embed = pending.embeds[0]
-    assert embed.title == rendered(ap, k.APPROVAL_TITLE, rating=5, user_name="[sample member]", order_number=number)
+    assert embed.title == rendered(
+        ap, k.APPROVAL_TITLE, stars="★★★★★", rating=5, scale=5, user_name="[sample member]", review_number=1
+    )
+    assert embed.fields[1].value == f"#{number}"
     assert (embed.fields[2].name, embed.fields[2].value) == (
         ap.text(k.APPROVAL_CUSTOMER_FIELD),
         f"<@{SAMPLE_MEMBER_ID}>",
@@ -354,7 +362,7 @@ async def test_approval_preview_states(ap: TestEnv) -> None:
     assert len(rejected.embeds[0].fields[-1].value) == repo.REASON_MAX
     notice = states["notice_rejected"].spec
     assert isinstance(notice, MessageSpec)
-    assert notice.embeds[0].description == rendered(ap, k.notice_key("rejected", "description"), order_number=number)
+    assert notice.embeds[0].description == rendered(ap, k.notice_key("rejected", "description"))
 
 
 async def test_approval_states_fit_with_the_largest_settings(tmp_path: Path) -> None:

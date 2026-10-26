@@ -39,9 +39,10 @@ shipping; package_out = shipped; st_delivered = delivered; location = address, s
 progress; calendar = dates; ticket = ticket; shield = protection; lock = privacy; box = packaging; check = done,
 confirmed; cross = cancelled, refused, close; alert = warning, problem; info = information; chat = questions, talk to
 us; headset = support; hourglass = waiting; tag = price, catalog; coins = amounts and store credit balance; help = FAQ;
-star = reviews; list = steps and details; user = customer; flag = report a problem; arrow_right = continue; arrow_left =
-back; plus = add; minus = take off (remove store credit, a discount); trash = delete; edit = change; link = open
-elsewhere.
+star = reviews; verified = verified purchase; photo = photos and screenshots; heart = thanks, and tips for our team;
+list = steps and details; user = customer; flag = report a problem; arrow_right = continue; arrow_left = back; plus =
+add; minus = take off (remove store credit, a discount, no tip); trash = delete; edit = change (and typing your own
+amount); link = open elsewhere.
 
 ## 3. Words
 

@@ -85,7 +85,7 @@ async def test_rating_and_comment_end_to_end_in_direct_messages(rv: TestEnv) -> 
     assert only_embed(dm).title is None and dm.view is None
     (post,) = reviews_channel(rv).messages
     card = only_embed(post)
-    assert card.title == published_title(rv, rating=4, user_name="Ada", number=order.number)
+    assert card.title == published_title(rv, rating=4)
     assert card.description == "> Great \\*service\\* <@123> @everyone"  # escaped, shown as a quote
     assert [(f.name, f.value) for f in card.fields] == [
         (rv.text(k.PUBLISHED_RATING_FIELD), rv.text(k.rating_key(4, "display"))),
@@ -124,7 +124,7 @@ async def test_rating_publishes_immediately_without_comments(tmp_path: Path) -> 
         assert only_embed(dm).description == rendered(tenv, k.THANKS, order_number=number_text(tenv, order.number))
         assert dm.view is None
         (post,) = reviews_channel(tenv).messages
-        assert only_embed(post).title == published_title(tenv, rating=2, user_name="Bo", number=order.number)
+        assert only_embed(post).title == published_title(tenv, rating=2)
         assert only_embed(post).description is None
         assert (await review_of(tenv, order)).status == repo.PUBLISHED
     finally:
@@ -487,7 +487,7 @@ async def test_choice_survives_a_restart(rv: TestEnv) -> None:
     )
     assert submitted.response_kinds() == ["edit_message"]
     (post,) = reviews_channel(rv).messages
-    assert only_embed(post).title == published_title(rv, rating=3, user_name="Cy", number=order.number)
+    assert only_embed(post).title == published_title(rv, rating=3)
     assert (await review_of(rv, order, app)).status == repo.PUBLISHED
     # the request components still route after the restart
     again = await click(app, user=customer, custom_id=views.rate_id(review.id), message=dm, values=["1"], dm=True)

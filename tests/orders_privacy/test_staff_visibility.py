@@ -17,7 +17,7 @@ from tests.checkout.util import run_command as order_command
 from tests.helpers import base_settings_dict, make_settings, make_test_env, shipped_settings_dict
 from tests.setup.util import setup
 
-STAFF_COMMANDS = ("orders", "order", "ticket", "review", "announce")
+STAFF_COMMANDS = ("orders", "order", "ticket", "reviews", "announce")
 
 
 def _shipped_roles() -> dict[str, tuple[str, ...]]:

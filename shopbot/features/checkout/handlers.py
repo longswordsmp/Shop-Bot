@@ -6,9 +6,9 @@ workflow), checks its state, then performs and persists the change and edits the
 button of a coupon (``dc``, any member, e.g. under an announcement) answers privately (``discount_codes``).
 
 Discord keeps a select menu showing the option that was picked until its message is edited, and picking the same
-option again sends nothing. So after a pick in the product or cart menu (the quantity form opens) and after a
-refused pick or quantity, the workflow message is re-rendered (best effort), and the same product can be picked
-again.
+option again sends nothing. So after a pick in the product or cart menu (the quantity form opens), after Other amount
+in the tip menu (the amount form opens) and after a refused pick or quantity, the workflow message is re-rendered (best
+effort), and the same option can be picked again.
 
 Staff routes (``cs``, access ``staff`` incl. ``checkout.staff_roles``): status changes through the state machine
 (a button acts only on the status it was rendered for; reject opens a form for the reason the customer receives),
@@ -331,6 +331,34 @@ async def on_discount_use(ctx: Ctx) -> None:
 async def on_discount_remove(ctx: Ctx) -> None:
     session = await _session(ctx)
     await discount_codes.remove(ctx.app, session)
+    await _render(ctx, session.id)
+
+
+async def on_tip(ctx: Ctx) -> None:
+    """The review step's tip menu: an amount (0 = No tip) is stored and the review shows it; Other amount opens the
+    private amount form, and the menu is reset so Other amount can be picked again after closing the form."""
+    session = await _session(ctx)
+    other = list(ctx.values) == [views.TIP_OTHER]
+    try:
+        if other:
+            service.check_custom_tip(ctx.app, session)
+            await ctx.send_modal(views.tip_modal(ctx.app.ui, ctx.app.settings, session.id))
+        else:
+            await service.set_tip(ctx.app, session, _selected_int(ctx))
+    except HandlerError as exc:
+        await _refuse_and_reset(ctx, session.id, exc)
+        return
+    if other:
+        await _reset_workflow(ctx, session.id)
+    else:
+        await _render(ctx, session.id)
+
+
+async def on_tip_form(ctx: Ctx) -> None:
+    """The Other amount form was sent: store the typed tip (the review shows it) or answer privately why it cannot be
+    used."""
+    session = await _session(ctx)
+    await service.set_custom_tip(ctx.app, session, ctx.fields.get(views.TIP_INPUT, ""))
     await _render(ctx, session.id)
 
 
@@ -955,6 +983,7 @@ def register(app: App) -> None:
         "dcode": on_discount_open,
         "dcuse": on_discount_use,
         "dcremove": on_discount_remove,
+        "tip": on_tip,
         "submit": on_submit,
         "cancel": on_cancel,
         "cancel_no": on_cancel_no,
@@ -973,6 +1002,7 @@ def register(app: App) -> None:
     router.modal(route, "sform", feature=feature)(on_submission_form)
     router.modal(route, "paysubmit", feature=feature)(on_payment_submit)
     router.modal(route, "dcform", feature=feature)(on_discount_form)
+    router.modal(route, "tipform", feature=feature)(on_tip_form)
     router.component(discount_views.CLAIM_ROUTE, discount_views.CLAIM_ACTION, feature=feature)(on_coupon_claim)
     for action in views.STAFF_ACTION_TARGETS:
         router.component(staff_route, action, feature=feature, access="staff", staff_roles=staff_role_keys)(

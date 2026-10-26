@@ -6,7 +6,7 @@ Package `orders_privacy` of the server specification. It covers three requiremen
 |---|---|---|
 | §4 Closing Tickets: "Tickets must support authorized manual closure" | `/ticket close` also works in an **order ticket** whose order was never submitted (an abandoned cart) | `tickets.commands` (dispatch), `checkout.service.staff_close_ticket` (the order rules) |
 | §5 #orders: "Private information must not be exposed in public channels. Sensitive details should be shown only to authorized people through a properly permission-checked interaction" | the customer's typed form answers are **not** posted in #orders unless `operations.answers_in_orders_channel = true`; staff open them privately | `checkout.service.post_staff_details`, `[operations]` settings |
-| §8 role-restricted staff commands | the shipped Staff role carries **Manage Messages**, so staff see `/orders`, `/order`, `/ticket`, `/review` and `/announce` in Discord's command picker | `config/settings.toml` (`[[server.roles]]` `staff`) |
+| §8 role-restricted staff commands | the shipped Staff role carries **Manage Messages**, so staff see `/orders`, `/order`, `/ticket`, `/reviews` and `/announce` in Discord's command picker | `config/settings.toml` (`[[server.roles]]` `staff`) |
 
 ## 1. Closing an order ticket (`/ticket close`)
 
@@ -68,7 +68,7 @@ The customer still sees their own answers in their private order ticket (the det
 ## 3. Staff command visibility
 
 Discord shows a slash command only to members holding its *default member permission*. The staff commands use
-Manage Messages (`/orders`, `/order`, `/ticket`, `/review`, `/announce`); the admin commands use Administrator; `/product`
+Manage Messages (`/orders`, `/order`, `/ticket`, `/reviews`, `/announce`); the admin commands use Administrator; `/product`
 (and `/credits`) use Manage Server. The shipped Staff role is therefore:
 
 ```toml
@@ -122,7 +122,7 @@ Operator text (staff replies, overridable with `operator.<key>`): `checkout.op.t
 ## Testing manually in Discord
 
 1. Run `/setup`; Server Settings → Roles → Staff shows *Manage Messages*. With a staff account (Staff role only), type
-   `/` in a channel: `/orders`, `/order`, `/ticket`, `/review`, `/announce` are listed; `/setup` and `/product` are not.
+   `/` in a channel: `/orders`, `/order`, `/ticket`, `/reviews`, `/announce` are listed; `/setup` and `/product` are not.
    With a customer account none of them are listed (only `/myorders`, once its description is configured).
 2. As a customer, press Start in #purchase and add an item, but do not submit. As staff, run `/ticket close` in that
    ticket: the reply says the unfinished order was cancelled; the customer's panel shows the staff-closed (or

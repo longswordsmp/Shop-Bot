@@ -3,8 +3,10 @@
 Titles, messages, field values, ids and links exist only in the preview and are obviously fake (``[sample title]``).
 When no ``[[announcements.fields]]`` are configured, example states show how three extra fields would look, with
 ``⟦announcements.field.<id>.name⟧`` markers where the configured headings would be. Each configured preset shows its
-private preview (the announcement copy, the card, the card when its coupon does not exist) and its posted
-announcement (with the claim button, and after the offer ended), with its configured texts and a sample coupon.
+private preview (the announcement copy, the card, the card when its coupon does not exist or, for a text showing
+``{excluded_areas}``, when nothing is excluded) and its posted announcement (with the claim button, and after the
+offer ended), with its configured texts, a sample coupon and the areas excluded in the settings (``[sample areas]``
+when none are).
 """
 
 from __future__ import annotations
@@ -35,6 +37,7 @@ SAMPLE_LINK_CHANNEL_ID = 100_000_000_000_000_004
 SAMPLE_CODE_ID = 7
 SAMPLE_TIME = 1_767_225_600  # 2026-01-01 00:00 UTC
 SAMPLE_PRODUCTS = ("[sample product 1]", "[sample product 2]")
+SAMPLE_AREAS = "[sample areas]"  # {excluded_areas} while nothing is excluded in the settings
 SAMPLE_TITLE = "[sample title]"
 SAMPLE_MESSAGE = "[sample announcement message]"
 SAMPLE_IMAGE = f"{service.IMAGE_BASENAME}.png"
@@ -405,8 +408,9 @@ def add_preset_states(app: App, add: AddState) -> None:
 
 
 def add_preset(app: App, add: AddState, preset: AnnouncementPreset) -> None:
-    """One preset: its private preview (the copy, the card, the card while its coupon does not exist) and its posted
-    announcement (with the claim button, then after the offer ended)."""
+    """One preset: its private preview (the copy, the card, the card while its coupon does not exist or while nothing
+    is excluded for a text showing ``{excluded_areas}``) and its posted announcement (with the claim button, then after
+    the offer ended)."""
     ui, op = app.ui, app.op
     links = preview_links(app)
     channel = f"<#{SAMPLE_CHANNEL_ID}>"
@@ -424,6 +428,7 @@ def add_preset(app: App, add: AddState, preset: AnnouncementPreset) -> None:
             preset,
             links=links,
             code_id=code.id if code is not None else None,
+            excluded_areas=presets.area_text(app) or SAMPLE_AREAS,
             preview=preview,
             ended=ended,
             mention_role_id=None if preview else SAMPLE_ROLE_ID,
@@ -432,17 +437,23 @@ def add_preset(app: App, add: AddState, preset: AnnouncementPreset) -> None:
     def reply(value: views.Reply) -> MessageSpec:
         return views.reply_spec(ui, op, value)
 
+    disabled = ", its claim button disabled" if preset.coupon else ""
     add(
         f"{prefix}_preview_announcement",
         f"Staff only (/announce preset:{preset.id}): the private copy of the announcement as it will be posted (the "
-        "mention is listed on the card), its claim button disabled. The preview card follows it.",
+        f"mention is listed on the card){disabled}. The preview card follows it.",
         lambda: announcement(preview=True),
     )
+    terms = " the coupon's terms in plain words," if preset.coupon else ""
     add(
         f"{prefix}_preview",
-        f"Staff only (/announce preset:{preset.id}): the private card under the copy, with the channel, the mention, "
-        "the coupon's terms in plain words, Post announcement and Cancel.",
-        lambda: reply(views.preset_preview_reply(op, name=preset.name, facts=facts, token=SAMPLE_FORM_ID)),
+        f"Staff only (/announce preset:{preset.id}): the private card under the copy, with the channel, the mention,"
+        f"{terms} Post announcement and Cancel.",
+        lambda: reply(
+            views.preset_preview_reply(
+                op, name=preset.name, facts=facts, token=SAMPLE_FORM_ID, has_button=bool(preset.coupon)
+            )
+        ),
     )
     if preset.coupon:
         missing = op(
@@ -459,6 +470,16 @@ def add_preset(app: App, add: AddState, preset: AnnouncementPreset) -> None:
                 views.preset_problem_reply(
                     op, name=preset.name, preset_id=preset.id, facts=problem_facts, problems=[missing]
                 )
+            ),
+        )
+    if presets.uses_areas(app, preset):
+        nothing = op("announcements.preset.nothing_excluded")
+        add(
+            f"{prefix}_preview_nothing_excluded",
+            f"Staff only (/announce preset:{preset.id}) while nothing is excluded in [shipping.excluded_areas]: the "
+            "announcement would name no area, so only this card is shown, with no Post button; nothing is stored.",
+            lambda: reply(
+                views.preset_problem_reply(op, name=preset.name, preset_id=preset.id, facts=facts, problems=[nothing])
             ),
         )
     with_button = ", the claim button of its coupon" if preset.coupon else ""

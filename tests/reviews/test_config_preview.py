@@ -36,10 +36,40 @@ FIXED_KEYS = {
     k.DECLINED,
     k.ALREADY_REVIEWED,
     k.EXPIRED,
-    # staff approval message (reviews.require_approval)
+    # /review and the Write a review button
+    k.COMMAND_DESCRIPTION,
+    k.COMMAND_STARS,
+    k.COMMAND_IMAGE,
+    k.WRITE_TITLE,
+    k.WRITE_LABEL,
+    k.WRITE_DESCRIPTION,
+    k.WRITE_PLACEHOLDER,
+    k.WRITE_PHOTO_LABEL,
+    k.WRITE_PHOTO_DESCRIPTION,
+    k.PICK_DESCRIPTION,
+    k.PICK_PLACEHOLDER,
+    k.WRITTEN,
+    k.WRITTEN_PENDING,
+    k.COOLDOWN,
+    k.LIMIT,
+    k.NO_ORDER,
+    k.IMAGE_PROBLEM,
+    k.IMAGE_PROBLEM_TEXT_FIELD,
+    k.TOO_LONG,
+    k.FORM_EXPIRED,
+    # the #reviews intro panel
+    k.INTRO_TITLE,
+    k.INTRO_DESCRIPTION,
+    k.INTRO_BUTTON,
+    k.INTRO_CHECKED_ALL,
+    k.INTRO_CHECKED_UNVERIFIED,
+    k.INTRO_CHECKED_PHOTOS,
+    k.INTRO_CHECKED_PHOTOS_UNVERIFIED,
+    # staff approval message (reviews.require_approval, reviews.allow_unverified)
     k.APPROVAL_TITLE,
     k.APPROVAL_RATING_FIELD,
     k.APPROVAL_ORDER_FIELD,
+    k.APPROVAL_NO_ORDER,
     k.APPROVAL_CUSTOMER_FIELD,
     k.APPROVAL_STATUS_FIELD,
     k.APPROVAL_REASON_FIELD,
@@ -85,8 +115,31 @@ def test_kinds_required_flags_and_placeholders() -> None:
         k.COMMENT_LABEL: (Kind.INPUT_LABEL, True, ()),
         k.COMMENT_DESCRIPTION: (Kind.INPUT_DESCRIPTION, False, ()),
         k.COMMENT_PLACEHOLDER: (Kind.INPUT_PLACEHOLDER, False, ()),
-        k.PUBLISHED_TITLE: (Kind.TITLE, True, ("rating", "user_name", "order_number")),
-        k.PUBLISHED_RATING_FIELD: (Kind.FIELD_NAME, True, ()),
+        k.PUBLISHED_TITLE: (Kind.TITLE, True, ("stars", "rating", "scale")),
+        k.PUBLISHED_RATING_FIELD: (Kind.FIELD_NAME, False, ()),
+        k.PUBLISHED_VERIFIED_VALUE: (Kind.FIELD_VALUE, False, ("order_number",)),
+        k.COMMAND_DESCRIPTION: (Kind.COMMAND_DESCRIPTION, True, ()),
+        k.COMMAND_STARS: (Kind.COMMAND_DESCRIPTION, True, ()),
+        k.COMMAND_IMAGE: (Kind.COMMAND_DESCRIPTION, True, ()),
+        k.WRITE_TITLE: (Kind.MODAL_TITLE, True, ()),
+        k.WRITE_LABEL: (Kind.INPUT_LABEL, True, ()),
+        k.WRITE_DESCRIPTION: (Kind.INPUT_DESCRIPTION, False, ()),
+        k.WRITE_PLACEHOLDER: (Kind.INPUT_PLACEHOLDER, False, ()),
+        k.WRITTEN: (Kind.DESCRIPTION, True, ()),
+        k.WRITTEN_PENDING: (Kind.DESCRIPTION, True, ()),
+        k.IMAGE_PROBLEM: (Kind.DESCRIPTION, True, ("limit",)),
+        k.TOO_LONG: (Kind.DESCRIPTION, True, ("max",)),
+        k.FORM_EXPIRED: (Kind.DESCRIPTION, True, ()),
+        # the test settings: unverified reviews off, approval off
+        k.NO_ORDER: (Kind.DESCRIPTION, True, ()),
+        k.COOLDOWN: (Kind.DESCRIPTION, False, ("date",)),
+        k.LIMIT: (Kind.DESCRIPTION, False, ()),
+        k.INTRO_TITLE: (Kind.TITLE, True, ()),
+        k.INTRO_DESCRIPTION: (Kind.DESCRIPTION, True, ()),
+        k.INTRO_CHECKED_ALL: (Kind.DESCRIPTION, False, ()),
+        k.INTRO_CHECKED_UNVERIFIED: (Kind.DESCRIPTION, False, ()),
+        k.INTRO_CHECKED_PHOTOS: (Kind.DESCRIPTION, False, ()),
+        k.INTRO_CHECKED_PHOTOS_UNVERIFIED: (Kind.DESCRIPTION, False, ()),
         k.THANKS: (Kind.DESCRIPTION, True, ("order_number",)),
         k.DECLINED: (Kind.DESCRIPTION, True, ("order_number",)),
         k.ALREADY_REVIEWED: (Kind.DESCRIPTION, True, ("order_number",)),
@@ -111,7 +164,8 @@ def test_every_content_key_used_in_code_is_declared() -> None:
     constants = set(
         re.findall(
             r'= "(reviews\.(?:prompt|button|comment|published|thanks|thanks_pending|declined|already_reviewed|expired|'
-            r'approval|notice)\.[a-z_.]+)"',
+            r"approval|notice|command|write|written|written_pending|cooldown|limit|no_order|image_problem|too_long|"
+            r'form_expired|intro|pick)\.[a-z_.]+)"',
             source,
         )
     )
@@ -239,6 +293,7 @@ def test_operator_text_keys_are_prefixed_and_used() -> None:
         "reviews.approval_channel",
         "reviews.approval",  # content key prefix used in a docstring of content_keys
         "reviews.thanks_pending.description",
+        service.WRITTEN_ACTION,
     }
     operator_used = (used - content_key_names - identifiers) | dynamic
     assert operator_used <= set(OPERATOR_TEXT), operator_used - set(OPERATOR_TEXT)
@@ -251,10 +306,14 @@ def test_operator_text_keys_are_prefixed_and_used() -> None:
 
 ALL_STATES = {
     "prompt",
+    "start_menu",
     "published_with_comment",
+    "published_with_photo",
+    "published_unverified",
     "published_longest_comment",
     "published_without_comment",
     "approval_request",
+    "approval_request_with_photo",
     "approval_request_longest_comment",
     "approval_request_without_comment",
     "approval_approved",
@@ -266,6 +325,18 @@ ALL_STATES = {
     "declined",
     "already_reviewed",
     "expired",
+    "write_form",
+    "write_form_photo_added",
+    "written",
+    "written_pending",
+    "refused_cooldown",
+    "refused_limit",
+    "refused_no_order",
+    "refused_image",
+    "refused_image_after_form",
+    "refused_too_long",
+    "form_expired",
+    "intro_panel",
     "notice_approved",
     "notice_rejected",
     "staff_reject_form",
@@ -329,7 +400,7 @@ async def test_preview_uses_exact_configured_text(tenv: TestEnv) -> None:
     published = states["published_with_comment"]
     assert isinstance(published, MessageSpec)
     card = published.embeds[0]
-    assert card.title == rendered(tenv, k.PUBLISHED_TITLE, rating=5, user_name="[sample member]", order_number=number)
+    assert card.title == rendered(tenv, k.PUBLISHED_TITLE, stars="★★★★★", rating=5, scale=5)
     assert card.description == "> [sample review comment]"  # the comment is a quote
     assert [(f.name, f.value) for f in card.fields] == [
         (tenv.text(k.PUBLISHED_RATING_FIELD), tenv.text(k.rating_key(5, "display"))),

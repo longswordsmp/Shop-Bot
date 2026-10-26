@@ -6,9 +6,19 @@ stored).
   status is now, e.g. paid and later cancelled), except orders refunded in full. Orders cancelled, rejected or expired
   before any payment count as ended before payment.
 - **Revenue** is the money customers paid for those orders (their totals: store credit a customer used is not money
-  and is not in the total) minus the money refunded to them. Refunds given as store credit are shown on their own
-  line and not taken off: the shop keeps that money until the credit is spent, and the order it is spent on adds
-  nothing to the revenue, so taking it off as well would count it twice.
+  and is not in the total) minus the money refunded to them, minus the tips kept for the team. Refunds given as store
+  credit are shown on their own line and not taken off: the shop keeps that money until the credit is spent, and the
+  order it is spent on adds nothing to the revenue, so taking it off as well would count it twice.
+- **Tips for the team** (``orders.tip_minor``, paid with the order) go 100% to the team, so they are shown on their
+  own line and are not revenue. A paid order keeps its tip while it still holds at least that much: what was paid for
+  it (money and store credit) minus every refund (money or store credit) and the store credit given back. Below that
+  it keeps only what it still holds, so a refund counts against the items first and a fully refunded order keeps no
+  tip. A refund of the tip alone cannot be told apart from a refund of an item, so it still shows the tip as kept.
+  So revenue = paid totals - money refunds - kept tips.
+- A tip paid with store credit is a tip too: the shop pays it to the team, so it is taken off the revenue like any
+  other tip, and the revenue of a period can be below zero when store credit paid for tips (the money behind the
+  credit was counted when it came in, or the credit was a gift). A full refund given as store credit keeps no tip, but
+  like every credit refund it is not taken off the revenue until the credit is spent.
 - **Best sellers** are the items of paid orders that were neither cancelled nor refunded in full.
 - "Needs attention now" counts open orders of every age by what staff do next.
 - Only orders in the shop's currency (``checkout.currency``) are added up; orders in another currency (placed before
@@ -77,6 +87,7 @@ class Stats:
     revenue_minor: int = 0
     refunded_minor: int = 0
     credit_refunded_minor: int = 0
+    tips_minor: int = 0
     open_counts: dict[str, int] = field(default_factory=dict)
     best: tuple[BestSeller, ...] = ()
     other_currency: int = 0
@@ -86,11 +97,16 @@ class Stats:
         return self.revenue_minor // self.sold if self.sold else None
 
 
+# The tip each paid order keeps: at most what it still holds (paid with money and store credit, minus every refund
+# and the store credit given back; ``refunded_minor`` counts money and store-credit refunds).
 _SALES_SQL = """
 SELECT COUNT(*),
   COALESCE(SUM(paid_at IS NOT NULL AND status != ?), 0),
   COALESCE(SUM(paid_at IS NULL AND status IN (SELECT value FROM json_each(?))), 0),
-  COALESCE(SUM(CASE WHEN paid_at IS NOT NULL THEN total_minor END), 0)
+  COALESCE(SUM(CASE WHEN paid_at IS NOT NULL THEN total_minor END), 0),
+  COALESCE(SUM(CASE WHEN paid_at IS NOT NULL AND status != ? AND tip_minor > 0 THEN MIN(tip_minor, MAX(0,
+    total_minor + credits_applied_minor - refunded_minor - (SELECT COALESCE(SUM(a.amount_minor), 0)
+      FROM order_adjustments a WHERE a.order_id = orders.id AND a.kind = 'credit_return'))) END), 0)
 FROM orders WHERE guild_id = ? AND currency = ? AND (? IS NULL OR created_at >= ?)
 """
 _REFUNDS_SQL = """
@@ -117,8 +133,8 @@ SELECT COUNT(*) FROM orders WHERE guild_id = ? AND currency != ? AND (? IS NULL 
 
 def collect(conn: sqlite3.Connection, guild_id: int, currency: str, since: int | None) -> Stats:
     """The numbers of orders placed since ``since`` (None: all time), plus the open orders of every age."""
-    placed, sold, ended, paid_total = conn.execute(
-        _SALES_SQL, (m.REFUNDED, json.dumps(ENDED_UNSOLD), guild_id, currency, since, since)
+    placed, sold, ended, paid_total, kept_tips = conn.execute(
+        _SALES_SQL, (m.REFUNDED, json.dumps(ENDED_UNSOLD), m.REFUNDED, guild_id, currency, since, since)
     ).fetchone()
     refunded, credit_refunded = conn.execute(_REFUNDS_SQL, (guild_id, currency, since, since)).fetchone()
     open_by_status = dict(conn.execute(_OPEN_SQL, (guild_id, json.dumps(m.OPEN_STATUSES))).fetchall())
@@ -131,9 +147,10 @@ def collect(conn: sqlite3.Connection, guild_id: int, currency: str, since: int |
         placed=int(placed),
         sold=int(sold),
         ended_unsold=int(ended),
-        revenue_minor=int(paid_total) - int(refunded),
+        revenue_minor=int(paid_total) - int(refunded) - int(kept_tips),
         refunded_minor=int(refunded),
         credit_refunded_minor=int(credit_refunded),
+        tips_minor=int(kept_tips),
         open_counts={
             group: sum(open_by_status.get(status, 0) for status in statuses) for group, statuses in OPEN_GROUPS
         },
@@ -160,6 +177,8 @@ def stats_message(ui: Ui, op: OperatorText, money: Money, stats: Stats, period: 
         lines.append(op("checkout.stats.line.refunded", amount=money(stats.refunded_minor)))
     if stats.credit_refunded_minor:
         lines.append(op("checkout.stats.line.credit_refunded", amount=money(stats.credit_refunded_minor)))
+    if stats.tips_minor:
+        lines.append(op("checkout.stats.line.tips", amount=money(stats.tips_minor)))
     lines += ["", heading(op("checkout.stats.heading.open"))]
     lines += [op(OPEN_LINES[group], count=stats.open_counts.get(group, 0)) for group, _ in OPEN_GROUPS]
     lines += ["", heading(op("checkout.stats.heading.best", period=when))]

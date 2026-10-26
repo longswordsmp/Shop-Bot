@@ -7,11 +7,12 @@ from shopbot.core.money import MoneyError, currency_exponent, format_amount, par
 from shopbot.ui import custom_ids
 from shopbot.ui.discord_render import RenderError, send_kwargs, to_modal, to_view
 from shopbot.ui.limits import validate_message, validate_modal
-from shopbot.ui.routing import RoutedItem, parse_modal_fields
+from shopbot.ui.routing import ModalUpload, RoutedItem, parse_modal_fields, parse_modal_uploads
 from shopbot.ui.spec import (
     ButtonSpec,
     EmbedField,
     EmbedSpec,
+    FileUploadSpec,
     MessageSpec,
     ModalSpec,
     SelectOptionSpec,
@@ -154,6 +155,48 @@ def test_to_modal_uses_labels_and_parse_fields_roundtrip() -> None:
         ]
     }
     assert parse_modal_fields(data) == {"qty": "3", "note": ""}
+
+
+def test_a_file_upload_field_is_rendered_in_a_label_and_its_files_are_parsed() -> None:
+    text = TextInputSpec(custom_id="text", label="Text", style="paragraph")
+    photo = FileUploadSpec(custom_id="photo", label="Photo", description="One picture")
+    modal = to_modal(ModalSpec(custom_id="sb:x:m", title="Form", inputs=(text,), uploads=(photo,)))
+    labels = [c for c in modal.children if isinstance(c, discord.ui.Label)]
+    assert [label.text for label in labels] == ["Text", "Photo"]  # uploads follow the text inputs
+    upload = labels[1].component
+    assert isinstance(upload, discord.ui.FileUpload) and labels[1].description == "One picture"
+    assert (upload.custom_id, upload.required, upload.min_values, upload.max_values) == ("photo", False, 0, 1)
+    url = "https://cdn.discordapp.com/ephemeral-attachments/1/2/a.png"
+    data = {
+        "components": [
+            {"type": 18, "component": {"type": 4, "custom_id": "text", "value": "hi"}},
+            {"type": 18, "component": {"type": 19, "custom_id": "photo", "values": ["11", "12"]}},
+            {"type": 18, "component": {"type": 19, "custom_id": "empty", "values": []}},
+        ],
+        "resolved": {
+            "attachments": {"11": {"id": "11", "filename": "a.png", "url": url, "size": 7, "content_type": "image/png"}}
+        },
+    }
+    assert parse_modal_fields(data) == {"text": "hi"}
+    # A file the submission does not describe ("12") is left out.
+    assert parse_modal_uploads(data) == {"photo": (ModalUpload("a.png", url, 7, "image/png"),), "empty": ()}
+    assert parse_modal_uploads({"components": []}) == {} and parse_modal_uploads(None) == {}
+
+
+def test_file_upload_fields_count_toward_the_form_limits() -> None:
+    text = TextInputSpec(custom_id="text", label="Text")
+    uploads = tuple(FileUploadSpec(custom_id=f"u{i}", label="Photo") for i in range(5))
+    assert validate_modal(ModalSpec(custom_id="sb:x:m", title="Form", uploads=uploads)) == []  # uploads only: fine
+    messages = [v.message for v in validate_modal(ModalSpec("sb:x:m", "Form", inputs=(text,), uploads=uploads))]
+    assert "6 inputs and uploads exceeds 5" in messages
+    bad = FileUploadSpec(custom_id="text", label="L" * 46, description="D" * 101, max_files=11)
+    paths = {v.path for v in validate_modal(ModalSpec("sb:x:m", "Form", inputs=(text,), uploads=(bad,)))}
+    assert {
+        "modal.uploads[0].custom_id",  # the same custom id as the text input
+        "modal.uploads[0].label",
+        "modal.uploads[0].description",
+        "modal.uploads[0].max_files",
+    } <= paths
 
 
 def test_chunk_lines_never_cuts_lines() -> None:

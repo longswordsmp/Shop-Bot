@@ -26,7 +26,8 @@ Refunds of a paid order have two parts: money (``refunded_minor``, at most ``tot
 the customer applied (``credits_applied_minor``, returned all at once; ``credit_returned_minor`` is read from the
 credit ledger). An order is fully refunded - and moves to ``refunded`` - once both are covered. A discount
 (``discount_minor``, from a discount code) was never paid, so it is never refunded: it is already taken off
-``total_minor``.
+``total_minor``. A tip for our team (``tip_minor``, counted inside ``fees_minor``) was paid with the order and is
+refunded like the rest of it.
 """
 
 from __future__ import annotations
@@ -142,6 +143,9 @@ class Session:
     expires_at: int | None
     # The discount code the customer applied (checked again whenever the review is shown and at submission).
     discount_code_id: int | None = None
+    # The tip for our team the customer chose on the review step (0 = none; ``tips.effective`` decides whether it
+    # still counts).
+    tip_minor: int = 0
 
     @property
     def active(self) -> bool:
@@ -196,6 +200,8 @@ class Order:
     discount_code: str | None = None
     discount_kind: str | None = None
     discount_minor: int = 0
+    # The tip for our team the order was placed with: part of ``fees_minor`` (0 without one), listed on its own line.
+    tip_minor: int = 0
 
     @property
     def refundable_minor(self) -> int:

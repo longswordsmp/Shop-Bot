@@ -97,8 +97,8 @@ async def test_removing_a_pending_review_shows_the_cancellation_banner(bn: TestE
 
 async def test_setup_edits_pending_approval_messages_without_uploading_the_banner_again(bn: TestEnv) -> None:
     assert MODULE.publish is not None
-    order, _, message = await pending_review(bn, bn.member())
-    bn.app.content.replace(file_values={**bn.content, k.APPROVAL_TITLE: "[new title] {order_number}"})
+    _order, review, message = await pending_review(bn, bn.member())
+    bn.app.content.replace(file_values={**bn.content, k.APPROVAL_TITLE: "[new title] {review_number}"})
     await MODULE.publish(bn.app)
-    assert only_embed(message).title == f"[new title] {order.number}"
+    assert only_embed(message).title == f"[new title] {review.id}"
     assert uploaded_banners(message.edits[-1]) == [] and banner_names(message) == [name(bn, "pending-review")]

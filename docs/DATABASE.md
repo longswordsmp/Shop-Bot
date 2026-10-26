@@ -174,6 +174,7 @@ Constraints:
 | `updated_at` | INTEGER | yes |  |  |
 | `expires_at` | INTEGER |  |  |  |
 | `discount_code_id` | INTEGER |  |  |  |
+| `tip_minor` | INTEGER | yes | 0 |  |
 
 Indexes: `idx_sessions_user`, `uq_active_session_per_ticket` (unique)
 
@@ -183,6 +184,7 @@ Constraints:
 - `step TEXT NOT NULL CHECK (step IN ('browse', 'cart', 'fulfillment', 'details', 'review', 'done'))`
 - `page INTEGER NOT NULL DEFAULT 0 CHECK (page >= 0)`
 - `apply_credits INTEGER NOT NULL DEFAULT 0 CHECK (apply_credits IN (0, 1))`
+- `, discount_code_id INTEGER REFERENCES discount_codes (id), tip_minor INTEGER NOT NULL DEFAULT 0 CHECK (tip_minor >= 0))`
 
 ## `cart_items`
 
@@ -570,46 +572,6 @@ Constraints:
 - `target_id INTEGER NOT NULL CHECK (target_id > 0)`
 - `sent_count INTEGER NOT NULL DEFAULT 0 CHECK (sent_count >= 0)`
 
-## `reviews`
-
-| Column | Type | Not null | Default | Key |
-|---|---|---|---|---|
-| `id` | INTEGER |  |  | PK |
-| `guild_id` | INTEGER | yes |  |  |
-| `order_id` | INTEGER | yes |  |  |
-| `user_id` | INTEGER | yes |  |  |
-| `status` | TEXT | yes |  |  |
-| `rating` | INTEGER |  |  |  |
-| `comment` | TEXT |  |  |  |
-| `prompt_message_id` | INTEGER |  |  |  |
-| `prompt_channel_id` | INTEGER |  |  |  |
-| `published_message_id` | INTEGER |  |  |  |
-| `approval` | TEXT |  |  |  |
-| `decided_by` | INTEGER |  |  |  |
-| `decided_at` | INTEGER |  |  |  |
-| `decision_reason` | TEXT |  |  |  |
-| `approval_channel_id` | INTEGER |  |  |  |
-| `approval_message_id` | INTEGER |  |  |  |
-| `created_at` | INTEGER | yes |  |  |
-| `updated_at` | INTEGER | yes |  |  |
-
-Indexes: `idx_reviews_guild_status`
-
-Constraints:
-
-- `CHECK (status IN ('prompted', 'rated', 'pending_approval', 'published', 'rejected', 'declined'))`
-- `rating INTEGER CHECK (rating IS NULL OR rating BETWEEN 1 AND 10)`
-- `approval TEXT CHECK (approval IS NULL OR approval IN ('automatic', 'approved', 'rejected'))`
-- `decision_reason TEXT CHECK (decision_reason IS NULL OR length(decision_reason) BETWEEN 1 AND 500)`
-- `CHECK (status NOT IN ('pending_approval', 'rejected') OR (rating IS NOT NULL AND comment IS NOT NULL))`
-- `CHECK (status != 'pending_approval' OR approval IS NULL)`
-- `CHECK (status != 'rejected' OR coalesce(approval, '') = 'rejected')`
-- `CHECK (status != 'published' OR coalesce(approval, '') IN ('automatic', 'approved'))`
-- `CHECK (status != 'rated' OR comment IS NULL OR coalesce(approval, '') IN ('automatic', 'approved'))`
-- `CHECK (approval IS NULL OR (approval IN ('approved', 'rejected')) = (decided_by IS NOT NULL AND decided_at IS NOT NULL))`
-- `CHECK (decision_reason IS NULL OR coalesce(approval, '') = 'rejected')`
-- `CHECK ((approval_channel_id IS NULL) = (approval_message_id IS NULL))`
-
 ## `app_emojis`
 
 | Column | Type | Not null | Default | Key |
@@ -762,6 +724,7 @@ Indexes: `idx_discount_claims_user`
 | `discount_code` | TEXT |  |  |  |
 | `discount_kind` | TEXT |  |  |  |
 | `discount_minor` | INTEGER | yes | 0 |  |
+| `tip_minor` | INTEGER | yes | 0 |  |
 
 Indexes: `idx_orders_discount`, `idx_orders_status`, `idx_orders_user`
 
@@ -777,8 +740,73 @@ Constraints:
 - `total_minor INTEGER NOT NULL CHECK (total_minor >= 0)`
 - `refunded_minor INTEGER NOT NULL DEFAULT 0 CHECK (refunded_minor >= 0)`
 - `discount_kind TEXT CHECK (discount_kind IS NULL OR discount_kind IN ('percent', 'amount', 'bogo'))`
-- `discount_minor INTEGER NOT NULL DEFAULT 0 CHECK (discount_minor >= 0 AND discount_minor <= subtotal_minor)`
+- `discount_minor INTEGER NOT NULL DEFAULT 0 CHECK (discount_minor >= 0 AND discount_minor <= subtotal_minor), tip_minor INTEGER NOT NULL DEFAULT 0 CHECK (tip_minor >= 0 AND tip_minor <= fees_minor)`
 - `CHECK ((discount_code IS NULL) = (discount_kind IS NULL))`
 - `CHECK (discount_minor = 0 OR discount_code IS NOT NULL)`
 - `CHECK (total_minor = subtotal_minor + fulfillment_fee_minor + fees_minor - discount_minor - credits_applied_minor)`
 - `CHECK (refunded_minor <= total_minor)`
+
+## `reviews`
+
+| Column | Type | Not null | Default | Key |
+|---|---|---|---|---|
+| `id` | INTEGER |  |  | PK |
+| `guild_id` | INTEGER | yes |  |  |
+| `order_id` | INTEGER |  |  |  |
+| `user_id` | INTEGER | yes |  |  |
+| `status` | TEXT | yes |  |  |
+| `rating` | INTEGER |  |  |  |
+| `comment` | TEXT |  |  |  |
+| `prompt_message_id` | INTEGER |  |  |  |
+| `prompt_channel_id` | INTEGER |  |  |  |
+| `published_message_id` | INTEGER |  |  |  |
+| `approval` | TEXT |  |  |  |
+| `decided_by` | INTEGER |  |  |  |
+| `decided_at` | INTEGER |  |  |  |
+| `decision_reason` | TEXT |  |  |  |
+| `approval_channel_id` | INTEGER |  |  |  |
+| `approval_message_id` | INTEGER |  |  |  |
+| `created_at` | INTEGER | yes |  |  |
+| `updated_at` | INTEGER | yes |  |  |
+| `source` | TEXT | yes | 'prompt' |  |
+
+Indexes: `idx_reviews_unverified`, `idx_reviews_guild_status`
+
+Constraints:
+
+- `CHECK (status IN ('prompted', 'rated', 'pending_approval', 'published', 'rejected', 'declined'))`
+- `rating INTEGER CHECK (rating IS NULL OR rating BETWEEN 1 AND 10)`
+- `approval TEXT CHECK (approval IS NULL OR approval IN ('automatic', 'approved', 'rejected'))`
+- `decision_reason TEXT CHECK (decision_reason IS NULL OR length(decision_reason) BETWEEN 1 AND 500)`
+- `source TEXT NOT NULL DEFAULT 'prompt' CHECK (source IN ('prompt', 'command'))`
+- `CHECK (status NOT IN ('pending_approval', 'rejected') OR (rating IS NOT NULL AND comment IS NOT NULL))`
+- `CHECK (status != 'pending_approval' OR approval IS NULL)`
+- `CHECK (status != 'rejected' OR coalesce(approval, '') = 'rejected')`
+- `CHECK (status != 'published' OR coalesce(approval, '') IN ('automatic', 'approved'))`
+- `CHECK (status != 'rated' OR comment IS NULL OR coalesce(approval, '') IN ('automatic', 'approved'))`
+- `CHECK (approval IS NULL OR (approval IN ('approved', 'rejected')) = (decided_by IS NOT NULL AND decided_at IS NOT NULL))`
+- `CHECK (decision_reason IS NULL OR coalesce(approval, '') = 'rejected')`
+- `CHECK ((approval_channel_id IS NULL) = (approval_message_id IS NULL))`
+- `CHECK (order_id IS NOT NULL OR source = 'command')`
+- `CHECK (order_id IS NOT NULL OR (status != 'prompted' AND coalesce(approval, '') != 'automatic'))`
+
+## `review_images`
+
+| Column | Type | Not null | Default | Key |
+|---|---|---|---|---|
+| `review_id` | INTEGER |  |  | PK |
+| `guild_id` | INTEGER | yes |  |  |
+| `content_type` | TEXT | yes |  |  |
+| `size` | INTEGER | yes |  |  |
+| `sha256` | TEXT | yes |  |  |
+| `data` | BLOB |  |  |  |
+| `created_at` | INTEGER | yes |  |  |
+| `released_at` | INTEGER |  |  |  |
+
+Constraints:
+
+- `content_type TEXT NOT NULL CHECK (content_type IN ('image/png', 'image/jpeg', 'image/gif', 'image/webp'))`
+- `size INTEGER NOT NULL CHECK (size BETWEEN 1 AND 10485760)`
+- `sha256 TEXT NOT NULL CHECK (length(sha256) = 64 AND sha256 NOT GLOB '*[^0-9a-f]*')`
+- `data BLOB CHECK (data IS NULL OR (typeof(data) = 'blob' AND length(data) = size))`
+- `CHECK ((data IS NULL) = (released_at IS NOT NULL))`

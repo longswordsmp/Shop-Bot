@@ -4,6 +4,14 @@ Synchronous, connection-first functions. Writers run inside ``app.db.transaction
 conditional UPDATE (``WHERE status IN (...)``) and ``reviews.order_id`` is UNIQUE, so repeated or concurrent
 calls never apply twice.
 
+Two ways to write a review (``source``): the review request sent after an order was delivered ('prompt': rating menu
+and comment form, the states below), and ``/review`` or the Write a review button of the #reviews intro panel
+('command' for both: stars, a description and an optional photo, finished in one step by ``write_review``). A
+``/review`` for a member's newest delivered order without a finished review is a *verified* review of that order (it
+finishes an open review request of that order). Without such an order it is an
+*unverified* review (``order_id`` NULL, ``reviews.allow_unverified``): it always waits for a staff decision, and a
+member writes at most one every ``reviews.unverified_cooldown_days`` (``unverified_cooldown``).
+
 Review states::
 
     prompted --rate--> rated --comment--> (submitted) --publish--> published
@@ -11,7 +19,7 @@ Review states::
          \\                \\        +--(reviews.require_approval)--> pending_approval --approve--> (submitted)
           \\                \\                                             \\
            +---decline------+---decline--> declined                     +--reject--> rejected
-                               (any state --staff removal with /review remove--> declined)
+                               (any state --staff removal with /reviews remove--> declined)
 
 A review is *submitted* when it is ``rated``, ``comment IS NOT NULL`` (an empty string means "submitted without
 a comment") and its comment is approved (``approval`` 'automatic' when no staff approval is required, 'approved'
@@ -26,7 +34,8 @@ or ``pending_approval -> rejected``, exactly once (conditional UPDATE), recorded
 The staff approval message is recorded in ``approval_channel_id``/``approval_message_id`` (UNIQUE) with the same
 claim protocol as the publication (kv_state ``reviews.approval_posting:<review_id>``).
 
-Orders are read directly from the ``orders`` table (owned by checkout); this module never writes them.
+Orders are read directly from the ``orders`` table (owned by checkout); this module never writes them. An unverified
+review has no order: it is never "expired" by an order's status.
 
 Publication claim: before a review is posted in the reviews channel, ``claim_publication`` stores the kv_state key
 ``reviews.publishing:<review_id>``; recording the posted message (``record_publication``/``adopt_publication``) or
@@ -37,6 +46,7 @@ lost).
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -45,6 +55,7 @@ from typing import Any
 
 from shopbot.db.repos import state
 from shopbot.db.repos import tasks as task_repo
+from shopbot.features.reviews import images
 
 PROMPTED = "prompted"
 RATED = "rated"
@@ -58,6 +69,11 @@ STATUSES = (PROMPTED, RATED, PENDING_APPROVAL, PUBLISHED, REJECTED, DECLINED)
 AUTOMATIC = "automatic"
 APPROVED = "approved"
 APPROVED_VALUES = (AUTOMATIC, APPROVED)
+
+# ``source`` values: how the review was written.
+SOURCE_PROMPT = "prompt"
+SOURCE_COMMAND = "command"
+DAY_SECONDS = 86_400
 
 # Durable follow-up of a staff decision (approval message, publication or rejection notice, audit); scheduled in
 # the decision's transaction and cancelled once the in-process follow-up completed.
@@ -91,8 +107,8 @@ class Order:
 class Review:
     id: int
     guild_id: int
-    order_id: int
-    order_number: int
+    order_id: int | None  # None: an unverified review (written with /review without a delivered order)
+    order_number: int | None
     user_id: int
     status: str
     rating: int | None
@@ -108,6 +124,12 @@ class Review:
     decision_reason: str | None = None
     approval_channel_id: int | None = None
     approval_message_id: int | None = None
+    source: str = SOURCE_PROMPT
+
+    @property
+    def verified(self) -> bool:
+        """A review of a delivered order (the published review may show the verification marker)."""
+        return self.order_id is not None
 
     @property
     def submitted(self) -> bool:
@@ -139,12 +161,22 @@ class Outcome(StrEnum):
     EXPIRED = "expired"  # the order is no longer fulfilled
     NOT_RATED = "not_rated"  # comment without a rating
     NOT_PENDING = "not_pending"  # a staff decision on a review that no longer waits for approval
+    COOLDOWN = "cooldown"  # /review: no delivered order to review, and the unverified review limit is reached
+    NO_ORDER = "no_order"  # /review: no delivered order to review, and unverified reviews are off
+
+
+@dataclass(frozen=True)
+class Cooldown:
+    """A member may not write another unverified review before ``until`` (None: never again, a cooldown of 0)."""
+
+    until: int | None
 
 
 @dataclass(frozen=True)
 class Result:
     outcome: Outcome
     review: Review | None = None
+    cooldown: Cooldown | None = None
 
 
 # -- reads ---------------------------------------------------------------------------------------------
@@ -154,7 +186,7 @@ _ORDER_SELECT = (
     "CASE WHEN t.status = 'deleted' THEN NULL ELSE t.channel_id END AS channel_id "
     "FROM orders o LEFT JOIN tickets t ON t.id = o.ticket_id"
 )
-_REVIEW_SELECT = "SELECT r.*, o.number AS order_number FROM reviews r JOIN orders o ON o.id = r.order_id"
+_REVIEW_SELECT = "SELECT r.*, o.number AS order_number FROM reviews r LEFT JOIN orders o ON o.id = r.order_id"
 
 
 def _order(row: sqlite3.Row) -> Order:
@@ -177,8 +209,8 @@ def _review(row: sqlite3.Row) -> Review:
     return Review(
         id=int(row["id"]),
         guild_id=int(row["guild_id"]),
-        order_id=int(row["order_id"]),
-        order_number=int(row["order_number"]),
+        order_id=_opt_int(row["order_id"]),
+        order_number=_opt_int(row["order_number"]),
         user_id=int(row["user_id"]),
         status=str(row["status"]),
         rating=_opt_int(row["rating"]),
@@ -194,6 +226,7 @@ def _review(row: sqlite3.Row) -> Review:
         decision_reason=None if row["decision_reason"] is None else str(row["decision_reason"]),
         approval_channel_id=_opt_int(row["approval_channel_id"]),
         approval_message_id=_opt_int(row["approval_message_id"]),
+        source=str(row["source"]),
     )
 
 
@@ -215,6 +248,36 @@ def get_review(conn: sqlite3.Connection, review_id: int) -> Review | None:
 def get_review_by_order(conn: sqlite3.Connection, order_id: int) -> Review | None:
     row = conn.execute(f"{_REVIEW_SELECT} WHERE r.order_id = ?", (order_id,)).fetchone()
     return None if row is None else _review(row)
+
+
+def eligible_order(conn: sqlite3.Connection, guild_id: int, user_id: int) -> Order | None:
+    """The member's newest delivered (fulfilled) order whose review is not finished: no review yet, or a review request
+    that is still open. /review writes the review of that order."""
+    row = conn.execute(
+        f"{_ORDER_SELECT} LEFT JOIN reviews r ON r.order_id = o.id "
+        "WHERE o.guild_id = ? AND o.user_id = ? AND o.status = 'fulfilled' "
+        "AND (r.id IS NULL OR r.status = 'prompted' OR (r.status = 'rated' AND r.comment IS NULL)) "
+        "ORDER BY coalesce(o.fulfilled_at, o.updated_at) DESC, o.id DESC LIMIT 1",
+        (guild_id, user_id),
+    ).fetchone()
+    return None if row is None else _order(row)
+
+
+def unverified_cooldown(
+    conn: sqlite3.Connection, guild_id: int, user_id: int, *, days: int, now: int
+) -> Cooldown | None:
+    """Whether the member must wait before another unverified review (every unverified review they wrote counts,
+    whatever became of it). None: they may write one now."""
+    row = conn.execute(
+        "SELECT MAX(created_at) AS last FROM reviews WHERE guild_id = ? AND user_id = ? AND order_id IS NULL",
+        (guild_id, user_id),
+    ).fetchone()
+    if row is None or row["last"] is None:
+        return None
+    if days <= 0:
+        return Cooldown(None)
+    until = int(row["last"]) + days * DAY_SECONDS
+    return Cooldown(until) if now < until else None
 
 
 def list_reviews(
@@ -314,6 +377,9 @@ def _check(conn: sqlite3.Connection, review_id: int, user_id: int) -> tuple[Revi
 
 
 def _order_expired(conn: sqlite3.Connection, review: Review) -> bool:
+    """The reviewed order is no longer fulfilled (refunded, cancelled). An unverified review has no order to expire."""
+    if review.order_id is None:
+        return False
     order = get_order(conn, review.order_id)
     return order is None or not order.fulfilled
 
@@ -394,6 +460,133 @@ def decline(conn: sqlite3.Connection, review_id: int, *, user_id: int, now: int)
     ).rowcount
     if not updated:  # pragma: no cover - guarded by _check inside the same transaction
         return Result(Outcome.ALREADY, review)
+    return Result(Outcome.OK, get_review(conn, review_id))
+
+
+def can_write(
+    conn: sqlite3.Connection, guild_id: int, user_id: int, *, allow_unverified: bool, cooldown_days: int, now: int
+) -> Result:
+    """Whether the member can write a review with /review now (OK: a verified review of a delivered order, or an
+    unverified one), or why not (NO_ORDER, COOLDOWN). Nothing is written; ``write_review`` decides again."""
+    if eligible_order(conn, guild_id, user_id) is not None:
+        return Result(Outcome.OK)
+    if not allow_unverified:
+        return Result(Outcome.NO_ORDER)
+    cooldown = unverified_cooldown(conn, guild_id, user_id, days=cooldown_days, now=now)
+    return Result(Outcome.OK) if cooldown is None else Result(Outcome.COOLDOWN, cooldown=cooldown)
+
+
+# -- open /review forms (kv_state reviews.form:<token>) ------------------------------------------------------------
+
+FORM_KEY_PREFIX = "reviews.form:"
+_FORM_KEY_END = "reviews.form;"  # the first key after every reviews.form:<token> key
+
+
+@dataclass(frozen=True)
+class Form:
+    """An open /review form: who opened it, the stars they chose and their photo (not downloaded yet)."""
+
+    user_id: int
+    rating: int
+    image: images.UploadRef | None
+    created_at: int
+
+
+def form_key(token: str) -> str:
+    return f"{FORM_KEY_PREFIX}{token}"
+
+
+def store_form(conn: sqlite3.Connection, token: str, form: Form, *, now: int, ttl: int) -> None:
+    """Keep an open form (and forget the forms that expired without being sent)."""
+    conn.execute(
+        "DELETE FROM kv_state WHERE key >= ? AND key < ? AND updated_at < ?",
+        (FORM_KEY_PREFIX, _FORM_KEY_END, now - ttl),
+    )
+    image = None if form.image is None else {"url": form.image.url, "size": form.image.size}
+    value = {"user_id": form.user_id, "rating": form.rating, "image": image, "created_at": form.created_at}
+    state.kv_set(conn, form_key(token), json.dumps(value), now)
+
+
+def get_form(conn: sqlite3.Connection, token: str) -> Form | None:
+    raw = state.kv_get(conn, form_key(token))
+    if raw is None:
+        return None
+    try:
+        value = json.loads(raw)
+        image = value.get("image")
+        return Form(
+            user_id=int(value["user_id"]),
+            rating=int(value["rating"]),
+            image=None if not image else images.UploadRef(url=str(image["url"]), size=int(image["size"])),
+            created_at=int(value["created_at"]),
+        )
+    except (ValueError, KeyError, TypeError):
+        return None
+
+
+def claim_form(conn: sqlite3.Connection, token: str) -> bool:
+    """Take the open form (once: a second submission of the same form finds nothing)."""
+    return state.kv_delete(conn, form_key(token))
+
+
+@dataclass(frozen=True)
+class Written:
+    """What ``write_review`` needs from a /review submission."""
+
+    rating: int
+    comment: str
+    picture: images.Picture | None = None
+
+
+def write_review(
+    conn: sqlite3.Connection,
+    *,
+    guild_id: int,
+    user_id: int,
+    written: Written,
+    now: int,
+    approval_required: bool,
+    allow_unverified: bool,
+    cooldown_days: int,
+) -> Result:
+    """/review: finish the review of the member's newest delivered order without a finished review (a verified review:
+    a new row, or the open review request of that order), or else write an unverified review (no order; always waits
+    for a staff decision; refused with COOLDOWN or NO_ORDER). The photo is stored with it. One transaction, so two
+    submissions at the same time never review one order twice."""
+    order = eligible_order(conn, guild_id, user_id)
+    if order is not None:
+        status, approval = _submission(approval_required)
+        existing = get_review_by_order(conn, order.id)
+        if existing is None:
+            cursor = conn.execute(
+                "INSERT INTO reviews(guild_id, order_id, user_id, status, rating, comment, approval, source, "
+                "created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'command', ?, ?)",
+                (guild_id, order.id, user_id, status, written.rating, written.comment, approval, now, now),
+            )
+            review_id = int(cursor.lastrowid or 0)
+        else:
+            updated = conn.execute(
+                "UPDATE reviews SET status = ?, rating = ?, comment = ?, approval = ?, source = 'command', "
+                "updated_at = ? WHERE id = ? AND (status = 'prompted' OR (status = 'rated' AND comment IS NULL))",
+                (status, written.rating, written.comment, approval, now, existing.id),
+            ).rowcount
+            if not updated:  # pragma: no cover - eligible_order checked it inside the same transaction
+                return Result(Outcome.ALREADY, existing)
+            review_id = existing.id
+    else:
+        if not allow_unverified:
+            return Result(Outcome.NO_ORDER)
+        cooldown = unverified_cooldown(conn, guild_id, user_id, days=cooldown_days, now=now)
+        if cooldown is not None:
+            return Result(Outcome.COOLDOWN, cooldown=cooldown)
+        cursor = conn.execute(
+            "INSERT INTO reviews(guild_id, order_id, user_id, status, rating, comment, approval, source, created_at, "
+            "updated_at) VALUES (?, NULL, ?, 'pending_approval', ?, ?, NULL, 'command', ?, ?)",
+            (guild_id, user_id, written.rating, written.comment, now, now),
+        )
+        review_id = int(cursor.lastrowid or 0)
+    if written.picture is not None:
+        images.store_image(conn, review_id, guild_id=guild_id, picture=written.picture, now=now)
     return Result(Outcome.OK, get_review(conn, review_id))
 
 

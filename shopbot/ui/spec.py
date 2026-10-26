@@ -151,10 +151,25 @@ class TextInputSpec:
 
 
 @dataclass(frozen=True)
+class FileUploadSpec:
+    """A file upload field in a form (Discord's file upload component inside a label). What the member uploads
+    arrives with the form's submission (``routing.Ctx.uploads``); Discord does not limit the file type, so the
+    handler checks it."""
+
+    custom_id: str
+    label: str
+    description: str | None = None
+    required: bool = False
+    max_files: int = 1
+
+
+@dataclass(frozen=True)
 class ModalSpec:
     custom_id: str
     title: str
     inputs: tuple[TextInputSpec, ...] = field(default_factory=tuple)
+    # Shown after the text inputs (a form holds at most 5 inputs and uploads together).
+    uploads: tuple[FileUploadSpec, ...] = field(default_factory=tuple)
 
 
 def rows_of(*components: Component | None, per_row: int = 5) -> tuple[tuple[Component, ...], ...]:

@@ -41,7 +41,7 @@ mentioned), **nothing is posted** and the staff member gets a private operator e
 | `mention_roles` | `[]` | Role keys staff may choose to mention. Empty: announcements never mention anyone. At most 25. The role must be mentionable (`mentionable = true` in `[[server.roles]]`, applied by `/setup`) unless the bot has the Mention @everyone permission in the channel. |
 | `allow_image` | `true` | Whether staff may attach one image (png, jpg, gif or webp, up to 10 MB minus the announcements banner picture, about 9.4 MB with the shipped banner: the per-message file limit every bot message is checked against, also on boosted servers). The option stays visible when off but is refused. |
 | `[[announcements.fields]]` | none | Up to 3 extra form inputs, each posted as an embed field: `id` (internal key), `style` (`short` or `paragraph`), `required` (default `false`), `max_length` (1-1024, default 1024). |
-| `[[announcements.presets]]` | `warehouse_sale` (shipped) | Up to 25 ready-made announcements for `/announce preset:` (see [Presets](#presets)): `id` (a-z, 0-9, `_`, 1-32 characters, unique), `name` (what staff pick, plain text, at most 100 characters), `coupon` (optional discount code its claim button claims, written like `/discount` codes and upper-cased), `coupon_command` (optional: the `/discount create code:<coupon> ...` command staff are shown while the coupon does not exist), `banner` (optional banner id, default `announcements`). |
+| `[[announcements.presets]]` | `warehouse_sale`, `shipping_areas` (shipped) | Up to 25 ready-made announcements for `/announce preset:` (see [Presets](#presets)): `id` (a-z, 0-9, `_`, 1-32 characters, unique), `name` (what staff pick, plain text, at most 100 characters), `coupon` (optional discount code its claim button claims, written like `/discount` codes and upper-cased), `coupon_command` (optional: the `/discount create code:<coupon> ...` command staff are shown while the coupon does not exist), `banner` (optional banner id, default `announcements`). |
 
 Example:
 
@@ -67,8 +67,8 @@ submitted.
 | Key | Required | Where it is shown |
 |---|---|---|
 | `announcements.field.<id>.name` | yes, for each configured field | Heading of that field in posted announcements; also the field's label in the staff form when it fits (45 characters), otherwise the form shows `Field '<id>'`. |
-| `announcements.preset.<id>.title` | yes, for each preset | Title of the preset's announcement (plain text, no icons). |
-| `announcements.preset.<id>.description` | yes, for each preset | Text of the preset's announcement: Discord formatting, icons, section headings and `{channel_<key>}` links. |
+| `announcements.preset.<id>.title` | yes, for each preset | Title of the preset's announcement (plain text, no icons; `{excluded_areas}` works here). |
+| `announcements.preset.<id>.description` | yes, for each preset | Text of the preset's announcement: Discord formatting, icons, section headings, `{channel_<key>}` links and `{excluded_areas}`. |
 | `announcements.preset.<id>.claim_button` | yes, for a preset with a coupon | Label of the claim button, e.g. `{icon_gift} Claim coupon`. |
 | `announcements.preset.<id>.ended_button` | yes, for a preset with a coupon | Label the button shows (disabled) once the coupon ended or expired, e.g. `Offer ended`. |
 | `branding.author_name`, `branding.footer_text` | optional (shared) | Author line and footer of every announcement. |
@@ -92,8 +92,16 @@ used by the staff member who opened it).
 ## Presets
 
 A preset is a ready-made announcement: its texts are configured once (`announcements.preset.<id>.*`) and staff post
-it with `/announce preset:<id>` (plus `mention` and `image` as usual). The shipped preset `warehouse_sale` announces
-the warehouse sale: buy one, get one free on the old stock with the coupon `BOGO`.
+it with `/announce preset:<id>` (plus `mention` and `image` as usual). The shipped presets:
+
+- `warehouse_sale` announces the warehouse sale: buy one, get one free on the old stock with the coupon `BOGO`.
+- `shipping_areas` ("Shipping update: areas we can't ship to right now", no coupon, the `shipping` banner) apologises
+  that we can't ship to some areas at the moment: "An update on shipping to Alaska and North Dakota", the reason (our
+  shipping partners can't currently deliver there within the delivery times and prices we promise, so shipping there
+  is paused), that orders everywhere else are not affected (with a link to `#shipping`), that we will announce it
+  here as soon as we ship there again, and thanks. The areas are not written in the text: `{excluded_areas}` (see
+  below) reads them from `[shipping.excluded_areas]`, so the post always names the areas `#shipping` and the address
+  step exclude.
 
 1. **Private preview.** The command answers privately with two messages: the announcement as it will be posted (its
    claim button shown disabled; the mention is not pinged in the copy, the card lists it), then a card with the
@@ -104,8 +112,9 @@ the warehouse sale: buy one, get one free on the old stock with the coupon `BOGO
    no Post button (nothing is stored): the coupon does not exist, has ended or expired (with the exact command to
    create it, `coupon_command`), it is used up, discount codes are switched off (`checkout.discount_codes`) or the
    checkout feature is not ready, this preset already announced the same coupon (with a link to that post), a
-   `{channel_<key>}` link points to a channel /setup has not created, plus the usual channel, permission, mention and
-   image problems.
+   `{channel_<key>}` link points to a channel /setup has not created, the text shows `{excluded_areas}` while nothing
+   is excluded in `[shipping.excluded_areas]` (the announcement would be empty: only the card is shown), plus the
+   usual channel, permission, mention and image problems.
 3. **Post announcement** checks everything again at that moment and posts the announcement once: one embed with the
    preset's title and text, the branding (author line, footer, timestamp), the banner inside the card at the bottom
    (above the card when an image is attached), the mention when chosen (only that role is pinged) and the claim
@@ -125,12 +134,20 @@ the warehouse sale: buy one, get one free on the old stock with the coupon `BOGO
    right after (the confirmation says so). After `/reset wipe_shop_data` deleted the codes, a kept post keeps its
    button and a press answers that the offer has ended.
 
-The shipped preset needs the coupon to exist first, e.g.
+The warehouse sale preset needs its coupon to exist first, e.g.
 `/discount create code:BOGO type:Buy one, get one free once_per_customer:false products:<ids of the old stock>`
 (product numbers from `/product list`). Add a preset by adding a `[[announcements.presets]]` entry with its texts
 (`/content set`, or content.toml) and `/reload`. In a preset's text, `{coupon}` is its coupon's code (the shipped
 text says "press **Use coupon {coupon}** on the review step"), so the text follows the `coupon` setting. A coupon has
 at most 14 characters, so the customer's "Use coupon <code>" button stays short.
+
+In any preset's title and text, `{excluded_areas}` is the list of areas we do not ship to, read from
+`[shipping.excluded_areas]` at every preview and Post and written with the names `#shipping` uses: "Alaska and North
+Dakota", "Alaska, North Dakota and Hawaii" for three (joined with `shipping.format.last_area`, the text `#shipping`
+uses), and with the country after each country's areas when areas of more than one country are excluded ("Alaska and
+North Dakota (United States) and Yukon (Canada)"). Change the areas in `config/settings.toml` and `/reload`; the next
+preview shows the new list. Areas removed after a preview are refused by Post (run the preset again); areas changed
+in between are posted as they are at that moment.
 
 ## Reliability
 
@@ -188,6 +205,10 @@ at most 14 characters, so the customer's "Use coupon <code>" button stays short.
    command and has no Post button. Create it, run the preset again → the copy and the card with the coupon's terms;
    **Post announcement** → one post with **Claim coupon**; press Post again → "already posted". As a customer press
    **Claim coupon** → the private coupon reply. `/discount end code:BOGO` → the button shows **Offer ended**.
+10. `/announce preset:shipping_areas` → the copy names the areas of `[shipping.excluded_areas]` ("An update on
+    shipping to Alaska and North Dakota") with a `#shipping` link and the shipping banner; **Post announcement** posts
+    it. With `[shipping.excluded_areas]` empty (and `/reload`) the preview shows only a card saying nothing is
+    excluded, with no Post button.
 
 ## Limitations
 

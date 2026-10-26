@@ -74,6 +74,7 @@ from shopbot.features.checkout import (
     repo,
     staff_keys,
     staff_views,
+    tips,
     views,
 )
 from shopbot.features.checkout import handling_repo as h
@@ -270,6 +271,9 @@ def customer_error(app: App, exc: repo.CheckoutError) -> HandlerError:
         return HandlerError(k.ERROR_CART_FULL, max=exc.maximum)
     if isinstance(exc, repo.MinimumNotMet):
         return HandlerError(k.CART_MINIMUM_NOT_MET, minimum=views.money(app.ui, exc.minimum))
+    if isinstance(exc, repo.TipNotAllowed):
+        # Tips switched off since the menu was shown; otherwise an amount the menu never offered (a forged control).
+        return HandlerError(core.ERROR_INVALID_INPUT if app.settings.checkout.tips.enabled else core.ERROR_UNAVAILABLE)
     if isinstance(exc, repo.CodeRefused):
         reason = exc.check.reason or discounts.UNKNOWN
         values: dict[str, str | int] = {"code": views.escape(exc.code)}
@@ -924,6 +928,45 @@ async def set_apply_credits(app: App, session: m.Session, apply: bool) -> m.Sess
     if apply and not credits_enabled(app):
         raise HandlerError(core.ERROR_UNAVAILABLE)
     return await _update(app, session, apply_credits=apply)
+
+
+async def set_tip(app: App, session: m.Session, tip_minor: int) -> m.Session:
+    """The review step's tip menu: store the tip the customer chose (0 = no tip). Refused outside the review step and
+    for an amount that cannot be a tip now (``tips.allowed``)."""
+    try:
+        return await app.db.transaction(
+            repo.set_tip,
+            guild_id=app.env.guild_id,
+            session_id=session.id,
+            user_id=session.user_id,
+            now=app.clock.now(),
+            expiry_seconds=app.settings.checkout.session_expiry_minutes * 60,
+            settings=app.settings.checkout,
+            tip_minor=tip_minor,
+        )
+    except repo.CheckoutError as exc:
+        raise customer_error(app, exc) from None
+
+
+def check_custom_tip(app: App, session: m.Session) -> None:
+    """Other amount can be used: tips and typed amounts are on and the session is on the review step."""
+    tip_settings = app.settings.checkout.tips
+    if not tip_settings.enabled or not tip_settings.allow_custom:
+        raise HandlerError(core.ERROR_UNAVAILABLE)
+    if session.step != m.REVIEW:
+        raise HandlerError(core.ERROR_INVALID_INPUT)
+
+
+async def set_custom_tip(app: App, session: m.Session, text: str) -> m.Session:
+    """The Other amount form: the typed amount (``tips.parse``) becomes the tip, or the customer is told privately why
+    it cannot (not an amount in the shop's currency or below 1.00, more than the largest tip)."""
+    check_custom_tip(app, session)
+    try:
+        amount = tips.parse(app.settings.checkout, text)
+    except tips.TipRefused as exc:
+        key, values = views.tip_error(app.ui, app.settings, exc.reason)
+        raise HandlerError(key, **values) from None
+    return await set_tip(app, session, amount)
 
 
 # -- ending a session ---------------------------------------------------------------------------------------------

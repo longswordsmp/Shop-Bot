@@ -29,7 +29,7 @@ from shopbot.core.money import MAX_AMOUNT_MINOR
 from shopbot.db.repos import state
 from shopbot.db.repos import tasks as task_repo
 from shopbot.features.catalog import repo as catalog_repo
-from shopbot.features.checkout import discount_repo, flow
+from shopbot.features.checkout import discount_repo, flow, tips
 from shopbot.features.checkout import discounts as disc
 from shopbot.features.checkout import gift_card_store as gift_cards
 from shopbot.features.checkout import models as m
@@ -203,6 +203,10 @@ class CouponNotClaimed(CheckoutError):
     """A Use coupon button for a code the customer never claimed (a forged or stale control)."""
 
 
+class TipNotAllowed(CheckoutError):
+    """A tip amount that cannot be chosen now (tips switched off, or an amount the menu does not offer)."""
+
+
 class RefundNotAllowed(CheckoutError):
     """reason: 'missing' | 'state' | 'amount' (a credit return: 'state' when there is nothing left to return)."""
 
@@ -253,6 +257,7 @@ def _session(r: sqlite3.Row) -> m.Session:
         updated_at=int(r["updated_at"]),
         expires_at=_opt_int(r["expires_at"]),
         discount_code_id=_opt_int(r["discount_code_id"]),
+        tip_minor=int(r["tip_minor"]),
     )
 
 
@@ -290,6 +295,7 @@ def _order(r: sqlite3.Row) -> m.Order:
         discount_code=None if r["discount_code"] is None else str(r["discount_code"]),
         discount_kind=None if r["discount_kind"] is None else str(r["discount_kind"]),
         discount_minor=int(r["discount_minor"]),
+        tip_minor=int(r["tip_minor"]),
     )
 
 
@@ -414,6 +420,7 @@ def update_session(
     details: Mapping[str, str] = _UNSET,
     apply_credits: bool = _UNSET,
     discount_code_id: int | None = _UNSET,
+    tip_minor: int = _UNSET,
 ) -> m.Session:
     """Change fields of the caller's ACTIVE session (activity also pushes its expiry back)."""
     current = _active_owned(conn, guild_id, session_id, user_id)
@@ -424,10 +431,12 @@ def update_session(
         "details": _dump(current.details if details is _UNSET else details),
         "apply_credits": int(current.apply_credits if apply_credits is _UNSET else apply_credits),
         "discount_code_id": current.discount_code_id if discount_code_id is _UNSET else discount_code_id,
+        "tip_minor": current.tip_minor if tip_minor is _UNSET else tip_minor,
     }
     cur = conn.execute(
         "UPDATE checkout_sessions SET step = ?, page = ?, fulfillment_option = ?, details = ?, apply_credits = ?, "
-        "discount_code_id = ?, updated_at = ?, expires_at = ?, version = version + 1 WHERE id = ? AND status = ?",
+        "discount_code_id = ?, tip_minor = ?, updated_at = ?, expires_at = ?, version = version + 1 "
+        "WHERE id = ? AND status = ?",
         (
             values["step"],
             values["page"],
@@ -435,6 +444,7 @@ def update_session(
             values["details"],
             values["apply_credits"],
             values["discount_code_id"],
+            values["tip_minor"],
             now,
             _expires(now, expiry_seconds),
             session_id,
@@ -716,13 +726,15 @@ def session_totals(
     discount: m.AppliedDiscount | None = None,
 ) -> tuple[Totals, int]:
     """(totals with current prices and settings, credit that could be applied). ``discount``: the session's code as
-    checked now (``session_discount``); it takes its amount off the items (0 when it does not apply)."""
+    checked now (``session_discount``); it takes its amount off the items (0 when it does not apply). The session's tip
+    counts while it is allowed now (``tips.effective``; 0 otherwise)."""
     option = settings.fulfillment(session.fulfillment_option)
     fulfillment_fee = option.fee_minor if option is not None else 0
     pairs = [(line.product.price_minor, line.quantity) for line in lines]
     fees = flow.session_fees(settings, session.details)
     off = discount.amount_minor if discount is not None else 0
-    base = compute_totals(pairs, fulfillment_fee_minor=fulfillment_fee, fees=fees, discount_minor=off)
+    tip = tips.effective(settings, session.tip_minor)
+    base = compute_totals(pairs, fulfillment_fee_minor=fulfillment_fee, fees=fees, discount_minor=off, tip_minor=tip)
     available = (
         credits_repo.applicable_amount(conn, guild_id, session.user_id, base.gross_minor) if credits_enabled else 0
     )
@@ -733,6 +745,7 @@ def session_totals(
         credits_available_minor=available,
         apply_credits=session.apply_credits and credits_enabled,
         discount_minor=off,
+        tip_minor=tip,
     )
     return totals, available
 
@@ -777,6 +790,36 @@ def apply_discount(
         now=now,
         expiry_seconds=expiry_seconds,
         discount_code_id=found.id,
+    )
+
+
+def set_tip(
+    conn: sqlite3.Connection,
+    *,
+    guild_id: int,
+    session_id: int,
+    user_id: int,
+    now: int,
+    expiry_seconds: int,
+    settings: CheckoutSettings,
+    tip_minor: int,
+) -> m.Session:
+    """Store the tip the customer chose on the review step of their ACTIVE session (0 = no tip). Raises ``WrongStep``
+    outside the review step and ``TipNotAllowed`` for an amount that cannot be a tip now (``tips.allowed``: tips off, an
+    amount not offered); nothing is written then."""
+    session = _active_owned(conn, guild_id, session_id, user_id)
+    if session.step != m.REVIEW:
+        raise WrongStep(session.step)
+    if not tips.allowed(settings, tip_minor):
+        raise TipNotAllowed(str(tip_minor))
+    return update_session(
+        conn,
+        guild_id=guild_id,
+        session_id=session_id,
+        user_id=user_id,
+        now=now,
+        expiry_seconds=expiry_seconds,
+        tip_minor=tip_minor,
     )
 
 
@@ -1047,6 +1090,10 @@ def submit_order(
     customers submit at once): a code that stopped applying (expired, ended, used up) changes the totals, which gives
     ``PriceChanged``. A code that applies is stored on the order (its id, the code and kind, the amount).
 
+    The session's tip is checked again here too (``tips.effective``): a tip that is no longer allowed (tips switched
+    off, the amount no longer offered) counts as none, which changes the totals and gives ``PriceChanged``. The tip is
+    stored inside the order's ``fees_minor`` and as its ``tip_minor``.
+
     In the same transaction: the session's expiry task is cancelled, the payment reminder/expiry tasks are scheduled
     (when configured) and the ``checkout.after_submit`` follow-up is scheduled.
     """
@@ -1107,8 +1154,8 @@ def submit_order(
         "INSERT INTO orders(guild_id, number, user_id, session_id, ticket_id, status, currency, subtotal_minor, "
         "fulfillment_fee_minor, fees_minor, credits_applied_minor, total_minor, fulfillment_option, details, "
         "payment_provider, customer_message_id, created_at, updated_at, discount_code_id, discount_code, "
-        "discount_kind, discount_minor) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "discount_kind, discount_minor, tip_minor) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (
             guild_id,
             number,
@@ -1119,7 +1166,7 @@ def submit_order(
             c.currency,
             totals.subtotal_minor,
             totals.fulfillment_fee_minor,
-            totals.fees_minor,
+            totals.stored_fees_minor,
             totals.credits_applied_minor,
             totals.total_minor,
             option_id,
@@ -1132,6 +1179,7 @@ def submit_order(
             used.code if used is not None else None,
             used.kind if used is not None else None,
             totals.discount_minor,
+            totals.tip_minor,
         ),
     )
     order_id = int(cursor.lastrowid or 0)

@@ -30,8 +30,8 @@ It always shows:
 |---|---|
 | Unique reference and current status | the key facts line: `checkout.ticket.draft_line` (ticket number, padded like the channel name, and `checkout.ticket.status_in_progress`) before submission, `checkout.ticket.order_line` (ticket number, order number and the stage name `checkout.ticket.stage.<status>`) afterwards |
 | Current step and progress | the step's title, and `common.progress_format` in the footer (now required for checkout) |
-| What was entered/selected | the items section (`checkout.cart.heading`, one `checkout.cart.line` per item) on every step (on later steps left out only when the card would not fit one message; a long card continues in a second one of the same colour), the summary section (`checkout.summary.*`: subtotal, the discount when a code is applied (`Discount (CODE) · -$X`, or "not applied" with the reason under the total), the chosen delivery option and its fee, extras and fees, store credit, the total in bold), the details-form answers; the review lists everything incl. the answers |
-| Actions | Back on every step after the first, Continue/Submit, Cancel; on the review step also Use store credit, Add discount code (a private form), Use coupon CODE for coupons the customer claimed from an announcement, and Remove discount once one is applied (one code per order; see `docs/WORKFLOWS.md` and `docs/DECISIONS.md` §11e); after submission the customer's cancel button while unpaid |
+| What was entered/selected | the items section (`checkout.cart.heading`, one `checkout.cart.line` per item) on every step (on later steps left out only when the card would not fit one message; a long card continues in a second one of the same colour), the summary section (`checkout.summary.*`: subtotal, the discount when a code is applied (`Discount (CODE) · -$X`, or "not applied" with the reason under the total), the chosen delivery option and its fee, extras and fees, the tip for our team (`Tip for our team · $X`, its own line, never among the extras), store credit, the total in bold), the details-form answers; the review lists everything incl. the answers, and while `[checkout.tips]` is on its last line, after the address, says tips are optional and "100% of every tip goes to our team" (a thank-you once a tip is chosen) |
+| Actions | Back on every step after the first, Continue/Submit, Cancel; on the review step also Use store credit, Add discount code (a private form), Use coupon CODE for coupons the customer claimed from an announcement, and Remove discount once one is applied (one code per order; see `docs/WORKFLOWS.md` and `docs/DECISIONS.md` §11e), and the tip menu (its own row after the store credit and discount buttons, above Back / Confirm order / Cancel: "Add a tip for our team (optional)", No tip, $2.00 tip / $5.00 tip / $10.00 tip from `[checkout.tips] amounts`, Other amount opens a private form; the chosen tip shows as selected, the customer's own amount as its own option; see `docs/DECISIONS.md` §11g); after submission the customer's cancel button while unpaid |
 
 **Closed by staff.** Staff can close the ticket of an order that was never submitted with `/ticket close`: the
 unfinished order is cancelled and the panel shows `checkout.staff_closed.title` / `.description` (optional; empty =
@@ -72,7 +72,7 @@ shown and nothing is submitted. Empty `submission_form` = submit directly (previ
   per idle period, a new one after the customer was active again; it ends with the session (submitted, cancelled,
   expired) and is re-armed by restart recovery (also when the warning is switched on later).
 
-**`/myorders`** (the only customer command, any member, private reply): one card with the member's own orders,
+**`/myorders`** (a customer command, like `/review`; any member, private reply): one card with the member's own orders,
 newest first, one section per order: its number and current stage in bold (`my_orders.order.title`), its total and
 date (`my_orders.order.summary`), a link to its ticket while it is open (optional `my_orders.order.ticket_field`) and
 the tracking details staff recorded (optional `my_orders.order.tracking_field`). Pages hold at most `my_orders.orders_per_page` orders and only as many as fit one
@@ -132,7 +132,9 @@ and valid when the bot starts. Discord receives command descriptions when the co
 3. On the review step, check the summary (cart, option, fees, your answers, total, status). With a code created by
    `/discount create`, press Add discount code and enter it (a wrong code gives its reason privately), or press Claim
    coupon on a preset announcement first and then Use coupon CODE: the discount line appears under the subtotal and
-   the total drops; Remove discount takes it off. Press Submit (with a
+   the total drops; Remove discount takes it off. Pick "$5.00 tip" in the tip menu: "Tip for our team · $5.00"
+   appears after the extras and the total grows by $5.00; pick Other amount, type 7.50 (then "abc", "€5" and 500:
+   each gives its reason privately), and pick No tip to take it off. Press Submit (with a
    `submission_form`, fill the form). You get the 'submission received' DM; the panel shows the order number, the
    stage and the progress section.
 4. As staff, mark the order paid / in progress / fulfilled: the panel's stage and progress update each time; a

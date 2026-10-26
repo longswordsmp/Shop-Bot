@@ -23,7 +23,7 @@ shipping = true              # #shipping fulfillment information and regions
 announcements = true         # /announce posts to #announcements
 catalog = true               # #catalog: one live embed per item
 new_arrivals = true          # #new-arrivals opt-in button + automatic updates
-reviews = true               # #reviews: verified reviews after completed orders
+reviews = true               # #reviews: review requests after delivered orders, and /review for every member
 checkout = true              # #purchase Start button and the private order ticket workflow
 tickets = true               # private tickets (used by Report a Problem)
 problems = true              # #purchase Report a Problem workflow
@@ -110,11 +110,11 @@ mentionable = false
 [[server.roles]]
 key = "staff"
 id = 0
-# Manage Messages lets Staff see the staff slash commands (/orders, /order, /ticket, /review, /announce) in Discord's
-# command picker: Discord shows them by default only to members with this permission. The bot checks the Staff role
-# itself on every use. It also lets staff delete and pin messages in every channel they can see, including the bot's
-# panels (/setup posts a deleted panel again). With permissions_mode = "add", /setup only adds missing permissions
-# and keeps any others the role already has. Admins can instead fine-tune who sees each command under
+# Manage Messages lets Staff see the staff slash commands (/orders, /order, /stats, /ticket, /reviews, /announce) in
+# Discord's command picker: Discord shows them by default only to members with this permission. The bot checks the
+# Staff role itself on every use. It also lets staff delete and pin messages in every channel they can see, including
+# the bot's panels (/setup posts a deleted panel again). With permissions_mode = "add", /setup only adds missing
+# permissions and keeps any others the role already has. Admins can instead fine-tune who sees each command under
 # Server Settings -> Integrations -> (the bot) and set this back to [] (an adopted role is then left untouched).
 permissions = ["manage_messages"]
 permissions_mode = "add"             # "add" keeps the role's other permissions; "exact" sets exactly the list
@@ -344,6 +344,14 @@ coupon = "BOGO"                      # discount code the claim button claims (""
 coupon_command = "/discount create code:BOGO type:Buy one, get one free once_per_customer:false products:<ids of the old stock>"
 banner = "announcements"             # banner picture of the announcement (a banner id)
 
+# Our apology for the areas we can't ship to right now. Its texts show {excluded_areas}: the areas in
+# [shipping.excluded_areas] above, written as #shipping writes them, so the announcement always matches #shipping
+# and the address step. While nothing is excluded the preview says so and offers no Post button.
+[[announcements.presets]]
+id = "shipping_areas"
+name = "Shipping update: areas we can't ship to right now"
+banner = "shipping"
+
 [new_arrivals]
 channel = "new_arrivals"             # channel of the opt-in panel and the automatic product updates
 role = "restock_alerts"              # role key the panel button turns on/off (must grant no permissions)
@@ -548,6 +556,15 @@ amount_minor = 200
 # kind = "flat"
 # amount_minor = 0
 
+# Tips for our team: a menu on the review step (No tip, the amounts below, Other amount). The tip is added to the order
+# and paid with it; 100% of it goes to the team. A discount never applies to it, and /stats shows tips on their own
+# line, not in the revenue. Texts: checkout.tip.* and checkout.summary.tip_line in content.toml.
+[checkout.tips]
+enabled = true                       # false = no tip menu (a tip chosen for an unfinished order no longer counts)
+amounts = [200, 500, 1000]           # the menu's amounts in cents (1 to 5 different amounts): $2, $5, $10
+allow_custom = true                  # "Other amount": the customer types an amount from $1.00 up to max_minor
+max_minor = 10000                    # the largest tip in cents ($100.00); listed amounts must not be more
+
 [payments]
 provider = "gift_card"               # "gift_card" (customers submit gift cards in a private form) or "manual"
 
@@ -612,7 +629,17 @@ prompt_via = "dm_then_channel"       # "dm", "channel" (the order channel), or "
 # automatically). true = it is posted with Approve / Reject buttons in approval_channel and published only after a
 # staff member approves it (the reviews.approval.* texts are then required).
 require_approval = false
-approval_channel = "staff_chat"      # staff-only channel for approval requests (used when require_approval = true)
+approval_channel = "staff_chat"      # staff-only channel for approval requests (when any review can wait for one)
+# /review: every member can write a review with stars, a description and an optional photo; their name is never shown.
+# A member with a delivered order that has no review yet reviews that order (a verified review, as above). Without one,
+# allow_unverified = true lets them write an unverified review (no "Verified purchase" marker, e.g. returning customers
+# after the server was rebuilt): it is always checked by our team in approval_channel first, and each member can write
+# one every unverified_cooldown_days days (0 = only one, ever).
+allow_unverified = true
+unverified_cooldown_days = 30
+# true = a review sent with a photo is always checked by our team in approval_channel first, even with require_approval
+# off (the picture is checked before it appears in #reviews). false = it is treated like a review without a photo.
+photo_requires_approval = true
 
 [notifications]
 fallback_to_channel = true

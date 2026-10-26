@@ -15,6 +15,7 @@ from tests.fakes import click, modal_input_ids, modal_of, submit_modal
 from tests.helpers import TestEnv
 from tests.reviews.util import (
     audit_actions,
+    label,
     make_env,
     number_text,
     only_embed,
@@ -55,7 +56,7 @@ async def test_without_approval_reviews_are_published_immediately(tmp_path: Path
         assert only_embed(dm).description == rendered(tenv, k.THANKS, order_number=number)
         post = only_message(reviews_channel(tenv))
         card = only_embed(post)
-        assert card.title == published_title(tenv, rating=4, user_name="Ada", number=order.number)
+        assert card.title == published_title(tenv, rating=4)
         assert card.description == "> Great"
         assert field_pairs(card) == [
             (tenv.text(k.PUBLISHED_RATING_FIELD), tenv.text(k.rating_key(4, "display"))),
@@ -111,11 +112,13 @@ async def test_submission_waits_for_approval(ap: TestEnv) -> None:
     message = only_message(approval_channel(ap))
     assert (pending.approval_channel_id, pending.approval_message_id) == (approval_channel(ap).id, message.id)
     embed = only_embed(message)
-    assert embed.title == rendered(ap, k.APPROVAL_TITLE, rating=5, user_name="Ada", order_number=number)
+    assert embed.title == rendered(
+        ap, k.APPROVAL_TITLE, stars="★★★★★", rating=5, scale=5, user_name="Ada", review_number=pending.id
+    )
     assert embed.description == "Nice \\*work\\* <@1> @everyone"
     assert field_pairs(embed) == [
         (ap.text(k.APPROVAL_RATING_FIELD), ap.text(k.rating_key(5, "display"))),
-        (ap.text(k.APPROVAL_ORDER_FIELD), number),
+        (ap.text(k.APPROVAL_ORDER_FIELD), f"#{number}"),  # never mixed up with the review number in the title
         (ap.text(k.APPROVAL_CUSTOMER_FIELD), f"<@{customer.id}>"),
         (ap.text(k.APPROVAL_STATUS_FIELD), status_value(ap, k.STATE_PENDING)),
     ]
@@ -177,7 +180,7 @@ async def test_approve_publishes_and_notifies(ap: TestEnv) -> None:
     # the review is published exactly like an unmoderated one
     post = only_message(reviews_channel(ap))
     card = only_embed(post)
-    assert card.title == published_title(ap, rating=4, user_name="Ada", number=order.number)
+    assert card.title == published_title(ap, rating=4)
     assert card.description == "> [kept comment]"
     assert field_pairs(card)[1] == (
         ap.text(k.PUBLISHED_VERIFIED_FIELD),
@@ -195,15 +198,13 @@ async def test_approve_publishes_and_notifies(ap: TestEnv) -> None:
     notice = customer.dms[-1]
     link = service.message_link(ap.app, reviews_channel(ap).id, post.id)
     notice_embed = only_embed(notice)
-    assert notice_embed.title == rendered(ap, k.notice_key("approved", "title"), order_number=number)
-    assert notice_embed.description == rendered(
-        ap, k.notice_key("approved", "description"), order_number=number, review_link=link
-    )
+    assert notice_embed.title == rendered(ap, k.notice_key("approved", "title"))
+    assert notice_embed.description == rendered(ap, k.notice_key("approved", "description"), review_link=link)
     # operator reply, audit, follow-up task cancelled
     reply = staff_reply(interaction)
     assert reply.title == ap.app.op("reviews.decision.title")
     assert reply.description == "\n".join(
-        [ap.app.op("reviews.decision.approved", order_number=number), ap.app.op("reviews.decision.published")]
+        [ap.app.op("reviews.decision.approved", review=label(ap, review)), ap.app.op("reviews.decision.published")]
     )
     actions = [e.action for e in await audit_actions(ap)]
     assert actions == ["reviews.prompted", "reviews.published", "reviews.approved"]
@@ -216,13 +217,12 @@ async def test_approve_publishes_and_notifies(ap: TestEnv) -> None:
 async def test_double_approve_applies_once(ap: TestEnv) -> None:
     customer = ap.member()
     staff = ap.member(name="mod", staff=True)
-    order, review, message = await pending_review(ap, customer)
+    _order, review, message = await pending_review(ap, customer)
     await approve(ap, staff, review, message)
     second = await approve(ap, staff, review, message)
-    number = number_text(ap, order.number)
     status = ap.app.op("reviews.status.published")
     assert staff_reply(second).description == ap.app.op(
-        "reviews.decision.not_pending", order_number=number, status=status
+        "reviews.decision.not_pending", review=label(ap, review), status=status
     )
     assert len(reviews_channel(ap).messages) == 1
     assert [e.action for e in await audit_actions(ap, "reviews.approved")] == ["reviews.approved"]
@@ -276,7 +276,7 @@ async def test_reject_button_opens_the_staff_form(ap: TestEnv) -> None:
     modal = modal_of(interaction)
     assert modal is not None
     assert modal.custom_id == views.reject_form_id(review.id)
-    assert modal.title == ap.app.op("reviews.form.reject_title", order_number=number_text(ap, order.number))
+    assert modal.title == ap.app.op("reviews.form.reject_title", review_number=review.id)
     assert modal_input_ids(modal) == [views.REASON_INPUT_ID]
     text_input = next(i for i in modal.walk_children() if isinstance(i, discord.ui.TextInput))
     assert text_input.required is False and text_input.max_length == repo.REASON_MAX
@@ -288,7 +288,6 @@ async def test_reject_with_reason(ap: TestEnv) -> None:
     staff = ap.member(name="mod", staff=True)
     order, review, message = await pending_review(ap, customer)
     interaction = await reject(ap, staff, review, message, "  Contains *a link*  ")
-    number = number_text(ap, order.number)
     final = await review_of(ap, order)
     assert (final.status, final.approval, final.decided_by, final.decision_reason) == (
         repo.REJECTED,
@@ -305,11 +304,11 @@ async def test_reject_with_reason(ap: TestEnv) -> None:
     ]
     assert embed.colour is not None and embed.colour.value == ap.app.ui.color("danger")
     notice = only_embed(customer.dms[-1])
-    assert notice.title == rendered(ap, k.notice_key("rejected", "title"), order_number=number)
-    assert notice.description == rendered(ap, k.notice_key("rejected", "description"), order_number=number)
+    assert notice.title == rendered(ap, k.notice_key("rejected", "title"))
+    assert notice.description == rendered(ap, k.notice_key("rejected", "description"))
     assert field_pairs(notice) == [(ap.text(k.NOTICE_REJECTED_REASON_FIELD), "Contains *a link*")]
     assert staff_reply(interaction).description == "\n".join(
-        [ap.app.op("reviews.decision.rejected", order_number=number), ap.app.op("reviews.decision.notice.dm")]
+        [ap.app.op("reviews.decision.rejected", review=label(ap, review)), ap.app.op("reviews.decision.notice.dm")]
     )
     (event,) = await audit_actions(ap, "reviews.rejected")
     assert event.actor_id == staff.id and event.details["with_reason"] is True and event.details["notice"] == "dm"
@@ -387,9 +386,7 @@ async def test_notice_falls_back_to_the_order_channel(ap: TestEnv) -> None:
     assert order.channel is not None
     fallback = order.channel.messages[-1]
     assert fallback.content == f"<@{customer.id}>"
-    assert only_embed(fallback).description == rendered(
-        ap, k.notice_key("rejected", "description"), order_number=number_text(ap, order.number)
-    )
+    assert only_embed(fallback).description == rendered(ap, k.notice_key("rejected", "description"))
     assert ap.app.op("reviews.decision.notice.channel") in (staff_reply(interaction).description or "")
 
 

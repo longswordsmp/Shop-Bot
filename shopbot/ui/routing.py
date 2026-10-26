@@ -97,6 +97,60 @@ def parse_modal_fields(data: Any) -> dict[str, str]:
 
 
 @dataclass(frozen=True)
+class ModalUpload:
+    """A file uploaded in a form's file upload field, as the submission describes it (``resolved.attachments``)."""
+
+    filename: str
+    url: str
+    size: int
+    content_type: str | None = None
+
+
+def _upload(raw: Any) -> ModalUpload | None:
+    if not isinstance(raw, dict):
+        return None
+    try:
+        size = int(raw.get("size") or 0)
+    except (TypeError, ValueError):
+        return None
+    content_type = raw.get("content_type")
+    return ModalUpload(
+        filename=str(raw.get("filename") or ""),
+        url=str(raw.get("url") or ""),
+        size=size,
+        content_type=str(content_type) if content_type else None,
+    )
+
+
+def parse_modal_uploads(data: Any) -> dict[str, tuple[ModalUpload, ...]]:
+    """Extract ``{custom_id: files}`` of the file upload fields from raw modal-submit data. Each field lists the ids
+    of its files; the files themselves are described in ``resolved.attachments`` (a file without a description is
+    left out)."""
+    uploads: dict[str, tuple[ModalUpload, ...]] = {}
+    if not isinstance(data, dict):
+        return uploads
+    resolved = data.get("resolved")
+    attachments = resolved.get("attachments") if isinstance(resolved, dict) else None
+    described: dict[str, Any] = attachments if isinstance(attachments, dict) else {}
+
+    def walk(components: Any) -> None:
+        for component in components or []:
+            if not isinstance(component, dict):
+                continue
+            ctype = component.get("type")
+            if ctype == 1:
+                walk(component.get("components"))
+            elif ctype == 18:
+                walk([component.get("component")])
+            elif ctype == 19 and "custom_id" in component:
+                files = (_upload(described.get(str(file_id))) for file_id in component.get("values") or [])
+                uploads[str(component["custom_id"])] = tuple(f for f in files if f is not None)
+
+    walk(data.get("components"))
+    return uploads
+
+
+@dataclass(frozen=True)
 class Route:
     route: str
     action: str
@@ -121,6 +175,7 @@ class Ctx:
         args: tuple[str, ...],
         values: tuple[str, ...] = (),
         fields: dict[str, str] | None = None,
+        uploads: dict[str, tuple[ModalUpload, ...]] | None = None,
     ) -> None:
         self.app = app
         self.interaction = interaction
@@ -128,6 +183,7 @@ class Ctx:
         self.args = args
         self.values = values
         self.fields = fields or {}
+        self.uploads = uploads or {}  # a form's file upload fields: {custom_id: files}
         self._deferred_update = False  # the response so far is ``defer_update`` (edits target the clicked message)
         # The clicked message as this Ctx last edited it. discord.py's ``interaction.message`` is a snapshot taken at
         # click time and never updated, so after an edit (ours, or one made through the channel while the click was
@@ -370,6 +426,7 @@ class Router:
         kind: RouteKind,
         values: tuple[str, ...] = (),
         fields: dict[str, str] | None = None,
+        uploads: dict[str, tuple[ModalUpload, ...]] | None = None,
     ) -> None:
         parsed = custom_ids.parse(custom_id)
         user_id = interaction.user.id
@@ -383,7 +440,7 @@ class Router:
             stale = Route(route_name, action, _noop, kind)
             await Ctx(self.app, interaction, stale, args).fail(ck.ERROR_UNAVAILABLE)
             return
-        ctx = Ctx(self.app, interaction, route, args, values, fields)
+        ctx = Ctx(self.app, interaction, route, args, values, fields, uploads)
 
         if interaction.guild_id is None:
             if not route.allow_dm:

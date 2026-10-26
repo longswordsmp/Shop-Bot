@@ -8,10 +8,11 @@
   so it stays attached to the message.
 - ``reply_spec`` and the ``*_reply`` helpers: the private operator replies (confirmation and errors), each with the
   banner of its outcome.
-- Presets (``/announce preset:<id>``): the same post built from the preset's configured texts, with the claim button
-  of its coupon (``claim_button``; disabled in the private preview) or, once the offer ended, the disabled "offer
-  ended" button (``ended_button``); the private preview card (``preset_preview_reply``: channel, mention, the coupon's
-  terms, Post announcement and Cancel) and its problem, error and cancelled variants.
+- Presets (``/announce preset:<id>``): the same post built from the preset's configured texts (``{excluded_areas}``
+  filled from the shipping settings), with the claim button of its coupon (``claim_button``; disabled in the private
+  preview) or, once the offer ended, the disabled "offer ended" button (``ended_button``); the private preview card
+  (``preset_preview_reply``: channel, mention, the coupon's terms, Post announcement and Cancel) and its problem,
+  error and cancelled variants.
 """
 
 from __future__ import annotations
@@ -24,6 +25,7 @@ from shopbot.config.content import MissingContent
 from shopbot.config.settings import AnnouncementPreset
 from shopbot.features.announcements.content_keys import (
     COUPON_PLACEHOLDER,
+    EXCLUDED_AREAS_PLACEHOLDER,
     PRESET_CLAIM_BUTTON,
     PRESET_DESCRIPTION,
     PRESET_ENDED_BUTTON,
@@ -217,6 +219,7 @@ def preset_announcement(
     *,
     links: Mapping[str, str],
     code_id: int | None,
+    excluded_areas: str = "",
     preview: bool = False,
     ended: bool = False,
     image: FileSpec | None = None,
@@ -224,11 +227,13 @@ def preset_announcement(
     mention_role_id: int | None = None,
 ) -> MessageSpec:
     """A preset's announcement: its configured title and text (``links``: the ``{channel_<key>}`` values; ``{coupon}``:
-    the coupon's code), its banner and, when it has a coupon, the claim button of the code ``code_id`` (disabled when
-    ``preview``; the disabled "offer ended" button when ``ended``). Raises ``MissingContent`` when a text it needs is
-    not set."""
-    title = _required(ui, preset_key(preset.id, PRESET_TITLE))
-    values: dict[str, str | int] = {**links, COUPON_PLACEHOLDER: preset.coupon} if preset.coupon else {**links}
+    the coupon's code; ``{excluded_areas}``: ``excluded_areas``, e.g. "Alaska and North Dakota"), its banner and, when
+    it has a coupon, the claim button of the code ``code_id`` (disabled when ``preview``; the disabled "offer ended"
+    button when ``ended``). Raises ``MissingContent`` when a text it needs is not set."""
+    title = _required(ui, preset_key(preset.id, PRESET_TITLE), **{EXCLUDED_AREAS_PLACEHOLDER: excluded_areas})
+    values: dict[str, str | int] = {**links, EXCLUDED_AREAS_PLACEHOLDER: excluded_areas}
+    if preset.coupon:
+        values[COUPON_PLACEHOLDER] = preset.coupon
     description = _required(ui, preset_key(preset.id, PRESET_DESCRIPTION), **values)
     rows: tuple[tuple[Component, ...], ...] = ()
     if preset.coupon:
@@ -395,11 +400,15 @@ def preset_facts(
     return lines
 
 
-def preset_preview_reply(op: OperatorText, *, name: str, facts: Sequence[str], token: str) -> Reply:
-    """The private card under a preset's preview: what will be posted where, with Post announcement and Cancel."""
+def preset_preview_reply(
+    op: OperatorText, *, name: str, facts: Sequence[str], token: str, has_button: bool = True
+) -> Reply:
+    """The private card under a preset's preview: what will be posted where, with Post announcement and Cancel.
+    ``has_button``: the announcement has a claim button (a preset with a coupon), which the introduction mentions."""
+    intro = "announcements.preset.preview_intro" if has_button else "announcements.preset.preview_intro_plain"
     return Reply(
         op("announcements.preset.preview_title", name=name),
-        (op("announcements.preset.preview_intro"), "", *facts),
+        (op(intro), "", *facts),
         tone="info",
         banner="general-response",
         post_token=token,

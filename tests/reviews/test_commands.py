@@ -1,4 +1,4 @@
-"""/review staff commands: permissions, list, remove, resend."""
+"""/reviews staff commands: permissions, list, remove, resend."""
 
 from __future__ import annotations
 
@@ -16,6 +16,7 @@ from tests.reviews.util import (
     audit_actions,
     invoke,
     is_ephemeral,
+    label,
     make_env,
     make_order,
     number_text,
@@ -56,7 +57,7 @@ def _op(tenv: TestEnv, key: str, **values: object) -> str:
 
 async def test_group_metadata(rv: TestEnv) -> None:
     assert rv.app.bot is not None
-    group = rv.app.bot.tree.get_command("review", guild=rv.app.guild_object)
+    group = rv.app.bot.tree.get_command("reviews", guild=rv.app.guild_object)
     assert isinstance(group, discord.app_commands.Group)
     assert group.default_permissions == discord.Permissions(manage_messages=True)
     assert group.guild_only is True
@@ -65,6 +66,11 @@ async def test_group_metadata(rv: TestEnv) -> None:
         assert isinstance(command, discord.app_commands.Command)
         assert command.description and all(p.description for p in command.parameters)
         assert len(command.checks) == 1
+    # A review without an order has only its review number: remove, approve and reject take either.
+    for name in ("remove", "approve", "reject"):
+        params = {p.name: p for p in review_command(rv.app, name).parameters}
+        assert not params["order_number"].required and not params["review"].required
+        assert params["review"].type is discord.AppCommandOptionType.integer and params["review"].min_value == 1
     status = next(p for p in review_command(rv.app, "list").parameters if p.name == "status")
     assert [c.value for c in status.choices] == [
         "prompted",
@@ -136,7 +142,8 @@ async def test_list(rv: TestEnv) -> None:
             _op(
                 rv,
                 "reviews.list.line",
-                order_number=number_text(rv, waiting_order.number),
+                review_number=waiting.id,
+                order=_op(rv, "reviews.list.order", order_number=number_text(rv, waiting_order.number)),
                 status=_op(rv, "reviews.status.prompted"),
                 rating=_op(rv, "reviews.list.none"),
                 member=f"<@{waiting_user.id}>",
@@ -145,7 +152,8 @@ async def test_list(rv: TestEnv) -> None:
             _op(
                 rv,
                 "reviews.list.line",
-                order_number=number_text(rv, published_order.number),
+                review_number=published.id,
+                order=_op(rv, "reviews.list.order", order_number=number_text(rv, published_order.number)),
                 status=_op(rv, "reviews.status.published"),
                 rating=4,
                 member=f"<@{published.user_id}>",
@@ -165,15 +173,14 @@ async def test_list(rv: TestEnv) -> None:
 
 async def test_remove_published_review(rv: TestEnv) -> None:
     staff = rv.member(staff=True)
-    order, _review, _ = await _publish(rv, rv.member())
+    order, review, _ = await _publish(rv, rv.member())
     channel = reviews_channel(rv)
     assert len(channel.messages) == 1
     removed = await invoke(rv, staff, "remove", order_number=order.number)
-    number = number_text(rv, order.number)
     embed = reply_embed(removed)
     assert embed.title == _op(rv, "reviews.cmd.remove_title")
     assert embed.description == "\n".join(
-        [_op(rv, "reviews.cmd.removed", order_number=number), _op(rv, "reviews.cmd.message_deleted")]
+        [_op(rv, "reviews.cmd.removed", review=label(rv, review)), _op(rv, "reviews.cmd.message_deleted")]
     )
     assert is_ephemeral(removed)
     assert channel.messages == []
@@ -181,8 +188,14 @@ async def test_remove_published_review(rv: TestEnv) -> None:
     event = (await audit_actions(rv))[-1]
     assert event.action == "reviews.removed" and event.actor_id == staff.id
     assert event.details["previous_status"] == repo.PUBLISHED
-    again = await invoke(rv, staff, "remove", order_number=order.number)
-    assert reply_embed(again).description == _op(rv, "reviews.cmd.already_removed", order_number=number)
+    again = await invoke(rv, staff, "remove", review=review.id)  # the same review by its number
+    assert reply_embed(again).description == _op(rv, "reviews.cmd.already_removed", review=label(rv, review))
+    both = await invoke(rv, staff, "remove", order_number=order.number, review=review.id)
+    neither = await invoke(rv, staff, "remove")
+    for refused in (both, neither):
+        assert reply_embed(refused).description == _op(rv, "reviews.cmd.target_missing")
+    unknown = await invoke(rv, staff, "remove", review=9999)
+    assert reply_embed(unknown).description == _op(rv, "reviews.cmd.review_not_found", review_number=9999)
 
 
 async def test_remove_when_message_already_deleted(rv: TestEnv) -> None:
@@ -196,7 +209,7 @@ async def test_remove_when_message_already_deleted(rv: TestEnv) -> None:
 
 async def test_remove_failure_changes_nothing(rv: TestEnv) -> None:
     staff = rv.member(staff=True)
-    order, _, _ = await _publish(rv, rv.member())
+    order, review, _ = await _publish(rv, rv.member())
     message = reviews_channel(rv).messages[0]
 
     async def forbidden(*, delay: float | None = None) -> None:
@@ -205,7 +218,7 @@ async def test_remove_failure_changes_nothing(rv: TestEnv) -> None:
     message.delete = forbidden  # type: ignore[method-assign]
     refused = await invoke(rv, staff, "remove", order_number=order.number)
     assert reply_embed(refused).description == _op(
-        rv, "reviews.cmd.remove_failed", order_number=number_text(rv, order.number), status=403
+        rv, "reviews.cmd.remove_failed", review=label(rv, review), status=403
     )
     assert (await review_of(rv, order)).status == repo.PUBLISHED
 
@@ -220,7 +233,7 @@ async def test_remove_open_request_in_order_channel(tmp_path: Path) -> None:
         (request,) = order.channel.messages
         removed = await invoke(tenv, staff, "remove", order_number=order.number)
         assert reply_embed(removed).description == _op(
-            tenv, "reviews.cmd.removed", order_number=number_text(tenv, order.number)
+            tenv, "reviews.cmd.removed", review=label(tenv, await review_of(tenv, order))
         )
         assert only_embed(request).description == rendered(
             tenv, k.EXPIRED, order_number=number_text(tenv, order.number)

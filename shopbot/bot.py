@@ -15,7 +15,7 @@ from shopbot.commands import on_tree_error
 from shopbot.core.panels import withdraw_and_audit
 from shopbot.logging_setup import log_event
 from shopbot.ui.icons import load_uploaded_ids, sync_application_emojis
-from shopbot.ui.routing import RoutedItem, parse_modal_fields
+from shopbot.ui.routing import RoutedItem, parse_modal_fields, parse_modal_uploads
 
 if TYPE_CHECKING:
     from shopbot.context import App
@@ -172,7 +172,9 @@ class ShopBot(discord.Client):
         custom_id = str(data.get("custom_id", ""))
         if not custom_id.startswith("sb:"):
             return
-        await self.app.router.dispatch(interaction, custom_id, kind="modal", fields=parse_modal_fields(data))
+        await self.app.router.dispatch(
+            interaction, custom_id, kind="modal", fields=parse_modal_fields(data), uploads=parse_modal_uploads(data)
+        )
 
     async def on_message(self, message: discord.Message) -> None:
         if message.guild is None or message.guild.id != self.app.env.guild_id:

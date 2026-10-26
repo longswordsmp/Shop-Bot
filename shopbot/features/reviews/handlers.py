@@ -9,9 +9,19 @@ the review belongs to:
   and publishes the review (a failed publication is retried by a task; the review is never lost). With
   ``reviews.require_approval`` the review is sent to staff for approval instead (the 'pending' thank-you text).
 - ``sb:rv:decline:<review_id>`` (button): the customer declines; the request shows the declined text.
+- ``sb:rv:start`` (the Write a review button of the #reviews intro panel, in the server): answers privately with the
+  stars menu, or why the member cannot write a review now (``service.start_review``). It works in the read-only
+  reviews channel, where members cannot type /review.
+- ``sb:rv:pick`` (that stars menu): opens the review form with the chosen rating (``service.open_form``, the same
+  checks and form as /review; the photo is uploaded in the form), or shows why a review cannot be written now in
+  place of the menu. Picking the same rating again after closing the form sends nothing (Discord keeps showing it);
+  pressing Write a review again gives a fresh menu.
+- ``sb:rv:write:<token>`` (the review form of /review or the stars menu, in the server): only the member who opened
+  it; writes the review (``service.submit_form``, with the photo uploaded in the form), answers privately, then
+  publishes it or asks staff for approval.
 
 Staff routes (the approval message in ``reviews.approval_channel``; staff-only in the router and re-checked here:
-``permissions.staff_roles``, admins and ``checkout.staff_roles``, the same staff as ``/review``):
+``permissions.staff_roles``, admins and ``checkout.staff_roles``, the same staff as ``/reviews``):
 
 - ``sb:rv:approve:<review_id>`` (button): approves the pending review; the message shows the decision and the
   review is published.
@@ -65,7 +75,8 @@ async def _load(ctx: Ctx) -> repo.Review:
 
 
 def _number(ctx: Ctx, review: repo.Review) -> str:
-    return service.order_number_text(ctx.app, review.order_number)
+    """The order number of a review request (requests always belong to an order)."""
+    return service.review_order_text(ctx.app, review) or ""
 
 
 async def _replace_request(ctx: Ctx, spec: MessageSpec) -> None:
@@ -196,8 +207,9 @@ async def on_comment(ctx: Ctx) -> None:
         # Refuse a comment the published review (or the staff approval message) could not show (Discord limits
         # after escaping), so it can be shortened now instead of failing later.
         name = ctx.interaction.user.display_name
+        scale = settings.rating_scale
         candidates = [
-            views.published_view(app.ui, rating=review.rating, user_name=name, order_number=number, comment=comment)
+            views.published_view(app.ui, rating=review.rating, scale=scale, order_number=number, comment=comment)
         ]
         if settings.require_approval:
             candidates.append(
@@ -206,6 +218,7 @@ async def on_comment(ctx: Ctx) -> None:
                     review_id=review.id,
                     state=k.STATE_PENDING,
                     rating=review.rating,
+                    scale=scale,
                     user_name=name,
                     user_id=review.user_id,
                     order_number=number,
@@ -286,7 +299,7 @@ async def _show_current(ctx: Ctx, review: repo.Review) -> None:
 async def _not_pending(ctx: Ctx, review: repo.Review) -> None:
     app = ctx.app
     status = service.status_label(app, review)
-    text = app.op("reviews.decision.not_pending", order_number=_number(ctx, review), status=status)
+    text = app.op("reviews.decision.not_pending", review=service.review_label(app, review), status=status)
     await _show_current(ctx, review)
     await _staff_reply(ctx, service.StaffResult([text], "warning"))
 
@@ -329,9 +342,7 @@ async def on_reject(ctx: Ctx) -> None:
     if not review.pending_approval:
         await _not_pending(ctx, review)
         return
-    modal = views.reject_modal(
-        ctx.app.op, review_id=review.id, order_number=_number(ctx, review), max_length=repo.REASON_MAX
-    )
+    modal = views.reject_modal(ctx.app.op, review_id=review.id, max_length=repo.REASON_MAX)
     await ctx.send_modal(modal)
 
 
@@ -349,11 +360,64 @@ async def on_rejected(ctx: Ctx) -> None:
     await _decide(ctx, review, approve=False, reason=reason or None)
 
 
+# -- writing a review: the Write a review button, its stars menu and the review form ---------------------------------
+
+
+async def on_start(ctx: Ctx) -> None:
+    spec = await service.start_review(ctx.app, user_id=ctx.user_id)
+    await ctx.respond(spec, ephemeral=True)
+
+
+async def on_pick(ctx: Ctx) -> None:
+    app = ctx.app
+    rating = _rating(ctx, app.settings.reviews.rating_scale)
+    answer = await service.open_form(app, user_id=ctx.user_id, rating=rating, image=None)
+    if answer.modal is not None:
+        await ctx.send_modal(answer.modal)
+    elif answer.reply is not None:
+        await _replace_request(ctx, answer.reply)  # the private menu shows why instead
+    else:
+        raise HandlerError(ck.ERROR_INVALID_INPUT)
+
+
+async def on_write(ctx: Ctx) -> None:
+    """The review form: write the review, answer privately, then publish it or ask staff for approval (retried by a
+    task on failure). The photo is downloaded first, so the answer is deferred."""
+    app = ctx.app
+    if len(ctx.args) != 1 or not service.TOKEN_RE.fullmatch(ctx.args[0]):
+        await ctx.respond(views.form_expired_view(app.ui), ephemeral=True)
+        return
+    token = ctx.args[0]
+    description = ctx.fields.get(views.DESCRIPTION_INPUT_ID, "").strip()
+    if not description:
+        raise HandlerError(ck.ERROR_INVALID_INPUT)
+    photos = ctx.uploads.get(views.PHOTO_INPUT_ID, ())
+    await ctx.defer_reply(ephemeral=True)
+    sent = await service.submit_form(
+        app,
+        token=token,
+        user_id=ctx.user_id,
+        user_name=ctx.interaction.user.display_name,
+        description=description,
+        upload=photos[0] if photos else None,
+    )
+    if sent.review is None:
+        await ctx.respond(sent.reply, ephemeral=True)
+        return
+    try:
+        await ctx.respond(sent.reply, ephemeral=True)
+    finally:
+        await service.after_submission(app, sent.review)
+
+
 def register_handlers(app: App) -> None:
     router = app.router
     router.component(views.ROUTE, "rate", feature=REVIEWS, allow_dm=True)(on_rate)
     router.component(views.ROUTE, "decline", feature=REVIEWS, allow_dm=True)(on_decline)
     router.modal(views.ROUTE, "comment", feature=REVIEWS, allow_dm=True)(on_comment)
+    router.component(views.ROUTE, "start", feature=REVIEWS)(on_start)
+    router.component(views.ROUTE, "pick", feature=REVIEWS)(on_pick)
+    router.modal(views.ROUTE, "write", feature=REVIEWS)(on_write)
     staff = staff_role_keys
     router.component(views.ROUTE, "approve", feature=REVIEWS, access="staff", staff_roles=staff)(on_approve)
     router.component(views.ROUTE, "reject", feature=REVIEWS, access="staff", staff_roles=staff)(on_reject)

@@ -1,4 +1,4 @@
-"""Operator text of the reviews feature: ``/review`` replies, the staff reject form, replies to the staff approval
+"""Operator text of the reviews feature: ``/reviews`` replies, the staff reject form, replies to the staff approval
 buttons and the /setup report lines.
 
 Shown only to staff/admins (ephemeral replies after a staff check, the staff-only reject form) and never to
@@ -8,6 +8,11 @@ customers. Each entry can be overridden in content.toml under ``operator.<key>``
 from __future__ import annotations
 
 OPERATOR_TEXT: dict[str, str] = {
+    # how staff replies name a review ({review}) and what a command looked up ({target})
+    "reviews.ref.order": "review #{review_number} (order #{order_number})",
+    "reviews.ref.no_order": "review #{review_number} (no order)",
+    "reviews.target.order": "order #{order_number}",
+    "reviews.target.review": "review #{review_number}",
     # review states as shown to staff
     "reviews.status.prompted": "requested (no rating yet)",
     "reviews.status.rated": "rated (comment form not submitted yet)",
@@ -17,45 +22,48 @@ OPERATOR_TEXT: dict[str, str] = {
     "reviews.status.rejected": "rejected by staff (not published)",
     "reviews.status.declined": "declined or removed",
     # staff approval: the reject form (staff only)
-    "reviews.form.reject_title": "Reject the review of order #{order_number}",
+    "reviews.form.reject_title": "Reject review #{review_number}",
     "reviews.form.reject_reason": "Reason (optional)",
     "reviews.form.reject_reason_help": "Shown to the customer only if the rejection notice has a reason heading.",
-    # staff approval: replies to the Approve / Reject buttons and /review approve|reject
+    # staff approval: replies to the Approve / Reject buttons and /reviews approve|reject
     "reviews.decision.title": "Review approval",
-    "reviews.decision.approved": "The review of order #{order_number} was approved.",
+    "reviews.decision.approved": "Approved {review}.",
     "reviews.decision.published": "It is published in the reviews channel.",
     "reviews.decision.publish_pending": "It could not be published yet; publishing is retried automatically.",
-    "reviews.decision.rejected": "The review of order #{order_number} was rejected and will not be published.",
+    "reviews.decision.rejected": "Rejected {review}; it will not be published.",
     "reviews.decision.notice.dm": "The customer was told by direct message.",
     "reviews.decision.notice.channel": "The customer was told in the order channel.",
-    "reviews.decision.notice.none": "The customer could not be told (direct messages and the order channel are not "
-    "available).",
+    "reviews.decision.notice.none": "The customer could not be told (direct messages are not available, and there is "
+    "no order channel to use instead).",
     "reviews.decision.notice.duplicate": "The customer was already told.",
     "reviews.decision.notice.off": "No notice is sent to the customer (its text is not configured).",
-    "reviews.decision.not_pending": "The review of order #{order_number} no longer waits for approval (it is "
-    "{status}). Nothing was changed.",
+    "reviews.decision.not_pending": "Nothing was changed: {review} no longer waits for approval (it is {status}).",
     "reviews.decision.expired": "Order #{order_number} is '{status}' now, so its review cannot be published as a "
     "verified review. Reject it instead.",
     "reviews.decision.reason_too_long": "The reason is too long ({length} characters, at most {max}).",
-    "reviews.decision.not_found": "No review is waiting for approval for order #{order_number}.",
+    "reviews.decision.not_found": "No review is waiting for approval for {target}.",
     "reviews.decision.message_failed": "The approval message could not be updated; it is updated by the next /setup.",
-    # /review list
+    # /reviews list
     "reviews.list.title": "Reviews ({count})",
     "reviews.list.empty": "No reviews found.",
-    "reviews.list.line": "Order #{order_number} | {status} | rating {rating} | {member} | {message}",
+    "reviews.list.line": "Review #{review_number} | {order} | {status} | rating {rating} | {member} | {message}",
+    "reviews.list.order": "order #{order_number}",
+    "reviews.list.no_order": "no order (unverified)",
     "reviews.list.none": "-",
-    # /review remove and /review resend
+    # /reviews remove, resend, approve and reject
     "reviews.cmd.remove_title": "Remove review",
     "reviews.cmd.resend_title": "Send review request again",
+    "reviews.cmd.target_missing": "Give the order number (order_number) or the review number (review), not both.",
     "reviews.cmd.order_not_found": "No order #{order_number} was found.",
+    "reviews.cmd.review_not_found": "No review #{review_number} was found.",
     "reviews.cmd.no_review": "Order #{order_number} has no review request.",
     "reviews.cmd.prompt_cancelled": "The pending review request of order #{order_number} was cancelled.",
-    "reviews.cmd.already_removed": "The review of order #{order_number} was already declined or removed.",
-    "reviews.cmd.removed": "The review of order #{order_number} was removed.",
+    "reviews.cmd.already_removed": "Nothing was changed: {review} was already declined or removed.",
+    "reviews.cmd.removed": "Removed {review}.",
     "reviews.cmd.message_deleted": "The published review message was deleted.",
     "reviews.cmd.message_missing": "The published review message was already gone.",
-    "reviews.cmd.remove_failed": "The published review message of order #{order_number} could not be deleted "
-    "(Discord error {status}). Nothing was changed.",
+    "reviews.cmd.remove_failed": "The published message of {review} could not be deleted (Discord error {status}). "
+    "Nothing was changed.",
     "reviews.cmd.not_fulfilled": "Order #{order_number} is '{status}'. Review requests are only sent for fulfilled "
     "orders.",
     "reviews.cmd.resend_wrong_state": "The review of order #{order_number} is {status}; only an unanswered request "
@@ -70,4 +78,18 @@ OPERATOR_TEXT: dict[str, str] = {
     "reviews.setup.approvals_queued": "Reviews: {count} approval request(s) queued for posting in the approval "
     "channel.",
     "reviews.setup.approvals_refreshed": "Reviews: {count} approval message(s) of pending reviews updated.",
+    "reviews.intro.created": "Reviews intro panel: posted in {channel}",
+    "reviews.intro.updated": "Reviews intro panel: updated in {channel}",
+    "reviews.intro.unchanged": "Reviews intro panel: up to date in {channel}",
+    "reviews.intro.recreated": "Reviews intro panel: re-posted in {channel} (the previous message was deleted)",
+    "reviews.intro.moved": "Reviews intro panel: moved to {channel}",
+    "reviews.intro.no_guild": "Reviews intro panel: the configured server is not available.",
+    "reviews.intro.channel_missing": "Reviews intro panel: not posted because channel `{channel}` does not exist "
+    "(check /setup above)",
+    "reviews.intro.missing_content": "Reviews intro panel: not posted because content key `{content_key}` is not "
+    "configured",
+    "reviews.intro.missing_permissions": "Reviews intro panel: not posted because the bot lacks {permissions} in "
+    "{channel}",
+    "reviews.intro.limits": "Reviews intro panel: not posted because it exceeds Discord limits: {violations}",
+    "reviews.intro.failed": "Reviews intro panel: posting failed (HTTP {http_status}, Discord code {code})",
 }

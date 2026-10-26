@@ -48,7 +48,7 @@ from shopbot.features.catalog import content_keys as catalog_keys
 from shopbot.features.catalog import views as catalog_views
 from shopbot.features.catalog.repo import Product
 from shopbot.features.checkout import content_keys as k
-from shopbot.features.checkout import discounts, flow, gift_card_store, payment_methods
+from shopbot.features.checkout import discounts, flow, gift_card_store, payment_methods, tips
 from shopbot.features.checkout import models as m
 from shopbot.features.checkout import staff_keys as sk
 from shopbot.features.checkout.order_money import Money, order_money
@@ -93,6 +93,10 @@ QUANTITY_MAX_DIGITS = 7
 DISCOUNT_INPUT = "code"
 # The code field takes a little more than the longest code, so surrounding spaces do not block the form.
 DISCOUNT_INPUT_MAX = 40
+# The tip menu's Other amount option (the other options' values are amounts in minor units) and the form's field.
+TIP_OTHER = "other"
+TIP_INPUT = "amount"
+TIP_INPUT_MAX = 20
 REFUND_AMOUNT_INPUT = "amount"
 REFUND_REASON_INPUT = "reason"
 # Refund reasons are also stored as the store-credit note of a refund to credit.
@@ -236,6 +240,15 @@ def discount_use_id(session_id: int, code_id: int) -> str:
 
 def discount_remove_id(session_id: int) -> str:
     return cid(ROUTE, "dcremove", session_id)
+
+
+def tip_id(session_id: int) -> str:
+    """The review step's tip menu (an amount in minor units, 0 = no tip, or ``TIP_OTHER``)."""
+    return cid(ROUTE, "tip", session_id)
+
+
+def tip_form_id(session_id: int) -> str:
+    return cid(ROUTE, "tipform", session_id)
 
 
 def cancel_yes_id(session_id: int) -> str:
@@ -802,6 +815,12 @@ def _discount_note(ui: Ui, discount: m.AppliedDiscount, write: Money) -> str | N
     return _optional(ui, k.SUMMARY_DISCOUNT_NOTE, reason=reason)
 
 
+def tip_line(ui: Ui, amount: str) -> str | None:
+    """The tip for our team in a summary ("Tip for our team · $5.00"), after the extras and fees. Its text is required
+    also while tips are off (orders placed with a tip keep showing it); None only while checkout is not ready."""
+    return _optional(ui, k.SUMMARY_TIP_LINE, amount=amount)
+
+
 def _credit_line(ui: Ui, amount: str) -> str | None:
     """The store credit applied (taken off the total); None when its texts are not set (credits switched off since
     the order was placed)."""
@@ -831,8 +850,8 @@ def _workflow_summary(
 ) -> str | None:
     """What the order costs so far (None while the cart is empty): the subtotal, the discount code applied (or that
     it is not applied, with the reason under the total), the chosen delivery option and extras with their prices, fees,
-    the store credit applied and the total. ``available`` (review step): also the store credit the customer could
-    still apply."""
+    the tip for our team, the store credit applied and the total. ``available`` (review step): also the store credit
+    the customer could still apply."""
     if not data.lines:
         return None
     totals = data.totals
@@ -851,6 +870,9 @@ def _workflow_summary(
         label = _optional(ui, k.fee_label_key(fee_item.fee_id))
         if label:
             rows.append(_amount_line(ui, label, money(ui, fee_item.amount_minor)))
+    tip = tip_line(ui, money(ui, totals.tip_minor)) if totals.tip_minor > 0 else None
+    if tip:
+        rows.append(tip)
     if totals.credits_applied_minor > 0:
         credit = _credit_line(ui, money(ui, totals.credits_applied_minor))
         if credit:
@@ -868,7 +890,7 @@ def _workflow_summary(
 
 def _order_summary(ui: Ui, view: m.OrderView, fmt: Money) -> str:
     """The placed order's amounts as stored in the order (in its currency): subtotal, the discount (when a code took
-    something off), delivery, extras and fees, store credit applied, total."""
+    something off), delivery, extras and fees, the tip for our team, store credit applied, total."""
     order = view.order
     rows: list[str] = []
     if order.discount_minor > 0 and order.discount_code:
@@ -881,6 +903,9 @@ def _order_summary(ui: Ui, view: m.OrderView, fmt: Money) -> str:
         label = _optional(ui, k.fee_label_key(fee_item.fee_id))
         if label:  # a fee whose name is no longer configured is left out (the total includes it)
             rows.append(_amount_line(ui, label, fmt(fee_item.amount_minor)))
+    tip = tip_line(ui, fmt(order.tip_minor)) if order.tip_minor > 0 else None
+    if tip:
+        rows.append(tip)
     if order.credits_applied_minor > 0:
         credit = _credit_line(ui, fmt(order.credits_applied_minor))
         if credit:
@@ -1279,14 +1304,80 @@ def _address_step(ui: Ui, settings: Settings, data: m.WorkflowData) -> MessageSp
 
 
 def review_sections(ui: Ui, settings: Settings, data: m.WorkflowData, *, with_items: bool = True) -> list[str | None]:
-    """The review: the items, the summary with the total to pay (and the store credit that could still be applied)
-    and where the order goes (name, city and country; never the street)."""
+    """The review: the items, the summary with the total to pay (and the store credit that could still be applied),
+    where the order goes (name, city and country; never the street) and, last, just above the menus, the tip note while
+    tips are on."""
     destination = ship_to(ui, settings, data.session.details) if settings.checkout.ask_address else None
     return [
         items_section(ui, _cart_lines(ui, data)) if with_items else None,
         _workflow_summary(ui, settings, data, final=True, available=True),
         section(_text(ui, k.ADDRESS_HEADING), [destination]) if destination else None,
+        tip_note(ui, settings, data),
     ]
+
+
+def tip_note(ui: Ui, settings: Settings, data: m.WorkflowData) -> str | None:
+    """The last line of the review step while tips are on: who a tip is for (100% goes to our team), or thanks once a
+    tip is chosen."""
+    if not settings.checkout.tips.enabled or not data.lines:
+        return None
+    return _text(ui, k.TIP_NOTE_THANKS if data.totals.tip_minor > 0 else k.TIP_NOTE)
+
+
+def tip_menu(ui: Ui, settings: Settings, data: m.WorkflowData) -> SelectSpec | None:
+    """The review step's tip menu while tips are on (None otherwise): No tip, the listed amounts, the customer's own
+    amount while one is chosen, and Other amount (``allow_custom``; it opens the private amount form). The tip that
+    counts is shown as selected; with no tip the menu shows its placeholder. Picking the selected option again sends
+    nothing in Discord, so the customer's own amount is its own option and Other amount is never the selected one."""
+    c = settings.checkout
+    if not c.tips.enabled:
+        return None
+    current = data.totals.tip_minor
+    options = [SelectOptionSpec(label=_text(ui, k.TIP_OPTION_NONE), value="0")]
+    for amount in c.tips.amounts:
+        label = _text(ui, k.TIP_OPTION_AMOUNT, amount=money(ui, amount))
+        options.append(SelectOptionSpec(label=label, value=str(amount), default=amount == current))
+    if current > 0 and current not in c.tips.amounts:
+        label = _text(ui, k.TIP_OPTION_AMOUNT, amount=money(ui, current))
+        description = _optional(ui, k.TIP_OPTION_YOURS)
+        options.append(SelectOptionSpec(label=label, value=str(current), description=description, default=True))
+    if c.tips.allow_custom:
+        description = _optional(ui, k.TIP_OPTION_CUSTOM_DESCRIPTION, **_tip_limits(ui, settings))
+        if description is not None and len(description) > OPTION_DESCRIPTION:
+            description = None  # optional text that does not fit is omitted, never cut
+        options.append(SelectOptionSpec(label=_text(ui, k.TIP_OPTION_CUSTOM), value=TIP_OTHER, description=description))
+    return SelectSpec(custom_id=tip_id(data.session.id), options=tuple(options), placeholder=ui.text(k.TIP_PLACEHOLDER))
+
+
+def _tip_limits(ui: Ui, settings: Settings) -> dict[str, str | int]:
+    """The smallest and largest amount a customer may type as a tip ({minimum}, {maximum})."""
+    c = settings.checkout
+    return {"minimum": money(ui, tips.custom_minimum(c)), "maximum": money(ui, c.tips.max_minor)}
+
+
+def tip_modal(ui: Ui, settings: Settings, session_id: int) -> ModalSpec:
+    """The private form of Other amount: one amount field (checked server-side, ``tips.parse``)."""
+    return ModalSpec(
+        custom_id=tip_form_id(session_id),
+        title=_text(ui, k.TIP_MODAL_TITLE),
+        inputs=(
+            TextInputSpec(
+                custom_id=TIP_INPUT,
+                label=_text(ui, k.TIP_INPUT_LABEL),
+                placeholder=_optional(ui, k.TIP_INPUT_PLACEHOLDER, **_tip_limits(ui, settings)),
+                required=True,
+                max_length=TIP_INPUT_MAX,
+            ),
+        ),
+    )
+
+
+def tip_error(ui: Ui, settings: Settings, reason: str) -> tuple[str, dict[str, str | int]]:
+    """The customer text (key and values) for a typed tip that cannot be used (``tips.INVALID`` / ``tips.TOO_HIGH``)."""
+    limits = _tip_limits(ui, settings)
+    if reason == tips.TOO_HIGH:
+        return k.TIP_ERROR_TOO_HIGH, {"maximum": limits["maximum"]}
+    return k.TIP_ERROR_INVALID, limits
 
 
 def _review(ui: Ui, settings: Settings, data: m.WorkflowData, notice: str | None) -> MessageSpec:
@@ -1309,6 +1400,7 @@ def _review(ui: Ui, settings: Settings, data: m.WorkflowData, notice: str | None
         elif data.credits_available_minor > 0:
             credit_buttons.append(_button(ui, k.BUTTON_APPLY_CREDITS, credits_id(session.id, True), style="success"))
     discount_buttons = review_discount_buttons(ui, settings, data)
+    tip = tip_menu(ui, settings, data)
     navigation: list[ButtonSpec] = []
     previous = flow.previous_step(settings.checkout, session.fulfillment_option, m.REVIEW)
     if previous is not None:
@@ -1320,8 +1412,9 @@ def _review(ui: Ui, settings: Settings, data: m.WorkflowData, notice: str | None
     navigation.append(_button(ui, core.BUTTON_CANCEL, cancel_id(session.id), style="danger"))
     return MessageSpec(
         embeds=tuple(embeds),
-        # Store credit and discount buttons take money off: one row (at most 4), then Back, Confirm and Cancel.
-        rows=rows_of(*credit_buttons, *discount_buttons) + rows_of(*navigation),
+        # The store credit and discount buttons that take money off (one row, at most 4), the tip menu (its own row),
+        # then Back, Confirm and Cancel.
+        rows=rows_of(*credit_buttons, *discount_buttons, tip) + rows_of(*navigation),
         banner=ui.banner("review-and-summary"),
     )
 

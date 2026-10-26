@@ -23,6 +23,15 @@ only a real server can confirm:
 7. **Discount codes.** `/discount create` a code, then in an order ticket press **Add discount code** on the review
    step: the discount shows under the subtotal and stays on the order card, the #orders record and `/order view`
    (the checks are in step 12 of `docs/MORNING.md`).
+8. **Reviews.** #reviews starts with the intro panel and its **Write a review** button (members cannot type in
+   #reviews, so the button is the way there; `/review` works in an open ticket). Write a review → stars → the form
+   with a photo upload → *Approve* in #staff-chat → #reviews shows the stars, the text and the photo without the
+   member's name (step 12 of `docs/MORNING.md`). The staff tools are now `/reviews` (they were `/review`). A text changed earlier with
+   `/content set` that uses `{user_name}` in `reviews.published.title`, or `{order_number}` in a decision notice
+   (`reviews.notice.*`), is refused now (published reviews never name the member; a review may have no order):
+   `/status` names it, and reviews stay hidden until it is changed. A review with a photo now always waits for
+   *Approve* (`reviews.photo_requires_approval`, shipped on). The photo upload inside the form is Discord's newer
+   file upload field: try it once from a phone and a computer (step 12 of `docs/MORNING.md`).
 
 ## 2. Decisions only the owner can make
 
@@ -37,6 +46,11 @@ only a real server can confirm:
   customers thinking the shop is Amazon or partnered with Amazon, and the server being reported.
 - **Delivery times.** "About 2 weeks" and "usually 3–4 days" are promises to customers; change the texts if they
   differ by region.
+
+- **Reviews without an order.** `/review` from a member without a delivered order writes an unverified review (no
+  "Verified purchase" marker), always checked by staff first, one per member every 30 days
+  (`reviews.allow_unverified`, `reviews.unverified_cooldown_days`). Turn it off once the old customers have reviewed
+  again, if only buyers should review.
 
 ## 3. Bringing card payments back
 
@@ -56,6 +70,11 @@ only a real server can confirm:
    can match payments without asking.
 2. **Saved address.** Offer the customer's last address on their next order (still entered privately, never shown in
    a channel).
+3. **A tip without an order.** Tips are added to an order on its review step and paid with it (`[checkout.tips]`,
+   `docs/DECISIONS.md` §11g). A tip on its own (for example a "Tip our team" button in a support ticket) needs its own
+   payment: a gift card checked by staff like an order's, or a payment page once card payments are back. With it, a
+   refund could be marked as "the tip" (today `/stats` counts a refund against the items first, so a refunded tip
+   still shows as kept).
 
 Done since this list was written: `/stats` for staff, low-stock / sold-out alerts in #staff-chat
 (`operations.stock_alerts`, see `docs/features/operations.md`), and discount codes: `/discount` (percent off, amount

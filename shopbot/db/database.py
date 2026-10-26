@@ -55,6 +55,9 @@ def connect(path: Path | str, *, busy_timeout_ms: int = 5000) -> sqlite3.Connect
         if str(mode).lower() != "wal":
             log_event(log, logging.WARNING, "db_wal_unavailable", journal_mode=str(mode))
     conn.execute("PRAGMA synchronous = FULL")
+    # Deleted content is overwritten in the file instead of staying in free pages (e.g. the bytes of a released review
+    # photo or a wiped gift card code); a backup taken earlier still holds it.
+    conn.execute("PRAGMA secure_delete = ON")
     return conn
 
 

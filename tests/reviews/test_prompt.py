@@ -213,7 +213,7 @@ async def test_fallback_skipped_when_order_channel_is_gone(rv: TestEnv) -> None:
     assert vanished.channel is not None
     await vanished.channel.delete()
     await prompt_now(rv, vanished)
-    assert (await review_of(rv, vanished)).status == repo.PROMPTED  # staff can /review resend later
+    assert (await review_of(rv, vanished)).status == repo.PROMPTED  # staff can /reviews resend later
 
 
 async def test_channel_send_failure_is_recorded_not_raised(tmp_path: Path) -> None:

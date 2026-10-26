@@ -159,6 +159,22 @@ TERMS_MINIMUM = "checkout.discount.terms.minimum"
 TERMS_EXPIRES = "checkout.discount.terms.expires"
 TERMS_ONCE = "checkout.discount.terms.once"
 
+# -- workflow: tips for our team on the review step ([checkout.tips]) ---------------------------------------------
+TIP_PLACEHOLDER = "checkout.tip.select_placeholder"
+TIP_OPTION_NONE = "checkout.tip.option_none"
+TIP_OPTION_AMOUNT = "checkout.tip.option_amount"
+TIP_OPTION_YOURS = "checkout.tip.option_yours"
+TIP_OPTION_CUSTOM = "checkout.tip.option_custom"
+TIP_OPTION_CUSTOM_DESCRIPTION = "checkout.tip.option_custom_description"
+TIP_NOTE = "checkout.tip.note"
+TIP_NOTE_THANKS = "checkout.tip.note_thanks"
+SUMMARY_TIP_LINE = "checkout.summary.tip_line"
+TIP_MODAL_TITLE = "checkout.tip.modal_title"
+TIP_INPUT_LABEL = "checkout.tip.input_label"
+TIP_INPUT_PLACEHOLDER = "checkout.tip.input_placeholder"
+TIP_ERROR_INVALID = "checkout.tip.error.invalid"
+TIP_ERROR_TOO_HIGH = "checkout.tip.error.too_high"
+
 # -- quantity form ------------------------------------------------------------------------------------
 QUANTITY_TITLE = "checkout.quantity.title"
 QUANTITY_LABEL = "checkout.quantity.label"
@@ -1470,6 +1486,7 @@ def content_keys(settings: Settings) -> list[ContentKey]:
     keys += _extra_keys(c)
     keys += _address_keys(settings)
     keys += _discount_keys(settings)
+    keys += _tip_keys(settings)
     provider = PROVIDERS.get(settings.payments.provider)
     if provider is not None:
         keys += provider.content_keys(settings)
@@ -1616,6 +1633,141 @@ def _address_keys(settings: Settings) -> list[ContentKey]:
             ),
         ]
     return keys
+
+
+def _tip_keys(settings: Settings) -> list[ContentKey]:
+    """Tips for our team on the review step. Registered always (an order placed with a tip keeps showing it); required
+    while ``checkout.tips.enabled`` is on (the Other amount form and its replies while ``allow_custom`` is on too). The
+    summary line is required always: orders placed with a tip show it on the order ticket and the staff record, also
+    after tips are switched off, and a total without its tip line would not add up."""
+    on = settings.checkout.tips.enabled
+    custom = on and settings.checkout.tips.allow_custom
+    group = "Checkout: tips for our team (review step, [checkout.tips])"
+    return [
+        ck(
+            TIP_PLACEHOLDER,
+            Kind.SELECT_PLACEHOLDER,
+            FEATURE,
+            group,
+            "Greyed-out text of the tip menu on the review step while no tip is chosen, e.g. 'Add a tip for our team "
+            "(optional)'.",
+            required=on,
+        ),
+        ck(
+            TIP_OPTION_NONE,
+            Kind.OPTION_LABEL,
+            FEATURE,
+            group,
+            "First option of the tip menu: no tip (it takes a chosen tip off), e.g. '{icon_minus} No tip'.",
+            required=on,
+        ),
+        ck(
+            TIP_OPTION_AMOUNT,
+            Kind.OPTION_LABEL,
+            FEATURE,
+            group,
+            "One option of the tip menu per amount in checkout.tips.amounts (and the customer's own amount while one "
+            "is chosen), e.g. '{icon_heart} {amount} tip'. {amount} is the amount.",
+            required=on,
+            placeholders=("amount",),
+        ),
+        ck(
+            TIP_OPTION_YOURS,
+            Kind.OPTION_DESCRIPTION,
+            FEATURE,
+            group,
+            "Optional small text under the customer's own amount in the tip menu (an amount they typed with Other "
+            "amount, or one that is no longer listed), e.g. 'Your current tip'.",
+            required=False,
+        ),
+        ck(
+            TIP_OPTION_CUSTOM,
+            Kind.OPTION_LABEL,
+            FEATURE,
+            group,
+            "Last option of the tip menu: it opens a private form to type an amount (checkout.tips.allow_custom), e.g. "
+            "'{icon_edit} Other amount'.",
+            required=custom,
+        ),
+        ck(
+            TIP_OPTION_CUSTOM_DESCRIPTION,
+            Kind.OPTION_DESCRIPTION,
+            FEATURE,
+            group,
+            "Optional small text under Other amount, e.g. 'Type your own amount, up to {maximum}'. {minimum} and "
+            "{maximum} are the smallest and largest amount a customer may type.",
+            required=False,
+            placeholders=("minimum", "maximum"),
+        ),
+        ck(
+            TIP_NOTE,
+            Kind.FIELD_VALUE,
+            FEATURE,
+            group,
+            "Last line of the review step while no tip is chosen: that a tip is optional and who it is for, e.g. "
+            "'{icon_heart} Tips are optional. If you'd like to thank our support team, pick an amount in the menu "
+            "below. 100% of every tip goes to our team.'.",
+            required=on,
+        ),
+        ck(
+            TIP_NOTE_THANKS,
+            Kind.FIELD_VALUE,
+            FEATURE,
+            group,
+            "Last line of the review step once a tip is chosen, e.g. '{icon_heart} Thank you! 100% of every tip goes "
+            "to our team.'.",
+            required=on,
+        ),
+        ck(
+            SUMMARY_TIP_LINE,
+            Kind.FORMAT,
+            FEATURE,
+            group,
+            "How the tip is written in the summary, after the extras and fees and before the store credit and the "
+            "total (review step, order ticket, staff record), e.g. 'Tip for our team · {amount}'. {amount} is the tip. "
+            "Required also while tips are off: orders placed with a tip keep showing it.",
+            placeholders=("amount",),
+        ),
+        ck(
+            TIP_MODAL_TITLE,
+            Kind.MODAL_TITLE,
+            FEATURE,
+            group,
+            "Title of the private form that Other amount opens.",
+            required=custom,
+        ),
+        ck(TIP_INPUT_LABEL, Kind.INPUT_LABEL, FEATURE, group, "Label of the form's amount field.", required=custom),
+        ck(
+            TIP_INPUT_PLACEHOLDER,
+            Kind.INPUT_PLACEHOLDER,
+            FEATURE,
+            group,
+            "Optional greyed-out example inside the empty amount field, e.g. 'For example: 7.50'. "
+            "{minimum} and {maximum} are the smallest and largest amount a customer may type.",
+            required=False,
+            placeholders=("minimum", "maximum"),
+        ),
+        ck(
+            TIP_ERROR_INVALID,
+            Kind.DESCRIPTION,
+            FEATURE,
+            group,
+            "Private reply when what the customer typed in the tip form is not an amount, or less than {minimum} (one "
+            "whole unit of the currency). {minimum} and {maximum} are the smallest and largest amount they may type.",
+            required=custom,
+            placeholders=("minimum", "maximum"),
+        ),
+        ck(
+            TIP_ERROR_TOO_HIGH,
+            Kind.DESCRIPTION,
+            FEATURE,
+            group,
+            "Private reply when the amount typed in the tip form is more than the largest tip "
+            "(checkout.tips.max_minor). {maximum} is that amount.",
+            required=custom,
+            placeholders=("maximum",),
+        ),
+    ]
 
 
 # The customer text of each reason a discount code does not apply: (reason, what happened, placeholders besides {code}).

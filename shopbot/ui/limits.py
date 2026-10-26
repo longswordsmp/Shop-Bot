@@ -41,6 +41,7 @@ INPUT_LABEL = 45
 INPUT_DESCRIPTION = 100
 INPUT_PLACEHOLDER = 100
 INPUT_VALUE = 4000
+UPLOAD_FILES = 10  # files one upload field of a form accepts
 URL_MAX = 2048
 # Files uploaded with one message: Discord accepts at most 10, and servers without boosts accept 10 MiB per upload.
 FILES_PER_MESSAGE = 10
@@ -222,10 +223,11 @@ def validate_modal(spec: ModalSpec) -> list[Violation]:
     if not spec.title.strip():
         out.append(Violation("modal.title", "is blank"))
     _len("modal.title", spec.title, MODAL_TITLE, out)
-    if not spec.inputs:
+    if not spec.inputs and not spec.uploads:
         out.append(Violation("modal.inputs", "a form needs at least one input"))
-    if len(spec.inputs) > MODAL_INPUTS:
-        out.append(Violation("modal.inputs", f"{len(spec.inputs)} inputs exceeds {MODAL_INPUTS}"))
+    count = len(spec.inputs) + len(spec.uploads)
+    if count > MODAL_INPUTS:
+        out.append(Violation("modal.inputs", f"{count} inputs and uploads exceeds {MODAL_INPUTS}"))
     seen: set[str] = set()
     for index, item in enumerate(spec.inputs):
         ipath = f"modal.inputs[{index}]"
@@ -242,4 +244,13 @@ def validate_modal(spec: ModalSpec) -> list[Violation]:
             out.append(Violation(f"{ipath}.min_length", f"must be between 0 and {INPUT_VALUE}"))
         if item.min_length is not None and item.max_length is not None and item.min_length > item.max_length:
             out.append(Violation(f"{ipath}", "min_length exceeds max_length"))
+    for index, upload in enumerate(spec.uploads):
+        upath = f"modal.uploads[{index}]"
+        _validate_custom_id(f"{upath}.custom_id", upload.custom_id, seen, out)
+        if not upload.label.strip():
+            out.append(Violation(f"{upath}.label", "is blank"))
+        _len(f"{upath}.label", upload.label, INPUT_LABEL, out)
+        _len(f"{upath}.description", upload.description, INPUT_DESCRIPTION, out)
+        if not 1 <= upload.max_files <= UPLOAD_FILES:
+            out.append(Violation(f"{upath}.max_files", f"must be between 1 and {UPLOAD_FILES}"))
     return out

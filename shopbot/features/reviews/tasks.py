@@ -12,7 +12,7 @@
   staff decision, scheduled in the decision's transaction; normally cancelled by the in-process follow-up, it runs
   the (idempotent) follow-ups again when the process stopped in between.
 - ``on_ready``: re-queues every submitted review that is not published yet and every pending review whose
-  approval message was not posted yet.
+  approval message was not posted yet, and releases the stored photos of reviews nothing posts any more.
 """
 
 from __future__ import annotations
@@ -108,9 +108,10 @@ async def run_decision_task(app: App, task: Task) -> None:
 
 
 async def on_ready(app: App) -> None:
-    """Restart recovery: publish reviews that were submitted but not published before the restart, and post the
-    approval messages that were not posted yet."""
+    """Restart recovery: publish reviews that were submitted but not published before the restart, post the approval
+    messages that were not posted yet, and release the photos of reviews that were published, rejected or removed."""
     if not app.readiness.is_enabled(REVIEWS):
         return
     await service.requeue_pending(app)
     await service.requeue_approvals(app, sync_messages=False)
+    await service.release_images(app)
