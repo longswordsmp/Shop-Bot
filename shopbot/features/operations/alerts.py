@@ -250,9 +250,12 @@ async def _order_alert(app: App, alert: str, order_id: int, dedupe_key: str) -> 
         return
     order = view.order
     record_url = message_url(app, order.staff_channel_id, order.staff_message_id)
+    ticket_url = f"https://discord.com/channels/{app.env.guild_id}/{view.channel_id}" if view.channel_id else None
     values = order_values(app, view)
-    staff_spec = views.order_alert(app.ui, alert, values, ping_role_ids=ping_role_ids(app), record_url=record_url)
-    owner_spec = views.order_alert(app.ui, alert, values, owner=True, record_url=record_url)
+    staff_spec = views.order_alert(
+        app.ui, alert, values, ping_role_ids=ping_role_ids(app), record_url=record_url, ticket_url=ticket_url
+    )
+    owner_spec = views.order_alert(app.ui, alert, values, owner=True, record_url=record_url, ticket_url=ticket_url)
     kind = f"operations.alert.{alert}"
     try:
         await _post(app, staff_spec, kind=kind, dedupe_key=dedupe_key)

@@ -54,13 +54,23 @@ def preview(app: App) -> list[PreviewState]:
         add(
             f"alert_{alert}",
             f"Staff alert in operations.staff_channel: {alert.replace('_', ' ')} (mentions operations.ping_roles).",
-            partial(views.order_alert, ui, alert, _ORDER_VALUES, ping_role_ids=ping, record_url=SAMPLE_URL),
+            partial(
+                views.order_alert,
+                ui,
+                alert,
+                _ORDER_VALUES,
+                ping_role_ids=ping,
+                record_url=SAMPLE_URL,
+                ticket_url=SAMPLE_URL,
+            ),
         )
         add(
             f"owner_{alert}",
             f"The Owner's private alert: {alert.replace('_', ' ')} (direct message; posted in the staff channel with "
             "a mention of the Owner when the direct message fails).",
-            partial(views.order_alert, ui, alert, _ORDER_VALUES, owner=True, record_url=SAMPLE_URL),
+            partial(
+                views.order_alert, ui, alert, _ORDER_VALUES, owner=True, record_url=SAMPLE_URL, ticket_url=SAMPLE_URL
+            ),
         )
     for kind in repo.REMINDER_KINDS:
         if kind == repo.UNANSWERED:

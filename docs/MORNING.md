@@ -253,10 +253,12 @@ customers see it only if you include `{error_id}` in your `common.error.generic`
 
 ### What has and has not been verified so far
 
-- ✅ Implemented and tested locally and on GitHub Actions: 1,700+ automated tests (all features, failures, concurrency,
-  restarts, banners kept/replaced on edits), type checks, lint, Discord-limit and handler-coverage checks with the
-  shipped text, offline preview.
+- ✅ Implemented and tested locally and on GitHub Actions: 2,000+ automated tests (all features, failures, concurrency,
+  restarts, banners kept/replaced on edits, `/reset` refusals, interruptions and the rebuild with the shipped
+  settings), type checks, lint, Discord-limit and handler-coverage checks with the shipped text, offline preview.
 - ❌ Not yet verified by us: running in a real Discord server. In particular, check on desktop and phone that each
   banner shows **above** its message (Discord places pictures that no embed uses above the embeds; this could not be
-  tested offline), and that the icons appear (the upload of application emojis was tested against a stand-in for
-  Discord only). Steps 9–12 are that verification.
+  tested offline), that the icons appear (the upload of application emojis was tested against a stand-in for
+  Discord only), the welcome mention and its removal after 30 seconds, and `/reset` on your real server (Discord's
+  own refusals, e.g. for Onboarding channels, only show up there; they are reported and skipped). Steps 9–12 are
+  that verification.

@@ -61,14 +61,14 @@ async def test_new_order_alert_pings_staff_and_reaches_the_owner(ops: TestEnv) -
     assert alert.embeds[0].title == _render(ops, ok.alert_key(ok.NEW_ORDER, "title"), **values)
     assert alert.content == f"<@&{ops.staff_role.id}>"
     assert alert.allowed_mentions is not None and [r.id for r in alert.allowed_mentions.roles] == [ops.staff_role.id]
-    # The link button jumps to the live order record.
+    # The link buttons jump to the live order record and to the order ticket.
     current = await order(ops, placed.id)
-    link = alert.components()[0]
-    assert (
-        link.url
-        == f"https://discord.com/channels/{ops.app.env.guild_id}/{current.staff_channel_id}/{current.staff_message_id}"
-    )
+    record_link, ticket_link = alert.components()
+    base = f"https://discord.com/channels/{ops.app.env.guild_id}"
+    assert record_link.url == f"{base}/{current.staff_channel_id}/{current.staff_message_id}"
+    assert ticket_link.url == f"{base}/{channel_id}" and ticket_link.label == ops.text(ok.BUTTON_OPEN_TICKET)
     dm = owner(ops).dms[-1]
+    assert [c.url for c in dm.components()] == [record_link.url, ticket_link.url]
     assert dm.embeds[0].description == _render(ops, ok.owner_key(ok.NEW_ORDER, "description"), **values)
     assert dm.content in ("", None)
     # Re-running the follow-ups (as the durable task would after a crash) never alerts twice.

@@ -169,7 +169,8 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             Kind.BUTTON_LABEL,
             FEATURE,
             g_reminders,
-            "Optional link button under unanswered-ticket reminders that jumps to the ticket.",
+            "Optional link button that jumps to the ticket: under unanswered-ticket reminders and under the order "
+            "alerts (next to operations.button.open_record).",
             required=False,
         ),
     ]

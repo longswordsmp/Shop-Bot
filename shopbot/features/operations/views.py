@@ -36,6 +36,7 @@ def _embed_message(
     ping_role_ids: Sequence[int] = (),
     mention_user_ids: Sequence[int] = (),
     link: ButtonSpec | None = None,
+    second_link: ButtonSpec | None = None,
 ) -> MessageSpec:
     if not ui.content.has(description_key):
         raise MissingContent(description_key)
@@ -46,7 +47,7 @@ def _embed_message(
         raise MissingContent(description_key)
     return MessageSpec(
         embeds=(embed,),
-        rows=rows_of(link),
+        rows=rows_of(link, second_link),
         mention_role_ids=tuple(ping_role_ids),
         mention_user_ids=tuple(mention_user_ids),
         banner=ui.banner(banner),
@@ -69,8 +70,10 @@ def order_alert(
     owner: bool = False,
     ping_role_ids: Sequence[int] = (),
     record_url: str | None = None,
+    ticket_url: str | None = None,
 ) -> MessageSpec:
-    """A new or paid order: the staff alert (pings ``ping_role_ids``) or the Owner's private version."""
+    """A new or paid order: the staff alert (pings ``ping_role_ids``) or the Owner's private version, with links to
+    the order record and the order ticket."""
     title_key = k.owner_key(alert, "title") if owner else k.alert_key(alert, "title")
     description_key = k.owner_key(alert, "description") if owner else k.alert_key(alert, "description")
     return _embed_message(
@@ -82,6 +85,7 @@ def order_alert(
         banner=OWNER_ALERT_BANNER if owner else STAFF_ALERT_BANNER,
         ping_role_ids=() if owner else ping_role_ids,
         link=link_button(ui, k.BUTTON_OPEN_RECORD, record_url),
+        second_link=link_button(ui, k.BUTTON_OPEN_TICKET, ticket_url),
     )
 
 
