@@ -110,9 +110,16 @@ its own UI and order records on top.
 
 ## 7. Payments
 
-- **Decision:** a provider interface with one implemented provider, `manual`: the customer sees the payment
-  instructions the owner configures; staff confirm payment with a button; refunds are recorded and returned outside
-  the bot. No payment credentials are ever requested in Discord.
+- **Decision:** a provider interface with two providers. `gift_card` (shipped, the owner's choice): customers pay
+  the exact total with DoorDash eGift cards entered in a private form; codes are stored encrypted, revealed only to
+  the Payments role (Owner by default), deleted on every decision or after 7 days; several cards may pay one order
+  and value beyond the total becomes store credit. `manual`: the customer sees the payment instructions the owner
+  configures and staff confirm payment with a button. Refunds are recorded (store credit, or returned outside the
+  bot). No bank or credit card details are ever requested in Discord.
+- **Why a gift card is never redeemed early:** staff can reveal codes only once the cards cover the total
+  (`payment_submitted`), so a card is never redeemed for an order that could still end unpaid; if one of several
+  cards is refused, the redeemed ones keep counting, and if the order is then cancelled their value becomes store
+  credit (the customer never loses money).
 - **Not decided by the bot:** which payment method to use. `payments.provider` starts unset and checkout stays
   disabled until the owner chooses. An automated provider (hosted checkout/payment link + verified webhook) can be
   added behind the interface; it requires an HTTP endpoint for webhooks, which a worker deployment does not have,
@@ -181,12 +188,13 @@ how you want to operate** (each is one line in `config/settings.toml`).
 | `checkout.transcript_on_close` | true | Order tickets also get a transcript when they close |
 | `checkout.customer_role` / `customer_role_on` / `customer_role_remove_on_refund` | customer / fulfilled / true | |
 | `problems.eligible_statuses` | paid, processing, shipped, fulfilled (delivered) | Orders a report may refer to |
+| `features.credits` | on | Gift card overpayments and refunds after payment are store credit |
 | `problems.allow_without_order` / `require_reason_on_reject` | true / true | |
 | problem types | not received, damaged, wrong item, something else (one paragraph field each) | Add types and fields as needed |
 | `operations.ping_roles` / `owner_dm_alerts` | staff / true | Who is notified about orders and failures |
 | `operations.answers_in_orders_channel` | false | The customer's typed form answers are not posted in #orders; staff open them privately (Details button, `/order view`) |
 | `operations.*_minutes` reminders | unclaimed 60, unpaid 1440, paid but not shipped 2880, unanswered ticket 240 | #staff-chat reminders (once each) |
-| `checkout.currency` / `payments.provider` | `USD` / `manual` | Staff post payment instructions in the order ticket and confirm the payment |
+| `checkout.currency` / `payments.provider` | `USD` / `gift_card` | DoorDash eGift cards for the exact total, submitted in a private form; the Payments role (Owner) reveals, redeems and confirms |
 | `checkout.submission_form` | full name, shipping address, optional delivery notes | Asked at Submit; shown to staff only |
 | `checkout.session_expiry_minutes` / warning / `payment_reminder_minutes` | 1440 / 60 / 1440 | Unsubmitted carts expire after 24 h (warning 1 h before); unpaid orders get one reminder after 24 h; unpaid orders never expire automatically |
 | `reviews.rating_scale` / `prompt_delay_minutes` | 5 / 10080 | 1-5 stars, asked 7 days after the order is completed |
@@ -195,7 +203,7 @@ how you want to operate** (each is one line in `config/settings.toml`).
 | `[banners]` | enabled, all 31 pictures in `config/banners/` | One banner picture at the top of every kind of message (§13) |
 | `announcements.allow_image` | true | |
 | `my_orders.orders_per_page` | 5 | |
-| `features.credits` / `info_panels` | false | Not part of the specification |
+| `features.info_panels` | false | Not part of the specification |
 | `audit.channel` | bot_log | Staff-only audit channel |
 | `checkout.decimal_separator` / `thousands_separator` | `.` / `,` | How amounts are written |
 

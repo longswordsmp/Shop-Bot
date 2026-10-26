@@ -675,6 +675,22 @@ Feature `checkout` — enabled.
 | ✅ | `checkout.notify.shipped.description` | Notification sent to the customer when their order becomes 'shipped' (the order was shipped (carrier and tracking number entered with Mark shipped)). {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention. | description (4096) | required | `{order_number}`, `{total}`, `{channel_mention}` |
 | ✅ | `checkout.notify.shipped.title` | Optional title of the notification sent when an order becomes 'shipped'. {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention. | title (256) | optional | `{order_number}`, `{total}`, `{channel_mention}` |
 
+### Checkout: gift card payment replies
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ✅ | `checkout.notify.card_problem.description` | Text of that notification; the cards with the reasons follow. {remaining} is still to pay, {channel_mention} the order ticket. | description (4096) | required | `{order_number}`, `{total}`, `{remaining}`, `{channel_mention}` |
+| ✅ | `checkout.notify.card_problem.title` | Title of the notification when our team could not accept a card (the order waits for payment again). | title (256) | required | `{order_number}`, `{total}`, `{remaining}`, `{channel_mention}` |
+| ✅ | `checkout.payment.gift_card.chat_guard` | Sent to the customer (by DM, else in the ticket) when their message was deleted because it looked like a gift card code (payments.gift_card.chat_guard). {channel_mention} is their order ticket. | description (4096) | required | `{channel_mention}` |
+| ✅ | `checkout.payment.gift_card.error.amount` | The amount is not a valid amount; {example} shows one. | description (4096) | required | `{example}` |
+| ✅ | `checkout.payment.gift_card.error.code` | The code is not valid: {min}-{max} letters and digits. | description (4096) | required | `{min}`, `{max}` |
+| ✅ | `checkout.payment.gift_card.error.duplicate` | This card was already submitted (it is waiting or was redeemed). | description (4096) | required |  |
+| ✅ | `checkout.payment.gift_card.error.state` | The order no longer waits for a payment (placed, paid or closed). | description (4096) | required |  |
+| ✅ | `checkout.payment.gift_card.error.too_many` | The order already has {max} cards (payments.gift_card.max_cards). | description (4096) | required | `{max}` |
+| ✅ | `checkout.payment.gift_card.error.unavailable` | Cards cannot be accepted right now (the bot cannot store them safely); the customer should try again later or ask our team. | description (4096) | required |  |
+| ✅ | `checkout.payment.gift_card.reply.complete` | Private reply after the card that completes the payment (the order is placed): {amount} (this card), {received} (all cards), {order_number}. | description (4096) | required | `{amount}`, `{received}`, `{order_number}` |
+| ✅ | `checkout.payment.gift_card.reply.partial` | Private reply after a card that does not cover the total yet: {amount} (this card), {received} (all cards), {remaining} (still to pay), {total}. | description (4096) | required | `{amount}`, `{received}`, `{remaining}`, `{total}` |
+
 ### Checkout: customer notifications sent by staff actions
 
 | | Key | Where it appears | Kind (max chars) | Required | Placeholders |
@@ -690,12 +706,32 @@ Feature `checkout` — enabled.
 | ✅ | `checkout.notify.tracking.details_field` | Name of the field showing the tracking details in the customer's completion notification and in the tracking notification. Needed when checkout.staff.button.tracking is configured. | field_name (256) | optional |  |
 | ✅ | `checkout.notify.tracking.title` | Optional title of the notification sent when staff add or change tracking details of a completed order. {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention. | title (256) | optional | `{order_number}`, `{total}`, `{channel_mention}` |
 
-### Checkout: payment instructions (manual payment)
+### Checkout: gift card payment
 
 | | Key | Where it appears | Kind (max chars) | Required | Placeholders |
 |---|---|---|---|---|---|
-| ✅ | `checkout.payment.manual.instructions` | How the customer pays (your own payment instructions), shown in the order channel after the customer submits an order and in the payment reminder. Staff confirm receipt with the mark-paid button. Never ask customers to send card details or passwords in Discord. {order_number} is the order number, {total} the amount to pay written with common.money_format. | description (4096) | required | `{order_number}`, `{total}` |
-| ✅ | `checkout.payment.manual.title` | Optional title of the payment instructions shown in the order channel after the customer submits an order (payments.provider = "manual"). {order_number} is the order number, {total} the amount to pay written with common.money_format. | title (256) | optional | `{order_number}`, `{total}` |
+| ✅ | `checkout.payment.gift_card.buy_button` | Link button to payments.gift_card.buy_url (where customers buy a card). | button_label (80) | required |  |
+| ✅ | `checkout.payment.gift_card.card_line` | One submitted card: {number} (1, 2...), {amount}, {last4} (the code's last characters) and {status} (one of the card_status texts). | format (100) | required | `{number}`, `{amount}`, `{last4}`, `{status}` |
+| ✅ | `checkout.payment.gift_card.card_status.redeemed` | Status of a card our team redeemed. | format (100) | required |  |
+| ✅ | `checkout.payment.gift_card.card_status.refused` | Status of a card our team could not accept; {reason} is what staff wrote. | format (100) | required | `{reason}` |
+| ✅ | `checkout.payment.gift_card.card_status.waiting` | Status of a card our team has not checked yet. | format (100) | required |  |
+| ✅ | `checkout.payment.gift_card.cards_field` | Field listing the cards the customer submitted for the order (under the instructions and in the card problem notification). | field_name (256) | required |  |
+| ✅ | `checkout.payment.gift_card.instructions` | How to pay with gift cards, shown in the order ticket and in the payment reminder. {total} is the amount to pay. | description (4096) | required | `{order_number}`, `{total}` |
+| ✅ | `checkout.payment.gift_card.remaining` | Line under the cards while part of the total is still to pay: {remaining} (still to pay) and {received} (the cards that count). | format (100) | required | `{remaining}`, `{received}` |
+| ✅ | `checkout.payment.gift_card.submit_button` | Button under the instructions that opens the private gift card form. | button_label (80) | required |  |
+| ✅ | `checkout.payment.gift_card.title` | Optional title of the payment instructions shown in the order ticket while the order waits for payment. | title (256) | optional | `{order_number}`, `{total}` |
+
+### Checkout: gift card payment form
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ✅ | `checkout.payment.gift_card.form.amount_label` | Label of the card amount input. | input_label (45) | required |  |
+| ✅ | `checkout.payment.gift_card.form.amount_placeholder` | Optional hint in the amount input; {remaining} is what is still to pay. | input_placeholder (100) | optional | `{remaining}` |
+| ✅ | `checkout.payment.gift_card.form.code_label` | Label of the gift card code input. | input_label (45) | required |  |
+| ✅ | `checkout.payment.gift_card.form.code_placeholder` | Optional example in the code input. | input_placeholder (100) | optional |  |
+| ✅ | `checkout.payment.gift_card.form.pin_label` | Label of the optional PIN input. | input_label (45) | required |  |
+| ✅ | `checkout.payment.gift_card.form.pin_placeholder` | Optional hint in the PIN input. | input_placeholder (100) | optional |  |
+| ✅ | `checkout.payment.gift_card.form.title` | Title of the private gift card form. | modal_title (45) | required | `{order_number}` |
 
 ### Checkout: quantity form
 
@@ -736,6 +772,23 @@ Feature `checkout` — enabled.
 | ✅ | `checkout.staff.status_field` | Name of the field on the staff order record showing the current status (its name from checkout.status_label.*). | field_name (256) | required |  |
 | ✅ | `checkout.staff.title` | Title of the order controls posted for staff in checkout.staff_channel for every submitted order (edited on every status change). {order_number} is the order number, {total} the total, {status} the status name (checkout.status_label.*). | title (256) | required | `{order_number}`, `{total}`, `{status}` |
 | ✅ | `checkout.staff.tracking_field` | Name of the field on the staff order record showing the tracking details staff entered. Needed when checkout.staff.button.tracking is configured. | field_name (256) | optional |  |
+
+### Checkout: staff gift card controls
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ✅ | `checkout.staff.button.card_problem` | Staff button: the waiting cards could not be redeemed (asks for the reason the customer is shown). | button_label (80) | required |  |
+| ✅ | `checkout.staff.button.payment_confirmed` | Staff button: every waiting card was redeemed (the order is paid). | button_label (80) | required |  |
+| ✅ | `checkout.staff.button.reveal_gift_card` | Staff button: show the submitted codes privately (payment roles only; every reveal is logged). | button_label (80) | required |  |
+| ✅ | `checkout.staff.gift_card.field` | Field on the order record listing the submitted cards (never their codes). | field_name (256) | required |  |
+| ✅ | `checkout.staff.gift_card.line` | One card on the order record: {index}, {amount}, {last4} and {state} (one of the state texts, followed by the revealed text once someone revealed it). | format (100) | required | `{index}`, `{amount}`, `{last4}`, `{state}` |
+| ✅ | `checkout.staff.gift_card.revealed` | Added to a card once its code was revealed: {count} (times) and {staff} (who revealed it last). | format (100) | required | `{count}`, `{staff}` |
+| ✅ | `checkout.staff.gift_card.state.erased` | Added to a waiting card whose code was deleted after payments.gift_card.keep_days. | format (100) | required |  |
+| ✅ | `checkout.staff.gift_card.state.redeemed` | State of a redeemed card. | format (100) | required |  |
+| ✅ | `checkout.staff.gift_card.state.refused` | State of a refused card; {reason} is what the customer was told. | format (100) | required | `{reason}` |
+| ✅ | `checkout.staff.gift_card.state.waiting` | State of a card no one decided on yet. | format (100) | required |  |
+| ✅ | `checkout.staff.gift_card.state.withdrawn` | State of a card given up because the order ended before anyone decided. | format (100) | required |  |
+| ✅ | `checkout.staff.gift_card.total` | Last line of the payment field: {covered} (cards waiting or redeemed) of {total}. | format (100) | required | `{covered}`, `{total}` |
 
 ### Checkout: staff order controls - timeline and notes
 
@@ -1086,6 +1139,8 @@ Feature `operations` — enabled.
 | ✅ | `operations.alert.new_order.title` | Optional title of the Staff alert when a customer submitted a new order (operations.ping_roles are mentioned). {order_number} is the order number, {customer_mention} mentions the customer (no ping), {total} is the order total, {status} the status name (checkout.status_label.*), {order_channel} links the customer's order channel. | title (256) | optional | `{order_number}`, `{customer_mention}`, `{total}`, `{status}`, `{order_channel}` |
 | ✅ | `operations.alert.paid_order.description` | Staff alert when an order's payment was confirmed and it waits to be shipped (operations.ping_roles are mentioned). {order_number} is the order number, {customer_mention} mentions the customer (no ping), {total} is the order total, {status} the status name (checkout.status_label.*), {order_channel} links the customer's order channel. | description (4096) | required | `{order_number}`, `{customer_mention}`, `{total}`, `{status}`, `{order_channel}` |
 | ✅ | `operations.alert.paid_order.title` | Optional title of the Staff alert when an order's payment was confirmed and it waits to be shipped (operations.ping_roles are mentioned). {order_number} is the order number, {customer_mention} mentions the customer (no ping), {total} is the order total, {status} the status name (checkout.status_label.*), {order_channel} links the customer's order channel. | title (256) | optional | `{order_number}`, `{customer_mention}`, `{total}`, `{status}`, `{order_channel}` |
+| ✅ | `operations.alert.payment_submitted.description` | Staff alert when a customer submitted their payment (gift cards covering the total) and it waits to be verified (operations.ping_roles are mentioned). {order_number} is the order number, {customer_mention} mentions the customer (no ping), {total} is the order total, {status} the status name (checkout.status_label.*), {order_channel} links the customer's order channel. | description (4096) | required | `{order_number}`, `{customer_mention}`, `{total}`, `{status}`, `{order_channel}` |
+| ✅ | `operations.alert.payment_submitted.title` | Optional title of the Staff alert when a customer submitted their payment (gift cards covering the total) and it waits to be verified (operations.ping_roles are mentioned). {order_number} is the order number, {customer_mention} mentions the customer (no ping), {total} is the order total, {status} the status name (checkout.status_label.*), {order_channel} links the customer's order channel. | title (256) | optional | `{order_number}`, `{customer_mention}`, `{total}`, `{status}`, `{order_channel}` |
 | ✅ | `operations.button.open_record` | Optional link button under order alerts and order reminders that jumps to the order's live record in checkout.staff_channel. | button_label (80) | optional |  |
 
 ### Operations: staff reminders (staff channel)
@@ -1125,6 +1180,8 @@ Feature `operations` — enabled.
 | ▫️ | `operations.owner.new_order.title` | Optional title of the Owner's private alert when a customer submitted a new order (empty = the staff alert's title). Placeholders as in the staff alert. | title (256) | optional (falls back to `operations.alert.new_order.title`) | `{order_number}`, `{customer_mention}`, `{total}`, `{status}`, `{order_channel}` |
 | ▫️ | `operations.owner.paid_order.description` | Optional text of the Owner's private alert when an order's payment was confirmed and it waits to be shipped (empty = the staff alert's text). Placeholders as in the staff alert. | description (4096) | optional (falls back to `operations.alert.paid_order.description`) | `{order_number}`, `{customer_mention}`, `{total}`, `{status}`, `{order_channel}` |
 | ▫️ | `operations.owner.paid_order.title` | Optional title of the Owner's private alert when an order's payment was confirmed and it waits to be shipped (empty = the staff alert's title). Placeholders as in the staff alert. | title (256) | optional (falls back to `operations.alert.paid_order.title`) | `{order_number}`, `{customer_mention}`, `{total}`, `{status}`, `{order_channel}` |
+| ▫️ | `operations.owner.payment_submitted.description` | Optional text of the Owner's private alert when a customer submitted their payment (gift cards covering the total) and it waits to be verified (empty = the staff alert's text). Placeholders as in the staff alert. | description (4096) | optional (falls back to `operations.alert.payment_submitted.description`) | `{order_number}`, `{customer_mention}`, `{total}`, `{status}`, `{order_channel}` |
+| ▫️ | `operations.owner.payment_submitted.title` | Optional title of the Owner's private alert when a customer submitted their payment (gift cards covering the total) and it waits to be verified (empty = the staff alert's title). Placeholders as in the staff alert. | title (256) | optional (falls back to `operations.alert.payment_submitted.title`) | `{order_number}`, `{customer_mention}`, `{total}`, `{status}`, `{order_channel}` |
 
 ## Business decisions and settings still open
 
@@ -1132,7 +1189,7 @@ Feature `operations` — enabled.
 
 ## Summary
 
-- Required keys (for the listed features): 394
+- Required keys (for the listed features): 430
 - Required keys still missing: 0
 
 Legend: ✅ configured · ❌ required and missing · ▫️ optional and empty

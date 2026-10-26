@@ -65,8 +65,21 @@
 
 ## Payments
 
-- The bot never asks for or accepts card numbers or other payment credentials in Discord. The implemented
-  `manual` provider only displays the payment instructions you configure and lets staff confirm payment.
+- The bot never asks for bank or credit card details or passwords in Discord. The `manual` provider only displays
+  the payment instructions you configure and lets staff confirm payment.
+- Gift card payments (`gift_card`, the shipped provider): codes are entered only in a private form (a Discord modal,
+  never a channel message), stored only encrypted (Fernet: AES with an HMAC signature) with a keyed fingerprint that
+  refuses the same card twice, and shown only in a private, spoiler-hidden reply to `payments.gift_card.staff_roles`
+  (owners and admins always). Every reveal is counted on the card and audited without the code. A code is deleted
+  in the same database statement as any decision on its card (the schema refuses a decided card that still holds
+  one), when its order ends unpaid, and after `keep_days`. Codes, PINs and the key never appear in logs, audit
+  entries, staff alerts, transcripts or the record.
+- The key: `GIFT_CARD_KEY` (recommended, kept in Railway's variables), else a `gift_card.key` file created once
+  next to the database with owner-only permissions. A key file on the same volume as the database protects backups
+  and database copies that leave the volume, not someone with access to the volume itself; set `GIFT_CARD_KEY` to
+  keep them apart. `/backup` copies the database, never the key.
+- A customer's message in their order ticket that looks like a gift card code (or a card number) is deleted and the
+  customer is told privately to use the form (`chat_guard`); staff messages are never touched.
 - Payment integrations are behind a provider interface; any future provider must use the provider's hosted
   checkout or payment links and verify payment server-side (e.g. signed webhooks), never trust a user's claim.
 

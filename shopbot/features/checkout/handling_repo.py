@@ -20,8 +20,8 @@ from dataclasses import dataclass
 from typing import Any, Final
 
 from shopbot.db.repos import tasks as task_repo
+from shopbot.features.checkout import gift_card_store, repo
 from shopbot.features.checkout import models as m
-from shopbot.features.checkout import repo
 
 CLAIM: Final = "claim"
 UNCLAIM: Final = "unclaim"
@@ -97,6 +97,8 @@ class StaffData:
     handling: Handling
     events: tuple[m.OrderEvent, ...]
     activity: tuple[Activity, ...]
+    # The gift cards submitted for the order (payments.provider = "gift_card"), without their codes.
+    gift_cards: tuple[gift_card_store.GiftCard, ...] = ()
 
     @property
     def notes(self) -> tuple[Activity, ...]:
@@ -192,6 +194,7 @@ def staff_data(conn: sqlite3.Connection, order_id: int) -> StaffData:
         handling=get_handling(conn, order_id),
         events=tuple(repo.events(conn, order_id)),
         activity=tuple(activity(conn, order_id)),
+        gift_cards=tuple(gift_card_store.cards(conn, order_id)),
     )
 
 

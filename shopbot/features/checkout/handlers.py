@@ -29,9 +29,10 @@ from shopbot.core.countries import area_name
 from shopbot.features import core_keys as core
 from shopbot.features.catalog import repo as catalog_repo
 from shopbot.features.checkout import content_keys as k
-from shopbot.features.checkout import flow, repo, service, staff, staff_keys, staff_views, views
+from shopbot.features.checkout import flow, gift_cards, repo, service, staff, staff_keys, staff_views, views
 from shopbot.features.checkout import handling_repo as h
 from shopbot.features.checkout import models as m
+from shopbot.features.checkout.payments import gift_card
 from shopbot.logging_setup import log_event
 from shopbot.ui.discord_render import RenderError, edit_kwargs
 from shopbot.ui.routing import Ctx, HandlerError
@@ -418,6 +419,25 @@ async def on_order_cancel_yes(ctx: Ctx) -> None:
         raise HandlerError(k.ERROR_ORDER_NOT_CANCELLABLE)
 
 
+async def on_payment_form(ctx: Ctx) -> None:
+    """Submit gift card: the private form of an order that waits for payment."""
+    order = await _customer_order(ctx)
+    await ctx.send_modal(await gift_cards.form(ctx.app, order))
+
+
+async def on_payment_submit(ctx: Ctx) -> None:
+    order = await _customer_order(ctx)
+    await ctx.defer_reply(ephemeral=True)
+    reply = await gift_cards.submit(
+        ctx.app,
+        order,
+        code=ctx.fields.get(gift_card.CODE_INPUT, ""),
+        pin=ctx.fields.get(gift_card.PIN_INPUT),
+        amount_text=ctx.fields.get(gift_card.AMOUNT_INPUT, ""),
+    )
+    await ctx.respond(reply, ephemeral=True)
+
+
 # -- staff ------------------------------------------------------------------------------------------------------------
 
 
@@ -452,10 +472,87 @@ async def on_staff_action(ctx: Ctx) -> None:
     order = await _staff_order(ctx)
     if order is None:
         return
+    if target == m.PAID and not _may_confirm_payment(ctx, order):
+        await _staff_reply(ctx, staff.OpReply(ctx.app.op("checkout.gift.no_permission"), "warning"))
+        return
     # The status the button was rendered for; "" (never a status) for a button rendered before buttons carried it,
     # so such a stale control refreshes the controls instead of acting.
     rendered = ctx.args[1] if len(ctx.args) > 1 else ""
     reply = await staff.change_status(ctx.app, order, target, actor_id=ctx.user_id, rendered_status=rendered)
+    await _staff_reply(ctx, reply)
+
+
+def _may_confirm_payment(ctx: Ctx, order: m.Order) -> bool:
+    """Gift card payments are confirmed only by the payment staff (they redeem the codes)."""
+    if order.payment_provider != gift_card.PROVIDER_ID:
+        return True
+    return gift_cards.can_handle(ctx.app, ctx.member, ctx.user_id)
+
+
+async def _payment_staff_order(ctx: Ctx) -> m.Order | None:
+    """The order of a gift card control, for the payment staff only (others get a private refusal)."""
+    _require_staff(ctx)
+    if not gift_cards.can_handle(ctx.app, ctx.member, ctx.user_id):
+        await _staff_reply(ctx, staff.OpReply(ctx.app.op("checkout.gift.no_permission"), "warning"))
+        return None
+    return await _staff_order(ctx)
+
+
+async def on_gift_card_reveal(ctx: Ctx) -> None:
+    await ctx.defer_reply(ephemeral=True)
+    order = await _payment_staff_order(ctx)
+    if order is None:
+        return
+    result = await gift_cards.reveal(ctx.app, order, actor_id=ctx.user_id)
+    if isinstance(result, staff.OpReply):
+        await _staff_reply(ctx, result)
+    else:
+        await ctx.respond(result, ephemeral=True)
+
+
+def _card_arg(ctx: Ctx) -> int | None:
+    """The card a control is for (None: every waiting card of the order)."""
+    card_id = ctx.arg_int(1) if len(ctx.args) > 1 else 0
+    return card_id or None
+
+
+async def on_gift_card_problem(ctx: Ctx) -> None:
+    """Card problem: ask for the reason the customer is shown (the order must still wait for a decision)."""
+    order = await _payment_staff_order(ctx)
+    if order is None:
+        return
+    if order.status != m.PAYMENT_SUBMITTED:
+        await _staff_reply(
+            ctx, staff.OpReply(ctx.app.op("checkout.gift.not_waiting", number=order.number, status=order.status))
+        )
+        return
+    await ctx.send_modal(staff_views.gift_card_problem_modal(ctx.app.op, order, _card_arg(ctx) or 0))
+
+
+async def on_gift_card_problem_form(ctx: Ctx) -> None:
+    await ctx.defer_reply(ephemeral=True)
+    order = await _payment_staff_order(ctx)
+    if order is None:
+        return
+    reply = await gift_cards.decide(
+        ctx.app,
+        order,
+        actor_id=ctx.user_id,
+        redeemed=False,
+        reason=_form_text(ctx, staff_views.REASON_INPUT),
+        card_id=_card_arg(ctx),
+    )
+    await _staff_reply(ctx, reply)
+
+
+async def on_gift_card_redeemed(ctx: Ctx) -> None:
+    await ctx.defer_reply(ephemeral=True)
+    order = await _payment_staff_order(ctx)
+    if order is None:
+        return
+    reply = await gift_cards.decide(
+        ctx.app, order, actor_id=ctx.user_id, redeemed=True, reason=None, card_id=_card_arg(ctx)
+    )
     await _staff_reply(ctx, reply)
 
 
@@ -773,6 +870,7 @@ def register(app: App) -> None:
         "ocancel": on_order_cancel,
         "ocancel_no": on_order_cancel_no,
         "ocancel_yes": on_order_cancel_yes,
+        "payform": on_payment_form,
     }
     for action, handler in customer.items():
         router.component(route, action, feature=feature)(handler)
@@ -780,6 +878,7 @@ def register(app: App) -> None:
     router.modal(route, "dform", feature=feature)(on_details_form)
     router.modal(route, "aform", feature=feature)(on_address_form)
     router.modal(route, "sform", feature=feature)(on_submission_form)
+    router.modal(route, "paysubmit", feature=feature)(on_payment_submit)
     for action in views.STAFF_ACTION_TARGETS:
         router.component(staff_route, action, feature=feature, access="staff", staff_roles=staff_role_keys)(
             on_staff_action
@@ -804,6 +903,9 @@ def register(app: App) -> None:
         "details": on_record_details,
         "lfilter": on_list_filter,
         "lview": on_list_view,
+        "gcreveal": on_gift_card_reveal,
+        "gcproblem": on_gift_card_problem,
+        "gcok": on_gift_card_redeemed,
     }
     for action, handler in staff_components.items():
         router.component(staff_route, action, feature=feature, access="staff", staff_roles=staff_role_keys)(handler)
@@ -813,6 +915,7 @@ def register(app: App) -> None:
         "trackform": on_tracking_form,
         "rejectform": on_reject_form,
         "shipform": on_ship_form,
+        "gcproblemform": on_gift_card_problem_form,
     }
     for action, handler in staff_forms.items():
         router.modal(staff_route, action, feature=feature, access="staff", staff_roles=staff_role_keys)(handler)

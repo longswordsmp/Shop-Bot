@@ -18,7 +18,8 @@ Invariants enforced by ``add_entry`` (the only insert) for every kind:
 - ``order_return``: positive, ``order_id`` required, at most one per order, only after that order's debit and
   exactly the debited amount (for the debited member);
 - ``refund_to_credit``: positive, ``order_id`` required (several partial refunds per order are allowed; the
-  caller is responsible for not refunding more than was paid).
+  caller is responsible for not refunding more than was paid);
+- ``gift_card``: positive, ``order_id`` required, at most one per order (the unused value of its gift cards).
 
 Checkout API (call inside the transaction that creates/cancels the order):
 - ``debit_for_order``: idempotent; at most one ``order_debit`` per order.
@@ -39,7 +40,10 @@ KIND_ADMIN_ADJUST: Final = "admin_adjust"
 KIND_ORDER_DEBIT: Final = "order_debit"
 KIND_ORDER_RETURN: Final = "order_return"
 KIND_REFUND_TO_CREDIT: Final = "refund_to_credit"
-KINDS: Final = (KIND_ADMIN_ADJUST, KIND_ORDER_DEBIT, KIND_ORDER_RETURN, KIND_REFUND_TO_CREDIT)
+# The value of gift cards the shop redeemed for an order but the order does not use (an overpayment, or the order was
+# cancelled after a card was redeemed).
+KIND_GIFT_CARD: Final = "gift_card"
+KINDS: Final = (KIND_ADMIN_ADJUST, KIND_ORDER_DEBIT, KIND_ORDER_RETURN, KIND_REFUND_TO_CREDIT, KIND_GIFT_CARD)
 # Notes are internal (shown only in the staff history). The limit keeps a full history page within Discord's
 # embed limits even when every character needs markdown escaping.
 NOTE_MAX_LENGTH: Final = 200
@@ -186,13 +190,15 @@ def _check_kind(
         raise ValueError(f"{kind} entries require an order_id")
     if kind == KIND_ORDER_DEBIT and delta_minor > 0:
         raise ValueError("order_debit entries must be negative")
-    if kind in (KIND_ORDER_RETURN, KIND_REFUND_TO_CREDIT) and delta_minor < 0:
+    if kind in (KIND_ORDER_RETURN, KIND_REFUND_TO_CREDIT, KIND_GIFT_CARD) and delta_minor < 0:
         raise ValueError(f"{kind} entries must be positive")
     if order_id is None:
         return
     _check_order(conn, guild_id, user_id, order_id)
     if kind == KIND_ORDER_DEBIT and order_entry(conn, guild_id, order_id, KIND_ORDER_DEBIT) is not None:
         raise OrderCreditConflict(f"order {order_id} already has a credit debit")
+    if kind == KIND_GIFT_CARD and order_entry(conn, guild_id, order_id, KIND_GIFT_CARD) is not None:
+        raise OrderCreditConflict(f"order {order_id} already credited its unused gift card value")
     if kind == KIND_ORDER_RETURN:
         debit = order_entry(conn, guild_id, order_id, KIND_ORDER_DEBIT)
         if debit is None:
@@ -357,6 +363,29 @@ def refund_to_credit(
         now=now,
     )
     return _created(conn, guild_id, entry_id)
+
+
+def credit_gift_cards(
+    conn: sqlite3.Connection, *, guild_id: int, user_id: int, order_id: int, amount_minor: int, now: int
+) -> OrderCredit:
+    """Credit the unused value of an order's redeemed gift cards to the customer. Idempotent per order: a second call
+    returns the existing row (``created=False``) and writes nothing."""
+    _require_transaction(conn)
+    existing = order_entry(conn, guild_id, order_id, KIND_GIFT_CARD)
+    if existing is not None:
+        return OrderCredit(existing, created=False)
+    entry_id = add_entry(
+        conn,
+        guild_id=guild_id,
+        user_id=user_id,
+        delta_minor=amount_minor,
+        kind=KIND_GIFT_CARD,
+        order_id=order_id,
+        actor_id=None,
+        note=None,
+        now=now,
+    )
+    return OrderCredit(_created(conn, guild_id, entry_id), created=True)
 
 
 @dataclass(frozen=True)

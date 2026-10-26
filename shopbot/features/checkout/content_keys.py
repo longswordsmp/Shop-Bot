@@ -1551,6 +1551,9 @@ def settings_problems(settings: Settings) -> list[str]:
             categories=(("checkout.order_category", c.order_category),),
         )
     )
+    if provider == "gift_card":
+        # Who may read the codes: owners and admins always; these roles must exist.
+        problems.extend(reference_problems(settings, roles=settings.payments.gift_card.staff_roles))
     # Staff order controls show customer details and payment actions: the channel must not be public.
     problems.extend(private_channel_problems(settings, (("checkout.staff_channel", c.staff_channel),)))
     if c.ask_address:

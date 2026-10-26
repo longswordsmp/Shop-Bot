@@ -35,15 +35,16 @@ from discord.utils import escape_markdown
 from shopbot.config.banner_ids import BannerId
 from shopbot.config.content import MissingContent
 from shopbot.config.settings import Settings
-from shopbot.core.money import currency_exponent, format_amount
+from shopbot.core.money import format_amount
 from shopbot.features import core_keys as core
 from shopbot.features.catalog import content_keys as catalog_keys
 from shopbot.features.catalog import views as catalog_views
 from shopbot.features.catalog.repo import Product
 from shopbot.features.checkout import content_keys as k
-from shopbot.features.checkout import flow
+from shopbot.features.checkout import flow, gift_card_store
 from shopbot.features.checkout import models as m
-from shopbot.features.checkout.payments import PaymentInstructions
+from shopbot.features.checkout.order_money import Money, currency_digits, order_money
+from shopbot.features.checkout.payments import PaymentInstructions, gift_card
 from shopbot.features.credits import repo as credits_repo
 from shopbot.features.tickets import views as tickets_views
 from shopbot.ui.card import heading, with_paragraph
@@ -72,8 +73,6 @@ from shopbot.ui.style import Ui, chunk_lines
 
 Rows = tuple[tuple[Component, ...], ...]
 OperatorText = Callable[..., str]
-# Writes an amount in minor units with common.money_format (raises MissingContent when that is not configured).
-Money = Callable[[int], str]
 
 ROUTE = k.ROUTE
 STAFF_ROUTE = k.STAFF_ROUTE
@@ -218,6 +217,34 @@ def order_cancel_id(order_id: int) -> str:
     return cid(ROUTE, "ocancel", order_id)
 
 
+def gift_card_reveal_id(order_id: int) -> str:
+    """Staff (payment roles): show the order's waiting gift card codes privately."""
+    return cid(STAFF_ROUTE, "gcreveal", order_id)
+
+
+def gift_card_problem_id(order_id: int, card_id: int = 0) -> str:
+    """Staff (payment roles): refuse the order's waiting cards (``card_id`` 0) or one card, with a reason."""
+    return cid(STAFF_ROUTE, "gcproblem", order_id, card_id)
+
+
+def gift_card_problem_form_id(order_id: int, card_id: int = 0) -> str:
+    return cid(STAFF_ROUTE, "gcproblemform", order_id, card_id)
+
+
+def gift_card_redeemed_id(order_id: int, card_id: int) -> str:
+    """Staff (payment roles): one card of the reveal reply was redeemed."""
+    return cid(STAFF_ROUTE, "gcok", order_id, card_id)
+
+
+def payment_form_id(order_id: int) -> str:
+    """The button that opens the payment provider's private form (Submit gift card)."""
+    return cid(ROUTE, "payform", order_id)
+
+
+def payment_form_submit_id(order_id: int) -> str:
+    return cid(ROUTE, "paysubmit", order_id)
+
+
 def order_cancel_yes_id(order_id: int) -> str:
     return cid(ROUTE, "ocancel_yes", order_id)
 
@@ -320,27 +347,6 @@ def money(ui: Ui, minor: int) -> str:
     if text is None:
         raise MissingContent(core.MONEY_FORMAT)
     return text
-
-
-def currency_digits(settings: Settings, currency: str) -> int:
-    """Minor-unit digits of ``currency``: the configured override only applies to the configured shop currency."""
-    c = settings.checkout
-    return currency_exponent(currency, c.currency_exponent if currency == c.currency else -1)
-
-
-def order_money(ui: Ui, settings: Settings, currency: str) -> Money:
-    """Writes amounts stored in an order with the order's own currency (common.money_format)."""
-    c = settings.checkout
-    exponent = currency_digits(settings, currency)
-
-    def write(minor: int) -> str:
-        amount = format_amount(minor, exponent, c.decimal_separator, c.thousands_separator)
-        text = ui.text(core.MONEY_FORMAT, amount=amount, currency=currency)
-        if text is None:
-            raise MissingContent(core.MONEY_FORMAT)
-        return text
-
-    return write
 
 
 def _button(
@@ -1317,7 +1323,15 @@ def order_header_fields(ui: Ui, settings: Settings, view: m.OrderView) -> list[E
 def instructions_embed(ui: Ui, instructions: PaymentInstructions, values: Mapping[str, str | int]) -> EmbedSpec:
     title = _optional(ui, instructions.title_key, **values)
     description = _text(ui, instructions.description_key, **values)
-    return ui.embed(title=title, description=description, tone="info", branding_text=False)
+    return ui.embed(title=title, description=description, tone="info", fields=instructions.fields, branding_text=False)
+
+
+def _payment_buttons(ui: Ui, instructions: PaymentInstructions | None, order_id: int) -> tuple[ButtonSpec, ...]:
+    """The provider's link button and the button that opens its private payment form (both optional)."""
+    form = None
+    if instructions is not None and instructions.form_label_key:
+        form = _button(ui, instructions.form_label_key, payment_form_id(order_id), style="success")
+    return tuple(b for b in (form, _instruction_link(ui, instructions)) if b is not None)
 
 
 def _instruction_link(ui: Ui, instructions: PaymentInstructions | None) -> ButtonSpec | None:
@@ -1372,7 +1386,7 @@ def order_messages(
             tone=_STATUS_TONES.get(order.status, "info"),
         )
     tail = [instructions_embed(ui, instructions, values)] if pending and instructions is not None else []
-    link = _instruction_link(ui, instructions) if pending else None
+    pay = _payment_buttons(ui, instructions, order.id) if pending else ()
     cancel = _button(ui, k.BUTTON_CANCEL_ORDER, order_cancel_id(order.id), style="danger") if pending else None
 
     def embeds_for(with_lines: bool, with_instructions: bool) -> list[EmbedSpec]:
@@ -1385,11 +1399,11 @@ def order_messages(
     return OrderMessages(
         main=MessageSpec(
             embeds=tuple(embeds_for(with_lines, with_instructions)),
-            rows=rows_of(link, cancel) if with_instructions else rows_of(cancel),
+            rows=rows_of(*pay, cancel) if with_instructions else rows_of(cancel),
             banner=ui.banner(status_banner(order.status)),
         ),
         # Continuation messages: only the workflow message (the first part) shows the banner.
-        instructions=() if with_instructions else tuple(MessageSpec(embeds=(e,), rows=rows_of(link)) for e in tail),
+        instructions=() if with_instructions else tuple(MessageSpec(embeds=(e,), rows=rows_of(*pay)) for e in tail),
         items=() if with_lines else tuple(_pack_fields(line_fields, head.color)),
     )
 
@@ -1430,9 +1444,20 @@ def staff_buttons(ui: Ui, order: m.Order, *, staff_confirms_payment: bool, credi
     def action(target: str, key: str, style: ButtonStyle) -> ButtonSpec:
         return _button(ui, key, staff_action_id(target, order.id, status), style=style)
 
+    if status == m.PAYMENT_SUBMITTED and order.payment_provider == gift_card.PROVIDER_ID:
+        # The customer's gift cards cover the total: the payment staff reveal and redeem them, or refuse one.
+        buttons += [
+            b
+            for b in (
+                _optional_button(ui, gift_card.STAFF_REVEAL, gift_card_reveal_id(order.id), "primary"),
+                _optional_button(ui, gift_card.STAFF_CONFIRM, staff_action_id(m.PAID, order.id, status), "success"),
+                _optional_button(ui, gift_card.STAFF_PROBLEM, gift_card_problem_id(order.id), "danger"),
+            )
+            if b is not None
+        ]
+    elif status in m.UNPAID_STATUSES and staff_confirms_payment:
+        buttons.append(action(m.PAID, k.STAFF_BUTTON_MARK_PAID, "success"))
     if status in m.UNPAID_STATUSES:
-        if staff_confirms_payment:
-            buttons.append(action(m.PAID, k.STAFF_BUTTON_MARK_PAID, "success"))
         buttons.append(action(m.REJECTED, k.STAFF_BUTTON_REJECT, "danger"))
     if status == m.PAID:
         buttons.append(action(m.PROCESSING, k.STAFF_BUTTON_PROCESSING, "primary"))
@@ -1457,6 +1482,12 @@ def staff_buttons(ui: Ui, order: m.Order, *, staff_confirms_payment: bool, credi
     if status in m.TRANSITIONS[m.CANCELLED]:
         buttons.append(action(m.CANCELLED, k.STAFF_BUTTON_CANCEL, "secondary" if status == m.PENDING else "danger"))
     return buttons
+
+
+def _optional_button(ui: Ui, key: str, custom_id: str, style: ButtonStyle) -> ButtonSpec | None:
+    """A button whose label may not be registered (the gift card texts of an order placed before the shop changed its
+    payment provider): left out then, so the record still renders."""
+    return ui.button(key, custom_id, style=style) if _registered(ui, key) else None
 
 
 def ordered_answers(settings: Settings, order: m.Order) -> list[tuple[str, str]]:
@@ -1527,6 +1558,61 @@ def status_notification(ui: Ui, settings: Settings, view: m.OrderView, status: s
         timestamp=True,
     )
     return MessageSpec(embeds=(embed,), banner=ui.banner(status_banner(status)))
+
+
+def gift_card_modal(ui: Ui, settings: Settings, order: m.Order, *, remaining_minor: int) -> ModalSpec:
+    """The private gift card form: the code, the PIN (optional) and the card's amount, prefilled with what is still
+    to pay (written without the currency so it can be read back)."""
+    c = settings.checkout
+    plain = format_amount(
+        remaining_minor, currency_digits(settings, order.currency), c.decimal_separator, c.thousands_separator
+    )
+    remaining = order_money(ui, settings, order.currency)(remaining_minor)
+    return ModalSpec(
+        custom_id=payment_form_submit_id(order.id),
+        title=_text(ui, gift_card.FORM_TITLE, order_number=order.number),
+        inputs=(
+            TextInputSpec(
+                custom_id=gift_card.CODE_INPUT,
+                label=_text(ui, gift_card.CODE_LABEL),
+                placeholder=_optional(ui, gift_card.CODE_HINT),
+                min_length=gift_card_store.CODE_MIN,
+                max_length=gift_card.CODE_INPUT_MAX,
+            ),
+            TextInputSpec(
+                custom_id=gift_card.PIN_INPUT,
+                label=_text(ui, gift_card.PIN_LABEL),
+                placeholder=_optional(ui, gift_card.PIN_HINT),
+                required=False,
+                max_length=gift_card_store.PIN_MAX,
+            ),
+            TextInputSpec(
+                custom_id=gift_card.AMOUNT_INPUT,
+                label=_text(ui, gift_card.AMOUNT_LABEL),
+                placeholder=_optional(ui, gift_card.AMOUNT_HINT, remaining=remaining),
+                default=plain if remaining_minor > 0 else None,
+                max_length=gift_card.AMOUNT_MAX_LENGTH,
+            ),
+        ),
+    )
+
+
+def payment_refused_notification(
+    ui: Ui, settings: Settings, view: m.OrderView, *, remaining: str, fields: Sequence[EmbedField]
+) -> MessageSpec:
+    """Our team could not accept a gift card: the order waits for payment again (the refused cards with the reasons
+    follow as ``fields``; the order ticket shows the Submit gift card button again)."""
+    embed = _content_embed(
+        ui,
+        gift_card.NOTIFY_PROBLEM_TITLE,
+        gift_card.NOTIFY_PROBLEM_DESCRIPTION,
+        required=(gift_card.NOTIFY_PROBLEM_DESCRIPTION,),
+        values={**_notify_values(ui, settings, view), "remaining": remaining},
+        tone="danger",
+        fields=tuple(fields),
+        timestamp=True,
+    )
+    return MessageSpec(embeds=(embed,), banner=ui.banner("rejected-or-unsuccessful-submission"))
 
 
 def session_warning_notification(ui: Ui, *, minutes: int, expires_at: int) -> MessageSpec:

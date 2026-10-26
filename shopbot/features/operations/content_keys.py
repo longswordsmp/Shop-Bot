@@ -19,8 +19,9 @@ from shopbot.features.server_keys import private_channel_problems, reference_pro
 FEATURE = "operations"
 
 NEW_ORDER = "new_order"
+PAYMENT_SUBMITTED = "payment_submitted"
 PAID_ORDER = "paid_order"
-ORDER_ALERTS = (NEW_ORDER, PAID_ORDER)
+ORDER_ALERTS = (NEW_ORDER, PAYMENT_SUBMITTED, PAID_ORDER)
 
 FAILURE_NOTIFICATION = "notification"
 FAILURE_TASK = "task"
@@ -70,6 +71,7 @@ _ORDER_DOC = (
 )
 _ALERT_DOC = {
     NEW_ORDER: "a customer submitted a new order",
+    PAYMENT_SUBMITTED: "a customer submitted their payment (gift cards covering the total) and it waits to be verified",
     PAID_ORDER: "an order's payment was confirmed and it waits to be shipped",
 }
 _REMINDER_DOC = {

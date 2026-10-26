@@ -15,9 +15,10 @@ from discord import app_commands
 
 from shopbot.commands import app_of, reply, require_staff
 from shopbot.features.checkout import content_keys as k
+from shopbot.features.checkout import gift_cards, service, staff
 from shopbot.features.checkout import handling_repo as h
 from shopbot.features.checkout import models as m
-from shopbot.features.checkout import service, staff
+from shopbot.features.checkout.payments import gift_card
 
 if TYPE_CHECKING:
     from shopbot.context import App
@@ -100,6 +101,11 @@ async def order_status(interaction: discord.Interaction[Any], number: int, new_s
     if order is None:
         return
     await _defer(interaction)
+    member = interaction.user if isinstance(interaction.user, discord.Member) else None
+    gift_card_order = order.payment_provider == gift_card.PROVIDER_ID
+    if new_status == m.PAID and gift_card_order and not gift_cards.can_handle(app, member, interaction.user.id):
+        await _send(interaction, app, staff.OpReply(app.op("checkout.gift.no_permission"), "warning"))
+        return
     await _send(interaction, app, await staff.change_status(app, order, new_status, actor_id=interaction.user.id))
 
 

@@ -21,10 +21,12 @@ from shopbot.config.banner_ids import BannerId
 from shopbot.config.content import MissingContent
 from shopbot.config.settings import Settings
 from shopbot.features.checkout import content_keys as k
+from shopbot.features.checkout import gift_card_store, views
 from shopbot.features.checkout import handling_repo as h
 from shopbot.features.checkout import models as m
 from shopbot.features.checkout import staff_keys as sk
-from shopbot.features.checkout import views
+from shopbot.features.checkout.payments import gift_card
+from shopbot.features.checkout.payments.vault import CardSecret
 from shopbot.ui.custom_ids import cid
 from shopbot.ui.limits import EMBED_FIELD_VALUE
 from shopbot.ui.spec import (
@@ -279,8 +281,8 @@ def _summary_fields(ui: Ui, settings: Settings, view: m.OrderView) -> tuple[list
     return line_fields, totals
 
 
-def _record_fields(ui: Ui, view: m.OrderView, data: h.StaffData, status: str) -> list[EmbedField]:
-    """Reference, customer, order channel, status, claim and tracking details."""
+def _record_fields(ui: Ui, settings: Settings, view: m.OrderView, data: h.StaffData, status: str) -> list[EmbedField]:
+    """Reference, customer, order channel, status, claim, the submitted gift cards and tracking details."""
     order = view.order
     fields = [
         EmbedField(_text(ui, sk.REFERENCE_FIELD), str(order.number), inline=True),
@@ -294,6 +296,9 @@ def _record_fields(ui: Ui, view: m.OrderView, data: h.StaffData, status: str) ->
     if handling.claimed_by is not None and handling.claimed_at is not None:
         claimed = f"{views.user_mention(handling.claimed_by)} {_relative(handling.claimed_at)}"
         fields.append(EmbedField(_text(ui, sk.CLAIMED_FIELD), claimed, inline=True))
+    payment = gift_card.record_field(ui, settings, order, data.gift_cards)
+    if payment is not None:
+        fields.append(payment)
     tracking_name = _optional(ui, sk.TRACKING_FIELD)
     if handling.tracking and tracking_name:
         fields += text_fields(tracking_name, handling.tracking)
@@ -365,7 +370,7 @@ def staff_messages(
         status=status,
     )
     head = ui.embed(title=title, description=description, tone=STATUS_TONES.get(order.status, "info"), timestamp=True)
-    record = _record_fields(ui, view, data, status)
+    record = _record_fields(ui, settings, view, data, status)
     line_fields, total_fields = _summary_fields(ui, settings, view)
     timeline_name = _text(ui, sk.TIMELINE_FIELD)
     notes_name = _text(ui, sk.NOTES_FIELD)
@@ -594,6 +599,91 @@ def reject_modal(op: OperatorText, order: m.Order, status: str) -> ModalSpec:
             ),
         ),
     )
+
+
+def gift_card_problem_modal(op: OperatorText, order: m.Order, card_id: int = 0) -> ModalSpec:
+    """Card problem: the reason the customer is shown (for every waiting card, or for card ``card_id``)."""
+    return ModalSpec(
+        custom_id=views.gift_card_problem_form_id(order.id, card_id),
+        title=op("checkout.gift.problem.title", number=order.number),
+        inputs=(
+            TextInputSpec(
+                custom_id=REASON_INPUT,
+                label=op("checkout.gift.problem.reason"),
+                style="paragraph",
+                placeholder=op("checkout.gift.problem.reason_hint"),
+                required=True,
+                min_length=1,
+                max_length=gift_card_store.REASON_MAX,
+            ),
+        ),
+    )
+
+
+@dataclass(frozen=True)
+class RevealedCard:
+    """A card in the reveal reply: its number among the order's cards, and its code (None: unreadable or deleted)."""
+
+    index: int
+    card: gift_card_store.GiftCard
+    secret: CardSecret | None
+
+
+def gift_card_reveal(
+    op: OperatorText, ui: Ui, settings: Settings, order: m.Order, cards: Sequence[RevealedCard], *, keep_days: int
+) -> MessageSpec:
+    """The private reply with the waiting cards' codes (spoiler-hidden). With more than one waiting card, each gets
+    its own redeemed / problem buttons; the record's Payment confirmed and Card problem act on all of them."""
+    fmt = views.order_money(ui, settings, order.currency)
+    fields: list[EmbedField] = []
+    for item in cards:
+        name = op(
+            "checkout.gift.reveal.card",
+            index=item.index,
+            amount=fmt(item.card.amount_minor),
+            last4=views.escape(item.card.last4),
+        )
+        if item.secret is not None:
+            lines = [op("checkout.gift.reveal.code", code=_spoiler_safe(item.secret.code))]
+            pin = item.secret.pin
+            lines.append(
+                op("checkout.gift.reveal.pin", pin=_spoiler_safe(pin)) if pin else op("checkout.gift.reveal.no_pin")
+            )
+            value = "\n".join(lines)
+        elif not item.card.stored:
+            value = op("checkout.gift.reveal.erased", days=keep_days)
+        else:
+            value = op("checkout.gift.reveal.unreadable")
+        fields.append(EmbedField(name, value))
+    embed = ui.operator_embed(
+        op("checkout.gift.reveal.title", number=order.number),
+        op("checkout.gift.reveal.intro"),
+        tone="warning",
+        fields=fields,
+    )
+    buttons: list[ButtonSpec] = []
+    if len(cards) > 1:
+        for item in cards:
+            buttons.append(
+                ButtonSpec(
+                    label=op("checkout.gift.reveal.redeemed_button", index=item.index),
+                    custom_id=views.gift_card_redeemed_id(order.id, item.card.id),
+                    style="success",
+                )
+            )
+            buttons.append(
+                ButtonSpec(
+                    label=op("checkout.gift.reveal.problem_button", index=item.index),
+                    custom_id=views.gift_card_problem_id(order.id, item.card.id),
+                    style="danger",
+                )
+            )
+    return MessageSpec(embeds=(embed,), rows=rows_of(*buttons, per_row=2), banner=ui.banner("staff-dashboard"))
+
+
+def _spoiler_safe(text: str) -> str:
+    """A customer-typed code inside ``||`...`||``: backticks and pipes cannot end the markup early."""
+    return text.replace("`", "'").replace("|", "/")
 
 
 def notification_fields(ui: Ui, status: str, data: h.NotificationData) -> list[EmbedField]:

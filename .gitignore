@@ -2,6 +2,9 @@
 .env
 .env.*
 !.env.example
+# The gift card encryption key file (created next to the database)
+gift_card.key
+*.key
 
 # Local databases and backups (never commit production data)
 *.db

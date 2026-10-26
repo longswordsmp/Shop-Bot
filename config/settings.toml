@@ -29,7 +29,7 @@ tickets = true               # private tickets (used by Report a Problem)
 problems = true              # #purchase Report a Problem workflow
 my_orders = true             # /myorders for customers
 info_panels = false          # generic extra panels (not used by the specification)
-credits = false              # store credit (not part of the specification)
+credits = true               # store credit: gift card overpayments and refunds after payment
 dm_notifications = true      # private notifications by direct message (falls back to the ticket/order channel)
 
 [bot]
@@ -524,7 +524,16 @@ amount_minor = 200
 # amount_minor = 0
 
 [payments]
-provider = "manual"                  # Implemented: "manual" (staff confirm payment)
+provider = "gift_card"               # "gift_card" (customers submit gift cards in a private form) or "manual"
+
+# Gift card payments: customers pay the exact total with DoorDash eGift cards. Codes are stored encrypted (key:
+# GIFT_CARD_KEY, or gift_card.key next to the database), shown only to staff_roles, and deleted once staff decide.
+[payments.gift_card]
+buy_url = "https://www.doordash.com/gift-cards/"   # the "Buy a gift card" button (empty: no button)
+staff_roles = ["owner"]              # who may reveal codes and confirm payments (owners and admins always may)
+max_cards = 5                        # cards one order may be paid with
+keep_days = 7                        # a code nobody decided on is deleted after this many days
+chat_guard = true                    # delete a customer's ticket message that looks like a gift card code
 
 [credits]
 allow_at_checkout = true

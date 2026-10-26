@@ -65,10 +65,16 @@ from shopbot.features import core_keys as core
 from shopbot.features.catalog import repo as catalog_repo
 from shopbot.features.catalog import service as catalog_service
 from shopbot.features.checkout import content_keys as k
-from shopbot.features.checkout import flow, repo, staff_keys, staff_views, views
+from shopbot.features.checkout import flow, gift_card_store, repo, staff_keys, staff_views, views
 from shopbot.features.checkout import handling_repo as h
 from shopbot.features.checkout import models as m
-from shopbot.features.checkout.payments import PaymentInstructions, PaymentProvider, RefundResult, get_provider
+from shopbot.features.checkout.payments import (
+    PaymentInstructions,
+    PaymentProvider,
+    RefundResult,
+    get_provider,
+    gift_card,
+)
 from shopbot.features.checkout.totals import compute_totals
 from shopbot.features.credits import service as credits_service
 from shopbot.features.tickets import service as tickets_service
@@ -1218,11 +1224,12 @@ async def payment_instructions(app: App, order: m.Order) -> PaymentInstructions 
     if provider is None or order.status != m.PENDING:
         return None
     payment = await app.db.run(repo.payment_for, order.id)
-    instructions = provider.instructions(order, payment.external_ref if payment is not None else None)
+    instructions = provider.instructions(app.settings, order, payment.external_ref if payment is not None else None)
     # The provider's text is only registered while it is the configured provider.
     if instructions.description_key not in app.content.registry:
         return None
-    return instructions
+    progress = await provider.progress(app, order)
+    return replace(instructions, fields=progress) if progress else instructions
 
 
 async def customer_order_messages(app: App, order_id: int) -> views.OrderMessages:
@@ -1579,9 +1586,19 @@ async def run_transition_followups(
         return ok
 
 
+# Statuses an order can reach more than once (gift cards submitted again after one was refused): their notification
+# is sent again each time (deduplicated per order version instead of once per order).
+_REPEATABLE_NOTIFICATIONS = (m.PAYMENT_SUBMITTED,)
+
+
 async def _notify_status(app: App, order_id: int, status: str) -> None:
     view = await order_view(app, order_id)
-    if view is None or view.order.status != status or status not in k.NOTIFIED_STATUSES:
+    if view is None or view.order.status != status:
+        return
+    if status == m.PENDING:
+        await _notify_payment_refused(app, view)
+        return
+    if status not in k.NOTIFIED_STATUSES:
         return
     # Staff-entered data the notification carries: the rejection reason, the tracking details of a completed order.
     extras = await app.db.run(h.notification_data, order_id, status)
@@ -1596,6 +1613,35 @@ async def _notify_status(app: App, order_id: int, status: str) -> None:
             ),
             rows=staff_views.notification_rows(app.ui, status, extras),
         ),
+        dedupe_suffix=f"v{view.order.version}" if status in _REPEATABLE_NOTIFICATIONS else None,
+    )
+
+
+async def _notify_payment_refused(app: App, view: m.OrderView) -> None:
+    """The order waits for payment again because staff refused a gift card: the cards they refused with the reasons,
+    what is still to pay (the order view in the ticket shows the Submit gift card button again)."""
+    order = view.order
+    since = next((e.created_at for e in reversed(view.timeline) if e.to_status == m.PAYMENT_SUBMITTED), None)
+    if since is None or not gift_card.enabled(app.settings):
+        return
+    cards = await app.db.run(gift_card_store.cards, order.id)
+    refused = tuple(c.id for c in cards if c.status == gift_card_store.REFUSED and (c.decided_at or 0) >= since)
+    if not refused:
+        return
+    counted = sum(c.amount_minor for c in cards if c.status in gift_card_store.ACTIVE)
+    remaining = views.order_money(app.ui, app.settings, order.currency)(max(0, order.total_minor - counted))
+    await notify_customer(
+        app,
+        view,
+        gift_card.NOTIFY_CARD_PROBLEM,
+        lambda: views.payment_refused_notification(
+            app.ui,
+            app.settings,
+            view,
+            remaining=remaining,
+            fields=gift_card.cards_fields(app.ui, app.settings, order, cards, only=refused),
+        ),
+        dedupe_suffix=f"v{order.version}",
     )
 
 

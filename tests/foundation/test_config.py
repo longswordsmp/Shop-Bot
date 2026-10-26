@@ -54,6 +54,8 @@ SPEC_FEATURES = {
     "problems",
     "my_orders",
     "dm_notifications",
+    # The owner's decisions: gift card overpayments and refunds after payment are store credit.
+    "credits",
 }
 
 # Names copied from the owner's server specification (the only values shipped in content.toml).
@@ -88,7 +90,8 @@ def test_shipped_settings_follow_the_specification() -> None:
     loaded = load_config(ROOT / "config")
     assert set(loaded.settings.features.enabled()) == SPEC_FEATURES
     assert loaded.settings.checkout.currency == "USD"  # the owner's currency
-    assert loaded.settings.payments.provider == "manual"
+    assert loaded.settings.payments.provider == "gift_card"  # DoorDash eGift cards for the exact total
+    assert loaded.settings.payments.gift_card.staff_roles == ("owner",)  # the Payments role: Owner only
     server = loaded.settings.server
     assert {r.key for r in server.roles} == {"owner", "staff", "member", "customer", "restock_alerts"}
     assert [c.key for c in server.categories] == ["start_here", "catalog", "purchase", "staff"]

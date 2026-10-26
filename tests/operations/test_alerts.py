@@ -275,3 +275,51 @@ async def test_a_failing_command_is_audited_and_reported(ops: TestEnv) -> None:
     await run_tasks(ops)
     [alert] = staff_channel(ops).messages
     assert "order view" in alert.text() and "private" not in alert.text()
+
+
+async def test_payment_submitted_alerts_staff_each_time_gift_cards_cover_the_total(tmp_path: Path) -> None:
+    from shopbot.features.checkout import staff_views, views
+    from shopbot.features.checkout.payments import gift_card
+    from tests.fakes import submit_modal
+
+    tenv = await make_ops(tmp_path, {"payments": {"provider": "gift_card"}})
+    try:
+        placed, channel_id = await _order(tenv)
+        customer = tenv.guild.get_member(placed.user_id)
+
+        async def pay(code: str) -> None:
+            await submit_modal(
+                tenv.app,
+                user=customer,
+                custom_id=views.payment_form_submit_id(placed.id),
+                fields={gift_card.CODE_INPUT: code, gift_card.AMOUNT_INPUT: "10.00"},
+            )
+            await run_tasks(tenv)
+
+        key = ok.alert_key(ok.PAYMENT_SUBMITTED, "description")
+        values = _order_values(tenv, placed, channel_id, m.PAYMENT_SUBMITTED)
+        await pay("ABCD-EFGH-1234-5678")
+        alerts_sent = [
+            msg
+            for msg in staff_channel(tenv).messages
+            if msg.embeds and msg.embeds[0].description == _render(tenv, key, **values)
+        ]
+        assert len(alerts_sent) == 1
+        # Staff refuse the card; the customer pays again: the payment staff are alerted again.
+        admin = tenv.member(name="admin", admin=True)
+        await submit_modal(
+            tenv.app,
+            user=admin,
+            custom_id=views.gift_card_problem_form_id(placed.id),
+            fields={staff_views.REASON_INPUT: "[reason]"},
+        )
+        await pay("WXYZ-9876-5432-QRST")
+        assert (await order(tenv, placed.id)).status == m.PAYMENT_SUBMITTED
+        again = [
+            msg
+            for msg in staff_channel(tenv).messages
+            if msg.embeds and msg.embeds[0].description == _render(tenv, key, **values)
+        ]
+        assert len(again) == 2
+    finally:
+        await tenv.close()

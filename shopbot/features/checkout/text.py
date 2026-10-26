@@ -125,6 +125,45 @@ OPERATOR_TEXT: dict[str, str] = {
     "checkout.op.tracking_url_invalid": (
         "The tracking link must be an https:// address without spaces. Nothing changed."
     ),
+    # gift card payments (payments.provider = "gift_card"; staff with payments.gift_card.staff_roles only)
+    "checkout.gift.reveal.title": "Gift cards · order #{number}",
+    "checkout.gift.reveal.intro": (
+        "Redeem the cards now in the shop's account, then press **Payment confirmed** on the order record (or "
+        "**Card problem**). The codes are deleted as soon as you decide. Do not copy them anywhere else."
+    ),
+    "checkout.gift.reveal.card": "Card {index} · {amount} · ending {last4}",
+    "checkout.gift.reveal.code": "Code: ||`{code}`||",
+    "checkout.gift.reveal.pin": "PIN: ||`{pin}`||",
+    "checkout.gift.reveal.no_pin": "No PIN given.",
+    "checkout.gift.reveal.unreadable": (
+        "This code cannot be read with the current key (was GIFT_CARD_KEY changed?). Use Card problem so the customer "
+        "submits the card again."
+    ),
+    "checkout.gift.reveal.erased": (
+        "The code was deleted after {days} days without a decision. Use Card problem so the customer submits the card "
+        "again."
+    ),
+    "checkout.gift.reveal.redeemed_button": "Card {index} redeemed",
+    "checkout.gift.reveal.problem_button": "Card {index} problem",
+    "checkout.gift.problem.title": "Card problem · order #{number}",
+    "checkout.gift.problem.reason": "What's wrong? (the customer sees this)",
+    "checkout.gift.problem.reason_hint": "For example: The card was already redeemed.",
+    "checkout.gift.no_permission": (
+        "Only the payment staff (payments.gift_card.staff_roles, owners and admins) can see gift card codes or decide "
+        "on them."
+    ),
+    "checkout.gift.not_waiting": "Order #{number} has no gift card waiting for a decision (status: {status}).",
+    "checkout.gift.decided": "Those gift cards were already decided on; nothing changed.",
+    "checkout.gift.key_missing": (
+        "Gift card codes cannot be read right now: the key could not be loaded (check GIFT_CARD_KEY, or the "
+        "gift_card.key file next to the database)."
+    ),
+    "checkout.gift.redeemed": "Order #{number}: {count} gift card(s) marked redeemed.",
+    "checkout.gift.refused": "Order #{number}: {count} gift card(s) marked not accepted; the customer is told why.",
+    "checkout.gift.outcome.paid": "The order is paid.",
+    "checkout.gift.outcome.waiting": "Other cards of this order still wait for a decision.",
+    "checkout.gift.outcome.pending": "The order waits for the customer's payment again.",
+    "checkout.gift.outcome.credit": "{amount} beyond the total went to the customer's store credit.",
     "checkout.tracking.label": "Tracking details",
     "checkout.tracking.hint": "The customer sees them (completion notification, or right away if completed).",
     "checkout.reject.title": "Reject order #{number}",

@@ -27,7 +27,7 @@ disabled (and `/status` says why) until you set it again:
 | Setting | Needed by |
 |---|---|
 | `checkout.currency` (shipped: `USD`) | catalog prices, checkout, credits |
-| `payments.provider` (shipped: `manual`, the implemented option) | checkout |
+| `payments.provider` (shipped: `gift_card`; also `manual`) | checkout |
 | `reviews.prompt_delay_minutes`, `reviews.rating_scale` (shipped: 10080 = 7 days, 5 stars) | reviews |
 | `verification.rules` (shipped: 6) | #welcome |
 | every required customer-facing text (content keys) | the message that shows it |
@@ -244,8 +244,34 @@ reminders, Owner alerts, Customer role) and `docs/features/catalog.md`.
 
 ## `[payments]`
 
-`provider`: **business decision.** `"manual"` shows your configured payment instructions to the customer and lets
-staff confirm payment; refunds are recorded and returned outside the bot. The bot never collects card data.
+`provider`: **business decision.** Shipped: `"gift_card"`.
+
+- `"gift_card"`: the customer pays the exact total with gift cards (DoorDash eGift cards in the shipped text). Under
+  the payment instructions they press **Submit gift card** and enter the code, the PIN (if the card has one) and the
+  card's amount in a private form; several cards may pay one order. Once the cards cover the total the order is
+  placed (`payment_submitted`) and the payment staff press **Reveal gift card** on the record (a private reply with
+  the codes, spoiler-hidden), redeem the cards in the shop's account and press **Payment confirmed**, or **Card
+  problem** with the reason the customer is shown (the order then waits for payment again). Value beyond the total,
+  or cards redeemed for an order that is cancelled afterwards, becomes the customer's store credit.
+- `"manual"`: shows your configured payment instructions (`checkout.payment.manual.*`) and lets staff confirm
+  payment.
+
+Refunds are recorded (as store credit, or returned outside the bot). The bot never asks for bank or credit card
+details.
+
+### `[payments.gift_card]`
+
+| Setting | Shipped | Meaning |
+|---|---|---|
+| `buy_url` | `https://www.doordash.com/gift-cards/` | The **Buy a gift card** link button under the instructions (empty: no button). |
+| `staff_roles` | `["owner"]` | Roles (keys) that may reveal codes and confirm or refuse gift card payments; owners and admins always may. Other staff see the cards on the record (amount, last characters, state) but never a code. |
+| `max_cards` | 5 | Cards one order may be paid with (1-10). |
+| `keep_days` | 7 | A code nobody decided on is deleted after this many days (the card stays listed; staff use Card problem). |
+| `chat_guard` | true | Delete a customer's message in their order ticket when it looks like a gift card code, and tell them privately to use the form (needs `bot.message_content_intent`). |
+
+Codes are stored only encrypted, with the key from the `GIFT_CARD_KEY` environment variable or, when it is unset,
+a `gift_card.key` file the bot creates next to the database (see `docs/SECURITY.md`). A code is deleted as soon as
+staff decide on its card, when the order ends unpaid, or after `keep_days`.
 
 ## `[credits]`
 

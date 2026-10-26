@@ -1,9 +1,14 @@
 """Payment providers: the extension point for how customers pay.
 
 ``PROVIDERS`` maps ``settings.payments.provider`` to an implementation of ``PaymentProvider``
-(``shopbot.features.checkout.payments.base``). Only ``manual`` is implemented: the customer sees the
-business's configured payment instructions, staff confirm receipt with a button, and refunds are recorded while
-staff return the money outside the bot. The bot never asks for, accepts, or stores card details or credentials.
+(``shopbot.features.checkout.payments.base``):
+
+- ``manual``: the customer sees the business's configured payment instructions, staff confirm receipt with a
+  button, and refunds are recorded while staff return the money outside the bot;
+- ``gift_card``: the customer submits gift cards for the total in a private form (``payments.gift_card``); codes are
+  stored encrypted, revealed only to the payment staff and deleted once they decided (see ``gift_card``).
+
+The bot never asks for or accepts bank or credit card details or passwords.
 
 Adding an approved provider (hosted checkout page / payment link + verified webhook)
 -----------------------------------------------------------------------------------
@@ -37,9 +42,10 @@ from shopbot.features.checkout.payments.base import (
     PaymentStart,
     RefundResult,
 )
+from shopbot.features.checkout.payments.gift_card import GiftCardProvider
 from shopbot.features.checkout.payments.manual import ManualProvider
 
-PROVIDERS: dict[str, PaymentProvider] = {ManualProvider.id: ManualProvider()}
+PROVIDERS: dict[str, PaymentProvider] = {ManualProvider.id: ManualProvider(), GiftCardProvider.id: GiftCardProvider()}
 
 
 def get_provider(provider_id: str) -> PaymentProvider | None:

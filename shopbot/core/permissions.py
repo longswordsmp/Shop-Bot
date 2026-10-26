@@ -76,6 +76,14 @@ class Permissions:
         admin_roles = self._resources.role_ids(self._settings().permissions.admin_roles)
         return bool(admin_roles & self._role_ids(member))
 
+    def has_role(self, member: discord.Member | None, user_id: int | None, role_keys: tuple[str, ...]) -> bool:
+        """Owners and admins, or a member holding one of ``role_keys`` (staff roles alone do not count)."""
+        if self.is_admin(member, user_id):
+            return True
+        if member is None or not role_keys:
+            return False
+        return bool(self._resources.role_ids(role_keys) & self._role_ids(member))
+
     def is_staff(
         self, member: discord.Member | None, user_id: int | None = None, extra_role_keys: tuple[str, ...] = ()
     ) -> bool:

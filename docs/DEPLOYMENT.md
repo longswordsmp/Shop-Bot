@@ -52,6 +52,7 @@ dashboard settings above are equivalent.
 | `STARTUP_FAILURE_DELAY_SECONDS` | no | Delay before exiting on a fatal startup error (default 30) to avoid tight restart loops. |
 | `RAILWAY_DEPLOYMENT_DRAINING_SECONDS` | recommended | `15` – time Railway waits between `SIGTERM` and `SIGKILL`, so clicks being processed can finish (see "Stopping"). Railway's default is short (reported as 0–3 s). |
 | `ALLOW_EPHEMERAL_DB` | no | Leave unset. `true` lets the bot start on Railway without a volume – only for a throwaway test service. |
+| `GIFT_CARD_KEY` | recommended | Encrypts submitted gift card codes. Generate once with `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` and keep it secret. Unset: the bot creates `gift_card.key` next to the database on the volume. Changing or losing it makes codes not yet redeemed unreadable. |
 
 Never put these values in the repository. `.env` is for local development only and is git-ignored.
 

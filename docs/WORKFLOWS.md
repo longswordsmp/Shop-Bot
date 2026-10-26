@@ -87,7 +87,8 @@ After submit: the customer sees your payment instructions; staff get a control m
 
 ```
 pending_payment   -> payment_submitted | paid | rejected | cancelled | expired
-payment_submitted -> paid | rejected | cancelled         (the customer submitted their payment; staff verify it)
+payment_submitted -> pending_payment | paid | rejected | cancelled
+                     (gift cards cover the total; staff redeem them, or refuse a card and the order waits again)
 paid              -> processing | shipped | fulfilled | cancelled | refunded
 processing        -> shipped | fulfilled | cancelled | refunded
 shipped           -> fulfilled | refunded                (carrier and tracking number recorded)
@@ -127,7 +128,18 @@ or credit change) shows the review again instead of placing the order.
 
 **Timers** (all off by default): cart expiry, payment reminder, payment expiry.
 
-**Payments:** provider `manual` — instructions you write; staff confirm receipt; refunds are recorded and returned
+**Payments (`gift_card`, shipped):** the order ticket shows the instructions with **Submit gift card** (a private
+form: code, optional PIN, the card's amount, prefilled with what is still to pay) and **Buy a gift card**. Each card
+is sealed before it is stored; the order view lists the cards received and what is still to pay. When the cards
+cover the total the order becomes `payment_submitted`: the customer gets "Order placed" (ticket and DM), the payment
+staff get an alert, and the record shows **Reveal gift card**, **Payment confirmed** and **Card problem**. Reveal is
+a private reply with the waiting codes (with several cards: a redeemed / problem button per card). Payment confirmed
+makes the order paid; Card problem asks for the reason, which the customer is shown, and the order waits for payment
+again (its payment expiry, when on, starts again). Codes are deleted on every decision, when the order ends unpaid,
+and after `keep_days`. Value beyond the total, or cards redeemed for an order cancelled afterwards, becomes store
+credit.
+
+**Payments (`manual`):** instructions you write; staff confirm receipt; refunds are recorded and returned
 outside the bot. No payment details are ever requested in Discord. Each order has a payment record that becomes
 `succeeded` when staff confirm payment and `cancelled` when the order is rejected, cancelled or expires before
 payment. The `failed` payment state exists for automated providers (a declined card, a failed payment link); the

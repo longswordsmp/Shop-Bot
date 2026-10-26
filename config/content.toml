@@ -1688,6 +1688,61 @@ Track it on the carrier's website. Delivery times depend on your country and the
 # title · max 256 characters · optional · placeholders: {order_number}, {total}, {channel_mention}
 checkout.notify.shipped.title = "Order #{order_number} shipped"
 
+# --- Checkout: gift card payment replies ---
+
+# Text of that notification; the cards with the reasons follow. {remaining} is still to pay, {channel_mention} the order ticket.
+# description · max 4096 characters · required · placeholders: {order_number}, {total}, {remaining}, {channel_mention}
+checkout.notify.card_problem.description = '''
+Our team couldn't accept a gift card for order **#{order_number}**, so your order is on hold.
+
+Submit a valid DoorDash eGift card for the remaining **{remaining}** with **Submit gift card** in {channel_mention}, or cancel the order there.'''
+
+# Title of the notification when our team could not accept a card (the order waits for payment again).
+# title · max 256 characters · required · placeholders: {order_number}, {total}, {remaining}, {channel_mention}
+checkout.notify.card_problem.title = "We couldn't accept your gift card"
+
+# Sent to the customer (by DM, else in the ticket) when their message was deleted because it looked like a gift card code (payments.gift_card.chat_guard). {channel_mention} is their order ticket.
+# description · max 4096 characters · required · placeholders: {channel_mention}
+checkout.payment.gift_card.chat_guard = "For your safety we removed your message in {channel_mention}: it looked like a gift card code. Please use **Submit gift card** in your ticket instead. Only our payment team can see what you enter there."
+
+# The amount is not a valid amount; {example} shows one.
+# description · max 4096 characters · required · placeholders: {example}
+checkout.payment.gift_card.error.amount = "Enter the card's amount as a number, for example **{example}**."
+
+# The code is not valid: {min}-{max} letters and digits.
+# description · max 4096 characters · required · placeholders: {min}, {max}
+checkout.payment.gift_card.error.code = "That code doesn't look right. Enter the gift card code exactly as shown ({min}-{max} letters and digits; spaces and dashes are fine)."
+
+# This card was already submitted (it is waiting or was redeemed).
+# description · max 4096 characters · required
+checkout.payment.gift_card.error.duplicate = "This gift card was already submitted. If you think this is a mistake, please write to us in this ticket."
+
+# The order no longer waits for a payment (placed, paid or closed).
+# description · max 4096 characters · required
+checkout.payment.gift_card.error.state = "This order isn't waiting for a payment, so no gift card is needed."
+
+# The order already has {max} cards (payments.gift_card.max_cards).
+# description · max 4096 characters · required · placeholders: {max}
+checkout.payment.gift_card.error.too_many = "This order already has {max} gift cards. Please write to us in this ticket and we'll help."
+
+# Cards cannot be accepted right now (the bot cannot store them safely); the customer should try again later or ask our team.
+# description · max 4096 characters · required
+checkout.payment.gift_card.error.unavailable = "We can't accept gift cards right now. Please try again in a few minutes or write to us in this ticket."
+
+# Private reply after the card that completes the payment (the order is placed): {amount} (this card), {received} (all cards), {order_number}.
+# description · max 4096 characters · required · placeholders: {amount}, {received}, {order_number}
+checkout.payment.gift_card.reply.complete = '''
+Thank you, we received your gift card for **{amount}**. Your order **#{order_number}** is placed.
+
+Our team is verifying your payment now. Every update is posted in this ticket.'''
+
+# Private reply after a card that does not cover the total yet: {amount} (this card), {received} (all cards), {remaining} (still to pay), {total}.
+# description · max 4096 characters · required · placeholders: {amount}, {received}, {remaining}, {total}
+checkout.payment.gift_card.reply.partial = '''
+Thank you, we received your gift card for **{amount}**.
+
+You have submitted **{received}** of **{total}**. Submit another card for the remaining **{remaining}** to place your order.'''
+
 # --- Checkout: customer notifications sent by staff actions ---
 
 # Notification sent to the customer when staff ask them to correct information on an order waiting for payment (the staff message follows in a field). {order_number} is the order number, {total} the order total, {channel_mention} links the order channel. Sent by direct message when features.dm_notifications is on, otherwise (or when the customer's direct messages are closed) posted in the order channel with a mention.
@@ -1733,22 +1788,83 @@ checkout.notify.tracking.details_field = "Tracking details"
 # title · max 256 characters · optional · placeholders: {order_number}, {total}, {channel_mention}
 checkout.notify.tracking.title = "Tracking details for order #{order_number}"
 
-# --- Checkout: payment instructions (manual payment) ---
+# --- Checkout: gift card payment ---
 
-# How the customer pays (your own payment instructions), shown in the order channel after the customer submits an order and in the payment reminder. Staff confirm receipt with the mark-paid button. Never ask customers to send card details or passwords in Discord. {order_number} is the order number, {total} the amount to pay written with common.money_format.
+# Link button to payments.gift_card.buy_url (where customers buy a card).
+# button_label · max 80 characters · required
+checkout.payment.gift_card.buy_button = "Buy a gift card"
+
+# One submitted card: {number} (1, 2...), {amount}, {last4} (the code's last characters) and {status} (one of the card_status texts).
+# format · max 100 characters · required · placeholders: {number}, {amount}, {last4}, {status}
+checkout.payment.gift_card.card_line = "Card {number} · {amount} · ending {last4} · {status}"
+
+# Status of a card our team redeemed.
+# format · max 100 characters · required
+checkout.payment.gift_card.card_status.redeemed = "accepted"
+
+# Status of a card our team could not accept; {reason} is what staff wrote.
+# format · max 100 characters · required · placeholders: {reason}
+checkout.payment.gift_card.card_status.refused = "not accepted: {reason}"
+
+# Status of a card our team has not checked yet.
+# format · max 100 characters · required
+checkout.payment.gift_card.card_status.waiting = "received"
+
+# Field listing the cards the customer submitted for the order (under the instructions and in the card problem notification).
+# field_name · max 256 characters · required
+checkout.payment.gift_card.cards_field = "{icon_gift} Gift cards"
+
+# How to pay with gift cards, shown in the order ticket and in the payment reminder. {total} is the amount to pay.
 # description · max 4096 characters · required · placeholders: {order_number}, {total}
-checkout.payment.manual.instructions = '''
-**Order total:** {total}
+checkout.payment.gift_card.instructions = '''
+Pay with a **DoorDash eGift card** for exactly **{total}**.
+1. Buy a DoorDash eGift card for {total} (or several cards that add up to it).
+2. Press **Submit gift card** and enter the code (and the PIN, if your card has one) in the private form.
+3. Our team verifies it and confirms your order here.
 
-Our team posts the payment instructions for order **#{order_number}** in your order ticket, together with any shipping costs. If you do not see them yet, please wait for them before you send a payment.
+{icon_lock} Never post a gift card code in this chat. Only the private form keeps it safe.'''
 
-Once your payment arrives, our team confirms it in the ticket and starts preparing your order.
+# Line under the cards while part of the total is still to pay: {remaining} (still to pay) and {received} (the cards that count).
+# format · max 100 characters · required · placeholders: {remaining}, {received}
+checkout.payment.gift_card.remaining = "**Still to pay: {remaining}** (received {received})"
 
-**Never share card numbers, passwords or security codes in Discord, even if someone asks.**'''
+# Button under the instructions that opens the private gift card form.
+# button_label · max 80 characters · required
+checkout.payment.gift_card.submit_button = "Submit gift card"
 
-# Optional title of the payment instructions shown in the order channel after the customer submits an order (payments.provider = "manual"). {order_number} is the order number, {total} the amount to pay written with common.money_format.
+# Optional title of the payment instructions shown in the order ticket while the order waits for payment.
 # title · max 256 characters · optional · placeholders: {order_number}, {total}
-checkout.payment.manual.title = "How to pay for order #{order_number}"
+checkout.payment.gift_card.title = "Pay with a DoorDash eGift card"
+
+# --- Checkout: gift card payment form ---
+
+# Label of the card amount input.
+# input_label · max 45 characters · required
+checkout.payment.gift_card.form.amount_label = "Card amount"
+
+# Optional hint in the amount input; {remaining} is what is still to pay.
+# input_placeholder · max 100 characters · optional · placeholders: {remaining}
+checkout.payment.gift_card.form.amount_placeholder = "For example {remaining}"
+
+# Label of the gift card code input.
+# input_label · max 45 characters · required
+checkout.payment.gift_card.form.code_label = "Gift card code"
+
+# Optional example in the code input.
+# input_placeholder · max 100 characters · optional
+checkout.payment.gift_card.form.code_placeholder = "The code from your DoorDash eGift card"
+
+# Label of the optional PIN input.
+# input_label · max 45 characters · required
+checkout.payment.gift_card.form.pin_label = "PIN (only if your card has one)"
+
+# Optional hint in the PIN input.
+# input_placeholder · max 100 characters · optional
+checkout.payment.gift_card.form.pin_placeholder = "Leave empty if your card has no PIN"
+
+# Title of the private gift card form.
+# modal_title · max 45 characters · required · placeholders: {order_number}
+checkout.payment.gift_card.form.title = "Gift card · order #{order_number}"
 
 # --- Checkout: quantity form ---
 
@@ -1873,6 +1989,56 @@ checkout.staff.title = "Order #{order_number} · {total} · {status}"
 # Name of the field on the staff order record showing the tracking details staff entered. Needed when checkout.staff.button.tracking is configured.
 # field_name · max 256 characters · optional
 checkout.staff.tracking_field = "Tracking details"
+
+# --- Checkout: staff gift card controls ---
+
+# Staff button: the waiting cards could not be redeemed (asks for the reason the customer is shown).
+# button_label · max 80 characters · required
+checkout.staff.button.card_problem = "Card problem"
+
+# Staff button: every waiting card was redeemed (the order is paid).
+# button_label · max 80 characters · required
+checkout.staff.button.payment_confirmed = "Payment confirmed"
+
+# Staff button: show the submitted codes privately (payment roles only; every reveal is logged).
+# button_label · max 80 characters · required
+checkout.staff.button.reveal_gift_card = "Reveal gift card"
+
+# Field on the order record listing the submitted cards (never their codes).
+# field_name · max 256 characters · required
+checkout.staff.gift_card.field = "Payment"
+
+# One card on the order record: {index}, {amount}, {last4} and {state} (one of the state texts, followed by the revealed text once someone revealed it).
+# format · max 100 characters · required · placeholders: {index}, {amount}, {last4}, {state}
+checkout.staff.gift_card.line = "Card {index} · {amount} · ending {last4} · {state}"
+
+# Added to a card once its code was revealed: {count} (times) and {staff} (who revealed it last).
+# format · max 100 characters · required · placeholders: {count}, {staff}
+checkout.staff.gift_card.revealed = "revealed {count}× (last by {staff})"
+
+# Added to a waiting card whose code was deleted after payments.gift_card.keep_days.
+# format · max 100 characters · required
+checkout.staff.gift_card.state.erased = "code deleted unread"
+
+# State of a redeemed card.
+# format · max 100 characters · required
+checkout.staff.gift_card.state.redeemed = "redeemed"
+
+# State of a refused card; {reason} is what the customer was told.
+# format · max 100 characters · required · placeholders: {reason}
+checkout.staff.gift_card.state.refused = "not accepted: {reason}"
+
+# State of a card no one decided on yet.
+# format · max 100 characters · required
+checkout.staff.gift_card.state.waiting = "waiting for a decision"
+
+# State of a card given up because the order ended before anyone decided.
+# format · max 100 characters · required
+checkout.staff.gift_card.state.withdrawn = "withdrawn (the order ended)"
+
+# Last line of the payment field: {covered} (cards waiting or redeemed) of {total}.
+# format · max 100 characters · required · placeholders: {covered}, {total}
+checkout.staff.gift_card.total = "Cards: {covered} of {total}"
 
 # --- Checkout: staff order controls - timeline and notes ---
 
@@ -2778,6 +2944,18 @@ Prepare the order, then press **Mark shipped** on its record with the carrier an
 # title · max 256 characters · optional · placeholders: {order_number}, {customer_mention}, {total}, {status}, {order_channel}
 operations.alert.paid_order.title = "Payment confirmed for order #{order_number}"
 
+# Staff alert when a customer submitted their payment (gift cards covering the total) and it waits to be verified (operations.ping_roles are mentioned). {order_number} is the order number, {customer_mention} mentions the customer (no ping), {total} is the order total, {status} the status name (checkout.status_label.*), {order_channel} links the customer's order channel.
+# description · max 4096 characters · required · placeholders: {order_number}, {customer_mention}, {total}, {status}, {order_channel}
+operations.alert.payment_submitted.description = '''
+{customer_mention} submitted gift cards for order **#{order_number}** ({total}).
+• Status: {status}
+• Order ticket: {order_channel}
+Payment staff: press **Reveal gift card** on the order record, redeem the cards in the shop's DoorDash account, then press **Payment confirmed** (or **Card problem**).'''
+
+# Optional title of the Staff alert when a customer submitted their payment (gift cards covering the total) and it waits to be verified (operations.ping_roles are mentioned). {order_number} is the order number, {customer_mention} mentions the customer (no ping), {total} is the order total, {status} the status name (checkout.status_label.*), {order_channel} links the customer's order channel.
+# title · max 256 characters · optional · placeholders: {order_number}, {customer_mention}, {total}, {status}, {order_channel}
+operations.alert.payment_submitted.title = "Payment submitted for order #{order_number}"
+
 # Optional link button under order alerts and order reminders that jumps to the order's live record in checkout.staff_channel.
 # button_label · max 80 characters · optional
 operations.button.open_record = "Open order record"
@@ -2903,3 +3081,25 @@ operations.owner.paid_order.description = ""
 # Optional title of the Owner's private alert when an order's payment was confirmed and it waits to be shipped (empty = the staff alert's title). Placeholders as in the staff alert.
 # title · max 256 characters · optional; falls back to operations.alert.paid_order.title · placeholders: {order_number}, {customer_mention}, {total}, {status}, {order_channel}
 operations.owner.paid_order.title = ""
+
+# Optional text of the Owner's private alert when a customer submitted their payment (gift cards covering the total) and it waits to be verified (empty = the staff alert's text). Placeholders as in the staff alert.
+# description · max 4096 characters · optional; falls back to operations.alert.payment_submitted.description · placeholders: {order_number}, {customer_mention}, {total}, {status}, {order_channel}
+operations.owner.payment_submitted.description = ""
+
+# Optional title of the Owner's private alert when a customer submitted their payment (gift cards covering the total) and it waits to be verified (empty = the staff alert's title). Placeholders as in the staff alert.
+# title · max 256 characters · optional; falls back to operations.alert.payment_submitted.title · placeholders: {order_number}, {customer_mention}, {total}, {status}, {order_channel}
+operations.owner.payment_submitted.title = ""
+
+# ==================================================================================================
+# Keys not used by the current settings (kept so no text is lost)
+# ==================================================================================================
+
+"checkout.payment.manual.instructions" = '''
+**Order total:** {total}
+
+Our team posts the payment instructions for order **#{order_number}** in your order ticket, together with any shipping costs. If you do not see them yet, please wait for them before you send a payment.
+
+Once your payment arrives, our team confirms it in the ticket and starts preparing your order.
+
+**Never share card numbers, passwords or security codes in Discord, even if someone asks.**'''
+"checkout.payment.manual.title" = "How to pay for order #{order_number}"

@@ -106,4 +106,4 @@ def test_the_shipment_columns_are_checked() -> None:
 
 def test_only_marked_migrations_run_with_foreign_keys_off() -> None:
     marked = [m.name for m in discover() if FOREIGN_KEYS_OFF in m.path.read_text(encoding="utf-8").splitlines()[:5]]
-    assert marked == ["order_shipping_statuses"]
+    assert marked == ["order_shipping_statuses", "gift_cards"]

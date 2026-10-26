@@ -30,7 +30,7 @@ import discord
 from shopbot.core.scheduler import PermanentTaskError, RescheduleTask
 from shopbot.db.repos.tasks import Task
 from shopbot.features.checkout import content_keys as k
-from shopbot.features.checkout import handling_repo, repo, service, views
+from shopbot.features.checkout import gift_cards, handling_repo, repo, service, views
 from shopbot.features.checkout import models as m
 from shopbot.features.tickets import service as tickets_service
 from shopbot.features.tickets.models import CREATING, KIND_ORDER, OPEN
@@ -270,6 +270,7 @@ async def on_ready(app: App) -> None:
     session at all; younger ones get a ``checkout.ticket_check`` task when their grace time ends), re-post missing
     staff controls (adopting controls posted but never recorded) and form answers, and make sure the reminder and
     expiry tasks of unpaid orders exist. Every step is deduplicated or conditional."""
+    gift_cards.check_key(app)
     guild = app.guild
     if guild is None:
         log_event(log, logging.WARNING, "checkout_recovery_skipped", reason="guild_unavailable")
@@ -323,4 +324,6 @@ def register(app: App) -> None:
     app.scheduler.register(service.TASK_AFTER_TRANSITION, after_transition_task)
     app.scheduler.register(service.TASK_TICKET_CHECK, ticket_check_task)
     app.scheduler.register(handling_repo.TASK_ACTIVITY_FOLLOWUP, activity_followup_task)
+    app.scheduler.register(gift_cards.TASK_ERASE, gift_cards.erase_task)
     app.bot.add_listener("guild_channel_delete", partial(on_channel_delete, app))
+    app.bot.add_listener("message", partial(gift_cards.on_message, app))

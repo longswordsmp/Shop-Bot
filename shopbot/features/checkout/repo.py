@@ -30,6 +30,7 @@ from shopbot.db.repos import state
 from shopbot.db.repos import tasks as task_repo
 from shopbot.features.catalog import repo as catalog_repo
 from shopbot.features.checkout import flow
+from shopbot.features.checkout import gift_card_store as gift_cards
 from shopbot.features.checkout import models as m
 from shopbot.features.checkout.totals import Totals, compute_totals
 from shopbot.features.credits import repo as credits_repo
@@ -1191,6 +1192,8 @@ def transition(
       cancelled;
     - paid/processing -> cancelled: nothing is restocked, refunded or returned automatically - neither money nor the
       applied store credit; staff decide with the refund controls (``record_refund``, ``return_order_credit``);
+    - gift cards: -> paid counts the cards still waiting as redeemed; an unpaid order that ends gives up its waiting
+      cards; either way the codes are deleted and redeemed value the order does not use becomes store credit;
     - leaving pending_payment cancels the payment reminder/expiry tasks;
     - the follow-up task ``checkout.after_transition:<order_id>:<to>`` is scheduled (see the module docstring).
     """
@@ -1225,6 +1228,11 @@ def transition(
             "UPDATE payments SET status = 'succeeded', updated_at = ? WHERE order_id = ? AND status = 'pending'",
             (now, order_id),
         )
+        # Staff confirmed the payment: gift cards still waiting count as redeemed; value beyond the total is credit.
+        gift_cards.decide(
+            conn, order_id, card_ids=None, status=gift_cards.REDEEMED, reason=None, actor_id=actor_id, now=now
+        )
+        _credit_gift_cards(conn, before, gift_cards.totals(conn, order_id).redeemed_minor - before.total_minor, now)
     elif before.status in m.UNPAID_STATUSES and to in (m.REJECTED, m.CANCELLED, m.EXPIRED):
         _settle_reservations(conn, order_id, m.RESERVATION_RELEASED, now)
         credits_repo.return_for_order(conn, guild_id=guild_id, order_id=order_id, actor_id=actor_id, now=now)
@@ -1233,6 +1241,11 @@ def transition(
             (now, order_id),
         )
         released = True
+        # Waiting gift cards are given up (their codes deleted); cards already redeemed become the customer's credit.
+        gift_cards.decide(
+            conn, order_id, card_ids=None, status=gift_cards.WITHDRAWN, reason=None, actor_id=None, now=now
+        )
+        _credit_gift_cards(conn, before, gift_cards.totals(conn, order_id).redeemed_minor, now)
     if before.status == m.PENDING:
         task_repo.cancel(conn, dedupe_key=reminder_task_key(order_id), now=now)
         task_repo.cancel(conn, dedupe_key=expiry_task_key(order_id), now=now)
@@ -1244,10 +1257,18 @@ def transition(
         dedupe_key=after_transition_key(order_id, to),
         attempts=task_attempts,
         now=now,
+        replace=True,  # a status reached again (a refused gift card sends the order back to pending) re-arms it
     )
     after = get_order(conn, order_id)
     assert after is not None
     return Transition(before=before, after=after, released=released)
+
+
+def _credit_gift_cards(conn: sqlite3.Connection, order: m.Order, unused_minor: int, now: int) -> None:
+    if unused_minor > 0:
+        credits_repo.credit_gift_cards(
+            conn, guild_id=order.guild_id, user_id=order.user_id, order_id=order.id, amount_minor=unused_minor, now=now
+        )
 
 
 @dataclass(frozen=True)

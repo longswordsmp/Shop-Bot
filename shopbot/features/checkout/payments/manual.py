@@ -14,6 +14,7 @@ from shopbot.config.content_keys import ContentKey, Kind, ck
 from shopbot.config.settings import Settings
 from shopbot.features.checkout.models import Order
 from shopbot.features.checkout.payments.base import PaymentInstructions, PaymentStart, RefundResult
+from shopbot.ui.spec import EmbedField
 
 if TYPE_CHECKING:
     from shopbot.context import App
@@ -57,13 +58,16 @@ class ManualProvider:
             ),
         ]
 
-    def instructions(self, order: Order, external_ref: str | None) -> PaymentInstructions:
-        del order, external_ref
+    def instructions(self, settings: Settings, order: Order, external_ref: str | None) -> PaymentInstructions:
+        del settings, order, external_ref
         return PaymentInstructions(description_key=INSTRUCTIONS, title_key=TITLE)
 
+    async def progress(self, app: App, order: Order) -> tuple[EmbedField, ...]:
+        del app, order
+        return ()
+
     async def start(self, app: App, order: Order) -> PaymentStart:
-        del app
-        return PaymentStart(external_ref=None, instructions=self.instructions(order, None))
+        return PaymentStart(external_ref=None, instructions=self.instructions(app.settings, order, None))
 
     async def refund(self, app: App, order: Order, amount_minor: int) -> RefundResult:
         del app, order, amount_minor

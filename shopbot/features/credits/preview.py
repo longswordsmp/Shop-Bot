@@ -26,7 +26,7 @@ SAMPLE_TIME = 1_700_000_000
 
 
 def _sample_entries(count: int) -> tuple[repo.Entry, ...]:
-    kinds = (repo.KIND_ADMIN_ADJUST, repo.KIND_ORDER_DEBIT, repo.KIND_ORDER_RETURN, repo.KIND_REFUND_TO_CREDIT)
+    kinds = repo.KINDS
     entries: list[repo.Entry] = []
     for index in range(count):
         kind = kinds[index % len(kinds)]

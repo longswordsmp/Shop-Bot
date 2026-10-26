@@ -108,6 +108,12 @@ async def on_order_status_changed(app: App, *, order_id: int, status: str, **_: 
     if status == checkout_models.PAID:
         payload = {"alert": k.PAID_ORDER, "order_id": order_id}
         await schedule_alert(app, order_alert_key(k.PAID_ORDER, order_id), payload)
+    elif status == checkout_models.PAYMENT_SUBMITTED:
+        # Once per submission: a customer may submit again after staff refused a card (the order version differs).
+        order = await checkout_service.get_order(app, order_id)
+        if order is not None and order.status == status:
+            payload = {"alert": k.PAYMENT_SUBMITTED, "order_id": order_id}
+            await schedule_alert(app, f"{order_alert_key(k.PAYMENT_SUBMITTED, order_id)}:v{order.version}", payload)
 
 
 async def on_failure(

@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Literal, Protocol
 from shopbot.config.content_keys import ContentKey
 from shopbot.config.settings import Settings
 from shopbot.features.checkout.models import Order
+from shopbot.ui.spec import EmbedField
 
 if TYPE_CHECKING:
     from shopbot.context import App
@@ -19,12 +20,16 @@ class PaymentInstructions:
 
     ``title_key``/``description_key`` are content keys with the placeholders ``{order_number}`` and ``{total}``.
     ``link_url`` (a provider's hosted payment page) is shown as a link button labelled by ``link_label_key``.
+    ``form_label_key``: a button that opens the provider's private payment form (the gift card form). ``fields``:
+    what the customer has paid so far (rendered by the provider's ``progress``).
     """
 
     description_key: str
     title_key: str | None = None
     link_url: str | None = None
     link_label_key: str | None = None
+    form_label_key: str | None = None
+    fields: tuple[EmbedField, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -50,9 +55,10 @@ class RefundResult:
 
 
 class PaymentProvider(Protocol):
-    """A way to collect payment. Implementations never ask for or accept card details or credentials in
-    Discord: either staff confirm a payment made elsewhere, or the customer pays on the provider's own hosted
-    page and a verified webhook confirms it."""
+    """A way to collect payment. Implementations never ask for bank or credit card details or passwords in Discord:
+    staff confirm a payment made elsewhere, the customer pays on the provider's own hosted page and a verified webhook
+    confirms it, or (``gift_card``) the customer submits a gift card in a private form, which is stored encrypted,
+    shown only to the payment staff and deleted once they decided on it."""
 
     id: str
     # True: staff confirm receipt with the "mark paid" button. False: a verified webhook confirms payment.
@@ -64,8 +70,12 @@ class PaymentProvider(Protocol):
         """Customer-facing text this provider shows (declared only while it is the configured provider)."""
         ...
 
-    def instructions(self, order: Order, external_ref: str | None) -> PaymentInstructions:
+    def instructions(self, settings: Settings, order: Order, external_ref: str | None) -> PaymentInstructions:
         """Instructions for an order that is waiting for payment (used again after a restart)."""
+        ...
+
+    async def progress(self, app: App, order: Order) -> tuple[EmbedField, ...]:
+        """What the customer has paid so far for an order waiting for payment (shown with the instructions)."""
         ...
 
     async def start(self, app: App, order: Order) -> PaymentStart:

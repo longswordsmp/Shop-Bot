@@ -19,7 +19,7 @@ from shopbot.ui.style import Ui
 
 Values = Mapping[str, str | int]
 
-_ALERT_TONES = {k.NEW_ORDER: "info", k.PAID_ORDER: "success"}
+_ALERT_TONES = {k.NEW_ORDER: "info", k.PAYMENT_SUBMITTED: "warning", k.PAID_ORDER: "success"}
 STAFF_ALERT_BANNER: BannerId = "staff-notifications"
 REMINDER_BANNER: BannerId = "reminder"
 OWNER_ALERT_BANNER: BannerId = "direct-message-notification"

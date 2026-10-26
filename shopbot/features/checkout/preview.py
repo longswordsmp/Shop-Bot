@@ -17,7 +17,7 @@ from shopbot.config.content import MissingContent
 from shopbot.config.settings import FulfillmentOption, Settings
 from shopbot.features.catalog.repo import NAME_MAX, Product
 from shopbot.features.checkout import content_keys as k
-from shopbot.features.checkout import flow, panel, staff, staff_preview, views
+from shopbot.features.checkout import flow, gift_card_preview, panel, staff, staff_preview, views
 from shopbot.features.checkout import models as m
 from shopbot.features.checkout.payments import get_provider
 from shopbot.features.checkout.totals import compute_totals
@@ -523,7 +523,7 @@ def preview(app: App) -> list[PreviewState]:
     # -- submitted order, status views, staff controls, notifications -----------------------------------------------
     provider = get_provider(settings.payments.provider)
     pending = _order(settings, m.PENDING, lines)
-    instructions = provider.instructions(pending.order, None) if provider is not None else None
+    instructions = provider.instructions(settings, pending.order, None) if provider is not None else None
     add(
         "order_submitted",
         "Workflow message after submission: waiting for payment, with the payment instructions.",
@@ -613,6 +613,8 @@ def preview(app: App) -> list[PreviewState]:
         "Customer notification: a refund was recorded (or applied store credit was given back).",
         lambda: views.refund_notification(ui, settings, _order(settings, m.PAID, lines), 500),
     )
+
+    gift_card_preview.add_states(app, add, pending, _order(settings, m.PAYMENT_SUBMITTED, lines), instructions)
 
     # -- errors (private) -------------------------------------------------------------------------------------------
     sample = views.escape(products[0].name)

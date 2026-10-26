@@ -34,6 +34,8 @@ perform staff actions check staff status inside the handler, e.g. per-ticket-cat
 | component | `co` | `ocancel_no` | checkout | any | no | `shopbot.features.checkout.handlers.on_order_cancel_no` |
 | component | `co` | `ocancel_yes` | checkout | any | no | `shopbot.features.checkout.handlers.on_order_cancel_yes` |
 | component | `co` | `page` | checkout | any | no | `shopbot.features.checkout.handlers.on_page` |
+| component | `co` | `payform` | checkout | any | no | `shopbot.features.checkout.handlers.on_payment_form` |
+| modal | `co` | `paysubmit` | checkout | any | no | `shopbot.features.checkout.handlers.on_payment_submit` |
 | component | `co` | `pick` | checkout | any | no | `shopbot.features.checkout.handlers.on_pick` |
 | modal | `co` | `qty` | checkout | any | no | `shopbot.features.checkout.handlers.on_quantity` |
 | modal | `co` | `sform` | checkout | any | no | `shopbot.features.checkout.handlers.on_submission_form` |
@@ -49,6 +51,10 @@ perform staff actions check staff status inside the handler, e.g. per-ticket-cat
 | modal | `cs` | `creturnform` | checkout | staff | no | `shopbot.features.checkout.handlers.on_credit_return_form` |
 | component | `cs` | `details` | checkout | staff | no | `shopbot.features.checkout.handlers.on_record_details` |
 | component | `cs` | `fulfill` | checkout | staff | no | `shopbot.features.checkout.handlers.on_staff_action` |
+| component | `cs` | `gcok` | checkout | staff | no | `shopbot.features.checkout.handlers.on_gift_card_redeemed` |
+| component | `cs` | `gcproblem` | checkout | staff | no | `shopbot.features.checkout.handlers.on_gift_card_problem` |
+| modal | `cs` | `gcproblemform` | checkout | staff | no | `shopbot.features.checkout.handlers.on_gift_card_problem_form` |
+| component | `cs` | `gcreveal` | checkout | staff | no | `shopbot.features.checkout.handlers.on_gift_card_reveal` |
 | component | `cs` | `lfilter` | checkout | staff | no | `shopbot.features.checkout.handlers.on_list_filter` |
 | component | `cs` | `lpage` | checkout | staff | no | `shopbot.features.checkout.handlers.on_list_page` |
 | component | `cs` | `lview` | checkout | staff | no | `shopbot.features.checkout.handlers.on_list_view` |
@@ -110,6 +116,7 @@ perform staff actions check staff status inside the handler, e.g. per-ticket-cat
 - `checkout.activity_followup`
 - `checkout.after_submit`
 - `checkout.after_transition`
+- `checkout.gift_card_erase`
 - `checkout.payment_expire`
 - `checkout.payment_reminder`
 - `checkout.session_expire`

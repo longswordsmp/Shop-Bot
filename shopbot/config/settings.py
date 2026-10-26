@@ -505,8 +505,27 @@ class CheckoutSettings:
 
 
 @dataclass(frozen=True)
+class GiftCardSettings:
+    """``[payments.gift_card]``: customers pay with gift cards they submit in a private form (provider
+    "gift_card"). Codes are stored encrypted, shown only to ``staff_roles``, and deleted once staff decide on a card
+    or after ``keep_days``."""
+
+    # The "Buy a gift card" link button next to the payment instructions (empty: no button).
+    buy_url: str = ""
+    # Roles (keys) that may reveal codes and confirm or refuse gift card payments; owners and admins always may.
+    staff_roles: tuple[str, ...] = ()
+    # Cards one order may be paid with.
+    max_cards: int = 5
+    # Days a submitted code is kept before it is deleted unread.
+    keep_days: int = 7
+    # Delete a customer's message in their order ticket when it looks like a gift card code.
+    chat_guard: bool = True
+
+
+@dataclass(frozen=True)
 class PaymentSettings:
     provider: str = ""
+    gift_card: GiftCardSettings = GiftCardSettings()
 
 
 @dataclass(frozen=True)
@@ -1081,7 +1100,16 @@ def parse_settings(data: dict[str, Any]) -> Settings:
         errors.append("checkout: decimal_separator and thousands_separator must differ")
 
     pa = root.table("payments")
-    payments = PaymentSettings(provider=pa.str_("provider", "", pattern=KEY_PATTERN))
+    gc = pa.table("gift_card")
+    gift_card = GiftCardSettings(
+        buy_url=gc.url_("buy_url"),
+        staff_roles=gc.keys_("staff_roles"),
+        max_cards=gc.int_("max_cards", 5, min_=1, max_=10),
+        keep_days=gc.int_("keep_days", 7, min_=1, max_=30),
+        chat_guard=gc.bool_("chat_guard", True),
+    )
+    gc.finish()
+    payments = PaymentSettings(provider=pa.str_("provider", "", pattern=KEY_PATTERN), gift_card=gift_card)
     pa.finish()
 
     cr = root.table("credits")

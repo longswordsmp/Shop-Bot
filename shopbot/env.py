@@ -6,6 +6,8 @@ file in development). Values are never logged; diagnostics name the variable onl
 
 from __future__ import annotations
 
+import base64
+import binascii
 import os
 from collections.abc import Mapping
 from dataclasses import dataclass, field
@@ -41,6 +43,8 @@ class Env:
     log_format: str
     app_env: str
     startup_failure_delay_seconds: int
+    # The key that encrypts submitted gift card codes (a Fernet key). Unset: a key file next to the database is used.
+    gift_card_key: str | None = field(default=None, repr=False)
 
     @property
     def is_production(self) -> bool:
@@ -132,6 +136,13 @@ def load_env(environ: Mapping[str, str] | None = None, *, require_token: bool = 
         problems.append("STARTUP_FAILURE_DELAY_SECONDS must be an integer between 0 and 600")
         delay_raw = "30"
 
+    gift_card_key = (env.get("GIFT_CARD_KEY") or "").strip() or None
+    if gift_card_key is not None and not _is_fernet_key(gift_card_key):
+        problems.append(
+            "GIFT_CARD_KEY must be a Fernet key (44 characters of URL-safe base64), or unset to use a key file next "
+            "to the database"
+        )
+
     if problems:
         raise EnvError(problems)
 
@@ -145,4 +156,13 @@ def load_env(environ: Mapping[str, str] | None = None, *, require_token: bool = 
         log_format=log_format,
         app_env=app_env,
         startup_failure_delay_seconds=int(delay_raw),
+        gift_card_key=gift_card_key,
     )
+
+
+def _is_fernet_key(value: str) -> bool:
+    """32 bytes, URL-safe base64 encoded (what ``cryptography.fernet.Fernet.generate_key()`` returns)."""
+    try:
+        return len(base64.urlsafe_b64decode(value.encode("ascii"))) == 32 and len(value) == 44
+    except (ValueError, binascii.Error, UnicodeEncodeError):
+        return False

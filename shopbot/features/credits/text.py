@@ -52,4 +52,5 @@ OPERATOR_TEXT: dict[str, str] = {
     "credits.kind.order_debit": "Used for an order",
     "credits.kind.order_return": "Returned from an order",
     "credits.kind.refund_to_credit": "Refund to credit",
+    "credits.kind.gift_card": "Gift card balance",
 }

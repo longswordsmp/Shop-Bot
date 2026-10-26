@@ -299,27 +299,6 @@ Constraints:
 - `status TEXT NOT NULL CHECK (status IN ('pending', 'succeeded', 'failed', 'cancelled'))`
 - `amount_minor INTEGER NOT NULL CHECK (amount_minor >= 0)`
 
-## `credit_ledger`
-
-| Column | Type | Not null | Default | Key |
-|---|---|---|---|---|
-| `id` | INTEGER |  |  | PK |
-| `guild_id` | INTEGER | yes |  |  |
-| `user_id` | INTEGER | yes |  |  |
-| `delta_minor` | INTEGER | yes |  |  |
-| `kind` | TEXT | yes |  |  |
-| `order_id` | INTEGER |  |  |  |
-| `actor_id` | INTEGER |  |  |  |
-| `note` | TEXT |  |  |  |
-| `created_at` | INTEGER | yes |  |  |
-
-Indexes: `uq_credit_ledger_order_kind` (unique), `idx_credit_ledger_user`
-
-Constraints:
-
-- `delta_minor INTEGER NOT NULL CHECK (delta_minor != 0)`
-- `kind TEXT NOT NULL CHECK (kind IN ('admin_adjust', 'order_debit', 'order_return', 'refund_to_credit'))`
-
 ## `scheduled_tasks`
 
 | Column | Type | Not null | Default | Key |
@@ -687,3 +666,57 @@ Constraints:
 - `refunded_minor INTEGER NOT NULL DEFAULT 0 CHECK (refunded_minor >= 0)`
 - `CHECK (total_minor = subtotal_minor + fulfillment_fee_minor + fees_minor - credits_applied_minor)`
 - `CHECK (refunded_minor <= total_minor)`
+
+## `gift_cards`
+
+| Column | Type | Not null | Default | Key |
+|---|---|---|---|---|
+| `id` | INTEGER |  |  | PK |
+| `guild_id` | INTEGER | yes |  |  |
+| `order_id` | INTEGER | yes |  |  |
+| `user_id` | INTEGER | yes |  |  |
+| `amount_minor` | INTEGER | yes |  |  |
+| `fingerprint` | TEXT | yes |  |  |
+| `sealed` | BLOB |  |  |  |
+| `last4` | TEXT | yes |  |  |
+| `status` | TEXT | yes | 'submitted' |  |
+| `reason` | TEXT |  |  |  |
+| `submitted_at` | INTEGER | yes |  |  |
+| `reveal_count` | INTEGER | yes | 0 |  |
+| `revealed_by` | INTEGER |  |  |  |
+| `revealed_at` | INTEGER |  |  |  |
+| `decided_by` | INTEGER |  |  |  |
+| `decided_at` | INTEGER |  |  |  |
+| `erased_at` | INTEGER |  |  |  |
+
+Indexes: `idx_gift_cards_stored`, `uq_gift_cards_fingerprint` (unique), `idx_gift_cards_order`
+
+Constraints:
+
+- `amount_minor INTEGER NOT NULL CHECK (amount_minor > 0)`
+- `fingerprint TEXT NOT NULL CHECK (length(fingerprint) = 64)`
+- `last4 TEXT NOT NULL CHECK (length(last4) BETWEEN 1 AND 4)`
+- `status TEXT NOT NULL DEFAULT 'submitted' CHECK (status IN ('submitted', 'redeemed', 'refused', 'withdrawn'))`
+- `reason TEXT CHECK (reason IS NULL OR length(reason) <= 500)`
+- `CHECK (status = 'submitted' OR sealed IS NULL)`
+
+## `credit_ledger`
+
+| Column | Type | Not null | Default | Key |
+|---|---|---|---|---|
+| `id` | INTEGER |  |  | PK |
+| `guild_id` | INTEGER | yes |  |  |
+| `user_id` | INTEGER | yes |  |  |
+| `delta_minor` | INTEGER | yes |  |  |
+| `kind` | TEXT | yes |  |  |
+| `order_id` | INTEGER |  |  |  |
+| `actor_id` | INTEGER |  |  |  |
+| `note` | TEXT |  |  |  |
+| `created_at` | INTEGER | yes |  |  |
+
+Indexes: `uq_credit_ledger_order_kind` (unique), `idx_credit_ledger_user`
+
+Constraints:
+
+- `delta_minor INTEGER NOT NULL CHECK (delta_minor != 0)`
+- `kind TEXT NOT NULL CHECK (kind IN ('admin_adjust', 'order_debit', 'order_return', 'refund_to_credit', 'gift_card'))`
