@@ -110,11 +110,11 @@ async def test_buy_buttons_reply_with_their_banners_and_keep_the_cart_banner(bco
     added = await click(bco.app, user=customer, custom_id=f"sb:co:buy:{p2.id}")
     assert shows(bco, last_reply(added), "selection-and-cart")
     assert watch.kept("selection-and-cart")  # the live message shows the new cart; the picture is not sent again
-    # A product that could not be put in the cart after all: its notice is a second card of the same reply.
+    # A product that could not be put in the cart after all: its notice is the last paragraph of the same card.
     notice = bco.app.ui.error_embed(k.ERROR_OUT_OF_STOCK, name="[p1]", available=0)
     assert notice is not None
     sold_out = views.buy_started_reply(bco.app.ui, ch.id, notice)
-    assert sold_out.banner == bco.app.ui.banner("ticket-created") and len(sold_out.embeds) == 2
+    assert sold_out.banner == bco.app.ui.banner("ticket-created") and len(sold_out.embeds) == 1
 
 
 async def test_open_order_limit_replies(tmp_path: Path) -> None:

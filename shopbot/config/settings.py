@@ -431,6 +431,10 @@ class CatalogSettings:
     image_hosts: tuple[str, ...] = ()
     # Products with 1..N units left show the "low stock" availability (warning color); 0 = no low-stock state.
     low_stock_threshold: int = 0
+    # False: the listing channel shows only its header card (with the category menu), no public product cards.
+    product_cards: bool = True
+    # Product cards per page of the private message a category pick opens (under its title card).
+    products_per_category_page: int = 5
 
 
 @dataclass(frozen=True)
@@ -709,7 +713,7 @@ class ShippingSettings:
     country_names: Mapping[str, str] = field(default_factory=dict)
     # Extra information sections (content keys shipping.info.<n>.name/.value), shown after the countries.
     info_sections: int = 0
-    # Countries whose areas #shipping lists one by one with their dots (US: every state), in a card of their own.
+    # Countries whose areas #shipping lists one by one with their dots (US: every state), at the bottom of its card.
     list_areas: tuple[str, ...] = ()
 
     def country_name(self, code: str) -> str:
@@ -1114,6 +1118,8 @@ def parse_settings(data: dict[str, Any]) -> Settings:
         browse_enabled=ca.bool_("browse_enabled", True),
         image_hosts=ca.strs_("image_hosts"),
         low_stock_threshold=ca.int_("low_stock_threshold", 0, min_=0, max_=1_000_000),
+        product_cards=ca.bool_("product_cards", True),
+        products_per_category_page=ca.int_("products_per_category_page", 5, min_=1, max_=9),
     )
     ca.finish()
 

@@ -1,4 +1,4 @@
-"""The ``/product`` slash command group (catalog managers and admins).
+"""The ``/product`` and ``/category`` slash command groups (catalog managers and admins).
 
 Visibility: ``default_permissions(manage_guild=True)`` hides the group from members without Manage Server
 (a convenience only; server admins can change it). Authorization is enforced on every invocation by
@@ -11,6 +11,9 @@ message that shows it, again on every edit.
 
 ``/product remove`` asks for confirmation with buttons (staff-only, routed ``ct:remove``/``ct:remove_no``) and then
 archives the product (the same rules as ``/product archive``: refused while pending orders hold units).
+
+``/category create|edit|delete|list`` manage the categories of the #catalog menu and ``/product categories`` puts a
+product in one or takes it out (``category_admin``); category options autocomplete by name.
 """
 
 from __future__ import annotations
@@ -22,7 +25,7 @@ import discord
 from discord import app_commands
 
 from shopbot.commands import NotAuthorized, app_of, reply, require_staff
-from shopbot.features.catalog import repo, service, views
+from shopbot.features.catalog import categories, category_admin, repo, service, views
 from shopbot.features.catalog.content_keys import CATALOG
 from shopbot.ui.discord_render import check_modal, to_modal
 from shopbot.ui.spec import ModalSpec
@@ -33,6 +36,11 @@ if TYPE_CHECKING:
 T = TypeVar("T")
 MAX_ID = 9_007_199_254_740_991  # Discord integer option maximum (2**53 - 1)
 ProductId = app_commands.Range[int, 1, MAX_ID]
+CategoryId = app_commands.Range[int, 1, MAX_ID]
+CategoryName = app_commands.Range[str, 1, categories.NAME_MAX]
+CategoryEmoji = app_commands.Range[str, 1, 40]
+CategoryDescription = app_commands.Range[str, 1, categories.DESCRIPTION_MAX]
+CategoryPosition = app_commands.Range[int, -categories.POSITION_LIMIT, categories.POSITION_LIMIT]
 StockAmount = app_commands.Range[int, -repo.STOCK_MAX, repo.STOCK_MAX]
 Position = app_commands.Range[int, -repo.SORT_LIMIT, repo.SORT_LIMIT]
 CHOICE_NAME_MAX = 100
@@ -102,6 +110,124 @@ def _autocomplete(include_archived: bool) -> AutocompleteCallback:
         return [app_commands.Choice(name=_choice_name(app, p), value=p.id) for p in products[:25]]
 
     return complete
+
+
+def _category_choice(app: App, category: categories.Category) -> str:
+    label = app.op("catalog.category.choice", category_id=category.id, name=category.name)
+    return label if 1 <= len(label) <= CHOICE_NAME_MAX else category.name
+
+
+def _category_autocomplete(*, of_product: bool = False) -> AutocompleteCallback:
+    """Category names matching what was typed; ``of_product``: only the categories of the product chosen in the same
+    command (``/product categories remove:``), when one is chosen."""
+
+    async def complete(interaction: discord.Interaction[Any], current: str) -> list[app_commands.Choice[int]]:
+        app = app_of(interaction)
+        if interaction.guild_id != app.env.guild_id or not service.is_manager(
+            app, _member(interaction), interaction.user.id
+        ):
+            return []
+        product_id = getattr(interaction.namespace, "product_id", None) if of_product else None
+        product = product_id if isinstance(product_id, int) else None
+        found = await category_admin.autocomplete(app, current, product)
+        return [app_commands.Choice(name=_category_choice(app, c), value=c.id) for c in found[:25]]
+
+    return complete
+
+
+def build_category_group() -> app_commands.Group:
+    """``/category``: the categories of the #catalog menu (catalog managers and admins, like ``/product``)."""
+    group = app_commands.Group(name="category", description="Categories of the catalog menu (catalog managers).")
+    group = app_commands.default_permissions(manage_guild=True)(group)
+    group = app_commands.guild_only(group)
+    any_category = _category_autocomplete()
+
+    @group.command(name="create", description="Create a category for the #catalog menu.")
+    @app_commands.describe(
+        name="Its name in the menu (1-50 characters), e.g. Old stock.",
+        emoji="An icon name of the bot (e.g. tag) or one emoji.",
+        description="Small text under its name in the menu (up to 100 characters).",
+        position="Its place in the menu (lower comes first; default: last).",
+    )
+    @require_staff(service.manager_role_keys)
+    @require_manager()
+    async def create(
+        interaction: discord.Interaction[Any],
+        name: CategoryName,
+        emoji: CategoryEmoji | None = None,
+        description: CategoryDescription | None = None,
+        position: CategoryPosition | None = None,
+    ) -> None:
+        app = app_of(interaction)
+        await _run(
+            interaction,
+            lambda: category_admin.create(
+                app,
+                actor_id=interaction.user.id,
+                name=name,
+                emoji=emoji or "",
+                description=description or "",
+                position=position,
+            ),
+        )
+
+    @group.command(name="edit", description="Change a category's name, emoji, description or place in the menu.")
+    @app_commands.describe(
+        category="The category to change.",
+        name="New name (1-50 characters).",
+        emoji="An icon name of the bot (e.g. tag) or one emoji; - removes it.",
+        description="Small text under its name (up to 100 characters); - removes it.",
+        position="Its place in the menu (lower comes first).",
+    )
+    @require_staff(service.manager_role_keys)
+    @require_manager()
+    async def edit(
+        interaction: discord.Interaction[Any],
+        category: CategoryId,
+        name: CategoryName | None = None,
+        emoji: CategoryEmoji | None = None,
+        description: CategoryDescription | None = None,
+        position: CategoryPosition | None = None,
+    ) -> None:
+        app = app_of(interaction)
+        await _run(
+            interaction,
+            lambda: category_admin.edit(
+                app,
+                actor_id=interaction.user.id,
+                category_id=category,
+                name=name,
+                emoji=emoji,
+                description=description,
+                position=position,
+            ),
+        )
+
+    @group.command(name="delete", description="Delete a category (its items stay in the catalog).")
+    @app_commands.describe(category="The category to delete.", confirm="Set to True to delete it.")
+    @require_staff(service.manager_role_keys)
+    @require_manager()
+    async def delete(interaction: discord.Interaction[Any], category: CategoryId, confirm: bool = False) -> None:
+        app = app_of(interaction)
+        await _run(
+            interaction,
+            lambda: category_admin.delete(app, actor_id=interaction.user.id, category_id=category, confirm=confirm),
+        )
+
+    @group.command(name="list", description="List the categories with their items.")
+    @require_staff(service.manager_role_keys)
+    @require_manager()
+    async def list_(interaction: discord.Interaction[Any]) -> None:
+        if not await _ready(interaction):
+            return
+        app = app_of(interaction)
+        await interaction.response.defer(ephemeral=True, thinking=True)
+        for spec in await category_admin.list_messages(app):
+            await reply(interaction, spec, ephemeral=True)
+
+    edit.autocomplete("category")(any_category)
+    delete.autocomplete("category")(any_category)
+    return group
 
 
 def build_product_group() -> app_commands.Group:
@@ -258,6 +384,28 @@ def build_product_group() -> app_commands.Group:
         await interaction.response.defer(ephemeral=True, thinking=True)
         await reply(interaction, await service.admin_list_view(app, 0, include_archived), ephemeral=True)
 
+    @group.command(name="categories", description="Put a product in a category, take it out, or show its categories.")
+    @app_commands.describe(
+        product_id="Product number.",
+        add="A category to put it in.",
+        remove="A category to take it out of.",
+    )
+    @require_staff(service.manager_role_keys)
+    @require_manager()
+    async def categories_(
+        interaction: discord.Interaction[Any],
+        product_id: ProductId,
+        add: CategoryId | None = None,
+        remove: CategoryId | None = None,
+    ) -> None:
+        app = app_of(interaction)
+        await _run(
+            interaction,
+            lambda: category_admin.product_categories(
+                app, actor_id=interaction.user.id, product_id=product_id, add=add, remove=remove
+            ),
+        )
+
     edit.autocomplete("product_id")(active_products)
     price.autocomplete("product_id")(active_products)
     stock.autocomplete("product_id")(active_products)
@@ -267,4 +415,7 @@ def build_product_group() -> app_commands.Group:
     remove.autocomplete("product_id")(active_products)
     sort.autocomplete("product_id")(active_products)
     view.autocomplete("product_id")(all_products)
+    categories_.autocomplete("product_id")(active_products)
+    categories_.autocomplete("add")(_category_autocomplete())
+    categories_.autocomplete("remove")(_category_autocomplete(of_product=True))
     return group

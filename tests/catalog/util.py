@@ -64,18 +64,21 @@ async def listing_channel(tenv: TestEnv) -> FakeTextChannel:
     return channel
 
 
-def product_command(app: App, name: str) -> Any:
+def product_command(app: App, name: str, group_name: str = "product") -> Any:
     assert app.bot is not None
-    group = app.bot.tree.get_command("product", guild=app.guild_object)
+    group = app.bot.tree.get_command(group_name, guild=app.guild_object)
     assert group is not None
     command = group.get_command(name)
     assert command is not None
     return command
 
 
-async def invoke(tenv: TestEnv, user: FakeMember, name: str, **kwargs: Any) -> FakeInteraction:
-    """Run /product <name> like Discord would: checks first (errors go to the tree handler), then the callback."""
-    command = product_command(tenv.app, name)
+async def invoke(
+    tenv: TestEnv, user: FakeMember, name: str, /, *, group_name: str = "product", **kwargs: Any
+) -> FakeInteraction:
+    """Run /product <name> (or /<group_name> <name>) like Discord would: checks first (errors go to the tree
+    handler), then the callback."""
+    command = product_command(tenv.app, name, group_name)
     interaction = FakeInteraction(
         client=tenv.bot, user=user, guild=tenv.guild, type=discord.InteractionType.application_command
     )
@@ -90,12 +93,23 @@ async def invoke(tenv: TestEnv, user: FakeMember, name: str, **kwargs: Any) -> F
 
 
 def buttons(message: FakeMessage) -> list[tuple[str | None, str | None, bool]]:
-    """(custom_id, label, disabled) of every button in a message."""
+    """(custom_id, label, disabled) of every button in a message (the category menu is not a button: see ``menu``)."""
     out: list[tuple[str | None, str | None, bool]] = []
     for child in message.components():
         item = getattr(child, "item", child)
+        if isinstance(item, discord.ui.Select):
+            continue
         out.append((getattr(item, "custom_id", None), getattr(item, "label", None), bool(item.disabled)))
     return out
+
+
+def menu(message: FakeMessage) -> list[tuple[str, str]]:
+    """(value, label) of every option of the message's category menu ([] without one)."""
+    for child in message.components():
+        item = getattr(child, "item", child)
+        if isinstance(item, discord.ui.Select) and item.custom_id == "sb:ct:cat":
+            return [(o.value, o.label) for o in item.options]
+    return []
 
 
 def embed_texts(message: FakeMessage) -> list[str]:

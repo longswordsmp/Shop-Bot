@@ -15,8 +15,8 @@ only a real server can confirm:
    raw text such as `<:truck:123…>`.
 3. **Payment methods.** In an order ticket, press *Credit or debit card*: the private "Dear customer, we're sorry …"
    message appears with *Submit gift card* (opens the gift card form) and *Buy a gift card*.
-4. **#shipping.** Standard "about 2 weeks", Expedited "usually 3–4 days", the US states one by one, the picture at
-   the very bottom.
+4. **#shipping.** One message, one card: Standard "about 2 weeks", Expedited "usually 3–4 days", the US states by
+   name at the bottom of the same card (one line per dot), the picture at the very bottom.
 5. **Products with pictures.** `/product add image:<picture>`: the picture shows under the item's name in #catalog.
 6. **Staff tools.** `/stats` answers privately with the week's sales, the open orders by next step and the best
    sellers. Order an item down to 3 units: one "Low stock" alert in #staff-chat; order the rest: one "Sold out" alert.
@@ -32,6 +32,9 @@ only a real server can confirm:
    `/status` names it, and reviews stay hidden until it is changed. A review with a photo now always waits for
    *Approve* (`reviews.photo_requires_approval`, shipped on). The photo upload inside the form is Discord's newer
    file upload field: try it once from a phone and a computer (step 12 of `docs/MORNING.md`).
+9. **Categories.** `/category create name:Old stock`, `/product categories product_id:<id> add:Old stock`; pick Old
+   stock in the #catalog menu: a private message with its items and their Buy buttons; the same pick works twice in a
+   row. Then set up the shop's real categories (at most 24, besides the built-in All items).
 
 ## 2. Decisions only the owner can make
 
@@ -46,6 +49,15 @@ only a real server can confirm:
   customers thinking the shop is Amazon or partnered with Amazon, and the server being reported.
 - **Delivery times.** "About 2 weeks" and "usually 3–4 days" are promises to customers; change the texts if they
   differ by region.
+- **#catalog with many items.** Discord opens a channel at its newest message, so with one public card per item
+  members land at the bottom of #catalog while the category menu is on the first message at the top. Either pin
+  that header message (the menu is then one click away in Pins) or set `product_cards = false` under `[catalog]` so
+  #catalog is one card with the menu and the items are browsed privately (then consider emptying
+  `catalog.picker.description`, which repeats the header's own text).
+- **Bulk orders and the package coupon.** The FAQ says bulk orders cost nothing extra and get a percentage off
+  (staff send a discount code in the ticket): decide the percentage and from what quantity. The warehouse post
+  promises a 20% off coupon in every package (old stock only, can be given to a friend): create it before posting
+  (`docs/MORNING.md`, step 12) and choose whether one customer may use it more than once (`once_per_customer`).
 
 - **Reviews without an order.** `/review` from a member without a delivered order writes an unverified review (no
   "Verified purchase" marker), always checked by staff first, one per member every 30 days
@@ -80,4 +92,5 @@ Done since this list was written: `/stats` for staff, low-stock / sold-out alert
 (`operations.stock_alerts`, see `docs/features/operations.md`), and discount codes: `/discount` (percent off, amount
 off, buy one get one free; product limits, minimum, uses, end date, once per customer), the code field and claimed
 coupons on the review step, the discount on the order card, the #orders record and `/order view` (see
-`docs/DECISIONS.md` §11e).
+`docs/DECISIONS.md` §11e), and catalog categories: a menu on the #catalog header that shows a category's items in a
+private message, `/category` and `/product categories` (see `docs/DECISIONS.md` §11j).

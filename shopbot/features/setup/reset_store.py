@@ -7,10 +7,11 @@ again. Records of objects that still exist (a channel Discord does not let anyon
 kept, so /setup keeps using them.
 
 The wipe (``/reset wipe_shop_data:True``) deletes every row of ``WIPED_TABLES`` in one transaction: orders and
-everything that belongs to them, products, discount codes (with their products and claimed coupons), reviews (with
-their stored photos), tickets, store credit and customer records. ``KEPT_TABLES`` stay: texts, settings-related
-records, the audit log, announcements, counters (order and ticket numbers keep counting, so a number in an old message
-never points to a new order) and the id sequences (every id table uses AUTOINCREMENT, so ids are never reused either).
+everything that belongs to them, products and their categories, discount codes (with their products and claimed
+coupons), reviews (with their stored photos), tickets, store credit and customer records. ``KEPT_TABLES`` stay: texts,
+settings-related records, the audit log, announcements, counters (order and ticket numbers keep counting, so a number
+in an old message never points to a new order) and the id sequences (every id table uses AUTOINCREMENT, so ids are
+never reused either).
 Pending tasks of the wiped features are cancelled; ``KEPT_TASK_KINDS`` are system tasks that stay scheduled. The
 database belongs to the one server ``GUILD_ID`` names, so the wipe is not filtered by guild.
 """
@@ -47,6 +48,8 @@ WIPED_TABLES: Final = (
     "discount_codes",
     "new_arrival_announcements",
     "product_images",
+    "product_categories",
+    "catalog_categories",
     "products",
     "ticket_participants",
     "ticket_replies",

@@ -36,13 +36,15 @@ Roles: **Owner** (given to `OWNER_ID`), **Staff**, **Member** (the #welcome "I a
 - **#welcome** — one card: introduction, rules and a **Verify** button that grants Member.
 - **#how-to-order / #faq / #shipping** — one card each: numbered steps with channel links; FAQ topics with their
   questions; every country we ship to with a blue (everywhere) or yellow (some areas excluded) dot, the delivery
-  options and prices.
+  options and prices, then every US state one by one at the bottom of the same card.
 - **#announcements** — `/announce` (staff) with title, message, configured fields, image and optional role ping;
   `/announce preset:` posts a ready-made announcement after a private preview, e.g. the warehouse sale with its
   **Claim coupon** button (buy one, get one free), which shows **Offer ended** once the coupon ends, or our apology
   for the areas we can't ship to right now (named from `[shipping.excluded_areas]`, like #shipping).
 - **#catalog** — one live embed per item with a Buy button (disabled when sold out), availability colors, uploaded
-  images that stay attached; `/product add|edit|remove|list|...`.
+  images that stay attached; a category menu on the header card (All items, then the categories) that shows the
+  chosen category's items in a private message with their Buy buttons; `/product add|edit|remove|list|categories|...`,
+  `/category create|edit|delete|list`.
 - **#new-arrivals** — Restock Alerts opt-in button and automatic new-item / back-in-stock posts (each once).
 - **#reviews** — an intro panel at the top with a **Write a review** button (every member: stars, a description and
   an optional photo; `/review` does the same where they can type) and the review request after delivery; published without the member's name, "Verified purchase" for a delivered order;

@@ -12,10 +12,11 @@ import pytest
 from shopbot.core.panels import withdraw_unready_panels
 from shopbot.db.repos import state
 from shopbot.features import core_keys as ck
-from shopbot.features.guides import faq, how_to_buy, shipping
+from shopbot.features.guides import common, faq, how_to_buy, shipping
 from shopbot.features.guides.common import record_key
 from shopbot.features.server_keys import channel_url
 from shopbot.ui import limits
+from shopbot.ui.spec import MessageSpec
 from tests.fakes import FakeMessage, http_error
 from tests.guides.util import apply_settings, channel, guide_env, guide_settings, messages
 from tests.helpers import TestEnv
@@ -400,6 +401,36 @@ async def test_shipping_is_one_card_listing_countries_by_group_with_status_dots(
         positions = [text.index(h) for h in ("**[north]**", "**[europe]**", "**[not available]**", *info)]
         assert positions == sorted(positions)
         assert card.color is not None and card.color.value == tenv.app.ui.color("info")
+    finally:
+        await tenv.close()
+
+
+async def test_listed_states_close_the_card_and_the_old_states_message_is_removed(tmp_path: Path) -> None:
+    content = SHIPPING_TEXT | {shipping.AREAS_HEADING: "[states of] {country}"}
+    tenv = await guide_env(tmp_path, {"shipping": {"list_areas": ["US"]}}, content=content)
+    try:
+        app = tenv.app
+
+        def earlier_layout(guild: discord.Guild) -> list[MessageSpec]:
+            # Two messages, as when the states had a message of their own after the shipping card.
+            texts = common.runtime_texts(app, guild)
+            return 2 * shipping.shipping_messages(app.ui, app.settings.shipping, app.settings.checkout, texts)
+
+        await common.publish_guide(
+            app, feature=shipping.SHIPPING, prefix=shipping.PREFIX, channel_key="shipping", build=earlier_layout
+        )
+        assert len(messages(tenv, "shipping")) == 2
+        lines = await shipping.publish(app)
+        (found,) = messages(tenv, "shipping")
+        assert "1 old message(s) removed" in lines[0]
+        assert [r.key for r in await records(tenv, shipping.PREFIX)] == [record_key(shipping.PREFIX, 0)]
+        (card,) = found.embeds
+        assert "\n\n**[states of] United States**\n" in (card.description or "")
+        lines = (card.description or "").split("\n")
+        assert card.fields == []
+        assert lines[-2].startswith("🟢 Alabama · Arizona") and lines[-2].endswith(" · Wyoming")
+        assert lines[-1] == "🔴 Alaska · North\u00a0Dakota"
+        assert_within_limits([found])
     finally:
         await tenv.close()
 

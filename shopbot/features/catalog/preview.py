@@ -15,7 +15,8 @@ from functools import partial
 from typing import TYPE_CHECKING
 
 from shopbot.config.content import MissingContent
-from shopbot.features.catalog import images, service, views
+from shopbot.features.catalog import categories, images, service, views
+from shopbot.features.catalog.categories import Category
 from shopbot.features.catalog.content_keys import CATALOG
 from shopbot.features.catalog.repo import Product
 from shopbot.ui.spec import EmbedField, MessageSpec, ModalSpec, PreviewState
@@ -57,6 +58,23 @@ SAMPLE_PRODUCTS: tuple[Product, ...] = (
     _sample(2, price_minor=500, stock_on_hand=None, description="[sample description 2]"),
     _sample(3, price_minor=9900, stock_on_hand=4, reserved=4),
     _sample(4, price_minor=750, stock_on_hand=1),
+)
+
+
+SAMPLE_CATEGORIES: tuple[Category, ...] = (
+    Category(
+        id=1,
+        guild_id=0,
+        name="[sample category 1]",
+        emoji="{icon_tag}",
+        description="[sample category description]",
+        position=1,
+        created_at=0,
+        updated_at=0,
+    ),
+    Category(
+        id=2, guild_id=0, name="[sample category 2]", emoji="", description="", position=2, created_at=0, updated_at=0
+    ),
 )
 
 
@@ -112,14 +130,18 @@ def preview(app: App) -> list[PreviewState]:
 
     if catalog.listing_channel:
         try:
-            messages = views.listing_messages(ui, settings, SAMPLE_PRODUCTS, uploaded)
+            messages = views.listing_messages(ui, settings, SAMPLE_PRODUCTS, uploaded, categories=SAMPLE_CATEGORIES)
         except MissingContent:
             messages = []
         by_title = {views.escape(p.name): p for p in SAMPLE_PRODUCTS}
         for index, spec in enumerate(messages):
             if index == 0:
-                browse = " with the private-browsing button" if catalog.browse_enabled else ""
-                note = f"Live listing, first message in the listing channel: the header card{browse}."
+                browse = " and the private-browsing button" if catalog.browse_enabled else ""
+                cards = "" if catalog.product_cards else " (catalog.product_cards = false: the only message)"
+                note = (
+                    "Live listing, first message in the listing channel: the header card with the category menu "
+                    f"(All, then every category; a pick opens that category's private view){browse}{cards}."
+                )
             else:
                 shown = [by_title[e.title] for e in spec.embeds if e.title in by_title]
                 parts = [
@@ -133,6 +155,13 @@ def preview(app: App) -> list[PreviewState]:
             "Live listing when no product is active: header card + the 'empty' card.",
             lambda: views.listing_messages(ui, settings, ())[0],
         )
+        if catalog.product_cards:
+            add(
+                "listing_header_no_categories",
+                "Live listing header before the first /category create: no menu yet (its only choice would be All, "
+                "the same items as the public cards); the first category adds it.",
+                lambda: views.listing_messages(ui, settings, SAMPLE_PRODUCTS, uploaded)[0],
+            )
     if catalog.browse_enabled:
         total = len(SAMPLE_PRODUCTS)
         for page, label in ((0, "first"), (1, "middle"), (2, "sold_out"), (total - 1, "last")):
@@ -158,6 +187,42 @@ def preview(app: App) -> list[PreviewState]:
             "Private browsing when no product is active.",
             lambda: views.browse_page(ui, None, 0, 0),
         )
+    if catalog.listing_channel:
+        per_page = catalog.products_per_category_page
+        # Enough items for two pages: the first ones are the listing's samples (item 1 with its uploaded image).
+        shown = list(SAMPLE_PRODUCTS) + [
+            _sample(i, price_minor=300 * i, stock_on_hand=None) for i in range(len(SAMPLE_PRODUCTS) + 1, per_page + 3)
+        ]
+        tagged = SAMPLE_CATEGORIES[0]
+        add(
+            "category_page_1",
+            f"Private view of a category picked in the #catalog menu (only that member sees it), page 1/2: the "
+            f"category's title card over {per_page} product card(s) with their pictures, one Buy button per card "
+            "(named after its item), previous/next.",
+            partial(views.category_page, ui, settings, shown, uploaded, choice=tagged.id, name=tagged.name),
+        )
+        add(
+            "category_page_2",
+            "The same private view after Next: the last page (Next is disabled).",
+            partial(views.category_page, ui, settings, shown, uploaded, choice=tagged.id, name=tagged.name, page=1),
+        )
+        add(
+            "category_all",
+            "Private view of the built-in 'All' choice (every listed item) when they fit one page.",
+            partial(views.category_page, ui, settings, SAMPLE_PRODUCTS, uploaded, choice=categories.ALL),
+        )
+        add(
+            "category_empty",
+            "Private view of a category with no item right now.",
+            partial(views.category_page, ui, settings, (), choice=2, name=SAMPLE_CATEGORIES[1].name),
+        )
+    add(
+        "category_list",
+        "Staff-only reply to /category list (operator wording).",
+        lambda: views.category_list_messages(ui, op, SAMPLE_CATEGORIES, {1: (3, 1), 2: (0, 0)}, len(SAMPLE_PRODUCTS))[
+            0
+        ],
+    )
     add(
         "product_add_form",
         "Staff-only product form opened by /product add (operator wording).",
@@ -193,7 +258,7 @@ def preview(app: App) -> list[PreviewState]:
     )
     sample_id = SAMPLE_PRODUCTS[0].id
     listing_field = (EmbedField(op("catalog.refresh.field"), op("catalog.refresh.not_ready")),)
-    replies = (
+    replies: tuple[tuple[str, str, service.OpReply], ...] = (
         (
             "reply_image_uploaded",
             "Staff-only reply to /product image with an uploaded file, with the listing refresh report.",
@@ -228,6 +293,54 @@ def preview(app: App) -> list[PreviewState]:
                 op("catalog.cmd.remove_reserved", product_id=sample_id, reserved=2),
                 tone="warning",
                 banner=service.REFUSED,
+            ),
+        ),
+    )
+    category = SAMPLE_CATEGORIES[0]
+    replies += (
+        (
+            "reply_category_created",
+            "Staff-only reply to /category create, with the listing refresh report (the menu shows it at once).",
+            service.OpReply(
+                op("catalog.category.created", category_id=category.id, name=category.name),
+                op("catalog.category.created_hint", name=category.name),
+                tone="success",
+                fields=listing_field,
+                banner=service.SAVED,
+            ),
+        ),
+        (
+            "reply_category_delete_confirm",
+            "Staff-only reply to /category delete without confirm: what deleting does (the items stay).",
+            service.OpReply(
+                op("catalog.category.delete_title", category_id=category.id),
+                op("catalog.category.delete_confirm", name=category.name, items=4),
+                tone="warning",
+            ),
+        ),
+        (
+            "reply_category_duplicate",
+            "Staff-only reply when a new category's name is already used (ignoring upper and lower case).",
+            service.OpReply(
+                op("catalog.cmd.invalid"),
+                op("catalog.category.invalid.duplicate", category_id=category.id, name=category.name),
+                tone="warning",
+                banner=service.REFUSED,
+            ),
+        ),
+        (
+            "reply_product_categories",
+            "Staff-only reply to /product categories add: the product's categories now.",
+            service.OpReply(
+                op("catalog.cmd.categories_title", product_id=sample_id),
+                "\n".join(
+                    (
+                        op("catalog.cmd.category_added", name=category.name),
+                        op("catalog.cmd.categories_now", names=", ".join(c.name for c in SAMPLE_CATEGORIES)),
+                    )
+                ),
+                tone="success",
+                banner=service.SAVED,
             ),
         ),
     )

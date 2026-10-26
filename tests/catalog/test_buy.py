@@ -257,10 +257,13 @@ async def test_product_that_sold_out_while_opening_leaves_an_empty_cart_and_expl
     session = await session_of(shop, customer)
     assert session.status == m.ACTIVE and await _cart(shop, session.id) == {}
     reply = clicked.last_sent
-    assert reply is not None and len(reply.embeds) == 2
+    assert reply is not None and len(reply.embeds) == 1  # one card: the notice is its last paragraph
     ticket_channel = await ticket_channel_of(shop, session.ticket_id)
-    assert reply.embeds[0].description == render(shop, k.STARTED, channel_mention=f"<#{ticket_channel.id}>")
-    assert reply.embeds[1].description == render(shop, k.ERROR_OUT_OF_STOCK, name="[p1]", available=0)
+    started = render(shop, k.STARTED, channel_mention=f"<#{ticket_channel.id}>")
+    notice = render(shop, k.ERROR_OUT_OF_STOCK, name="[p1]", available=0)
+    assert reply.embeds[0].description == f"{started}\n\n{notice}"
+    card = reply.embeds[0]
+    assert card.colour is not None and card.colour.value == shop.app.ui.color("warning")
 
 
 async def test_checkout_not_ready_answers_unavailable(tmp_path: Path) -> None:

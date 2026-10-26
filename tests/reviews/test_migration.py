@@ -104,7 +104,7 @@ def test_every_review_is_copied_unchanged(version: int) -> None:
     conn, migrations = _before(version)
     before = _snapshot(conn)
     applied = apply_migrations(conn, migrations=migrations)
-    assert applied[-1] == 15
+    assert 15 in applied  # later migrations may follow
     assert _snapshot(conn) == before
     assert {r["source"] for r in conn.execute("SELECT source FROM reviews")} == {repo.SOURCE_PROMPT}
     assert conn.execute("PRAGMA foreign_key_check").fetchall() == []

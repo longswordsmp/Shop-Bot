@@ -243,6 +243,12 @@ reports), and an optional
 | `browse_enabled` | false | Private, paginated product browsing button on the listing header. |
 | `low_stock_threshold` | 0 | Show the "low stock" state (warning color) at or below this stock (0 = off). |
 | `image_hosts` | `[]` | Allowed hosts for product image URLs (`[]` = any `https://` host). |
+| `product_cards` | true | Public product cards under the listing header. `false`: #catalog shows only the header card with its category menu. |
+| `products_per_category_page` | 5 | Product cards per page of the private message a category pick opens (1–9, under its title card; split earlier to respect Discord limits). |
+
+The categories themselves are not settings: catalog managers make them with `/category create|edit|delete|list` and
+put items in them with `/product categories` (see `docs/features/catalog.md`, Categories). The header's menu lists
+"All items" (built in) and at most 24 categories.
 
 ## `[checkout]`, `[[checkout.fulfillment_options]]`, `[[checkout.fees]]`, `[[checkout.details_form]]`
 

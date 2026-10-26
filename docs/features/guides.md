@@ -12,23 +12,33 @@ guide that is not finished never blocks the others.
 
 ## What customers see
 
-Every guide is **one card** (one embed under its banner picture): a title, an introduction, then sections, each
-a bold heading (usually starting with one of the bot's icons, e.g. `{icon_truck}`) over a few lines.
+Every guide is **one card** in one message (one embed, its banner picture at the bottom): a title, an
+introduction, then sections, each a bold heading (usually starting with one of the bot's icons, e.g.
+`{icon_truck}`) over a few lines. Nothing is split into further cards or messages: the shipped texts fit one embed
+each, also with the longer channel links of a live server.
 
 - **#how-to-buy** — the configured title and introduction, one section per step (its name in bold, usually with
   a step-number icon, over its text), an optional closing line, and a row of **link buttons** that open the
   configured channels (shipped: `#catalog`, `#purchase`, `#faq`).
 - **#faq** — an optional title and introduction, then one section per topic (e.g. ordering, payment, shipping,
-  tracking, problems): its heading, then each question in bold followed by its answer.
+  tracking, problems): its heading, then each question in bold followed by its answer. The shipped FAQ (21
+  questions, including the two bulk-order answers: nothing extra to pay, a percentage off on request) uses about
+  3860 of the 4096 characters of one card with live channel links and icons; a new answer needs room made by
+  shorter wording, or the FAQ spills its last questions into a second card.
 - **#shipping** — the title, introduction and an optional legend, then one section per country group (e.g. North
   America, Europe) listing its countries after a status dot: `{icon_dot_blue}` we ship everywhere in the country,
   `{icon_dot_yellow}` we ship except some areas (e.g. "United States (except Alaska and North Dakota)"), then the
   countries listed as not available (`{icon_dot_grey}`). Below: the delivery options with their prices (from
   `[[checkout.fulfillment_options]]`) and the information sections (processing, tracking). Country names are
-  standard English names; the address step uses the same countries. For each country in `list_areas` (shipped:
-  the US) a second card follows: "Shipping in the United States" lists all 50 states and DC one by one,
-  alphabetically, in three columns, each after its dot (`{icon_dot_grey}` for the `excluded_areas`, e.g. Alaska and
-  North Dakota). Text: `shipping.areas.title` (`{country}`) and the optional `shipping.areas.introduction`. The
+  standard English names; the address step uses the same countries. The country in `list_areas` (shipped: the
+  US) closes the same card with one more section: its heading (`shipping.areas.heading`, e.g. "US STATES", with an
+  optional line under it, `shipping.areas.introduction`), then all 50 states and DC by name, alphabetically, on one
+  line per status like the countries: the states we ship to after `{icon_dot_blue}`, the `excluded_areas` (Alaska
+  and North Dakota) after `{icon_dot_grey}`. The card has no fields, so the list shows no gaps and no separate
+  parts. The shipped card uses about 3160 of the 4096 characters of text with live channel links and icons. A card
+  longer than one embed (far more countries or information than shipped) continues in a further message; nothing is
+  cut. The legend (`shipping.legend`) shows one dot per line, so a dot never ends a line apart from its words on a
+  phone. The
   `shipping_areas` announcement (`/announce preset:shipping_areas`, see `announcements.md`) names the same
   `excluded_areas` with the same names and `shipping.format.last_area`.
 
@@ -56,13 +66,13 @@ link_channels = ["catalog", "purchase", "faq"]   # channel keys shown as link bu
 channel = "faq"
 [[faq.sections]]                          # one per topic, in display order (max 25)
 id = "ordering"                           # internal key, never shown
-questions = 3                             # 1-25
+questions = 5                             # 1-25
 
 [shipping]
 channel = "shipping"
 info_sections = 2                         # 0-10 information sections after the delivery options
 not_available = ["CU", "RU", "BY"]        # countries listed as not available (any country in no group is too)
-list_areas = ["US"]                       # countries whose areas get their own card, one by one (US: states + DC)
+list_areas = ["US"]                       # country whose areas close the card by name (US: states + DC)
 [shipping.excluded_areas]                 # parts of a country we do not ship to (US: state codes; others: names)
 US = ["AK", "ND"]
 [shipping.country_names]                  # optional renames, e.g. CZ = "Czech Republic"
@@ -98,6 +108,7 @@ duplicate ids and unknown settings are configuration errors (the bot refuses to 
 | `shipping.not_available.heading` / `.others` | heading, text | heading required when countries are listed there |
 | `shipping.delivery.heading`, `shipping.format.delivery` (`{label}`, `{price}`, `{description}`) | heading, format | required with delivery options |
 | `shipping.info.<n>.name` / `.value` (n = 1..info_sections) | heading, text | required |
+| `shipping.areas.heading` (`{country}`), `shipping.areas.introduction` | heading, text | heading required with `list_areas` |
 
 The formats are content keys because their words are visible text (for example `{country} (except {areas})` and
 `{areas} and {last}`). The full list with descriptions is generated in `config/content.toml`
@@ -115,7 +126,8 @@ text (run `/setup` afterwards to update the published messages).
   unchanged messages are not touched.
 - Order: if a message was deleted in Discord (or the guide moved to another channel), it is posted again and the
   messages after it are posted again too, so the guide stays in order.
-- A shorter configuration removes the surplus messages of the earlier, longer one.
+- A shorter configuration removes the surplus messages of the earlier, longer one (for example the separate US
+  states message of the earlier #shipping layout: the next /setup removes it).
 - Nothing incomplete is posted: missing required text, a `{channel_<key>}` link or link button to a channel that
   does not exist, missing bot permissions (`view_channel`, `send_messages`, `embed_links`,
   `read_message_history`) or a message over Discord's limits (only possible when branding, title and description
@@ -128,8 +140,10 @@ text (run `/setup` afterwards to update the published messages).
 1. Fill the keys listed above in `config/content.toml` (or `/content set`), e.g. write `{channel_catalog}` in a
    step text, and run `/status`: `how_to_buy`, `faq` and `shipping` should be ready.
 2. Run `/setup`. Check #how-to-buy (one embed, numbered steps, three link buttons that open #catalog, #purchase
-   and #faq; the `{channel_catalog}` text is a clickable link), #faq (one embed per section) and #shipping
-   (status cards in three colors, region lines with indicators).
+   and #faq; the `{channel_catalog}` text is a clickable link), #faq (one embed with every topic) and #shipping
+   (one message with one embed: region lines with their dots, delivery, information, then the US states on two
+   lines, the ones we ship to after the blue dot and Alaska and North Dakota after the grey dot, the banner under
+   them).
 3. Run `/setup` again: the report says "up to date" and no message is edited or re-posted.
 4. Change one answer with `/content set` and run `/setup`: the same message is edited.
 5. Raise `questions` of a section to 25 with long answers, `/reload`, `/setup`: the FAQ continues in further

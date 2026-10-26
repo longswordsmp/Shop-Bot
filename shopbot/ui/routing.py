@@ -8,7 +8,8 @@ control keeps working after a restart.
 Before a handler runs, the router enforces, in order:
 1. the interaction comes from the configured guild (or a DM, for routes that allow it);
 2. the per-user rate limit;
-3. no identical click from the same user is still being processed;
+3. no identical click from the same user is still being processed or was just made (for a route registered with
+   ``per_value``, a pick of another option in its menu is not the same click);
 4. the route's feature is enabled and fully configured;
 5. the route's access level (staff/admin) — always checked server-side.
 Handlers then load records by ID and verify ownership/state themselves.
@@ -162,6 +163,9 @@ class Route:
     # Extra role keys (besides settings.permissions.staff_roles) that count as staff for this route,
     # e.g. checkout.staff_roles. Evaluated at click time so configuration reloads apply.
     staff_roles: Callable[[App], tuple[str, ...]] | None = None
+    # A menu whose picks are private and safe to repeat (e.g. the #catalog category menu): picking another option
+    # right after the last pick, or while it still runs, is not a double click. The same option still is.
+    per_value: bool = False
 
 
 class Ctx:
@@ -376,9 +380,10 @@ class Router:
         access: Access = "any",
         allow_dm: bool = False,
         staff_roles: Callable[[App], tuple[str, ...]] | None = None,
+        per_value: bool = False,
     ) -> Callable[[Handler], Handler]:
         def decorator(handler: Handler) -> Handler:
-            self.add(Route(route, action, handler, "component", feature, access, allow_dm, staff_roles))
+            self.add(Route(route, action, handler, "component", feature, access, allow_dm, staff_roles, per_value))
             return handler
 
         return decorator
@@ -461,7 +466,7 @@ class Router:
             await ctx.fail(ck.ERROR_COOLDOWN, retry_after=math.ceil(retry_after))
             return
 
-        flight_key = (user_id, kind, custom_id)
+        flight_key = (user_id, kind, custom_id, values if route.per_value else ())
         spacing = self.app.settings.bot.interaction_cooldown_ms / 1000
         if spacing and self._spacing.remaining(flight_key, spacing) > 0:
             # The same control clicked again within the anti-double-click window: treat as a duplicate.

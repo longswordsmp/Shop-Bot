@@ -6,8 +6,10 @@ from pathlib import Path
 
 import pytest
 
-from shopbot.features.guides import FAQ_MODULE, HOW_TO_BUY_MODULE, MODULES, SHIPPING_MODULE, faq, how_to_buy
-from shopbot.features.server_keys import channel_url
+from shopbot.context import App
+from shopbot.features.guides import FAQ_MODULE, HOW_TO_BUY_MODULE, MODULES, SHIPPING_MODULE, faq, how_to_buy, shipping
+from shopbot.features.guides.common import Texts
+from shopbot.features.server_keys import channel_placeholders, channel_url
 from shopbot.ui.limits import validate_message
 from shopbot.ui.spec import MessageSpec, PreviewState
 from tests.guides.util import guide_env
@@ -122,13 +124,46 @@ def test_modules_are_registered_with_their_prefixes() -> None:
     assert all(m.publish is not None and m.preview is not None for m in MODULES)
 
 
+# A channel link in a live server is ``<#id>`` with a 19-digit id; the offline preview writes ``<#0>`` for channels
+# /setup has not created, 18 characters shorter per link.
+LIVE_MENTION = "<#1234567890123456789>"
+
+
+def live_length_texts(app: App) -> Texts:
+    """The shipped texts with every channel link as long as in a live server."""
+    names = set(channel_placeholders(app.settings))
+    return Texts(app.content, dict.fromkeys(names, LIVE_MENTION), channel_names=names, preview=True)
+
+
 async def test_the_shipped_faq_is_one_card() -> None:
     # The checkers allow a second embed, but the shipped FAQ must not spill its last questions (and the shop's footer)
-    # into one: a longer answer has to fit the 4096 characters of one card description.
+    # into one: every answer has to fit the 4096 characters of one card description, with live channel links.
     app = await build_offline_app(ROOT / "config", content_mode="actual", all_features=True)
     try:
         state = next(s for s in faq.preview(app) if s.name == "faq")
         assert isinstance(state.spec, MessageSpec)
         assert len(state.spec.embeds) == 1, [len(e.description or "") for e in state.spec.embeds]
+        live = faq.faq_messages(app.ui, app.settings.faq, live_length_texts(app))
+        assert [len(spec.embeds) for spec in live] == [1], [len(e.description or "") for s in live for e in s.embeds]
+        assert validate_message(live[0]) == []
+    finally:
+        await app.db.close()
+
+
+async def test_the_shipped_shipping_channel_is_one_card_with_the_states() -> None:
+    # The US states close the shipping card itself: one message, one embed, no fields, within Discord's limits.
+    app = await build_offline_app(ROOT / "config", content_mode="actual", all_features=True)
+    try:
+        assert [s.name for s in shipping.preview(app) if not s.name.startswith("example")] == ["shipping"]
+        settings = app.settings
+        live = shipping.shipping_messages(app.ui, settings.shipping, settings.checkout, live_length_texts(app))
+        assert [len(spec.embeds) for spec in live] == [1]
+        assert validate_message(live[0]) == []
+        (card,) = live[0].embeds
+        heading = app.content.render(shipping.AREAS_HEADING, country="United States")
+        text = (card.description or "").split("\n")
+        rest = text[text.index(f"**{heading}**") + 1 :]  # the shipped text has no line under the heading
+        assert card.fields == () and len(rest) == 2  # one line per status: the available states, then the others
+        assert sum(len(line.split(shipping.COUNTRY_SEPARATOR)) for line in rest) == 51
     finally:
         await app.db.close()

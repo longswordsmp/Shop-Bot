@@ -354,7 +354,8 @@ def preview(app: App) -> list[PreviewState]:
     add(
         "reply_buy_started_sold_out",
         "Private reply to a catalog buy button that opened a new order channel, when the product sold out a moment "
-        "earlier and could not be put in the cart (the configured out-of-stock error follows the link).",
+        "earlier and could not be put in the cart (the configured out-of-stock error is added as the card's last "
+        "paragraph, in the warning colour).",
         lambda: views.buy_started_reply(
             ui,
             SAMPLE_CHANNEL_ID,

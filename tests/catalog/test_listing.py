@@ -21,6 +21,7 @@ from tests.catalog.util import (
     audit_actions,
     buttons,
     listing_channel,
+    menu,
     restarted_app,
 )
 from tests.fakes import http_error
@@ -49,7 +50,9 @@ async def test_publish_posts_header_products_and_browse_button(tenv: TestEnv) ->
     head, message = channel.messages
     (header,) = head.embeds
     assert header.title == tenv.text(keys.LISTING_TITLE)
+    # No category yet: no menu (it would only offer All, the cards below) and no line about it.
     assert header.description == tenv.text(keys.LISTING_DESCRIPTION)
+    assert menu(head) == []
     assert buttons(head) == [("sb:ct:browse:0", tenv.text(keys.BUTTON_BROWSE), False)]
     cards = message.embeds
     assert [c.title for c in cards] == [_escaped(p.name) for p in (limited, unlimited, sold_out)]
@@ -107,7 +110,8 @@ async def test_listing_splits_at_ten_embeds_and_6000_characters(tmp_path: Path) 
             await add_product(tenv, f"[p{i}]")
         await service.request_listing_refresh(tenv.app)
         assert [len(m.embeds) for m in channel.messages] == [1, 10, 2]  # header, 10 (embed cap), then 2
-        assert [len(m.view.children) if m.view else 0 for m in channel.messages] == [1, 10, 2]  # 2 rows of 5 buy
+        # header: the browse button (no category, no menu); then 2 rows of 5 buy buttons, then 2
+        assert [len(m.view.children) if m.view else 0 for m in channel.messages] == [1, 10, 2]
         for message in channel.messages:
             assert len(message.embeds) <= 10
 

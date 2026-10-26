@@ -25,6 +25,14 @@ BUTTON_BROWSE = "catalog.button.browse"
 BUTTON_BUY = "catalog.button.buy"
 BUTTON_BUY_SHORT = "catalog.button.buy_short"
 BUTTON_BUY_EMOJI = "catalog.button.buy_emoji"
+PICKER_DESCRIPTION = "catalog.picker.description"
+PICKER_PLACEHOLDER = "catalog.picker.placeholder"
+PICKER_ALL = "catalog.picker.all"
+PICKER_ALL_DESCRIPTION = "catalog.picker.all_description"
+CATEGORY_TITLE = "catalog.category.title"
+CATEGORY_INTRO = "catalog.category.intro"
+CATEGORY_EMPTY = "catalog.category.empty"
+CATEGORY_BUTTON_BUY = "catalog.category.button_buy"
 
 _HOST_RE = re.compile(r"^(?=.{1,253}$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$")
 
@@ -38,6 +46,8 @@ def content_keys(settings: Settings) -> list[ContentKey]:
     g_product = "Catalog: product cards (listing and private browsing)"
     g_browse = "Catalog: private browsing"
     g_buy = "Catalog: buy button on product cards"
+    g_picker = "Catalog: category menu on the listing header"
+    g_category = "Catalog: a category's private view"
     keys = [
         ck(
             LISTING_TITLE,
@@ -139,8 +149,9 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             Kind.BUTTON_LABEL,
             CATALOG,
             g_buy,
-            "Optional: label used instead of catalog.button.buy for a product whose name makes that label longer "
-            "than Discord's 80 characters. Required only when such a product exists (the listing reports it).",
+            "Optional: label used instead of catalog.button.buy (or catalog.category.button_buy, when cutting the "
+            "name is not enough) for a product whose name makes that label longer than Discord's 80 characters. "
+            "Required only when such a product exists (the listing reports it).",
             required=False,
         ),
         ck(
@@ -150,6 +161,84 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             g_buy,
             "Optional emoji shown on the buy button.",
             required=False,
+        ),
+    ]
+    keys += [
+        ck(
+            PICKER_DESCRIPTION,
+            Kind.DESCRIPTION,
+            CATALOG,
+            g_picker,
+            "Optional: last paragraph of the listing's header card while it shows the category menu (there is at "
+            "least one product, and a category or catalog.product_cards = false), e.g. how the menu works. If empty, "
+            "the header shows only its own text.",
+            required=False,
+        ),
+        ck(
+            PICKER_PLACEHOLDER,
+            Kind.SELECT_PLACEHOLDER,
+            CATALOG,
+            g_picker,
+            "Placeholder of the category menu under the listing's header card. Picking a category shows its items "
+            "in a private message only that member sees.",
+            required=listing,
+        ),
+        ck(
+            PICKER_ALL,
+            Kind.OPTION_LABEL,
+            CATALOG,
+            g_picker,
+            "The menu's first option, built in: every item in the shop. The categories made with /category follow "
+            "with their own name, emoji and description.",
+            required=listing,
+        ),
+        ck(
+            PICKER_ALL_DESCRIPTION,
+            Kind.OPTION_DESCRIPTION,
+            CATALOG,
+            g_picker,
+            "Optional: small text under the menu's 'All' option.",
+            required=False,
+        ),
+        ck(
+            CATEGORY_TITLE,
+            Kind.TITLE,
+            CATALOG,
+            g_category,
+            "Title of the card at the top of the private message a category pick opens. {category} is the "
+            "category's name (catalog.picker.all, without its icon, for 'All').",
+            required=listing,
+            placeholders=("category",),
+        ),
+        ck(
+            CATEGORY_INTRO,
+            Kind.DESCRIPTION,
+            CATALOG,
+            g_category,
+            "Optional: text of that card, above the category's product cards. {category} is the category's name, "
+            "{count} the number of its items.",
+            required=False,
+            placeholders=("category", "count"),
+        ),
+        ck(
+            CATEGORY_EMPTY,
+            Kind.DESCRIPTION,
+            CATALOG,
+            g_category,
+            "Text of that card when the category has no item right now. {category} is the category's name.",
+            required=listing,
+            placeholders=("category",),
+        ),
+        ck(
+            CATEGORY_BUTTON_BUY,
+            Kind.BUTTON_LABEL,
+            CATALOG,
+            g_category,
+            "Buy button under the product cards of a category's private view (several cards share the message, so "
+            "the label names its item). {name} is the product name, cut with '…' when the label would pass "
+            "Discord's 80 characters. Shows catalog.button.buy_emoji like the other buy buttons.",
+            required=settings.features.checkout and listing,
+            placeholders=("name",),
         ),
     ]
     if catalog.low_stock_threshold > 0:
@@ -171,7 +260,7 @@ def content_keys(settings: Settings) -> list[ContentKey]:
 
 def shared_keys(settings: Settings) -> list[str]:
     keys = [core_keys.MONEY_FORMAT]
-    if settings.catalog.browse_enabled:
+    if settings.catalog.browse_enabled or settings.catalog.listing_channel:  # private browsing, category pages
         keys += [core_keys.BUTTON_PREV, core_keys.BUTTON_NEXT]
     return keys
 

@@ -39,7 +39,7 @@ from tools.offline import ROOT, build_offline_app
 TITLE_MAX = 60
 BUTTON_LABEL_MAX = 25
 INLINE_FIELDS_MAX = 6
-EMBEDS_MAX = 2
+EMBEDS_MAX = 1
 PARAGRAPH_MAX = 400
 
 CUSTOM_EMOJI = re.compile(r"<a?:[A-Za-z0-9_]{2,32}:\d{15,21}>")
@@ -56,6 +56,8 @@ SPACE_BEFORE_PUNCTUATION = re.compile(r"\w \s*[,.!?;:](?:\s|$)")
 
 SAMPLE_DATA = "[sample "  # how previews write data people type
 
+_LONG_ORDER = "a long order's continuation card: the fallback when the order outgrows one card description"
+
 # Accepted exceptions: (rule, feature, state name or prefix ending in "*", reason). Keep this short.
 EXCEPTIONS: tuple[tuple[str, str, str, str], ...] = (
     (
@@ -64,7 +66,17 @@ EXCEPTIONS: tuple[tuple[str, str, str, str], ...] = (
         "listing_message_*",
         "catalog.products_per_listing_message (1-10) puts that many product cards in one listing message on purpose",
     ),
-    ("W1", "shipping", "shipping_message_*", "a region's country list is one long line of names by nature"),
+    (
+        "L1",
+        "catalog",
+        "category_*",
+        "a category's private view shows its product cards under its title card (catalog.products_per_category_page)",
+    ),
+    ("L1", "checkout", "workflow_cart_largest", _LONG_ORDER),
+    ("L1", "checkout", "workflow_review_largest", _LONG_ORDER),
+    ("L1", "checkout", "workflow_fulfillment_largest", _LONG_ORDER),
+    ("L1", "checkout", "order_submitted_largest", _LONG_ORDER),
+    ("W1", "shipping", "shipping*", "a region's country list is one long line of names by nature"),
 )
 
 

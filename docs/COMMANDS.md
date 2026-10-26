@@ -38,6 +38,19 @@ Default visibility: administrator
 |---|---|---|---|
 | `/backup` | admin | Create a database backup on the server's disk (keeps 10). | - |
 
+## /category
+
+Categories of the catalog menu (catalog managers).
+
+Default visibility: manage_guild
+
+| Command | Access | Description | Options |
+|---|---|---|---|
+| `/category create` | staff | Create a category for the #catalog menu. | `name`: Its name in the menu (1-50 characters), e.g. Old stock.; `emoji` (optional): An icon name of the bot (e.g. tag) or one emoji.; `description` (optional): Small text under its name in the menu (up to 100 characters).; `position` (optional): Its place in the menu (lower comes first; default: last). |
+| `/category edit` | staff | Change a category's name, emoji, description or place in the menu. | `category`: The category to change.; `name` (optional): New name (1-50 characters).; `emoji` (optional): An icon name of the bot (e.g. tag) or one emoji; - removes it.; `description` (optional): Small text under its name (up to 100 characters); - removes it.; `position` (optional): Its place in the menu (lower comes first). |
+| `/category delete` | staff | Delete a category (its items stay in the catalog). | `category`: The category to delete.; `confirm` (optional): Set to True to delete it. |
+| `/category list` | staff | List the categories with their items. | - |
+
 ## /content
 
 Inspect and edit customer-facing text (content keys).
@@ -133,6 +146,7 @@ Default visibility: manage_guild
 | `/product sort` | staff | Set a product's position in the listing (lower comes first). | `product_id`: Product number.; `position`: Position number; ties are ordered by product number. |
 | `/product view` | staff | Show a product's details and its customer card. | `product_id`: Product number. |
 | `/product list` | staff | List products (staff view, paginated). | `include_archived` (optional): Also list archived products. |
+| `/product categories` | staff | Put a product in a category, take it out, or show its categories. | `product_id`: Product number.; `add` (optional): A category to put it in.; `remove` (optional): A category to take it out of. |
 
 ## /reload
 

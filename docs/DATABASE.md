@@ -810,3 +810,34 @@ Constraints:
 - `sha256 TEXT NOT NULL CHECK (length(sha256) = 64 AND sha256 NOT GLOB '*[^0-9a-f]*')`
 - `data BLOB CHECK (data IS NULL OR (typeof(data) = 'blob' AND length(data) = size))`
 - `CHECK ((data IS NULL) = (released_at IS NOT NULL))`
+
+## `catalog_categories`
+
+| Column | Type | Not null | Default | Key |
+|---|---|---|---|---|
+| `id` | INTEGER |  |  | PK |
+| `guild_id` | INTEGER | yes |  |  |
+| `name` | TEXT | yes |  |  |
+| `emoji` | TEXT | yes | '' |  |
+| `description` | TEXT | yes | '' |  |
+| `position` | INTEGER | yes | 0 |  |
+| `created_by` | INTEGER |  |  |  |
+| `created_at` | INTEGER | yes |  |  |
+| `updated_at` | INTEGER | yes |  |  |
+
+Indexes: `uq_catalog_categories_name` (unique)
+
+Constraints:
+
+- `name TEXT NOT NULL CHECK (length(name) BETWEEN 1 AND 50)`
+- `emoji TEXT NOT NULL DEFAULT '' CHECK (length(emoji) <= 40)`
+- `description TEXT NOT NULL DEFAULT '' CHECK (length(description) <= 100)`
+
+## `product_categories`
+
+| Column | Type | Not null | Default | Key |
+|---|---|---|---|---|
+| `product_id` | INTEGER | yes |  | PK |
+| `category_id` | INTEGER | yes |  | PK |
+
+Indexes: `idx_product_categories_category`

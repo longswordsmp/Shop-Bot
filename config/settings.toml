@@ -254,7 +254,7 @@ channel = "faq"
 # `questions` = number of questions in the section (1-25). Long sections continue in further embeds/messages.
 [[faq.sections]]
 id = "ordering"
-questions = 3
+questions = 5
 
 [[faq.sections]]
 id = "payment"
@@ -280,8 +280,8 @@ info_sections = 2                    # information sections after the delivery o
 # Cuba, Russia and Belarus: shipping there is restricted by sanctions and most carriers refuse parcels.
 not_available = ["CU", "RU", "BY"]
 
-# Countries whose areas #shipping lists one by one, each with its dot, in a card of their own (US: the 50 states
-# and DC; the excluded ones below show the grey dot). Text: shipping.areas.title / .introduction.
+# Countries whose areas #shipping lists by name at the bottom of the shipping card, one line per dot like the countries
+# (US: the 50 states and DC; the excluded ones below follow the grey dot). Text: shipping.areas.heading / .introduction.
 list_areas = ["US"]
 
 # Parts of a country we do not ship to (US states by their two-letter code). The country shows a yellow dot and
@@ -490,6 +490,10 @@ low_stock_threshold = 3              # 1..N units left shows catalog.availabilit
                                      # color; 0 = no low-stock state
 # Each product card's color shows its availability: success = available, warning = low stock,
 # danger = out of stock (its buy button is then disabled). Buy buttons appear while checkout is on.
+product_cards = true                 # false: the listing shows only its header card with the category menu
+products_per_category_page = 5       # 1-9 product cards per page of the private view a category pick opens
+# Categories (/category, /product categories): the header card's menu lists "All" and every category; picking one
+# shows its items in a private message only that member sees, with their Buy buttons.
 
 [checkout]
 panel_channel = "purchase"

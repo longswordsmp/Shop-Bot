@@ -1,4 +1,4 @@
-# Catalog: `#catalog` listings, buy buttons, product images, `/product`
+# Catalog: `#catalog` listings, categories, buy buttons, product images, `/product`, `/category`
 
 Specification: section 3 (CATALOG / `#catalog` and the `/product` commands) and section 4 (a listing's button opens or
 continues the customer's private ticket and carries the selected listing into that workflow).
@@ -6,10 +6,12 @@ continues the customer's private ticket and carries the selected listing into th
 ## What it does
 
 - **One embed per item.** The listing channel (`catalog.listing_channel`, shipped: `catalog`) shows the header card in
-  its own first message (with the private-browsing button when `catalog.browse_enabled = true`), then one message
-  per product (`catalog.products_per_listing_message = 1`, shipped). With a value above 1 a message holds that many
-  product cards and one buy button per card (5 per row, in card order). A message is split earlier when it would
-  exceed 10 cards, 6000 embed characters, 10 attached files or 10 MiB of attached images.
+  its own first message (with the category menu, and the private-browsing button when `catalog.browse_enabled =
+  true`), then one message per product (`catalog.products_per_listing_message = 1`, shipped). With a value above 1 a
+  message holds that many product cards and one buy button per card (5 per row, in card order). A message is split
+  earlier when it would exceed 10 cards, 6000 embed characters, 10 attached files or 10 MiB of attached images.
+  `catalog.product_cards = false` leaves only the header card (with its menu): the items are then seen only through
+  the menu.
 - **Card content.** Name (markdown-escaped), description (as written), image, price (`common.money_format`),
   availability and the optional per-order limit. Inactive and archived products are not listed.
 - **Availability states are visually distinct.** The card color follows the state, in addition to the configured
@@ -26,7 +28,7 @@ continues the customer's private ticket and carries the selected listing into th
   3. otherwise applies every rule of the Start button (open-order limit, cooldown, channel limits), opens the
      private order channel with the product already in the cart, and replies with `checkout.started.description`.
      If the product sold out in the moment between the check and the cart, the channel still opens with an empty
-     cart and the reply adds the configured out-of-stock error.
+     cart and the reply's card ends with the configured out-of-stock error (still one card, in the warning colour).
   Every cart rule applies (`checkout.max_cart_lines`, per-product `max_per_order`, `checkout.max_line_quantity`,
   stock, amount limits); stock is reserved only when the order is submitted, as before. One member's Start and buy
   clicks are serialized, so concurrent clicks open at most one channel and every product lands in it. If checkout is
@@ -43,6 +45,53 @@ continues the customer's private ticket and carries the selected listing into th
   displaying. A message that is unchanged is never re-sent and never loads image bytes. Setting a link removes the
   upload; giving neither removes the image; archiving deletes the stored bytes.
 
+## Categories (the menu on the #catalog header)
+
+- **What a member sees.** The header card (the first #catalog message, one card with the catalog banner) carries a
+  menu: **All items** first (built in, always there: every item that can be ordered, sold out ones included), then the
+  categories in their order, each with its name, emoji and description (a category without an emoji shows the icon
+  All items starts with, so the options line up). Picking one answers with a private message
+  only that member sees: a title card with the category's name, then its items as cards (name, picture, price,
+  availability, the same colors as the public cards), one **Buy {item}** button per card and Previous / Next with
+  "Page 1 of 2" when there are more items than fit (`catalog.products_per_category_page`, shipped 5; a page also ends
+  early to stay within Discord's limits: 10 embeds, 6000 characters, 10 files or 10 MiB with the banner). Paging
+  edits that private message. An empty category says so (`catalog.category.empty`). The menu is reset after every
+  pick, so the same category can be picked again, and the public channel never changes. Picking another category
+  right after the last one (or while it still loads) is answered too: the anti-double-click guard counts each
+  category as a click of its own.
+- **Read when picked.** The private message reads the category and its items at that moment, so product changes
+  (stock, price, pictures, an item switched off or archived) show at once without anything being re-posted. Inactive
+  and archived items never show. A category deleted meanwhile answers with the "not found" text.
+- **Where the menu lives.** It is part of the header card, which is always the first listing message, so it stays at
+  the top of #catalog (also when product cards already exist; there is no separate panel). `/setup` posts and
+  updates it with the listing; every `/category create|edit|delete` refreshes it at once. It shows while at least
+  one item is listed (with none, the header shows the "empty" text and no menu) and a category exists: before the
+  first `/category create` its only choice would be All items, the same items as the public cards, so the header has
+  no menu yet. With `catalog.product_cards = false` it always shows (All items is then how members see the items).
+  `catalog.picker.description` (optional) adds one line to the header card while the menu shows.
+- **Buy buttons** on the private pages are the same `sb:co:buy:<id>` buttons as on the public cards (handled by
+  checkout, disabled while sold out); their label names the item (`catalog.category.button_buy`), since several
+  cards share the message. A name too long for Discord's 80 characters is cut and ends with "…".
+- **Managing them** (catalog managers and admins, private replies): `/category create name:Old stock emoji:tag
+  description:Last pieces position:1`, `/category edit category:<pick> ...` (`-` removes the emoji or the
+  description), `/category delete category:<pick> confirm:True` (the items stay in the catalog and under All; only
+  their link to the category goes), `/category list` (each category with its items, hidden inactive ones counted
+  apart; a list too long for one card continues in a further message, one card each).
+  `/product categories product_id:<id> add:<category> remove:<category>` puts an item in a category or takes it out;
+  with neither it shows the item's categories. An item can be in several categories; `/product view` lists them.
+  Category options autocomplete by name (`remove:` offers only the item's own categories).
+- **Rules.** Names are 1-50 characters, unique ignoring upper and lower case ("old stock" = "Old Stock"), and not
+  "All" (built in). Emoji: one of the bot's icons by name (`tag`, `:tag:` or `{icon_tag}`, from `config/emojis`), one
+  unicode emoji or one country flag. A plain symbol such as an arrow or a star is refused, and so are emoji with a
+  skin tone and emoji joined from several, because Discord refuses an emoji it does not know in a menu. Should
+  Discord still refuse one, the header is sent once more without the menu's unicode emoji, so the listing keeps
+  updating, and the refresh report in the `/category` reply asks staff to change that emoji with `/category edit`.
+  Description: up to 100 characters (Discord's limit under a menu option). At most 24 categories, so the menu with
+  All holds Discord's 25 options. Creating, editing and deleting a category is audited (`catalog.category_create`,
+  `catalog.category_edit`, `catalog.category_delete`); putting an item in or taking it out too
+  (`catalog.product_categories`).
+- **/reset.** `wipe_shop_data:True` deletes the categories with the products; without it they stay, like the products.
+
 ## Commands (catalog managers and admins; replies are private operator text)
 
 | Command | What it does |
@@ -55,6 +104,11 @@ continues the customer's private ticket and carries the selected listing into th
 | `/product archive product_id confirm` | Same as remove, confirmed with the option. |
 | `/product view product_id` | Staff details (incl. the uploaded file's name/size/type) and the customer card. |
 | `/product list [include_archived]` | Paginated staff list. |
+| `/product categories product_id [add] [remove]` | Put the item in a category, take it out, or (neither) show its categories. |
+| `/category create name [emoji] [description] [position]` | A new category in the #catalog menu (last by default). |
+| `/category edit category [name] [emoji] [description] [position]` | Change it; `-` removes the emoji or the description. |
+| `/category delete category confirm` | Without `confirm:True` says what it does; the items stay in the catalog. |
+| `/category list` | All and every category with their items. |
 
 ## Settings (`[catalog]` in `config/settings.toml`)
 
@@ -66,10 +120,17 @@ continues the customer's private ticket and carries the selected listing into th
 | `browse_enabled` | `false` | Private page-by-page browsing button on the header (and the shop panel). |
 | `image_hosts` | `[]` | Allowed hosts for image **links** (`[]` = any https host). Uploads are not affected. |
 | `low_stock_threshold` | `0` | 1..N units left shows the low-stock text in the warning color; 0 = off (business decision). |
+| `product_cards` | `true` | Public product cards under the header; `false` = #catalog shows only the header with its menu. |
+| `products_per_category_page` | `5` | Product cards per page of a category's private view (1-9, under its title card). |
 
 ## Content keys (all wording is configured; see `docs/CONTENT_CHECKLIST.md`)
 
 - Listing: `catalog.listing.title`, `catalog.listing.description`, `catalog.listing.empty`.
+- Category menu: `catalog.picker.placeholder`, `catalog.picker.all` (the built-in first option; may start with an
+  icon), `catalog.picker.all_description` (optional), `catalog.picker.description` (optional line on the header card).
+- A category's private view: `catalog.category.title` (`{category}`), `catalog.category.intro` (optional;
+  `{category}`, `{count}`), `catalog.category.empty` (`{category}`), `catalog.category.button_buy` (`{name}`); paging
+  uses the shared `common.button.previous_page` / `next_page` and `common.page_indicator`.
 - Cards: `catalog.field.price`, `catalog.field.availability`, `catalog.field.max_per_order` (optional),
   `catalog.availability.in_stock` / `.unlimited` / `.out_of_stock`, `catalog.availability.low_stock` (optional,
   only with a threshold; falls back to `in_stock`).
@@ -88,6 +149,12 @@ configured "unavailable" text. Optional keys are simply omitted.
 Migration `0006_catalog_images.sql`: `product_images(product_id PRIMARY KEY → products, guild_id, filename, content_type,
 size, sha256, data BLOB, uploaded_by, created_at)` with CHECKs on the type list, the 8 MB size, the hex digest and
 `length(data) = size`. Products are never deleted (orders reference them); archiving removes the image row.
+
+Migration `0016_catalog_categories.sql`: `catalog_categories(id, guild_id, name, emoji, description, position,
+created_by, created_at, updated_at)` (a unique index on `(guild_id, lower(name))`; the bot also compares names
+case-folded beyond ASCII) and `product_categories(product_id → products, category_id → catalog_categories, PRIMARY
+KEY both, ON DELETE CASCADE)`. "All" is not stored. The table is called `catalog_categories` so it is never confused
+with the server's channel categories.
 
 ## Reuse by other features
 
@@ -110,6 +177,10 @@ loads file bytes only for messages that are actually sent or edited (hashes use 
    you get a private link. Click Buy on another product: the same channel's cart gains it; the reply links it.
 5. Submit an order for the remaining stock; the card turns red (danger) and its buy button is disabled.
 6. `/product remove product_id:<id>` → Remove; the product's message disappears and the others keep their order.
+7. `/category create name:Old stock emoji:tag`; the #catalog header's menu lists All items, then Old stock.
+   `/product categories product_id:<id> add:Old stock` for two items. As a member, pick Old stock: a private message
+   (only you see it) with those two items and their Buy buttons; pick it again: it answers again. Pick All items: every
+   item, with Next when there are more than 5.
 
 ## Limitations
 
@@ -123,5 +194,10 @@ loads file bytes only for messages that are actually sent or edited (hashes use 
 - Accepted formats are PNG, JPEG, GIF and WebP, recognized from the file's own bytes (SVG and other formats are
   refused).
 - The buy button does not offer a quantity: it adds one unit; the customer changes the quantity in the cart step.
+- A category's private message is not updated by itself when items change: the member sees the change on the next pick
+  or page. Discord keeps a private message only for that member's session (it disappears after a restart of their
+  app).
+- `/product add` and `/product edit` have no category option (their form cannot hold a menu); use
+  `/product categories` after creating the item.
 - The listing shows the buy button whenever checkout is switched on, even while checkout misses text (the click then
   answers "unavailable"), so the listing does not have to be re-posted when checkout becomes ready.

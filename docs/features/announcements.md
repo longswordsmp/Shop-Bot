@@ -136,7 +136,11 @@ it with `/announce preset:<id>` (plus `mention` and `image` as usual). The shipp
 
 The warehouse sale preset needs its coupon to exist first, e.g.
 `/discount create code:BOGO type:Buy one, get one free once_per_customer:false products:<ids of the old stock>`
-(product numbers from `/product list`). Add a preset by adding a `[[announcements.presets]]` entry with its texts
+(product numbers from `/product list`). Its text also promises a 20% off coupon printed in every package (old stock
+only, and it can be given to a friend): staff create that code too, e.g. `/discount create code:THANKYOU20 type:Percent
+off value:20 once_per_customer:false products:<ids of the old stock>`, and print it on a card in each package
+(`once_per_customer:false` lets a customer use it again later; leave the default to allow one use per customer).
+Add a preset by adding a `[[announcements.presets]]` entry with its texts
 (`/content set`, or content.toml) and `/reload`. In a preset's text, `{coupon}` is its coupon's code (the shipped
 text says "press **Use coupon {coupon}** on the review step"), so the text follows the `coupon` setting. A coupon has
 at most 14 characters, so the customer's "Use coupon <code>" button stays short.

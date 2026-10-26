@@ -1,4 +1,5 @@
-"""Product catalog: products and inventory, the live listing, private browsing, and ``/product`` management.
+"""Product catalog: products and inventory, the live listing with its category menu, private browsing, and the
+``/product`` and ``/category`` management commands.
 
 Public API for other features (see the module docstrings for details):
 - ``shopbot.features.catalog.repo``: ``Product``, ``get_product``, ``list_products``, ``count_products``,
@@ -12,6 +13,7 @@ Public API for other features (see the module docstrings for details):
   and ``browse_page``.
 - ``shopbot.features.catalog.images``: uploaded product images stored in the database; ``image_for(app, product)``
   returns what a card shows (an ``attachment://`` URL plus the file to attach, or the image link).
+- ``shopbot.features.catalog.categories``: the categories of the #catalog menu and the products in each.
 """
 
 from __future__ import annotations
@@ -22,7 +24,7 @@ from typing import TYPE_CHECKING
 from shopbot.features.base import FeatureModule
 from shopbot.features.catalog import content_keys as catalog_keys
 from shopbot.features.catalog import service, tasks
-from shopbot.features.catalog.commands import build_product_group
+from shopbot.features.catalog.commands import build_category_group, build_product_group
 from shopbot.features.catalog.handlers import register_handlers
 from shopbot.features.catalog.preview import preview
 from shopbot.features.catalog.text import OPERATOR_TEXT
@@ -38,6 +40,7 @@ def register(app: App) -> None:
     register_handlers(app)
     app.scheduler.register(service.REFRESH_TASK, tasks.run_refresh_task)
     bot.tree.add_command(build_product_group(), guild=app.guild_object)
+    bot.tree.add_command(build_category_group(), guild=app.guild_object)
     bot.add_listener("raw_message_delete", partial(tasks.on_raw_message_delete, app))
 
 

@@ -146,8 +146,8 @@ Check: Server Settings → Roles shows the bot's role **above** Owner, Staff, Me
 **Who sees which slash command.** Discord lists a command only for members with its default permission: the staff
 commands (`/orders`, `/order`, `/stats`, `/ticket`, `/reviews`, `/announce`) need *Manage Messages*, which `/setup` gives the Staff
 role (`permissions = ["manage_messages"]` in `settings.toml`; it also lets staff delete and pin messages; `/setup`
-only adds it and keeps any other permissions the role already has). Admin commands need Administrator; `/product` and
-`/discount` need Manage Server. To fine-tune, open **Server Settings → Integrations → (the bot) → Manage** and allow or deny each command for
+only adds it and keeps any other permissions the role already has). Admin commands need Administrator; `/product`,
+`/category` and `/discount` need Manage Server. To fine-tune, open **Server Settings → Integrations → (the bot) → Manage** and allow or deny each command for
 roles, members or channels. For example, to let the Staff role manage products: allow `/product` for Staff there and
 add `"staff"` to `catalog.manager_roles` (do not give Staff Manage Server). These settings only change who *sees* a
 command; the bot checks the roles itself on every use.
@@ -208,8 +208,13 @@ Use a second (non-staff) Discord account as the "customer".
 - [ ] Customer account before Verify: sees only 📌 INFORMATION (read-only).
 - [ ] #welcome Verify → private confirmation; 🏬 SHOP and 🧾 ORDERS appear; clicking again says already verified.
 - [ ] #how-to-order link buttons open #catalog, #place-order, #faq; #faq shows its topics and #shipping your countries with their dots.
-- [ ] #shipping: Standard says "about 2 weeks" and Expedited "usually 3–4 days"; the US states are listed one by one
-      and the banner closes the panel at the very bottom (under the states).
+- [ ] #shipping: Standard says "about 2 weeks" and Expedited "usually 3–4 days"; it is one message with one card:
+      the US states are listed at the bottom of that card on one line per status like the countries (the blue dot,
+      then Alaska and North Dakota after the grey dot; no gaps, readable on desktop and phone) and the banner
+      closes it under the states. The legend at the top shows one dot per line. No separate states message
+      is left (on a server that still had one, the next `/setup` reports "1 old message(s) removed").
+- [ ] #faq is one card (nothing continues in a second card) and answers the bulk-order questions: no extra cost, a
+      percentage off on request.
 - [ ] Icons: buttons show their small icon in front of the label (e.g. Start order, Back, Continue), section headings
       and field names show theirs, and no card title shows raw text like `<:truck:123…>`.
 
@@ -217,6 +222,14 @@ Use a second (non-staff) Discord account as the "customer".
 - [ ] `/product add image:<a picture>` (staff) → its own message in #catalog with the picture under its name and a Buy
       button; `/product stock 0` → button disabled, red.
 - [ ] `/product image file:` (upload) → image shows, still there after `/product edit` and a bot restart.
+- [ ] Before any category the #catalog header has no menu. `/category create name:Old stock emoji:tag` (staff) →
+      private reply; the header card (first message, one card with the banner) now has a menu: All items, then Old
+      stock with its icon.
+      `/product categories product_id:<id> add:Old stock` for two items (`/category list` shows "2 item(s)").
+- [ ] As the customer, pick Old stock in the #catalog menu → a private message only you see ("Only you can see
+      this"): its two items as cards with their pictures and a **Buy <item>** button each; nothing new in #catalog.
+      Pick Old stock again → it answers again (the menu resets). All items with more than 5 items → Next / Previous
+      edit that private message ("Page 2 of 2"). Buy there → the item lands in your order ticket. Check on a phone too.
 - [ ] #new-arrivals button → Restock Alerts on, again → off. Restock a sold-out product → one update pinging the role.
 
 **Purchase (order ticket)**
@@ -307,6 +320,10 @@ Use a second (non-staff) Discord account as the "customer".
       exist, shows the command to create it and has no Post button.
 - [ ] `/discount create code:BOGO type:Buy one, get one free once_per_customer:false products:<ids of the old stock>`
       (product numbers from `/product list`).
+- [ ] The post promises a 20% off coupon in every package (old stock only, can be given to a friend): create that
+      printed code, e.g. `/discount create code:THANKYOU20 type:Percent off value:20 once_per_customer:false
+      products:<ids of the old stock>`, and print it on a card in each package. As a customer, `THANKYOU20` on the
+      review step takes 20% off the old-stock items only.
 - [ ] `/announce preset:warehouse_sale` (optionally `mention:`) → two private messages: the announcement exactly as
       it will be posted (icons in the text, the banner at the bottom of the card, **Claim coupon** greyed out) and a
       card with the channel, the mention and the coupon's terms; check the text on desktop and phone.

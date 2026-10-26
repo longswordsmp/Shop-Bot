@@ -75,7 +75,7 @@ def test_i2_a_button_label_always_has_the_same_icon() -> None:
 
 
 def test_l1_l2_l5_layout() -> None:
-    assert rules(MessageSpec(embeds=(card(), card(), card()))) == ["L1"]
+    assert rules(MessageSpec(embeds=(card(), card()))) == ["L1"]  # one card per message: a second embed is reported
     assert rules(MessageSpec(embeds=(card(title="x" * 61),))) == ["L2"]
     assert rules(MessageSpec(embeds=(card(title="Your cart."),))) == ["L2"]
     grid = tuple(EmbedField(name=f"n{i}", value="v", inline=True) for i in range(7))

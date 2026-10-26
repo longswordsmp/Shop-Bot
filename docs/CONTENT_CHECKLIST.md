@@ -221,12 +221,16 @@ Feature `faq` — enabled.
 
 | | Key | Where it appears | Kind (max chars) | Required | Placeholders |
 |---|---|---|---|---|---|
-| ✅ | `faq.section.ordering.q.1.answer` | Answer to question 1 of 3 in the 'ordering' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. | field_value (1024) | required | `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
-| ✅ | `faq.section.ordering.q.1.question` | Question 1 of 3 in the 'ordering' section (channel links do not work in questions). | field_name (256) | required |  |
-| ✅ | `faq.section.ordering.q.2.answer` | Answer to question 2 of 3 in the 'ordering' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. | field_value (1024) | required | `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
-| ✅ | `faq.section.ordering.q.2.question` | Question 2 of 3 in the 'ordering' section (channel links do not work in questions). | field_name (256) | required |  |
-| ✅ | `faq.section.ordering.q.3.answer` | Answer to question 3 of 3 in the 'ordering' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. | field_value (1024) | required | `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
-| ✅ | `faq.section.ordering.q.3.question` | Question 3 of 3 in the 'ordering' section (channel links do not work in questions). | field_name (256) | required |  |
+| ✅ | `faq.section.ordering.q.1.answer` | Answer to question 1 of 5 in the 'ordering' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. | field_value (1024) | required | `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
+| ✅ | `faq.section.ordering.q.1.question` | Question 1 of 5 in the 'ordering' section (channel links do not work in questions). | field_name (256) | required |  |
+| ✅ | `faq.section.ordering.q.2.answer` | Answer to question 2 of 5 in the 'ordering' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. | field_value (1024) | required | `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
+| ✅ | `faq.section.ordering.q.2.question` | Question 2 of 5 in the 'ordering' section (channel links do not work in questions). | field_name (256) | required |  |
+| ✅ | `faq.section.ordering.q.3.answer` | Answer to question 3 of 5 in the 'ordering' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. | field_value (1024) | required | `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
+| ✅ | `faq.section.ordering.q.3.question` | Question 3 of 5 in the 'ordering' section (channel links do not work in questions). | field_name (256) | required |  |
+| ✅ | `faq.section.ordering.q.4.answer` | Answer to question 4 of 5 in the 'ordering' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. | field_value (1024) | required | `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
+| ✅ | `faq.section.ordering.q.4.question` | Question 4 of 5 in the 'ordering' section (channel links do not work in questions). | field_name (256) | required |  |
+| ✅ | `faq.section.ordering.q.5.answer` | Answer to question 5 of 5 in the 'ordering' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links. | field_value (1024) | required | `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
+| ✅ | `faq.section.ordering.q.5.question` | Question 5 of 5 in the 'ordering' section (channel links do not work in questions). | field_name (256) | required |  |
 | ✅ | `faq.section.ordering.title` | Heading of the 'ordering' section of the FAQ posted in the faq channel, shown in bold (e.g. the topic: ordering, payment...). It may start with one of the bot's icons, e.g. {icon_cart}. | title (256) | required |  |
 
 ### FAQ section 'payment'
@@ -293,8 +297,8 @@ Feature `shipping` — enabled.
 
 | | Key | Where it appears | Kind (max chars) | Required | Placeholders |
 |---|---|---|---|---|---|
-| ✅ | `shipping.areas.introduction` | Optional text under that title, e.g. 'Find your state: {icon_dot_blue} we ship there · {icon_dot_grey} not available.' {country} is the country's name. The areas follow in three columns, each with shipping.status.full.indicator or shipping.status.none.indicator. | description (4096) | optional | `{country}` |
-| ✅ | `shipping.areas.title` | Title of the card that lists every area of a country one by one (shipping.list_areas, e.g. every US state), e.g. 'Shipping in the {country}'. {country} is the country's name. | title (256) | required | `{country}` |
+| ✅ | `shipping.areas.heading` | Heading of the list of every area of a country one by one (shipping.list_areas, e.g. every US state) at the bottom of the shipping card, shown in bold, e.g. '{icon_map} US STATES'. {country} is the country's name. | field_name (256) | required | `{country}` |
+| ▫️ | `shipping.areas.introduction` | Optional line under that heading, e.g. 'Find your state before you order.' {country} is the country's name. The areas follow on one line per status, like the countries: the available ones after shipping.status.full.indicator, the excluded ones after shipping.status.none.indicator (the legend at the top of the card explains the dots). | field_value (1024) | optional | `{country}` |
 
 ### Shipping delivery options
 
@@ -332,7 +336,7 @@ Feature `shipping` — enabled.
 | | Key | Where it appears | Kind (max chars) | Required | Placeholders |
 |---|---|---|---|---|---|
 | ✅ | `shipping.introduction` | Introduction at the top of the shipping card posted in the shipping channel. You can link channels with {channel_<key>} (e.g. {channel_faq}); they become clickable #channel links. | description (4096) | required | `{channel_welcome}`, `{channel_how_to_buy}`, `{channel_faq}`, `{channel_shipping}`, `{channel_announcements}`, `{channel_catalog}`, `{channel_new_arrivals}`, `{channel_reviews}`, `{channel_purchase}`, `{channel_orders}`, `{channel_staff_chat}`, `{channel_bot_log}`, `{channel_transcripts}` |
-| ✅ | `shipping.legend` | Optional line under the introduction explaining the status dots, e.g. '{icon_dot_blue} We ship everywhere · {icon_dot_yellow} Some areas excluded · {icon_dot_grey} Not available'. | description (4096) | optional |  |
+| ✅ | `shipping.legend` | Optional lines under the introduction explaining the status dots, best one per line so a dot stays with its words on a phone, e.g. '{icon_dot_blue} We ship everywhere', '{icon_dot_yellow} Some areas excluded' and '{icon_dot_grey} Not available'. | description (4096) | optional |  |
 | ✅ | `shipping.title` | Title of the shipping card posted in the shipping channel. | title (256) | required |  |
 
 ### Shipping status dots
@@ -451,7 +455,16 @@ Feature `catalog` — enabled.
 |---|---|---|---|---|---|
 | ✅ | `catalog.button.buy` | Button under each product card (listing and private browsing) that opens the customer's private order channel, or continues the one they already have, with this product in the cart. {name} is the product name (use it when catalog.products_per_listing_message is more than 1, so each button names its product). Disabled while the product is out of stock. | button_label (80) | required | `{name}` |
 | ✅ | `catalog.button.buy_emoji` | Optional emoji shown on the buy button. | emoji (100) | optional |  |
-| ✅ | `catalog.button.buy_short` | Optional: label used instead of catalog.button.buy for a product whose name makes that label longer than Discord's 80 characters. Required only when such a product exists (the listing reports it). | button_label (80) | optional |  |
+| ✅ | `catalog.button.buy_short` | Optional: label used instead of catalog.button.buy (or catalog.category.button_buy, when cutting the name is not enough) for a product whose name makes that label longer than Discord's 80 characters. Required only when such a product exists (the listing reports it). | button_label (80) | optional |  |
+
+### Catalog: a category's private view
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ✅ | `catalog.category.button_buy` | Buy button under the product cards of a category's private view (several cards share the message, so the label names its item). {name} is the product name, cut with '…' when the label would pass Discord's 80 characters. Shows catalog.button.buy_emoji like the other buy buttons. | button_label (80) | required | `{name}` |
+| ✅ | `catalog.category.empty` | Text of that card when the category has no item right now. {category} is the category's name. | description (4096) | required | `{category}` |
+| ✅ | `catalog.category.intro` | Optional: text of that card, above the category's product cards. {category} is the category's name, {count} the number of its items. | description (4096) | optional | `{category}`, `{count}` |
+| ✅ | `catalog.category.title` | Title of the card at the top of the private message a category pick opens. {category} is the category's name (catalog.picker.all, without its icon, for 'All'). | title (256) | required | `{category}` |
 
 ### Catalog: live product listing
 
@@ -460,6 +473,15 @@ Feature `catalog` — enabled.
 | ✅ | `catalog.listing.description` | Text of the header card at the top of the product listing channel. | description (4096) | required |  |
 | ✅ | `catalog.listing.empty` | Shown below the listing header, and in private browsing, when no product is currently offered. | description (4096) | required |  |
 | ✅ | `catalog.listing.title` | Title of the header card: the first message of the product listing channel (each product follows in its own message). | title (256) | required |  |
+
+### Catalog: category menu on the listing header
+
+| | Key | Where it appears | Kind (max chars) | Required | Placeholders |
+|---|---|---|---|---|---|
+| ✅ | `catalog.picker.all` | The menu's first option, built in: every item in the shop. The categories made with /category follow with their own name, emoji and description. | option_label (100) | required |  |
+| ✅ | `catalog.picker.all_description` | Optional: small text under the menu's 'All' option. | option_description (100) | optional |  |
+| ✅ | `catalog.picker.description` | Optional: last paragraph of the listing's header card while it shows the category menu (there is at least one product, and a category or catalog.product_cards = false), e.g. how the menu works. If empty, the header shows only its own text. | description (4096) | optional |  |
+| ✅ | `catalog.picker.placeholder` | Placeholder of the category menu under the listing's header card. Picking a category shows its items in a private message only that member sees. | select_placeholder (150) | required |  |
 
 ## #new-arrivals (Restock Alerts)
 
@@ -1402,7 +1424,7 @@ Feature `operations` — enabled.
 
 ## Summary
 
-- Required keys (for the listed features): 550
+- Required keys (for the listed features): 559
 - Required keys still missing: 0
 
 Legend: ✅ configured · ❌ required and missing · ▫️ optional and empty

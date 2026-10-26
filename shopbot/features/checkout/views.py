@@ -56,7 +56,7 @@ from shopbot.features.checkout.payments import PaymentInstructions, gift_card
 from shopbot.features.credits import repo as credits_repo
 from shopbot.features.server_keys import channel_name_key
 from shopbot.features.tickets import views as tickets_views
-from shopbot.ui.card import heading
+from shopbot.ui.card import heading, with_paragraph
 from shopbot.ui.custom_ids import cid
 from shopbot.ui.limits import (
     EMBED_DESCRIPTION,
@@ -602,9 +602,13 @@ def buy_added_reply(ui: Ui, name: str, channel_id: int) -> MessageSpec:
 
 def buy_started_reply(ui: Ui, channel_id: int, notice: EmbedSpec | None = None) -> MessageSpec:
     """Reply to a catalog buy button that opened a new order channel; ``notice`` explains a product that could not be
-    put in the cart after all (e.g. sold out a moment earlier)."""
+    put in the cart after all (e.g. sold out a moment earlier): its text is the card's last paragraph, in the warning
+    colour, so the reply stays one card."""
     started = started_reply(ui, channel_id)  # its banner too: the ticket opened even when the product was not added
-    return replace(started, embeds=started.embeds + ((notice,) if notice is not None else ()))
+    if notice is None:
+        return started
+    card = replace(started.embeds[0], color=ui.color("warning"))
+    return replace(started, embeds=with_paragraph(card, notice.description) + started.embeds[1:])
 
 
 def limit_reply(ui: Ui, limit: int) -> MessageSpec:

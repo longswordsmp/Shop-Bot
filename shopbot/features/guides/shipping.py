@@ -1,15 +1,17 @@
-"""#shipping: where we ship and what delivery costs, as one card.
+"""#shipping: where we ship and what delivery costs, as one card in one message.
 
 Everything comes from configuration: the title and introduction, an optional legend, then one section per
 ``[[shipping.groups]]`` (e.g. North America, Europe) listing its countries after a status dot (the bot's icons):
 available everywhere, available with exceptions (``[shipping.excluded_areas]``, e.g. "United States (except Alaska
 and North Dakota)"), then the countries listed as not available. Below come the delivery options with their prices
-(``[[checkout.fulfillment_options]]``) and the information sections (processing, tracking). A list longer than one
-embed continues in the next embed and message; nothing is cut.
+(``[[checkout.fulfillment_options]]``) and the information sections (processing, tracking).
 
-For each country in ``shipping.list_areas`` (the US) a second card lists every area one by one (``LISTED_AREAS``:
-the 50 states and DC, written "Washington, D.C.": ``area_display_name``) in three columns, each with its dot:
-available, or not available when it is one of the country's ``excluded_areas``.
+The country in ``shipping.list_areas`` (the US) closes the same card with a section like a group's: its heading, then
+every area by name (``LISTED_AREAS``: the 50 states and DC, written "Washington, D.C.": ``area_display_name``),
+alphabetically, on one line per status like the countries: the available ones after the blue dot, the country's
+``excluded_areas`` after the grey one. The card has no fields. With the shipped configuration it fits one embed
+(Discord allows 4096 characters of text and 6000 per embed); a card longer than that (far more countries or
+information than shipped) continues in the next embed and message, and nothing is cut.
 """
 
 from __future__ import annotations
@@ -30,8 +32,8 @@ from shopbot.core.countries import LISTED_AREAS, area_display_name
 from shopbot.features.checkout.content_keys import extra_key, option_key
 from shopbot.features.guides import common
 from shopbot.features.server_keys import channel_placeholders, reference_problems
-from shopbot.ui.card import Card, Section, block_messages
-from shopbot.ui.spec import EmbedField, MessageSpec, PreviewState
+from shopbot.ui.card import Card, Section
+from shopbot.ui.spec import MessageSpec, PreviewState
 from shopbot.ui.style import Ui
 
 if TYPE_CHECKING:
@@ -52,12 +54,8 @@ FORMAT_LAST_AREA = "shipping.format.last_area"
 DELIVERY_HEADING = "shipping.delivery.heading"
 EXTRAS_HEADING = "shipping.extras.heading"
 FORMAT_DELIVERY = "shipping.format.delivery"
-AREAS_TITLE = "shipping.areas.title"
+AREAS_HEADING = "shipping.areas.heading"
 AREAS_INTRODUCTION = "shipping.areas.introduction"
-# The listed areas are shown in this many columns (inline fields).
-AREA_COLUMNS = 3
-# Inline fields need a name; the columns of one list share the card's title instead.
-BLANK_FIELD_NAME = "\u200b"
 
 # A country's availability: everywhere, with excluded areas, not at all.
 STATUSES = ("full", "partial", "none")
@@ -67,6 +65,7 @@ STATUS_MEANING = {
     "none": "we do not ship to the country",
 }
 COUNTRY_SEPARATOR = " · "
+NO_BREAK_SPACE = "\u00a0"
 
 
 def status_indicator_key(status: str) -> str:
@@ -114,8 +113,9 @@ def content_keys(settings: Settings) -> list[ContentKey]:
             Kind.DESCRIPTION,
             SHIPPING,
             group,
-            "Optional line under the introduction explaining the status dots, e.g. '{icon_dot_blue} We ship "
-            "everywhere · {icon_dot_yellow} Some areas excluded · {icon_dot_grey} Not available'.",
+            "Optional lines under the introduction explaining the status dots, best one per line so a dot stays "
+            "with its words on a phone, e.g. '{icon_dot_blue} We ship everywhere', '{icon_dot_yellow} Some areas "
+            "excluded' and '{icon_dot_grey} Not available'.",
             required=False,
         ),
     ]
@@ -220,22 +220,24 @@ def content_keys(settings: Settings) -> list[ContentKey]:
         areas_group = "Shipping areas one by one"
         keys += [
             ck(
-                AREAS_TITLE,
-                Kind.TITLE,
+                AREAS_HEADING,
+                Kind.FIELD_NAME,
                 SHIPPING,
                 areas_group,
-                "Title of the card that lists every area of a country one by one (shipping.list_areas, e.g. every "
-                "US state), e.g. 'Shipping in the {country}'. {country} is the country's name.",
+                "Heading of the list of every area of a country one by one (shipping.list_areas, e.g. every US "
+                "state) at the bottom of the shipping card, shown in bold, e.g. '{icon_map} US STATES'. {country} "
+                "is the country's name.",
                 placeholders=("country",),
             ),
             ck(
                 AREAS_INTRODUCTION,
-                Kind.DESCRIPTION,
+                Kind.FIELD_VALUE,
                 SHIPPING,
                 areas_group,
-                "Optional text under that title, e.g. 'Find your state: {icon_dot_blue} we ship there · "
-                "{icon_dot_grey} not available.' {country} is the country's name. The areas follow in three "
-                "columns, each with shipping.status.full.indicator or shipping.status.none.indicator.",
+                "Optional line under that heading, e.g. 'Find your state before you order.' {country} is the "
+                "country's name. The areas follow on one line per status, like the countries: the available ones "
+                "after shipping.status.full.indicator, the excluded ones after shipping.status.none.indicator (the "
+                "legend at the top of the card explains the dots).",
                 required=False,
                 placeholders=("country",),
             ),
@@ -380,6 +382,7 @@ def extras_section(ui: Ui, texts: common.Texts, extras: tuple[ExtraDef, ...]) ->
 
 
 def shipping_card(ui: Ui, s: ShippingSettings, checkout: CheckoutSettings, texts: common.Texts) -> Card:
+    """The card: countries by group, delivery, information, then the listed countries' areas."""
     legend = texts.optional(LEGEND)
     sections: list[Section | None] = [Section(None, (legend,)) if legend else None]
     sections += [group_section(texts, s, group) for group in s.groups]
@@ -390,6 +393,7 @@ def shipping_card(ui: Ui, s: ShippingSettings, checkout: CheckoutSettings, texts
         Section(texts.required(info_name_key(n)), (texts.required(info_value_key(n)),))
         for n in range(1, s.info_sections + 1)
     ]
+    sections += [areas_section(texts, s, code) for code in s.list_areas]
     return Card(
         tone="info",
         title=texts.required(TITLE),
@@ -398,41 +402,34 @@ def shipping_card(ui: Ui, s: ShippingSettings, checkout: CheckoutSettings, texts
     )
 
 
-def area_columns(texts: common.Texts, s: ShippingSettings, code: str) -> tuple[EmbedField, ...]:
-    """Every listed area of the country, alphabetically, each after its dot, in ``AREA_COLUMNS`` columns."""
-    excluded = set(s.excluded_areas.get(code, ()))
-    dots = {status: texts.required(status_indicator_key(status)) for status in ("full", "none")}
-    lines = [
-        f"{dots['none' if area in excluded else 'full']} {area_display_name(code, area)}" for area in LISTED_AREAS[code]
-    ]
-    per_column = -(-len(lines) // AREA_COLUMNS)
-    return tuple(
-        EmbedField(BLANK_FIELD_NAME, "\n".join(lines[start : start + per_column]), inline=True)
-        for start in range(0, len(lines), per_column)
-    )
-
-
-def areas_card(texts: common.Texts, s: ShippingSettings, code: str) -> Card:
-    """The card listing one country's areas one by one (e.g. every US state)."""
+def areas_section(texts: common.Texts, s: ShippingSettings, code: str) -> Section:
+    """The country's areas (``shipping.list_areas``) as a section like a group's: its heading, the optional
+    introduction, then the areas alphabetically on one line per status (available after the blue dot, the excluded
+    ones after the grey dot)."""
     country = s.country_name(code)
-    return Card(
-        tone="info",
-        title=texts.required(AREAS_TITLE, country=country),
-        intro=texts.optional(AREAS_INTRODUCTION, country=country),
-        fields=area_columns(texts, s, code),
-    )
+    excluded = set(s.excluded_areas.get(code, ()))
+    intro = texts.optional(AREAS_INTRODUCTION, country=country)
+    lines = [intro] if intro else []
+    for status, wanted in (("full", False), ("none", True)):
+        # No-break spaces keep a name such as "New Jersey" on one line when the list wraps on a phone.
+        names = [
+            area_display_name(code, area).replace(" ", NO_BREAK_SPACE)
+            for area in LISTED_AREAS[code]
+            if (area in excluded) == wanted
+        ]
+        if names:
+            dot = texts.required(status_indicator_key(status))
+            lines.append(f"{dot} {COUNTRY_SEPARATOR.join(names)}".strip())
+    return Section(texts.required(AREAS_HEADING, country=country), tuple(lines))
 
 
 def shipping_messages(
     ui: Ui, s: ShippingSettings, checkout: CheckoutSettings, texts: common.Texts
 ) -> list[MessageSpec]:
-    """The shipping card's messages, then one message per country in ``shipping.list_areas`` (one card per message;
-    the last one closes the panel with the banner). Raises ``MissingContent``/``ChannelNotCreated`` at runtime when
-    text or a channel is missing (nothing incomplete is posted)."""
-    specs = block_messages(ui, [shipping_card(ui, s, checkout, texts).block()], banner=None)
-    for code in s.list_areas:
-        specs += block_messages(ui, [areas_card(texts, s, code).block()], banner=None)
-    return common.with_closing_banner(ui, specs, "shipping")
+    """The shipping card's messages: one, unless it is longer than one embed allows (see the module docstring); the
+    banner closes the last one. Raises ``MissingContent``/``ChannelNotCreated`` at runtime when text or a channel is
+    missing (nothing incomplete is posted)."""
+    return common.guide_messages(ui, [shipping_card(ui, s, checkout, texts).block()], banner="shipping")
 
 
 # -- runtime ---------------------------------------------------------------------------------------------------
@@ -471,7 +468,7 @@ def _sample(key: str) -> str | None:
         return "{areas} [sample and] {last}"
     if key == FORMAT_DELIVERY:
         return "[sample option] {label} {price}"
-    if key == AREAS_TITLE:
+    if key == AREAS_HEADING:
         return "[sample areas of] {country}"
     if key.startswith("shipping.info.") and key.endswith(".value"):
         return common.long_sample(f"sample information {key.split('.')[2]}", 600)

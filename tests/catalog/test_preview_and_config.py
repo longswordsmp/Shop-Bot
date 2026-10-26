@@ -12,7 +12,7 @@ from shopbot.features import core_keys as ck
 from shopbot.features.catalog import MODULE
 from shopbot.features.catalog import content_keys as keys
 from shopbot.ui.limits import validate_message, validate_modal
-from shopbot.ui.spec import ButtonSpec, MessageSpec, ModalSpec
+from shopbot.ui.spec import ButtonSpec, MessageSpec, ModalSpec, SelectSpec
 from tests.helpers import TestEnv, make_settings, make_test_env
 from tools.check_limits import unrouted_components
 
@@ -26,11 +26,21 @@ OPERATOR_STATES = {
     "reply_image_rejected",
     "reply_removed",
     "reply_remove_reserved",
+    "category_list",
+    "reply_category_created",
+    "reply_category_delete_confirm",
+    "reply_category_duplicate",
+    "reply_product_categories",
 }
 EXPECTED_STATES = {
     "listing_message_1",
     "listing_message_2",
     "listing_empty",
+    "listing_header_no_categories",
+    "category_page_1",
+    "category_page_2",
+    "category_all",
+    "category_empty",
     "browse_first",
     "browse_middle",
     "browse_sold_out",
@@ -57,8 +67,12 @@ async def test_every_preview_state_is_valid_routed_and_synthetic(tenv: TestEnv) 
     head = by_name["listing_message_1"]
     assert isinstance(head, MessageSpec)
     (header,) = head.embeds
-    assert (header.title, header.description) == (tenv.text(keys.LISTING_TITLE), tenv.text(keys.LISTING_DESCRIPTION))
-    assert head.rows[0][0].label == tenv.text(keys.BUTTON_BROWSE)  # type: ignore[union-attr]
+    assert header.title == tenv.text(keys.LISTING_TITLE)
+    assert header.description == f"{tenv.text(keys.LISTING_DESCRIPTION)}\n\n{tenv.text(keys.PICKER_DESCRIPTION)}"
+    picker = head.rows[0][0]
+    assert isinstance(picker, SelectSpec) and picker.custom_id == "sb:ct:cat"
+    assert [o.value for o in picker.options] == ["0", "1", "2"]  # All, then the sample categories
+    assert head.rows[1][0].label == tenv.text(keys.BUTTON_BROWSE)  # type: ignore[union-attr]
     listing = by_name["listing_message_2"]
     assert isinstance(listing, MessageSpec)
     cards = listing.embeds
@@ -80,6 +94,9 @@ async def test_every_preview_state_is_valid_routed_and_synthetic(tenv: TestEnv) 
     assert all(c.image_url is None for c in cards[1:])
     browse = by_name["browse_first"]
     assert isinstance(browse, MessageSpec) and browse.files and browse.embeds[0].image_url.startswith("attachment://")  # type: ignore[union-attr]
+    bare = by_name["listing_header_no_categories"]
+    assert isinstance(bare, MessageSpec) and bare.embeds[0].description == tenv.text(keys.LISTING_DESCRIPTION)
+    assert not any(isinstance(c, SelectSpec) for row in bare.rows for c in row)  # no menu before the first category
     empty = by_name["listing_empty"]
     assert isinstance(empty, MessageSpec) and len(empty.embeds) == 1
     assert (empty.embeds[0].description or "").endswith(tenv.text(keys.LISTING_EMPTY))
@@ -139,6 +156,14 @@ def test_content_keys_definitions() -> None:
         keys.BUTTON_BUY,
         keys.BUTTON_BUY_SHORT,
         keys.BUTTON_BUY_EMOJI,
+        keys.PICKER_DESCRIPTION,
+        keys.PICKER_PLACEHOLDER,
+        keys.PICKER_ALL,
+        keys.PICKER_ALL_DESCRIPTION,
+        keys.CATEGORY_TITLE,
+        keys.CATEGORY_INTRO,
+        keys.CATEGORY_EMPTY,
+        keys.CATEGORY_BUTTON_BUY,
     }
     assert all(k.feature == "catalog" and k.doc and k.group for k in defined.values())
     assert defined[keys.FIELD_PRICE].kind is Kind.FIELD_NAME
@@ -147,20 +172,31 @@ def test_content_keys_definitions() -> None:
     assert defined[keys.LISTING_EMPTY].kind is Kind.DESCRIPTION
     assert defined[keys.BUTTON_BROWSE].kind is Kind.BUTTON_LABEL
     required = {k for k, d in defined.items() if d.required}
-    assert required == set(defined) - {keys.FIELD_MAX_PER_ORDER, keys.BUTTON_BUY_SHORT, keys.BUTTON_BUY_EMOJI}
+    optional = {keys.FIELD_MAX_PER_ORDER, keys.BUTTON_BUY_SHORT, keys.BUTTON_BUY_EMOJI}
+    optional |= {keys.PICKER_DESCRIPTION, keys.PICKER_ALL_DESCRIPTION, keys.CATEGORY_INTRO}
+    assert required == set(defined) - optional
+    assert defined[keys.PICKER_PLACEHOLDER].kind is Kind.SELECT_PLACEHOLDER
+    assert defined[keys.PICKER_ALL].kind is Kind.OPTION_LABEL
+    assert defined[keys.CATEGORY_INTRO].placeholders == ("category", "count")
+    assert defined[keys.CATEGORY_BUTTON_BUY].placeholders == ("name",)
     assert defined[keys.BUTTON_BUY].placeholders == ("name",)
     assert defined[keys.BUTTON_BUY_EMOJI].kind is Kind.EMOJI
     assert keys.AVAILABILITY_LOW_STOCK not in defined  # only with catalog.low_stock_threshold > 0
     no_checkout = make_settings({"features": {"checkout": False}})
     assert not next(k for k in keys.content_keys(no_checkout) if k.key == keys.BUTTON_BUY).required
+    assert not next(k for k in keys.content_keys(no_checkout) if k.key == keys.CATEGORY_BUTTON_BUY).required
 
     no_listing = make_settings({"catalog": {"listing_channel": "", "browse_enabled": False}})
     required = {k.key for k in keys.content_keys(no_listing) if k.required}
     assert keys.LISTING_TITLE not in required and keys.BUTTON_BROWSE not in required
     assert keys.LISTING_EMPTY not in required and keys.FIELD_PRICE in required
+    assert not {keys.PICKER_PLACEHOLDER, keys.PICKER_ALL, keys.CATEGORY_TITLE, keys.CATEGORY_EMPTY} & required
 
     assert keys.shared_keys(settings) == [ck.MONEY_FORMAT, ck.BUTTON_PREV, ck.BUTTON_NEXT]
-    assert keys.shared_keys(make_settings({"catalog": {"browse_enabled": False}})) == [ck.MONEY_FORMAT]
+    # The category pages page with the same buttons as private browsing.
+    no_browse = make_settings({"catalog": {"browse_enabled": False}})
+    assert keys.shared_keys(no_browse) == [ck.MONEY_FORMAT, ck.BUTTON_PREV, ck.BUTTON_NEXT]
+    assert keys.shared_keys(no_listing) == [ck.MONEY_FORMAT]
 
 
 def test_settings_problems() -> None:
@@ -202,9 +238,17 @@ def test_operator_text_keys_are_prefixed_and_used_keys_exist() -> None:
     assert all(key.startswith("catalog.") for key in MODULE.operator_text)
     source = "\n".join(
         (Path(__file__).resolve().parents[2] / "shopbot" / "features" / "catalog" / name).read_text()
-        for name in ("service.py", "views.py", "commands.py", "handlers.py", "tasks.py", "preview.py")
+        for name in (
+            "service.py",
+            "views.py",
+            "commands.py",
+            "handlers.py",
+            "tasks.py",
+            "preview.py",
+            "category_admin.py",
+        )
     )
     used = set(re.findall(r'op\(\s*"(catalog\.[a-z0-9_.]+)"', source))
-    used |= set(re.findall(r'"(catalog\.(?:list|view|cmd|form|invalid|refresh)\.[a-z0-9_]+)"', source))
+    used |= set(re.findall(r'"(catalog\.(?:list|view|cmd|form|invalid|refresh|category)\.[a-z0-9_.]+)"', source))
     missing = sorted(key for key in used if key not in MODULE.operator_text)
     assert missing == []

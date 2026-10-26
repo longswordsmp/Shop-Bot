@@ -1,6 +1,7 @@
-"""Operator text of the catalog: /product replies, the staff-only product editor form, the staff product list,
-and listing refresh reports. Shown only to catalog managers and admins (ephemerally) and in the admin-only
-audit channel; never to customers. Each entry can be overridden in content.toml under ``operator.<key>``.
+"""Operator text of the catalog: /product and /category replies, the staff-only product editor form, the staff
+product and category lists, and listing refresh reports. Shown only to catalog managers and admins (ephemerally) and
+in the admin-only audit channel; never to customers. Each entry can be overridden in content.toml under
+``operator.<key>``.
 """
 
 from __future__ import annotations
@@ -105,6 +106,7 @@ OPERATOR_TEXT: dict[str, str] = {
     "catalog.view.amount": "{amount} {currency}",
     "catalog.view.image_long": "set (too long to show here; see the thumbnail)",
     "catalog.view.image_uploaded": "uploaded file {filename} ({kilobytes} KB, {type})",
+    "catalog.view.categories": "Categories",
     "catalog.view.customer_preview_missing": "The customer card cannot be shown yet: some catalog text is not "
     "configured (run /status).",
     # staff product list (/product list)
@@ -119,6 +121,46 @@ OPERATOR_TEXT: dict[str, str] = {
     "catalog.list.stock": "{available} available / {stock} on hand",
     # autocomplete suggestion for product_id options
     "catalog.choice": "#{product_id} {name}",
+    # /product categories
+    "catalog.cmd.categories_title": "Categories of product #{product_id}",
+    "catalog.cmd.category_added": "Added to {name}.",
+    "catalog.cmd.category_already_in": "Already in {name}.",
+    "catalog.cmd.category_removed": "Taken out of {name}.",
+    "catalog.cmd.category_not_in": "Was not in {name}.",
+    "catalog.cmd.categories_now": "Now in: {names}. Members find it there, and under All.",
+    "catalog.cmd.categories_none": "Not in any category: members find it under All.",
+    # /category (the categories of the #catalog menu)
+    "catalog.category.choice": "#{category_id} {name}",
+    "catalog.category.created": "Category #{category_id} {name} created",
+    "catalog.category.created_hint": "It is in the #catalog menu now. Put items in it with /product categories "
+    "product_id:(number) add:{name}.",
+    "catalog.category.updated": "Category #{category_id} {name} updated",
+    "catalog.category.unchanged": "Nothing changed for category #{category_id} {name}",
+    "catalog.category.edit_nothing": "Give at least one value to change: name, emoji, description or position.",
+    "catalog.category.delete_title": "Delete category #{category_id}?",
+    "catalog.category.delete_confirm": "{name} leaves the #catalog menu and its {items} item(s) leave the category; "
+    "they stay in the catalog and under All. Run the command again with confirm set to True.",
+    "catalog.category.deleted": "Category {name} deleted ({items} item(s) taken out of it; they stay in the catalog)",
+    "catalog.category.not_found": "Category #{category_id} does not exist (see /category list).",
+    "catalog.category.too_many": "The menu holds at most {max} categories besides All. Delete one first.",
+    "catalog.category.invalid.name": "Name: must be 1-{max} characters.",
+    "catalog.category.invalid.name_all": "Name: {name} is the menu's built-in choice that shows every item. Pick "
+    "another name.",
+    "catalog.category.invalid.duplicate": "Name: category #{category_id} is already called {name} (upper and lower "
+    "case count as the same). Pick another name.",
+    "catalog.category.invalid.emoji": "Emoji: give one of the bot's icons by name (for example tag; the names are the "
+    "files in config/emojis), one emoji or one country flag. Emoji with a skin tone or joined from several are not "
+    "accepted.",
+    "catalog.category.invalid.description": "Description: must be at most {max} characters.",
+    "catalog.category.invalid.position": "Position: must be between {min} and {max}.",
+    # /category list
+    "catalog.category.list.title": "Categories ({count}, at most {max})",
+    "catalog.category.list.all": "**All** (built in, always first): {items} item(s)",
+    "catalog.category.list.line": "`#{category_id}` {emoji} **{name}**: {items} item(s), position {position}",
+    "catalog.category.list.hidden": ", {hidden} more hidden (inactive)",
+    "catalog.category.list.description": "_{description}_",
+    "catalog.category.list.no_emoji": "·",
+    "catalog.category.list.empty": "No categories yet. Create one with /category create.",
     # listing refresh reports
     "catalog.refresh.field": "Product listing",
     "catalog.refresh.done": "Listing updated in {channel}: {messages} message(s), {products} product(s) "
@@ -133,6 +175,8 @@ OPERATOR_TEXT: dict[str, str] = {
     "catalog.refresh.forbidden": "Listing not refreshed: Discord denied access to {channel} (missing permissions).",
     "catalog.refresh.not_found": "Listing not refreshed: {channel} no longer exists. Run /setup.",
     "catalog.refresh.http_error": "Listing refresh failed (Discord error {status}); it will be retried.",
+    "catalog.refresh.emoji_refused": "Discord refused a category's emoji, so the #catalog menu shows without emoji "
+    "for now. Give that category another emoji or one of the bot's icons with /category edit (see /category list).",
     "catalog.refresh.image_changed": "Listing refresh stopped: a product image changed while it ran; it will be "
     "retried.",
     "catalog.refresh.error": "Listing refresh failed unexpectedly. Reference: {error_id}.",

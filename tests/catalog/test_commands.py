@@ -60,7 +60,20 @@ async def test_group_metadata(tenv: TestEnv) -> None:
     assert group.default_permissions == discord.Permissions(manage_guild=True)
     assert group.guild_only is True
     names = {c.name for c in group.commands}
-    assert names == {"add", "edit", "price", "stock", "image", "toggle", "archive", "remove", "sort", "view", "list"}
+    assert names == {
+        "add",
+        "edit",
+        "price",
+        "stock",
+        "image",
+        "toggle",
+        "archive",
+        "remove",
+        "sort",
+        "view",
+        "list",
+        "categories",
+    }
     for command in group.commands:
         assert command.description and all(p.description for p in command.parameters)
         assert len(command.checks) == 2

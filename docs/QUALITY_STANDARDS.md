@@ -7,9 +7,17 @@ texts; the others are reviewed by eye with `python -m tools.build_preview` befor
 
 ## 1. Structure
 
-- **L1 One card per message.** A message is one embed (a long card may continue in a second embed of the same
-  colour). No stacks of small embeds. [checked: at most 2 embeds per customer message, except the catalog
-  listing's product cards when `catalog.products_per_listing_message` is more than 1]
+- **L1 One card per message.** The owner's rule: keep everything in one embed. A message is one embed, and what
+  belongs together stays in that card as sections or fields, never in a second embed or a follow-up message
+  (#shipping lists the US states at the bottom of its own card; the FAQ is one card). No stacks of small embeds, no
+  splitting a card into several. When text does not fit, tighten the wording rather than add a card. The one
+  exception in the shipped setup is the private catalog results after choosing a category (several product cards,
+  shown only to that person). A long order's continuation card (a second embed of the same colour) stays only as
+  the fallback when Discord's limits (4096 characters per description, 6000 per embed) leave no other way. Staff
+  replies follow the same rule: a list longer than one card continues in a further message, one card each.
+  [checked: one embed per customer message, except the catalog listing's product cards when
+  `catalog.products_per_listing_message` is more than 1, a category's private view, and a long order's continuation
+  card]
 - **L2 Title says what this is.** Short (at most 60 characters), plain text, no ending period. [checked]
 - **L3 Lead first.** One or two short sentences under the title: what happened and what to do next.
 - **L4 Sections.** Each part of a card starts with a heading line: an icon and an UPPERCASE label in bold

@@ -497,29 +497,45 @@ faq.title = "Frequently asked questions"
 
 # --- FAQ section 'ordering' ---
 
-# Answer to question 1 of 3 in the 'ordering' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
+# Answer to question 1 of 5 in the 'ordering' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-faq.section.ordering.q.1.answer = "Press **Buy** on an item in {channel_catalog}, or **Start order** in {channel_purchase}. A private ticket opens that only you and our team can see, and it guides you step by step. The full guide is in {channel_how_to_buy}."
+faq.section.ordering.q.1.answer = "Press **Buy** on an item in {channel_catalog} or **Start order** in {channel_purchase}. A private ticket guides you step by step. Full guide: {channel_how_to_buy}."
 
-# Question 1 of 3 in the 'ordering' section (channel links do not work in questions).
+# Question 1 of 5 in the 'ordering' section (channel links do not work in questions).
 # field_name · max 256 characters · required
 faq.section.ordering.q.1.question = "How do I order?"
 
-# Answer to question 2 of 3 in the 'ordering' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
+# Answer to question 2 of 5 in the 'ordering' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-faq.section.ordering.q.2.answer = "Yes. Add as many items as you like, up to 20 different ones, before you confirm your order."
+faq.section.ordering.q.2.answer = "Yes, up to 20 different items per order."
 
-# Question 2 of 3 in the 'ordering' section (channel links do not work in questions).
+# Question 2 of 5 in the 'ordering' section (channel links do not work in questions).
 # field_name · max 256 characters · required
 faq.section.ordering.q.2.question = "Can I order several items at once?"
 
-# Answer to question 3 of 3 in the 'ordering' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
+# Answer to question 3 of 5 in the 'ordering' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-faq.section.ordering.q.3.answer = "One at a time. When your order is delivered or closed, you can start the next one."
+faq.section.ordering.q.3.answer = "No, bulk orders cost nothing extra."
 
-# Question 3 of 3 in the 'ordering' section (channel links do not work in questions).
+# Question 3 of 5 in the 'ordering' section (channel links do not work in questions).
 # field_name · max 256 characters · required
-faq.section.ordering.q.3.question = "Can I have more than one order open?"
+faq.section.ordering.q.3.question = "Do you charge extra for bulk orders?"
+
+# Answer to question 4 of 5 in the 'ordering' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
+# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+faq.section.ordering.q.4.answer = "Yes, bulk orders get a percentage off. Before you confirm your order, ask our team in your ticket for a discount code."
+
+# Question 4 of 5 in the 'ordering' section (channel links do not work in questions).
+# field_name · max 256 characters · required
+faq.section.ordering.q.4.question = "Do you offer a discount on bulk orders?"
+
+# Answer to question 5 of 5 in the 'ordering' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
+# field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
+faq.section.ordering.q.5.answer = "One at a time: start the next once your order is delivered or closed."
+
+# Question 5 of 5 in the 'ordering' section (channel links do not work in questions).
+# field_name · max 256 characters · required
+faq.section.ordering.q.5.question = "Can I have more than one order open?"
 
 # Heading of the 'ordering' section of the FAQ posted in the faq channel, shown in bold (e.g. the topic: ordering, payment...). It may start with one of the bot's icons, e.g. {icon_cart}.
 # title · max 256 characters · required
@@ -529,7 +545,7 @@ faq.section.ordering.title = "{icon_cart} ORDERING"
 
 # Answer to question 1 of 6 in the 'payment' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-faq.section.payment.q.1.answer = "Our regular payment options are credit and debit cards (Visa, Mastercard, American Express and Discover), Apple Pay, Google Pay, PayPal and Cash App. They are temporarily down right now, so for the moment you pay with a DoorDash eGift card."
+faq.section.payment.q.1.answer = "Cards (Visa, Mastercard, American Express, Discover), Apple Pay, Google Pay, PayPal and Cash App, but they are temporarily down: for now you pay with a DoorDash eGift card."
 
 # Question 1 of 6 in the 'payment' section (channel links do not work in questions).
 # field_name · max 256 characters · required
@@ -537,7 +553,7 @@ faq.section.payment.q.1.question = "Which payment methods do you take?"
 
 # Answer to question 2 of 6 in the 'payment' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-faq.section.payment.q.2.answer = "Our other payment options will be back as soon as possible. Until then, DoorDash eGift cards are the only way to pay."
+faq.section.payment.q.2.answer = "Our other options will be back as soon as possible. Until then, DoorDash eGift cards are the only way to pay."
 
 # Question 2 of 6 in the 'payment' section (channel links do not work in questions).
 # field_name · max 256 characters · required
@@ -545,7 +561,7 @@ faq.section.payment.q.2.question = "Why only gift cards right now?"
 
 # Answer to question 3 of 6 in the 'payment' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-faq.section.payment.q.3.answer = "Buy a DoorDash eGift card for the exact order total, in US dollars. After you confirm your order, press **Submit gift card** in your order ticket and enter the code in the private form. Several cards that add up to the total are fine."
+faq.section.payment.q.3.answer = "Buy a DoorDash eGift card for the exact order total in US dollars (several cards adding up to it are fine). After confirming your order, press **Submit gift card** in your ticket and enter the code in the private form."
 
 # Question 3 of 6 in the 'payment' section (channel links do not work in questions).
 # field_name · max 256 characters · required
@@ -553,7 +569,7 @@ faq.section.payment.q.3.question = "How do I pay with a gift card?"
 
 # Answer to question 4 of 6 in the 'payment' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-faq.section.payment.q.4.answer = "Codes are entered only in a private form, stored encrypted, seen only by our payment team and deleted once your card is redeemed. Never post a gift card code, card number or password in a channel, and never send one by DM: our team will never ask you to."
+faq.section.payment.q.4.answer = "Codes go only into a private form, are stored encrypted, seen only by our payment team and deleted once redeemed. Never post a code, card number or password in a channel or send one by DM: we will never ask you to."
 
 # Question 4 of 6 in the 'payment' section (channel links do not work in questions).
 # field_name · max 256 characters · required
@@ -561,7 +577,7 @@ faq.section.payment.q.4.question = "Is my payment safe?"
 
 # Answer to question 5 of 6 in the 'payment' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-faq.section.payment.q.5.answer = "As soon as our team has checked it. You get a message in your order ticket and by DM."
+faq.section.payment.q.5.answer = "Once our team has checked it. You get a message in your ticket and by DM."
 
 # Question 5 of 6 in the 'payment' section (channel links do not work in questions).
 # field_name · max 256 characters · required
@@ -583,7 +599,7 @@ faq.section.payment.title = "{icon_wallet} PAYMENT"
 
 # Answer to question 1 of 2 in the 'problems' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-faq.section.problems.q.1.answer = "Yes, until your payment is confirmed: press **Cancel order** in your order ticket. If you have already paid, write to our team in your ticket instead."
+faq.section.problems.q.1.answer = "Yes, until your payment is confirmed: press **Cancel order** in your ticket. Already paid? Write to our team there."
 
 # Question 1 of 2 in the 'problems' section (channel links do not work in questions).
 # field_name · max 256 characters · required
@@ -591,7 +607,7 @@ faq.section.problems.q.1.question = "Can I cancel my order?"
 
 # Answer to question 2 of 2 in the 'problems' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-faq.section.problems.q.2.answer = "Press **Report a problem** in {channel_purchase} and choose the order and what happened. A private ticket opens with our team, where you can also add photos."
+faq.section.problems.q.2.answer = "Press **Report a problem** in {channel_purchase} and choose the order and what happened. A private ticket opens where you can add photos."
 
 # Question 2 of 2 in the 'problems' section (channel links do not work in questions).
 # field_name · max 256 characters · required
@@ -605,7 +621,7 @@ faq.section.problems.title = "{icon_flag} CANCELLATIONS AND PROBLEMS"
 
 # Answer to question 1 of 6 in the 'shipping' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-faq.section.shipping.q.1.answer = "To the Americas and Europe; every country is listed in {channel_shipping}. In the United States we ship to every state except Alaska and North Dakota."
+faq.section.shipping.q.1.answer = "To the Americas and Europe, and every US state except Alaska and North Dakota. Full list: {channel_shipping}."
 
 # Question 1 of 6 in the 'shipping' section (channel links do not work in questions).
 # field_name · max 256 characters · required
@@ -613,7 +629,7 @@ faq.section.shipping.q.1.question = "Where do you ship?"
 
 # Answer to question 2 of 6 in the 'shipping' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-faq.section.shipping.q.2.answer = "You choose Standard or Expedited shipping while placing your order. The prices are listed in {channel_shipping} and shown in your order before you confirm it."
+faq.section.shipping.q.2.answer = "You choose Standard or Expedited shipping while ordering. Prices are in {channel_shipping} and shown before you confirm."
 
 # Question 2 of 6 in the 'shipping' section (channel links do not work in questions).
 # field_name · max 256 characters · required
@@ -621,7 +637,7 @@ faq.section.shipping.q.2.question = "What does shipping cost?"
 
 # Answer to question 3 of 6 in the 'shipping' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-faq.section.shipping.q.3.answer = "Expedited shipping usually arrives in 3–4 days and Standard shipping takes about 2 weeks. Your order ships once your payment is confirmed, and you get its tracking number as soon as it ships."
+faq.section.shipping.q.3.answer = "Expedited shipping usually takes 3–4 days, Standard shipping about 2 weeks. Orders ship once payment is confirmed; you get the tracking number when yours ships."
 
 # Question 3 of 6 in the 'shipping' section (channel links do not work in questions).
 # field_name · max 256 characters · required
@@ -629,7 +645,7 @@ faq.section.shipping.q.3.question = "How long does delivery take?"
 
 # Answer to question 4 of 6 in the 'shipping' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-faq.section.shipping.q.4.answer = "Only our team. You enter it in a private form, and it is never posted in a channel."
+faq.section.shipping.q.4.answer = "Only our team: you enter it in a private form, never in a channel."
 
 # Question 4 of 6 in the 'shipping' section (channel links do not work in questions).
 # field_name · max 256 characters · required
@@ -637,7 +653,7 @@ faq.section.shipping.q.4.question = "Who can see my address?"
 
 # Answer to question 5 of 6 in the 'shipping' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-faq.section.shipping.q.5.answer = "An optional extra you can add while ordering. If your package is lost or arrives damaged, we replace it or refund you in store credit."
+faq.section.shipping.q.5.answer = "An optional extra: if your package is lost or arrives damaged, we replace it or refund you in store credit."
 
 # Question 5 of 6 in the 'shipping' section (channel links do not work in questions).
 # field_name · max 256 characters · required
@@ -659,7 +675,7 @@ faq.section.shipping.title = "{icon_truck} SHIPPING"
 
 # Answer to question 1 of 2 in the 'tracking' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
-faq.section.tracking.q.1.answer = "When your order ships, our team adds the tracking number: it is posted in your order ticket and sent to you by DM. **/myorders** shows it too."
+faq.section.tracking.q.1.answer = "In your order ticket and by DM once your order ships. **/myorders** shows it too."
 
 # Question 1 of 2 in the 'tracking' section (channel links do not work in questions).
 # field_name · max 256 characters · required
@@ -668,10 +684,10 @@ faq.section.tracking.q.1.question = "Where is my tracking number?"
 # Answer to question 2 of 2 in the 'tracking' section. You can link channels with {channel_<key>} (e.g. {channel_catalog}); they become clickable #channel links.
 # field_value · max 1024 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
 faq.section.tracking.q.2.answer = '''
-{icon_st_submitted} **Payment submitted**: we're verifying your payment.
-{icon_st_confirmed} **Payment confirmed**: we checked your payment.
-{icon_clock} **Being prepared**: our team is packing your order.
-{icon_st_shipped} **Shipped**: on its way, with your tracking number.
+{icon_st_submitted} **Payment submitted**: we're verifying it.
+{icon_st_confirmed} **Payment confirmed**: we checked it.
+{icon_clock} **Being prepared**: we're packing your order.
+{icon_st_shipped} **Shipped**: on its way, with tracking.
 {icon_st_delivered} **Delivered**: it arrived.
 
 An order can also be **Cancelled**, **Rejected** or **Refunded**.'''
@@ -690,16 +706,13 @@ faq.section.tracking.title = "{icon_receipt} ORDERS AND TRACKING"
 
 # --- Shipping areas one by one ---
 
-# Optional text under that title, e.g. 'Find your state: {icon_dot_blue} we ship there · {icon_dot_grey} not available.' {country} is the country's name. The areas follow in three columns, each with shipping.status.full.indicator or shipping.status.none.indicator.
-# description · max 4096 characters · optional · placeholders: {country}
-shipping.areas.introduction = '''
-Every state is listed below, one by one. Find yours before you order.
+# Heading of the list of every area of a country one by one (shipping.list_areas, e.g. every US state) at the bottom of the shipping card, shown in bold, e.g. '{icon_map} US STATES'. {country} is the country's name.
+# field_name · max 256 characters · required · placeholders: {country}
+shipping.areas.heading = "{icon_map} US STATES"
 
-{icon_dot_blue} We ship there {icon_dot_grey} Not available'''
-
-# Title of the card that lists every area of a country one by one (shipping.list_areas, e.g. every US state), e.g. 'Shipping in the {country}'. {country} is the country's name.
-# title · max 256 characters · required · placeholders: {country}
-shipping.areas.title = "Shipping in the {country}"
+# Optional line under that heading, e.g. 'Find your state before you order.' {country} is the country's name. The areas follow on one line per status, like the countries: the available ones after shipping.status.full.indicator, the excluded ones after shipping.status.none.indicator (the legend at the top of the card explains the dots).
+# field_value · max 1024 characters · optional · placeholders: {country}
+shipping.areas.introduction = ""
 
 # --- Shipping delivery options ---
 
@@ -779,9 +792,12 @@ shipping.info.2.value = "Your tracking number is posted in your order ticket and
 # description · max 4096 characters · required · placeholders: {channel_welcome}, {channel_how_to_buy}, {channel_faq}, {channel_shipping}, {channel_announcements}, {channel_catalog}, {channel_new_arrivals}, {channel_reviews}, {channel_purchase}, {channel_orders}, {channel_staff_chat}, {channel_bot_log}, {channel_transcripts}
 shipping.introduction = "We ship to the Americas and Europe. Find your country below before you order."
 
-# Optional line under the introduction explaining the status dots, e.g. '{icon_dot_blue} We ship everywhere · {icon_dot_yellow} Some areas excluded · {icon_dot_grey} Not available'.
+# Optional lines under the introduction explaining the status dots, best one per line so a dot stays with its words on a phone, e.g. '{icon_dot_blue} We ship everywhere', '{icon_dot_yellow} Some areas excluded' and '{icon_dot_grey} Not available'.
 # description · max 4096 characters · optional
-shipping.legend = "{icon_dot_blue} We ship everywhere {icon_dot_yellow} Some areas excluded {icon_dot_grey} Not available"
+shipping.legend = '''
+{icon_dot_blue} We ship everywhere
+{icon_dot_yellow} Some areas excluded
+{icon_dot_grey} Not available'''
 
 # Title of the shipping card posted in the shipping channel.
 # title · max 256 characters · required
@@ -1068,9 +1084,27 @@ catalog.button.buy = "Buy"
 # emoji · max 100 characters · optional
 catalog.button.buy_emoji = "{icon_cart}"
 
-# Optional: label used instead of catalog.button.buy for a product whose name makes that label longer than Discord's 80 characters. Required only when such a product exists (the listing reports it).
+# Optional: label used instead of catalog.button.buy (or catalog.category.button_buy, when cutting the name is not enough) for a product whose name makes that label longer than Discord's 80 characters. Required only when such a product exists (the listing reports it).
 # button_label · max 80 characters · optional
 catalog.button.buy_short = "Buy"
+
+# --- Catalog: a category's private view ---
+
+# Buy button under the product cards of a category's private view (several cards share the message, so the label names its item). {name} is the product name, cut with '…' when the label would pass Discord's 80 characters. Shows catalog.button.buy_emoji like the other buy buttons.
+# button_label · max 80 characters · required · placeholders: {name}
+catalog.category.button_buy = "Buy {name}"
+
+# Text of that card when the category has no item right now. {category} is the category's name.
+# description · max 4096 characters · required · placeholders: {category}
+catalog.category.empty = "{icon_info} There's nothing in this category right now. Pick another one in the menu, or check back soon."
+
+# Optional: text of that card, above the category's product cards. {category} is the category's name, {count} the number of its items.
+# description · max 4096 characters · optional · placeholders: {category}, {count}
+catalog.category.intro = "{icon_cart} Press an item's **Buy** button below to add it to your order."
+
+# Title of the card at the top of the private message a category pick opens. {category} is the category's name (catalog.picker.all, without its icon, for 'All').
+# title · max 256 characters · required · placeholders: {category}
+catalog.category.title = "{category}"
 
 # --- Catalog: live product listing ---
 
@@ -1090,6 +1124,24 @@ catalog.listing.empty = "No items are available right now. Turn on **Restock Ale
 # Title of the header card: the first message of the product listing channel (each product follows in its own message).
 # title · max 256 characters · required
 catalog.listing.title = "Catalog"
+
+# --- Catalog: category menu on the listing header ---
+
+# The menu's first option, built in: every item in the shop. The categories made with /category follow with their own name, emoji and description.
+# option_label · max 100 characters · required
+catalog.picker.all = "{icon_tag} All items"
+
+# Optional: small text under the menu's 'All' option.
+# option_description · max 100 characters · optional
+catalog.picker.all_description = "Everything in the shop"
+
+# Optional: last paragraph of the listing's header card while it shows the category menu (there is at least one product, and a category or catalog.product_cards = false), e.g. how the menu works. If empty, the header shows only its own text.
+# description · max 4096 characters · optional
+catalog.picker.description = "{icon_tag} Pick a category below to see its items in a private message."
+
+# Placeholder of the category menu under the listing's header card. Picking a category shows its items in a private message only that member sees.
+# select_placeholder · max 150 characters · required
+catalog.picker.placeholder = "Pick a category"
 
 # ==================================================================================================
 # Feature: new_arrivals
@@ -3306,6 +3358,8 @@ Dear customers,
 {icon_step_1} Press **Claim coupon** below this message. Your coupon lists the items in the offer.
 {icon_step_2} Add at least two of those items to your order from {channel_catalog}.
 {icon_step_3} At checkout, press **Use coupon {coupon}** on the review step.
+
+{icon_box} In your package you'll also find a **20% off** coupon for your next order. It works on our old stock only, and you can even give it to a friend.
 
 Thank you again, customers, for all your support!'''
 

@@ -183,6 +183,11 @@ def _row(r: sqlite3.Row) -> Product:
     )
 
 
+def product_from_row(r: sqlite3.Row) -> Product:
+    """A ``products`` row (``SELECT *``, also through a join) as a ``Product``."""
+    return _row(r)
+
+
 # ---------------------------------------------------------------------------------------------------
 # Validation
 # ---------------------------------------------------------------------------------------------------

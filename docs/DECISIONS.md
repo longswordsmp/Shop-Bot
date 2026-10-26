@@ -67,7 +67,8 @@ specification feature lives in `docs/features/`.
 - **Forms (modals)** are routed from `on_interaction` by custom ID; the in-memory `Modal` is stopped right after it
   is sent, so a restart between opening and submitting a form behaves like the normal path.
 - **Router protections** (before any handler): configured guild only (DMs only for routes that allow them), per-user
-  rate limit, anti-double-click spacing, in-flight duplicate guard, feature readiness, access level. Handlers then
+  rate limit, anti-double-click spacing, in-flight duplicate guard (a menu registered with `per_value`, such as the
+  #catalog categories, counts each picked option as its own click), feature readiness, access level. Handlers then
   reload records by ID and re-check ownership/state; custom IDs are never trusted beyond the ID.
 - `tools.check_limits --all-features --fixtures` builds every preview state your settings allow (customer and
   staff, using in-memory synthetic tokens for text that is not configured yet) and fails if any component has no
@@ -175,13 +176,14 @@ how you want to operate** (each is one line in `config/settings.toml`).
 | `verification.dm_confirmation` | false | Confirmation only privately in Discord, no DM |
 | `verification.welcome_mention_seconds` | 30 | A new member is mentioned in #welcome and the mention is deleted 30 s later |
 | `how_to_buy.steps` / `link_channels` | 4 / catalog, purchase, faq | Guide size and its link buttons |
-| `faq.sections` | general, transactions, order_status, cancellations, problems (3/3/3/2/2 questions) | Adjust counts |
+| `faq.sections` | ordering, payment, shipping, tracking, problems (5/6/6/2/2 questions; ordering answers the two bulk-order questions); all in one card | Adjust counts |
 | `shipping.groups` / `excluded_areas` / `not_available` | North America, Central America, the Caribbean, South America and Europe (44 countries); in the US every state except Alaska and North Dakota; Cuba, Russia and Belarus listed as not available (sanctions; most carriers refuse parcels) | The owner's delivery area |
 | `shipping.info_sections` | 2 | Processing; tracking |
 | `checkout.fulfillment_options` | Standard $5.00, Expedited $15.00 | The owner's delivery prices |
 | `catalog.products_per_listing_message` | 1 | One #catalog message per item |
 | `catalog.browse_enabled` | false | No extra private browsing button (the spec only asks for per-item Buy buttons) |
 | `catalog.low_stock_threshold` | 3 | 1-3 units left shows "low stock" |
+| `catalog.product_cards` / `products_per_category_page` | true / 5 | Public item cards stay under the category menu; 5 items per private category page |
 | `new_arrivals.announce_new_products` / `announce_restocks` / `mention_role` | true / true / true | Automatic updates ping Restock Alerts |
 | `tickets.panel_channel` | "" | No standalone ticket panel: support starts with Report a Problem in #purchase |
 | `tickets.channel_name_pattern` | `{prefix}-{number}-{user}` | Ticket names contain a unique number and the username |
@@ -372,7 +374,9 @@ and deletion timers, and of course the products themselves (`/product add`).
   `warehouse_sale` preset is the owner's announcement of the new warehouse and the buy one, get one free sale on the
   old stock (coupon `BOGO`), written from the owner's words: every point kept (thanks for the support, the brand-new
   warehouse it made possible, clearing the old stock, buy one, get one free for a limited time until the old stock is
-  gone, claim the coupon below and redeem it at checkout, thanks again), the grammar fixed, steps with icons.
+  gone, claim the coupon below and redeem it at checkout, the 20% off coupon in every package for the next order
+  (old stock only, can be given to a friend), thanks again), the grammar fixed, steps with icons. The package
+  coupon is printed, not claimed: staff create it with `/discount` (see `docs/features/announcements.md`).
 - **A preview with a Post button instead of a form.** The text is fixed, so there is nothing to type; what can go
   wrong is the coupon (not created yet, ended, used up, codes off). The preview shows the post exactly and names the
   fix (the exact `/discount create` command, `coupon_command`) before anything is posted, and Post checks it all again.
@@ -473,6 +477,33 @@ and deletion timers, and of course the products themselves (`/product add`).
 - **The reason.** Made up, as asked, and kept plain: our shipping partners can't currently deliver there within the
   delivery times and prices we promise, so rather than send slow or costly parcels we paused it. It blames no one by
   name, does not alarm, and promises only what the bot does (an announcement once we ship there again), not a date.
+
+## 11j. Catalog categories (a menu on the #catalog header, results in a private message)
+
+- **What the owner asked for.** Members choose a category the shop sets up and see its items in a message only they
+  can see; an item can be in several categories; "All" shows everything. Catalog managers make the categories
+  (`/category create|edit|delete|list`) and put items in them (`/product categories`); see
+  `docs/features/catalog.md`.
+- **The menu is part of the header card**, not a panel of its own. The header is always the first #catalog message,
+  so the menu stays at the top even when product cards already exist (a new message would land under them), and
+  #catalog keeps one card with one banner at the top ("keep everything in one embed"). `/setup` and every category
+  change refresh it with the listing.
+- **The private message is the one place with several cards**: a title card over the category's items as the public
+  cards show them, 5 per page (`catalog.products_per_category_page`), within Discord's limits per page. The owner
+  allowed this exception (the catalog shows a private embed); the house-style checker lists it. Each Buy button names
+  its item, since the cards share one message. The page is read when it is shown, so it never needs re-posting.
+- **"All" is built in** (always the first option, every listed item) and not stored. At most 24 categories, so the
+  menu fits Discord's 25 options. Names are unique ignoring case. A category's emoji is one of the bot's icons, one
+  unicode emoji or one country flag; symbols, skin tones and joined emoji are refused, since whether such a
+  combination exists cannot be told from its parts. Discord refuses the whole header edit for an emoji it does not
+  know, so a refused header is sent once more without the menu's unicode emoji (the listing keeps updating; the
+  refresh report tells staff to change the emoji).
+- **The menu appears with the first category.** Before it, its only choice would be "All", the same items as the
+  public cards; with `catalog.product_cards = false` it always shows. Picks are private and safe to repeat, so the
+  router's anti-double-click guard counts each picked category as a click of its own (`per_value`).
+- **The public cards stay** (`catalog.product_cards = true`); `false` leaves only the header with its menu. Discord
+  opens a channel at its newest message, so with many cards members land at the bottom while the menu is on the
+  first message: the owner chooses between pinning the header and `product_cards = false` (`docs/NEXT_STEPS.md`).
 
 ## 12. Assumptions
 

@@ -8,6 +8,8 @@ Public API for other features
   handler (e.g. ``lambda p: cid("co", "browse", session_id, p)``; the value may be -1 or ``total`` on a disabled
   end button), ``extra_buttons`` (a callable receiving the shown ``Product`` and returning ``ButtonSpec``s) and
   ``banner_id`` (the banner its flow shows; ``catalog`` by default).
+- ``category_view(app, choice, page)``: one page of the private view a pick in the #catalog category menu opens
+  (``choice``: a category id, or ``categories.ALL``).
 - ``schedule_listing_refresh(app)``: call after committing a transaction that changed stock/reservations
   (``repo.reserve``/``release``/``commit_sale``); the listing is refreshed by a durable, coalesced task.
 - ``request_listing_refresh(app)``: refresh now (serialized and coalesced) and get the operator report.
@@ -37,13 +39,13 @@ from shopbot.core.money import MoneyError, parse_amount
 from shopbot.core.panels import remove_message, upsert_message
 from shopbot.core.permissions import channel_send_permissions, missing_permissions
 from shopbot.db.repos import state
-from shopbot.features.catalog import images, repo, views
+from shopbot.features.catalog import categories, images, repo, views
 from shopbot.features.catalog.content_keys import CATALOG
 from shopbot.features.catalog.repo import Product
 from shopbot.logging_setup import log_event
 from shopbot.ui.discord_render import RenderError
 from shopbot.ui.limits import validate_message
-from shopbot.ui.spec import ButtonSpec, EmbedField, MessageSpec
+from shopbot.ui.spec import ButtonSpec, Component, EmbedField, MessageSpec
 
 if TYPE_CHECKING:
     import sqlite3
@@ -110,6 +112,9 @@ class _RefreshState:
     completed: int = 0
     last: RefreshReport | None = None
     last_failure: str | None = None
+    # Discord refused the header with the menu's unicode emoji: it was sent without them (``plain_menu``), and a pick
+    # resets the menu the same way.
+    menu_emoji_refused: bool = False
 
 
 _STATES: dict[int, tuple[weakref.ref[App], _RefreshState]] = {}
@@ -234,11 +239,13 @@ async def _refresh_listing(app: App, st: _RefreshState) -> RefreshReport:
         return await _failed(app, st, line, "missing_permissions")
 
     products = await app.db.run(repo.list_products, guild_id)
+    menu = await app.db.run(categories.list_categories, guild_id)
     # Image metadata only: the bytes are loaded (``images.load_files``) just for the messages that are sent or edited.
     image_refs = await images.refs_for(app, products)
     try:
         # Buy buttons only while ordering works: a click on one must never just answer 'unavailable'.
-        specs = views.listing_messages(app.ui, app.settings, products, image_refs, buy=app.ready(CHECKOUT_FEATURE))
+        buy = app.ready(CHECKOUT_FEATURE)
+        specs = views.listing_messages(app.ui, app.settings, products, image_refs, buy=buy, categories=menu)
     except MissingContent as exc:
         return await _failed(app, st, op("catalog.refresh.missing_content", content_key=exc.key), "missing_content")
     for index, spec in enumerate(specs):  # validate everything before changing anything
@@ -250,6 +257,7 @@ async def _refresh_listing(app: App, st: _RefreshState) -> RefreshReport:
     counts: Counter[str] = Counter()
     existing = {record.key for record in records}
     removed = 0
+    emoji_refused = False
     try:
         repost = False
         for index, spec in enumerate(specs):
@@ -260,7 +268,18 @@ async def _refresh_listing(app: App, st: _RefreshState) -> RefreshReport:
                 # An earlier message was (re)posted at the bottom: re-post the following ones too so the
                 # listing keeps its order in the channel.
                 await remove_message(app, key)
-            _, action = await upsert_message(app, key, channel, spec, prepare=partial(images.load_files, app))
+            try:
+                _, action = await upsert_message(app, key, channel, spec, prepare=partial(images.load_files, app))
+            except discord.HTTPException as exc:
+                plain = plain_menu(menu)
+                if index != 0 or exc.status != 400 or plain == menu:
+                    raise
+                # Discord refused the header, most likely a category's emoji it does not know: send it once more
+                # without the menu's unicode emoji, so the listing keeps updating (the report says so).
+                log_event(log, logging.WARNING, "catalog_menu_emoji_refused", error=str(exc.text)[:200])
+                spec = views.listing_messages(app.ui, app.settings, products, image_refs, buy=buy, categories=plain)[0]
+                _, action = await upsert_message(app, key, channel, spec, prepare=partial(images.load_files, app))
+                emoji_refused = True
             counts[action] += 1
             repost = repost or action in ("created", "recreated", "moved")
         if not app.ready(CATALOG):
@@ -295,6 +314,9 @@ async def _refresh_listing(app: App, st: _RefreshState) -> RefreshReport:
         removed=removed,
     )
     log_event(log, logging.INFO, "catalog_listing_refreshed", messages=len(specs), changed=dict(counts))
+    st.menu_emoji_refused = emoji_refused
+    if emoji_refused:
+        return RefreshReport(ok=True, lines=(line, op("catalog.refresh.emoji_refused")))
     return RefreshReport(ok=True, lines=(line,))
 
 
@@ -336,6 +358,76 @@ async def browse_view(
         low_stock_threshold=app.settings.catalog.low_stock_threshold,
         banner_id=banner_id,
     )
+
+
+# ---------------------------------------------------------------------------------------------------
+# Categories: the menu on the listing header and the private view a pick opens
+# ---------------------------------------------------------------------------------------------------
+
+
+def _category_data(
+    conn: sqlite3.Connection, guild_id: int, choice: int
+) -> tuple[categories.Category | None, list[Product]]:
+    if choice == categories.ALL:
+        return None, categories.listed_products(conn, guild_id, categories.ALL)
+    category = categories.get_category(conn, guild_id, choice)
+    if category is None:
+        raise categories.CategoryNotFound(choice)
+    return category, categories.listed_products(conn, guild_id, choice)
+
+
+async def category_view(app: App, choice: int, page: int) -> MessageSpec:
+    """Page ``page`` (0-based, clamped) of the private view of category ``choice`` (``categories.ALL``: every listed
+    product), read now, so it always shows the current products, with their uploaded images attached and their buy
+    buttons while checkout is ready. Raises ``categories.CategoryNotFound`` for a category that was deleted and
+    ``RenderError`` for a page Discord would refuse (a title text too long to fit with a product card)."""
+    for attempt in range(2):
+        category, products = await app.db.run(_category_data, app.env.guild_id, choice)
+        refs = await images.refs_for(app, products)
+        spec = views.category_page(
+            app.ui,
+            app.settings,
+            products,
+            refs,
+            choice=choice,
+            name=None if category is None else category.name,
+            page=page,
+            buy=app.ready(CHECKOUT_FEATURE),
+        )
+        violations = validate_message(spec)
+        if violations:
+            log_event(log, logging.ERROR, "catalog_category_page_too_large", problems=[str(v) for v in violations][:5])
+            raise RenderError(violations)
+        try:
+            return await images.load_files(app, spec)
+        except images.StaleImage:
+            if attempt:  # an image changed while the page was built: build it once more with the current images
+                raise
+    raise AssertionError("unreachable")
+
+
+def plain_menu(menu: Sequence[categories.Category]) -> list[categories.Category]:
+    """The categories without their unicode emoji (the bot's own icons stay: Discord knows them)."""
+    return [replace(c, emoji="") if c.emoji and not c.emoji.startswith("{icon_") else c for c in menu]
+
+
+def _menu_data(conn: sqlite3.Connection, guild_id: int) -> tuple[list[categories.Category], bool]:
+    return categories.list_categories(conn, guild_id), repo.count_products(conn, guild_id) > 0
+
+
+async def header_rows(app: App) -> tuple[tuple[Component, ...], ...] | None:
+    """The components the listing's header card shows now (the category menu while products are listed), or None when
+    they cannot be built (catalog text missing). A pick re-renders them, because Discord keeps showing the picked
+    option, so the same category could not be picked again."""
+    menu, listed = await app.db.run(_menu_data, app.env.guild_id)
+    if not listed:
+        return ()
+    if _state(app).menu_emoji_refused:  # as the last listing refresh sent the header
+        menu = plain_menu(menu)
+    try:
+        return views.header_rows(app.ui, app.settings.catalog, menu)
+    except MissingContent:
+        return None
 
 
 # ---------------------------------------------------------------------------------------------------
@@ -591,6 +683,11 @@ async def _finish(
         # Before the (slow, Discord-bound) listing refresh: subscribers schedule their durable tasks right after the
         # commit, so a restart during the refresh cannot lose them.
         await app.events.publish(PRODUCT_CHANGED, action=action, before=before, after=product, actor_id=actor_id)
+    return await with_listing_report(app, reply)
+
+
+async def with_listing_report(app: App, reply: OpReply) -> OpReply:
+    """Refresh the listing now and add its report to ``reply`` (a failed refresh turns the reply into a warning)."""
     report = await request_listing_refresh(app)
     tone = reply.tone if report.ok else "warning"
     listing = EmbedField(app.op("catalog.refresh.field"), "\n".join(report.lines)) if report.lines else None
@@ -909,7 +1006,8 @@ async def product_details(app: App, product_id: int) -> list[MessageSpec]:
     if product is None:
         return [reply_spec(app, error_reply(app, repo.ProductNotFound(product_id)))]
     image = await app.db.run(images.get_image, app.env.guild_id, product.id)
-    specs = [views.product_details_message(app.ui, app.op, money_format(app), product, image)]
+    tags = await app.db.run(categories.categories_of, app.env.guild_id, product.id)
+    specs = [views.product_details_message(app.ui, app.op, money_format(app), product, image, tags)]
     image_url, files = images.embed_image(product, image)
     try:
         embed = views.product_embed(
