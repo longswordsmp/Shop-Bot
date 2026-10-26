@@ -63,6 +63,7 @@ def _inline(text: str) -> str:
         code_spans.append(f"<code>{match.group(1)}</code>")
         return f"\x00{len(code_spans) - 1}\x00"
 
+    text = re.sub(r"``(.+?)``", stash, text)  # a double-backtick span may hold single backticks
     text = re.sub(r"`([^`\n]+)`", stash, text)
     text = re.sub(r"\[([^\]\n]+)\]\((https?://[^)\s]+)\)", r'<a href="\2" target="_blank" rel="noopener">\1</a>', text)
     text = re.sub(r"\*\*\*(.+?)\*\*\*", r"<strong><em>\1</em></strong>", text)

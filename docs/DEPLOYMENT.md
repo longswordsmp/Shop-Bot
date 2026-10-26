@@ -139,7 +139,8 @@ data written since.
 | `instance_locked` | Another process uses the database | Ensure replicas = 1; wait for the old deployment to stop. |
 | `server_reset` (warning) | The owner ran `/reset` (counts of what was deleted, the backup file) | Run `/setup` in the 🛠・setup channel it created. |
 | `reset_delete_failed` | `/reset` could not delete a channel or role (HTTP status and Discord code in the log) | Delete it by hand, or give the bot Manage Channels / move its role higher, and run `/reset` again. |
-| `reset_dm_failed` / `reset_backup_failed` | `/reset` stopped before changing anything (DMs closed, or the backup could not be written) | Allow DMs from server members / check the volume, then run `/reset` again. |
+| `reset_dm_failed` / `reset_backup_failed` / `reset_setup_channel_failed` | `/reset` stopped before deleting anything (DMs closed, the backup could not be written, or the private setup channel was refused) | Allow DMs from server members / check the volume / give the bot Manage Channels, then run `/reset` again. |
+| `reset_interrupted` (warning, at startup) | The bot restarted while `/reset` was deleting; the owner gets a DM | Run `/reset` again to delete what is left, then `/setup`. |
 | Buttons answer "unavailable" | Feature not ready | Run `/status`, fill missing content, `/reload` or `/content set`, then `/setup`. |
 | `/setup` reports missing permissions | Bot role lacks permissions or is too low | Give the bot role the permissions in the invite URL and drag it above managed roles. |
 | `/setup` problems: "not managed by /setup, and `@everyone` can see it" (log `setup_public_unmanaged_channels`) | A channel/category the bot does not manage (usually Discord's default #general and General voice) is visible to users who have not accepted the rules | Delete it, or deny View Channel to `@everyone` on it, then run `/setup dry_run:True` again. The bot never changes channels it does not manage. |

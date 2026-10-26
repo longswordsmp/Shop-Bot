@@ -35,6 +35,7 @@ class PlanView:
     roles: tuple[str, ...]
     kept: tuple[reset.Kept, ...]
     open_orders: int
+    unpaid_orders: int
     open_tickets: int
     wipe: bool
     fingerprint: str
@@ -52,6 +53,7 @@ def plan_view(server_name: str, plan: reset.ResetPlan, work: reset.OpenWork, *, 
         roles=tuple(r.name for r in plan.roles),
         kept=plan.kept,
         open_orders=work.orders,
+        unpaid_orders=work.unpaid,
         open_tickets=work.tickets,
         wipe=wipe,
         fingerprint=plan.fingerprint,
@@ -117,11 +119,10 @@ def _fit(op: Op, lines: Sequence[str], limit: int = limits.EMBED_FIELD_VALUE) ->
 def preview_message(ui: Ui, op: Op, view: PlanView) -> MessageSpec:
     phrase = reset.confirmation_phrase(view.server_name)
     data = op("server.reset.data_wiped") if view.wipe else op("server.reset.data_kept")
-    description = op("server.reset.preview_description", data=data, phrase=discord.utils.escape_markdown(phrase))
-    if view.wipe:
-        work = op("server.reset.work_wiped", orders=view.open_orders, tickets=view.open_tickets)
-    else:
-        work = op("server.reset.work_kept", orders=view.open_orders, tickets=view.open_tickets)
+    # In a code span markdown is not interpreted: the phrase is shown exactly as it must be typed.
+    description = op("server.reset.preview_description", data=data, phrase=phrase)
+    counts = {"orders": view.open_orders, "unpaid": view.unpaid_orders, "tickets": view.open_tickets}
+    work = op("server.reset.work_wiped", **counts) if view.wipe else op("server.reset.work_kept", **counts)
     fields = (
         EmbedField(
             op("server.reset.field.channels", count=len(view.channels)), name_list(op, reset.CHANNEL, view.channels)
@@ -190,10 +191,7 @@ def result_message(ui: Ui, op: Op, result: reset.ResetResult) -> MessageSpec:
         )
     else:
         data = op("server.reset.result_data_kept")
-    if result.setup_channel_id is not None:
-        next_step = op("server.reset.result_next", channel=f"<#{result.setup_channel_id}>")
-    else:
-        next_step = op("server.reset.result_next_no_channel")
+    next_step = op("server.reset.result_next", channel=f"<#{result.setup_channel_id}>")
     description = "\n\n".join((deleted, op("server.reset.result_backup", backup=result.backup), data, next_step))
     fields: list[EmbedField] = []
     if result.failures:

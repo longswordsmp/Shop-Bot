@@ -16,6 +16,7 @@ from shopbot.features.server_keys import SERVER
 from shopbot.features.setup import reset
 from shopbot.features.setup import reset_views as rv
 from shopbot.features.setup.report import SetupReport, report_messages
+from shopbot.features.setup.reset_handlers import interrupted_notice
 from shopbot.ui.spec import MessageSpec, ModalSpec, PreviewState
 
 if TYPE_CHECKING:
@@ -82,7 +83,13 @@ def preview(app: App) -> list[PreviewState]:
 _KEPT = (
     reset.Kept(reset.ROLE, "[sample bot role]", reset.KEEP_MANAGED),
     reset.Kept(reset.ROLE, "[sample server booster]", reset.KEEP_MANAGED),
+    reset.Kept(reset.ROLE, "[sample bot permissions]", reset.KEEP_BOT_ROLE),
     reset.Kept(reset.ROLE, "[sample role above the bot]", reset.KEEP_ABOVE_BOT),
+    reset.Kept(reset.ROLE, "[sample admins]", reset.KEEP_YOUR_ROLE),
+    reset.Kept(reset.CHANNEL, "[sample-transcripts]", reset.KEEP_HISTORY),
+    reset.Kept(reset.CHANNEL, "[sample-bot-log]", reset.KEEP_HISTORY),
+    reset.Kept(reset.CHANNEL, "[sample-reviews]", reset.KEEP_HISTORY),
+    reset.Kept(reset.CATEGORY, "[sample fixed category]", reset.KEEP_CONFIGURED),
     reset.Kept(reset.CHANNEL, "[sample-rules]", reset.KEEP_COMMUNITY),
     reset.Kept(reset.CHANNEL, "[sample-hidden]", reset.KEEP_NO_PERMISSION),
 )
@@ -96,6 +103,7 @@ def _plan(size: int, *, wipe: bool) -> rv.PlanView:
         roles=tuple(f"[sample role {i}]" for i in range(1, max(3, size // 4) + 1)),
         kept=_KEPT,
         open_orders=3,
+        unpaid_orders=1,
         open_tickets=2,
         wipe=wipe,
         fingerprint="0123456789abcdef",
@@ -166,6 +174,20 @@ def reset_states(app: App) -> list[PreviewState]:
         ("server.reset.changed", "warning", "cancellation"),
         ("server.reset.dm_closed", "danger", "error"),
         ("server.reset.started", "warning", "submission-and-processing"),
+    )
+    cases.append(
+        (
+            "reset_setup_channel_failed",
+            f"{note}: the private setup channel could not be created (nothing was deleted).",
+            rv.notice(ui, op("server.reset.setup_channel_failed", status=403), tone="danger", banner="error"),
+        )
+    )
+    cases.append(
+        (
+            "reset_interrupted",
+            f"{note}: DM after a reset that stopped before it finished (also sent at the next start).",
+            interrupted_notice(app),
+        )
     )
     for key, tone, banner in replies:
         name = f"reset_{key.rsplit('.', 1)[1]}"

@@ -116,12 +116,13 @@ def notify_key(order_id: int, kind: str) -> str:
     return f"checkout.notify:{order_id}:{kind}"
 
 
-def staff_details_key(order_id: int, index: int) -> str:
-    return f"checkout.staff_details:{order_id}:{index}"
+def staff_details_key(order_id: int, index: int, channel: str = "") -> str:
+    """``channel``: set when the controls are posted again in a new channel (its parts are posted there again too)."""
+    return f"checkout.staff_details:{order_id}:{index}{channel}"
 
 
-def staff_items_key(order_id: int, index: int) -> str:
-    return f"checkout.staff_items:{order_id}:{index}"
+def staff_items_key(order_id: int, index: int, channel: str = "") -> str:
+    return f"checkout.staff_items:{order_id}:{index}{channel}"
 
 
 def order_extra_key(order_id: int, part: str, index: int) -> str:
@@ -1366,18 +1367,23 @@ async def find_staff_message(app: App, channel: discord.TextChannel, order_id: i
     return None
 
 
-async def _post_staff_extras(app: App, order_id: int, channel_id: int, specs: Sequence[MessageSpec]) -> None:
+async def _post_staff_extras(
+    app: App, order_id: int, channel_id: int, specs: Sequence[MessageSpec], channel: str = ""
+) -> None:
     for index, spec in enumerate(specs):
         await app.notifier.notify_channel(
-            channel_id=channel_id, spec=spec, kind="checkout.staff_items", dedupe_key=staff_items_key(order_id, index)
+            channel_id=channel_id,
+            spec=spec,
+            kind="checkout.staff_items",
+            dedupe_key=staff_items_key(order_id, index, channel),
         )
 
 
-async def post_staff_message(app: App, order_id: int, *, adopt: bool = False) -> bool:
+async def post_staff_message(app: App, order_id: int, *, adopt: bool = False, new_channel: bool = False) -> bool:
     """Post the order controls in the staff channel and remember where they are (with ``adopt``, controls already
     posted for this order but never recorded are reused instead of posting a duplicate). The order lines of a large
     order and (with ``operations.answers_in_orders_channel``) the customer's form answers follow as separate
-    messages (each at most once)."""
+    messages (each at most once per channel: with ``new_channel`` they are posted again in the new one)."""
     view = await order_view(app, order_id)
     channel = staff_channel(app)
     if view is None or channel is None:
@@ -1402,8 +1408,11 @@ async def post_staff_message(app: App, order_id: int, *, adopt: bool = False) ->
             log_event(log, logging.ERROR, "checkout_staff_post_failed", order_id=order_id, error=type(exc).__name__)
             return False
     await app.db.transaction(repo.set_staff_message, order_id, channel.id, message.id, app.clock.now())
-    await _attempt("staff_items", lambda: _post_staff_extras(app, order_id, channel.id, specs[1:]), order_id=order_id)
-    await _attempt("staff_details", lambda: post_staff_details(app, order_id), order_id=order_id)
+    suffix = f":c{channel.id}" if new_channel else ""
+    await _attempt(
+        "staff_items", lambda: _post_staff_extras(app, order_id, channel.id, specs[1:], suffix), order_id=order_id
+    )
+    await _attempt("staff_details", lambda: post_staff_details(app, order_id, suffix), order_id=order_id)
     return True
 
 
@@ -1418,7 +1427,7 @@ async def repost_lost_staff_messages(app: App) -> int:
     for order in await app.db.run(repo.orders_with_status, app.env.guild_id, m.OPEN_STATUSES):
         if order.staff_channel_id is None or app.bot.get_channel(order.staff_channel_id) is not None:
             continue  # never posted yet (its submission task posts it), or still in place
-        if await post_staff_message(app, order.id):
+        if await post_staff_message(app, order.id, new_channel=True):
             posted += 1
     if posted:
         log_event(log, logging.INFO, "checkout_staff_messages_reposted", count=posted)
@@ -1432,7 +1441,7 @@ def answers_in_staff_channel(app: App) -> bool:
     return app.settings.operations.answers_in_orders_channel
 
 
-async def post_staff_details(app: App, order_id: int) -> None:
+async def post_staff_details(app: App, order_id: int, channel_suffix: str = "") -> None:
     """Post the customer's form answers under the staff controls (once per message part), only when
     ``operations.answers_in_orders_channel`` is on; otherwise nothing is posted."""
     if not answers_in_staff_channel(app):
@@ -1451,7 +1460,7 @@ async def post_staff_details(app: App, order_id: int) -> None:
             channel_id=channel.id,
             spec=spec,
             kind="checkout.staff_details",
-            dedupe_key=staff_details_key(order_id, index),
+            dedupe_key=staff_details_key(order_id, index, channel_suffix),
         )
 
 

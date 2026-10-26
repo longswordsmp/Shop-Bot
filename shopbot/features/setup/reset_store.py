@@ -21,6 +21,8 @@ import sqlite3
 from collections.abc import Collection, Sequence
 from typing import Final
 
+from shopbot.db.repos import state
+
 # Children before parents (foreign keys are checked at commit; the order keeps the intent readable).
 WIPED_TABLES: Final = (
     "cart_items",
@@ -114,3 +116,27 @@ def open_counts(conn: sqlite3.Connection, guild_id: int, open_statuses: Sequence
         "SELECT COUNT(*) FROM tickets WHERE guild_id = ? AND status IN ('creating', 'open')", (guild_id,)
     ).fetchone()[0]
     return int(orders), int(tickets)
+
+
+# Set while a reset deletes; a start that finds it reports the interrupted reset to the owner.
+RUNNING_KEY: Final = "server.reset.running"
+
+
+def mark_running(conn: sqlite3.Connection, actor_id: int, now: int) -> None:
+    state.kv_set(conn, RUNNING_KEY, json.dumps({"actor_id": actor_id, "started_at": now}), now)
+
+
+def running(conn: sqlite3.Connection) -> tuple[int, int] | None:
+    """(owner who ran it, start time) of a reset whose owner was not told the result yet."""
+    raw = state.kv_get(conn, RUNNING_KEY)
+    if raw is None:
+        return None
+    try:
+        value = json.loads(raw)
+        return int(value["actor_id"]), int(value["started_at"])
+    except (ValueError, KeyError, TypeError):
+        return None
+
+
+def clear_running(conn: sqlite3.Connection) -> None:
+    state.kv_delete(conn, RUNNING_KEY)

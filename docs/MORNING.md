@@ -103,16 +103,21 @@ See `docs/DEPLOYMENT.md` → Troubleshooting if anything else appears.
 ## 10. Run `/setup`
 
 **Already ran the old layout in this server?** Run **`/reset`** first (owner only: `OWNER_ID` or the server owner).
-It shows you privately every channel, category and role it would delete and what it keeps (`@everyone`, bot and
-booster roles, roles above the bot, channels a Community server must keep). Press **Continue** and type
-`RESET <server name>`. It then makes a database backup (`/data/backups/before-reset-<time>.db`, never rotated away),
-deletes the listed channels, categories and roles at about one per second, and sends you the progress and the result
-by DM (allow DMs from server members first; without a DM it changes nothing). Orders, products, reviews and store
-credit are **kept** unless you run `/reset wipe_shop_data:True`, which also deletes every order, product, review,
-ticket and customer record (they stay in the backup). Open tickets lose their channel without a transcript, so close
-the ones you want to keep first. At the end it creates a private **🛠・setup** channel: run `/setup` there, then
-delete it. `/setup` posts the staff cards of open orders again in the new #orders channel and gives customers the new
-Customer role; everyone else presses **Verify** again on the new welcome panel.
+It shows you privately every channel, category and role it would delete and what it keeps: `@everyone`, bot and
+booster roles and every role the bot has, roles above the bot, your own Administrator roles, the channels with
+history (transcripts, the bot log, published reviews: `/setup` moves them into the new layout), anything set by id
+in `settings.toml`, and channels a Community server must keep. Before you confirm, **finish or cancel unpaid orders**
+(customers pay in the order channel, which is deleted) and close the tickets you want a transcript of.
+
+Press **Continue** and type `RESET <server name>`. It then makes a database backup
+(`/data/backups/before-reset-<time>.db`, never rotated away), creates a private **🛠・setup** channel for you, and
+deletes the listed channels, categories and roles at about one per second while every button answers "unavailable".
+The progress and the result come by DM (allow DMs from server members first; without a DM it changes nothing). If
+the bot restarts in the middle, it tells you by DM at the next start: run `/reset` again to finish. Orders, products,
+reviews and store credit are **kept** unless you run `/reset wipe_shop_data:True`, which also deletes every order,
+product, review, ticket and customer record (they stay in the backup). Run `/setup` in 🛠・setup, then delete that
+channel. `/setup` posts the staff cards of open orders again in the new #orders channel and gives customers the new
+Customer role; everyone else presses **Verify** again on the new welcome panel (Restock Alerts sign-ups start over).
 
 In your server, as the owner/admin: **`/setup dry_run:True`** first. It lists what it would create.
 

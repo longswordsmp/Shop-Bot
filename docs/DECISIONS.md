@@ -241,25 +241,38 @@ and deletion timers, and of course the products themselves (`/product add`).
 
 ## 11b. /reset
 
-- **Owner only, typed confirmation, backup first.** `/reset` deletes channels, categories and roles, so it is limited
-  to `OWNER_ID` and the server owner, previews privately, and needs `RESET <server name>` (case and spacing
-  ignored). The preview's fingerprint travels in the form's id: if the server changed in between, nothing happens.
-  The result goes by DM because the command's channel is deleted too; if the DM fails, nothing happens. The backup
-  is written before any deletion and named `before-reset-…` so the `/backup` rotation never removes it.
+- **Owner only, typed confirmation, backup and setup channel first.** `/reset` deletes channels, categories and
+  roles, so it is limited to `OWNER_ID` and the server owner, previews privately, and needs `RESET <server name>`
+  (case and spacing ignored; shown in a code span exactly as typed). The preview's fingerprint travels in the form's
+  id: if the server changed in between, nothing happens. The result goes by DM because the command's channel is
+  deleted too; if the DM fails, nothing happens. The backup is written before any deletion and named
+  `before-reset-…` so the `/backup` rotation never removes it. The private 🛠・setup channel is created next (a server
+  without channels has nowhere to type `/setup`); if Discord refuses it, nothing is deleted. It only grants
+  permissions the bot holds itself.
+- **Never deleted.** Besides what Discord protects (managed and booster roles, roles above the bot, Community
+  channels): every role the bot has (deleting one could take its Manage Roles/Channels away half-way), the
+  Administrator roles of an owner who is not the server owner (they need them for `/setup`), objects set by `id` in
+  settings (`/setup` cannot re-create those), and the channels holding history: transcripts, the bot log and
+  published reviews live only as Discord messages, so their channels are kept and `/setup` moves them into the new
+  layout (they keep their records).
 - **Data kept by default.** Orders, products, reviews and store credit stay. Ticket and order channels are deleted
   like any other channel, through the same path as a channel deleted by hand (tickets recorded as deleted, unfinished
-  checkouts expired). `/setup` afterwards posts the staff cards of open orders whose channel is gone (the same
-  `post_staff_message` as the restart recovery) and, once after a reset, gives the new Customer role back to members
-  with a qualifying order (the normal role task, so the same checks and audit apply). Members verify again on the new
-  welcome panel: the Member role means "accepted the rules shown now".
+  checkouts expired). `/setup` afterwards posts the staff cards of open orders whose channel is gone, with their
+  item and answer messages (dedupe keys per new channel), and, when the reset deleted the Customer role, gives the
+  new one back to every member with a qualifying order (the normal role task, which fetches the member itself, so it
+  works without the member cache). Unpaid orders are counted in the preview: their customers pay in the deleted
+  order channel. Members verify again on the new welcome panel.
+- **Interruptions.** Each deletion catches any error (reported, the run goes on). Forgetting the records, the audit
+  entry (`completed: false` when cut off) run in a `finally`; a `running` marker in `kv_state` is cleared only once
+  the owner was told the result, so a restart in the middle is reported by DM at the next start. The router refuses
+  every button and form while the reset deletes.
 - **Wipe is explicit and complete.** `wipe_shop_data:True` empties the tables in `reset_store.WIPED_TABLES` in one
-  transaction (foreign keys checked at commit). Counters and AUTOINCREMENT sequences are kept, so no order number or
-  id is ever reused (old DMs and buttons can never point to a new order). Pending tasks of wiped features are
-  cancelled; system tasks (`KEPT_TASK_KINDS`) stay. Tests fail when a table or a kept task kind is not classified.
+  transaction (foreign keys checked at commit) after every deletion was attempted, never when the run was cut off.
+  Counters and AUTOINCREMENT sequences are kept, so no order number or id is ever reused (old DMs and buttons can
+  never point to a new order). Pending tasks of wiped features are cancelled; system tasks (`KEPT_TASK_KINDS`) stay.
+  Tests fail when a table or a kept task kind is not classified.
 - **Pace.** One deletion per second (`reset.PACE_SECONDS`): discord.py already waits on rate limits, and Discord's
   anti-abuse systems watch for bots deleting many channels at once.
-- **A private 🛠・setup channel** is created at the end, because a server without channels has nowhere to type
-  `/setup`. It only grants permissions the bot holds itself (Discord refuses others).
 
 ## 12. Assumptions
 

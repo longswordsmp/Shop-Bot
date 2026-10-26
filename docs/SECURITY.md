@@ -30,11 +30,17 @@
 - Only `OWNER_ID` or the server owner can reset; the router admits administrators and every reset control checks
   the owner again. The preview's fingerprint is in the confirmation form's id, so a confirmation for a server that
   changed since the preview is refused, and a forged id does no more than the owner could.
-- Nothing is deleted before the owner typed `RESET <server name>`, the DM for the result was delivered, and the
-  database backup was written (`backups/before-reset-<time>.db`, never removed by the `/backup` rotation).
-- Without `wipe_shop_data` no data is deleted; with it the shop and customer tables listed in
-  `shopbot/features/setup/reset_store.py` are emptied in one transaction (the audit log, texts and counters stay).
-  A test fails when a new table is not listed as wiped or kept.
+- Nothing is deleted before the owner typed `RESET <server name>`, the DM for the result was delivered, the
+  database backup was written (`backups/before-reset-<time>.db`, never removed by the `/backup` rotation) and the
+  private setup channel was created. The bot's own roles and the owner's Administrator roles are never deleted, so
+  neither can lock itself out half-way.
+- Without `wipe_shop_data` no shop data is deleted: the records of the deleted Discord objects are forgotten, and
+  tickets whose channel was deleted are recorded as deleted and unfinished checkouts expire, exactly as when a
+  channel is deleted by hand. With it the shop and customer tables listed in `shopbot/features/setup/reset_store.py`
+  are emptied in one transaction once every deletion was attempted (the audit log, texts and counters stay). A test
+  fails when a new table is not listed as wiped or kept.
+- While a reset deletes, the router answers every button and form with "unavailable"; an interrupted reset is
+  audited as incomplete and reported to the owner at the next start.
 
 ## Who can see what (server layout)
 

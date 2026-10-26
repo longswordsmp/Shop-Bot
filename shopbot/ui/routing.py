@@ -17,10 +17,11 @@ Handlers then load records by ID and verify ownership/state themselves.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import math
 import uuid
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Iterator
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -291,6 +292,17 @@ class Router:
         self._idle = asyncio.Event()
         self._idle.set()
         self._closing = False
+        self._paused = 0
+
+    @contextlib.contextmanager
+    def paused(self) -> Iterator[None]:
+        """Refuse every button and form ("unavailable") while the block runs, e.g. while /reset deletes the channels
+        the controls live in."""
+        self._paused += 1
+        try:
+            yield
+        finally:
+            self._paused -= 1
 
     def add(self, route: Route) -> None:
         key = (route.kind, route.route, route.action)
@@ -382,8 +394,8 @@ class Router:
             await ctx.ack()
             return
 
-        if self._closing:
-            # Shutting down: do not start work that the restart would cut off half-way.
+        if self._closing or self._paused:
+            # Shutting down (do not start work that the restart would cut off half-way), or paused.
             await ctx.fail(ck.ERROR_UNAVAILABLE)
             return
 

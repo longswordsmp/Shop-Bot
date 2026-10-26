@@ -110,13 +110,12 @@ OPERATOR_TEXT: dict[str, str] = {
     "server.reset.preview_title": "Reset the server",
     "server.reset.preview_description": (
         "This deletes the server's channels, categories and roles listed below, so /setup can build everything "
-        "new. Deleted channels and their messages cannot be brought back.\n\n"
-        "Before anything is deleted, a database backup is made. {data}\n\n"
-        "The progress and the result are sent to you by DM, because this channel is deleted too. A private channel "
-        "is then created for you to run /setup in.\n\n"
-        "To go ahead, press **Continue** and type `{phrase}`."
+        "new. Deleted channels and their messages cannot be brought back, and invite links to them stop working.\n\n"
+        "First a database backup is made and a private channel is created for you to run /setup in. {data}\n\n"
+        "The progress and the result are sent to you by DM, because this channel is deleted too.\n\n"
+        "To go ahead, press **Continue** and type ``{phrase}``."
     ),
-    "server.reset.data_kept": "Orders, products, reviews and store credit are kept.",
+    "server.reset.data_kept": "Orders, products, reviews and store credit stay in the database.",
     "server.reset.data_wiped": (
         "**The shop data is deleted too:** every order, product, review, ticket, store credit balance and customer "
         "record (they stay in the backup)."
@@ -131,19 +130,29 @@ OPERATOR_TEXT: dict[str, str] = {
     "server.reset.more": "… and {count} more",
     "server.reset.kept.everyone": "`@everyone`",
     "server.reset.kept.managed": "Roles of bots, integrations and server boosts: {names}",
+    "server.reset.kept.bot_role": "Roles the bot has (it needs their permissions): {names}",
     "server.reset.kept.above_bot": "Roles the bot may not delete (not below its highest role): {names}",
+    "server.reset.kept.no_manage_roles": "Roles (the bot lacks Manage Roles): {names}",
+    "server.reset.kept.your_role": "Your Administrator roles (you need them to run /setup): {names}",
+    "server.reset.kept.history": (
+        "Channels with history (transcripts, the bot log, published reviews; /setup moves them into the new layout): "
+        "{names}"
+    ),
+    "server.reset.kept.configured": "Set by id in settings.toml: {names}",
     "server.reset.kept.community": "Required by Discord for a Community server: {names}",
     "server.reset.kept.no_permission": "The bot lacks Manage Channels there: {names}",
     "server.reset.work_kept": (
-        "Orders in progress: {orders}. Open tickets: {tickets}. Their channels are deleted: tickets are closed "
-        "without a transcript (close them first to keep one), orders keep their status, customers keep getting "
-        "updates by DM, and /setup posts the staff cards of open "
-        "orders again in the new orders channel. Members lose the deleted roles and verify again on the new "
-        "welcome panel; /setup gives customers the Customer role back."
+        "Orders in progress: {orders}, of which {unpaid} wait for the customer to pay. Open tickets: {tickets}.\n"
+        "Their channels are deleted: tickets close without a transcript, orders keep their status and /setup posts "
+        "their staff cards again. Customers pay in the order channel, so **finish or cancel unpaid orders first**; "
+        "they hear about the others by DM when their DMs are open.\n"
+        "Members lose the deleted roles (Restock Alerts sign-ups too) and verify again on the new welcome panel; "
+        "/setup gives customers the Customer role back."
     ),
     "server.reset.work_wiped": (
-        "Orders in progress: {orders}. Open tickets: {tickets}. They are deleted with the shop data. Members lose "
-        "the deleted roles and verify again on the new welcome panel."
+        "Orders in progress: {orders} ({unpaid} unpaid). Open tickets: {tickets}. They are deleted with the shop "
+        "data. Members lose the deleted roles (Restock Alerts sign-ups too) and verify again on the new welcome "
+        "panel."
     ),
     "server.reset.button.continue": "Continue",
     "server.reset.button.cancel": "Cancel",
@@ -155,7 +164,7 @@ OPERATOR_TEXT: dict[str, str] = {
     "server.reset.busy": "/setup or /reset is already running. Wait for it to finish, then try again.",
     "server.reset.nothing": "There is nothing the bot can delete in this server.",
     "server.reset.cancelled": "Reset cancelled. Nothing was changed.",
-    "server.reset.mismatch": "The confirmation did not match `{phrase}`. Nothing was changed.",
+    "server.reset.mismatch": "The confirmation did not match ``{phrase}``. Nothing was changed.",
     "server.reset.changed": (
         "The server changed since the preview. Nothing was changed: run /reset again to see what it would delete now."
     ),
@@ -164,10 +173,20 @@ OPERATOR_TEXT: dict[str, str] = {
         "this server (the server's Privacy Settings) and run /reset again. Nothing was changed."
     ),
     "server.reset.backup_failed": "The backup could not be made ({error}). Nothing was changed.",
+    "server.reset.setup_channel_failed": (
+        "The private channel for /setup could not be created (HTTP {status}). Nothing was deleted: check that the bot "
+        "has Manage Channels, then run /reset again."
+    ),
+    "server.reset.interrupted_title": "The server reset was interrupted",
+    "server.reset.interrupted": (
+        "/reset stopped before it finished (for example because the bot restarted). Part of the server may be "
+        "deleted. Run /reset again: it lists what is left and deletes it. Then run /setup. The backup made at the "
+        "start is in the `backups` folder."
+    ),
     "server.reset.started": "The reset has started. The progress and the result are in your DMs.",
     "server.reset.progress_title": "Resetting the server",
     "server.reset.progress_description": (
-        "Deleted {done} of {total} · not deleted: {failed}\nThe result is sent here when it is done."
+        "Done {done} of {total} · not deleted: {failed}\nThe result is sent here when it is done."
     ),
     "server.reset.result_title": "The server was reset",
     "server.reset.result_title_problems": "The server was reset, with problems",
@@ -181,10 +200,6 @@ OPERATOR_TEXT: dict[str, str] = {
     "server.reset.result_next": (
         "**Next:** run **/setup** in {channel} to build the server and post every panel. You can delete that channel "
         "afterwards."
-    ),
-    "server.reset.result_next_no_channel": (
-        "**Next:** the private channel for /setup could not be created. Create any channel, run **/setup** there, "
-        "and delete it afterwards."
     ),
     "server.reset.result_kept": "{count} channels and roles were kept (as listed in the preview).",
     "server.reset.failure": "{kind} {name}: HTTP {status} (Discord code {code})",

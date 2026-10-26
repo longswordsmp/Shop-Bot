@@ -44,10 +44,11 @@ async def handle_reset(interaction: discord.Interaction[Any], *, wipe: bool) -> 
     if guild is None or guild.me is None:
         await reply(interaction, _notice(app, "server.reset.no_guild", tone="danger", banner="error"))
         return
-    if not reset.can_reset(app, guild, interaction.user.id):
+    actor = interaction.user if isinstance(interaction.user, discord.Member) else guild.get_member(interaction.user.id)
+    if actor is None or not reset.can_reset(app, guild, actor.id):
         await reply(interaction, _notice(app, "server.reset.owner_only", tone="danger", banner="error"))
         return
-    plan = reset.plan_reset(guild)
+    plan = reset.plan_reset(guild, reset.keep_ids(app, guild, actor))
     if plan.total == 0:
         await reply(interaction, _notice(app, "server.reset.nothing", tone="info", banner="general-response"))
         return
@@ -92,7 +93,7 @@ async def confirm_submitted(ctx: Ctx) -> None:
     wipe, fingerprint = _flags(ctx)
     typed = ctx.fields.get(views.PHRASE_INPUT_ID, "")
     if not reset.phrase_matches(typed, guild.name):
-        phrase = discord.utils.escape_markdown(reset.confirmation_phrase(guild.name))
+        phrase = reset.confirmation_phrase(guild.name)  # shown in a code span: as it must be typed
         await ctx.respond(_notice(app, "server.reset.mismatch", tone="warning", banner="cancellation", phrase=phrase))
         return
     lock = setup_lock(app)
@@ -107,8 +108,8 @@ async def confirm_submitted(ctx: Ctx) -> None:
 async def _confirmed(ctx: Ctx, guild: discord.Guild, *, wipe: bool, fingerprint: str) -> None:
     app = ctx.app
     actor = ctx.member or guild.get_member(ctx.user_id)
-    plan = reset.plan_reset(guild)
-    if actor is None or plan.fingerprint != fingerprint:
+    plan = reset.plan_reset(guild, reset.keep_ids(app, guild, actor)) if actor is not None else None
+    if actor is None or plan is None or plan.fingerprint != fingerprint:
         await ctx.respond(_notice(app, "server.reset.changed", tone="warning", banner="cancellation"))
         return
     try:
@@ -124,16 +125,50 @@ async def _confirmed(ctx: Ctx, guild: discord.Guild, *, wipe: bool, fingerprint:
         await ctx.respond(failed)
         await _send_quietly(actor, failed)
         return
+    try:
+        setup_channel = await reset.create_setup_channel(app, guild, actor)
+    except discord.HTTPException as exc:
+        log_event(log, logging.WARNING, "reset_setup_channel_failed", status=exc.status, code=exc.code)
+        failed = _notice(app, "server.reset.setup_channel_failed", tone="danger", banner="error", status=exc.status)
+        await ctx.respond(failed)
+        await _send_quietly(actor, failed)
+        return
     # The last answer in this channel, which is about to be deleted.
     await ctx.respond(_notice(app, "server.reset.started", tone="warning", banner="submission-and-processing"))
 
     def progress(done: int, total: int, failed: int) -> MessageSpec:
         return views.progress_message(app.ui, app.op, done, total, failed)
 
-    result = await reset.run_reset(
-        app, guild, actor=actor, plan=plan, wipe=wipe, backup=backup, progress_message=progress_dm, progress=progress
-    )
+    try:
+        result = await reset.run_reset(
+            app,
+            guild,
+            actor=actor,
+            plan=plan,
+            wipe=wipe,
+            backup=backup,
+            setup_channel_id=setup_channel.id,
+            progress_message=progress_dm,
+            progress=progress,
+        )
+    except Exception:
+        # The records and the audit entry are already taken care of; tell the owner what to do next.
+        log.exception("reset failed")
+        await _send_quietly(actor, interrupted_notice(app))
+        await reset.finished(app)
+        return
     await _send_quietly(actor, views.result_message(app.ui, app.op, result))
+    await reset.finished(app)
+
+
+def interrupted_notice(app: App) -> MessageSpec:
+    title, text = app.op("server.reset.interrupted_title"), app.op("server.reset.interrupted")
+    return views.notice(app.ui, title, text, tone="danger", banner="error")
+
+
+async def report_interrupted(app: App) -> None:
+    """Startup: tell the owner about a reset that a restart cut off."""
+    await reset.report_interrupted(app, lambda: interrupted_notice(app))
 
 
 async def _send_quietly(user: discord.abc.Messageable, spec: MessageSpec) -> None:

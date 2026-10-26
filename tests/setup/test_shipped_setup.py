@@ -73,12 +73,21 @@ async def test_after_a_reset_setup_builds_the_same_server_again(
     await setup(shipped)
     names_before = sorted(c.name for c in shipped.guild.channels)
     owner = shipped.guild.add_member(id=OWNER_ID, name="owner")
+    history = {key: shipped.app.resources.channel_id(key) for key in ("transcripts", "bot_log", "reviews")}
     await confirm(shipped, owner, await preview(shipped, owner), phrase(shipped))
-    [setup_channel] = shipped.guild.channels
+    # Left: the channels with history and the private channel for /setup.
+    [setup_channel] = [c for c in shipped.guild.channels if c.id not in history.values()]
+    assert {c.id for c in shipped.guild.channels} == {setup_channel.id, *history.values()}
     report = await setup(shipped)
     assert report.counts.get("failed", 0) == 0, report.lines
-    # The same layout again (plus the private channel the reset made for /setup), every panel with its banner.
+    # The same layout again (plus the private channel the reset made for /setup), every panel with its banner; the
+    # channels with history are the old ones, moved into the new categories.
     assert sorted(c.name for c in shipped.guild.channels if c is not setup_channel) == names_before
+    for key, channel_id in history.items():
+        kept = shipped.guild.get_channel(channel_id)
+        assert kept is not None and shipped.app.resources.channel_id(key) == channel_id
+        definition = shipped.app.settings.server.channel(key)
+        assert definition is not None and kept.category_id == shipped.app.resources.category_id(definition.category)
     for name, banner_id in PANEL_CHANNELS.items():
         messages = bot_messages(shipped, name)
         assert messages, f"#{name} has no panel"

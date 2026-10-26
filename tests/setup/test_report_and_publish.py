@@ -52,6 +52,7 @@ def test_operator_text_has_no_unknown_placeholders(tenv: TestEnv) -> None:
         "{names}",
         "{orders}",
         "{tickets}",
+        "{unpaid}",
         "{done}",
         "{total}",
         "{channels}",

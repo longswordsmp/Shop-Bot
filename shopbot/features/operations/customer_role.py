@@ -155,10 +155,9 @@ async def restore(app: App) -> int | None:
         return None
     statuses = repo.qualifying_statuses(c.customer_role_on)
     scheduled = 0
-    for user_id, order_id in await app.db.run(repo.latest_qualifying_orders, app.env.guild_id, statuses):
-        member = guild.get_member(user_id)
-        if member is None or any(r.id == role.id for r in member.roles):
-            continue  # left the server (or not cached), or already has it
+    # Every qualifying member gets the task, which looks the member up itself: without the Server Members intent the
+    # member cache is nearly empty, and the task skips members who left or already have the role.
+    for _user_id, order_id in await app.db.run(repo.latest_qualifying_orders, app.env.guild_id, statuses):
         await app.scheduler.schedule(
             TASK_CUSTOMER_ROLE,
             run_at=app.clock.now(),

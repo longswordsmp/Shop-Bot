@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 import discord
 
+from shopbot.features.setup.reset_handlers import report_interrupted
 from shopbot.logging_setup import log_event
 
 if TYPE_CHECKING:
@@ -31,7 +32,9 @@ def managed_resources(app: App) -> Iterator[tuple[str, str, int]]:
 
 
 async def on_ready(app: App) -> None:
-    """Warn about managed roles/channels deleted while the bot was offline (/setup re-creates them)."""
+    """Report a /reset that a restart interrupted; warn about managed roles/channels deleted while the bot was offline
+    (/setup re-creates them)."""
+    await report_interrupted(app)
     guild = app.guild
     if guild is None:
         return
